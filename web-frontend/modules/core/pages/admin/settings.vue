@@ -94,12 +94,22 @@
           <div class="admin-settings__control">
             <SwitchInput
               :value="settings.user_templates_require_approval"
-              @input="
-                updateSettings({ user_templates_require_approval: $event })
-              "
+              @input="setUserTemplatesRequireApproval"
               >{{ $t('settings.enabled') }}</SwitchInput
             >
           </div>
+          <ConfirmModal
+            ref="approvalOffModal"
+            :title="$t('settings.settingUserTemplatesRequireApprovalOffTitle')"
+            :message="
+              $t('settings.settingUserTemplatesRequireApprovalOffMessage')
+            "
+            :confirm-label="
+              $t('settings.settingUserTemplatesRequireApprovalOff')
+            "
+            :loading="approvalOffLoading"
+            @confirm="turnOffApproval"
+          />
         </div>
       </div>
       <div class="admin-settings__group">
@@ -297,6 +307,7 @@ import { required, integer, between, helpers } from '@vuelidate/validators'
 
 import { notifyIf } from '@baserow/modules/core/utils/error'
 import SettingsService from '@baserow/modules/core/services/settings'
+import ConfirmModal from '@baserow/modules/core/components/modals/ConfirmModal'
 import { copyToClipboard } from '@baserow/modules/database/utils/clipboard'
 import { EMAIL_VERIFICATION_OPTIONS } from '@baserow/modules/core/enums'
 import {
@@ -317,6 +328,8 @@ const store = useStore()
 useHead({ title: $i18n.t('settings.settingsTitle') })
 
 const instanceIdCopied = ref(null)
+const approvalOffModal = ref(null)
+const approvalOffLoading = ref(false)
 
 const values = reactive({
   account_deletion_grace_delay: null,
@@ -394,11 +407,30 @@ function handleCopy() {
 
 async function updateSettings(payload) {
   v$.value.$touch()
-  if (v$.value.$invalid) return
+  if (v$.value.$invalid) return false
   try {
     await store.dispatch('settings/update', payload)
+    return true
   } catch (error) {
     notifyIf(error, 'settings')
+    return false
+  }
+}
+
+function setUserTemplatesRequireApproval(value) {
+  if (value) {
+    updateSettings({ user_templates_require_approval: true })
+  } else {
+    approvalOffModal.value.show()
+  }
+}
+
+async function turnOffApproval() {
+  approvalOffLoading.value = true
+  const saved = await updateSettings({ user_templates_require_approval: false })
+  approvalOffLoading.value = false
+  if (saved) {
+    approvalOffModal.value.hide()
   }
 }
 

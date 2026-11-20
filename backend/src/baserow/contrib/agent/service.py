@@ -8,7 +8,10 @@ from baserow.core.exceptions import PermissionDenied
 from baserow.core.handler import CoreHandler
 from baserow.core.identities.handler import IdentityHandler
 from baserow.core.identities.service import IdentityService
-from baserow.core.operations import UpdateApplicationOperationType
+from baserow.core.operations import (
+    CreateApplicationsWorkspaceOperationType,
+    UpdateApplicationOperationType,
+)
 from baserow.core.signals import application_pending_count_updated, application_updated
 from baserow.core.types import PermissionCheck
 
@@ -97,6 +100,29 @@ class AgentService:
             user, agent_id, ReadAgentConfigurationOperationType.type
         )
         return self.handler.get_configuration(agent)
+
+    def get_available_tools(self, user: AbstractUser, workspace_id: int) -> list[dict]:
+        """
+        List the tools an Agent created in the workspace can be allowed to call.
+
+        :param user: The user about to create an Agent.
+        :param workspace_id: The id of the workspace the Agent is created in.
+        :raises WorkspaceDoesNotExist: When the workspace doesn't exist.
+        :raises PermissionException: When the user may not create an application in
+            the workspace.
+        :return: Each tool an Agent can be given.
+        """
+
+        workspace = CoreHandler().get_workspace(workspace_id)
+        CoreHandler().check_permissions(
+            user,
+            CreateApplicationsWorkspaceOperationType.type,
+            workspace=workspace,
+            context=workspace,
+        )
+        return self.handler.get_available_tools(
+            self.handler.get_deactivated_tools(workspace)
+        )
 
     def get_run_as_identities(
         self, user: AbstractUser, agent_id: int, search: str = ""
@@ -194,6 +220,15 @@ class AgentService:
         )
         return self.handler.list_conversations(
             agent, user, cursor, pinned, has_pending_approvals
+        )
+
+    def list_pending_replies(
+        self, user: AbstractUser, agent_id: int
+    ) -> QuerySet[AgentMessage]:
+        """Replies with undecided tool calls in conversations visible to this user."""
+
+        return self.handler.list_pending_replies(
+            self.list_conversations(user, agent_id)
         )
 
     def list_messages(

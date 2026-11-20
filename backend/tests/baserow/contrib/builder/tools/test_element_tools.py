@@ -7,6 +7,8 @@ import pytest
 from pydantic import ValidationError as PydanticValidationError
 from rest_framework.exceptions import ValidationError as DRFValidationError
 
+from baserow.api.sessions import get_untrusted_client_session_id
+from baserow.contrib.builder.action_scopes import PageActionScopeType
 from baserow.contrib.builder.elements.exceptions import ElementDoesNotExist
 from baserow.contrib.builder.elements.models import Element, LinkElement, TableElement
 from baserow.contrib.builder.pages.exceptions import PageDoesNotExist
@@ -33,10 +35,12 @@ from baserow.contrib.builder.tools.types import (
     TableColumnUpdate,
     TableFieldConfig,
 )
+from baserow.contrib.builder.tools.types.element import _update_table_formulas
 from baserow.contrib.builder.tools.types.menu_items import (
     MenuItemAdd,
     MenuItemUpdate,
 )
+from baserow.core.action.handler import ActionHandler
 from baserow.core.exceptions import PermissionException
 from baserow.core.formula.types import BASEROW_FORMULA_MODE_ADVANCED
 from baserow.core.tools.errors import ToolInputError
@@ -2688,3 +2692,25 @@ def test_an_element_type_the_instance_lacks_is_refused(builder_ctx, monkeypatch)
     ]
     assert "login" not in result["ref_to_id_map"]
     assert "title" in result["ref_to_id_map"]
+
+
+@pytest.mark.django_db
+def test_generated_table_formulas_leave_the_prefetched_columns_alone(data_fixture):
+    user = data_fixture.create_user()
+    page = data_fixture.create_builder_page(user=user)
+    table = data_fixture.create_builder_table_element(
+        page=page,
+        fields=[{"name": "Id", "type": "text", "config": {"value": "''"}}],
+    )
+    table = TableElement.objects.prefetch_related("fields").get(id=table.id)
+
+    _update_table_formulas(
+        None, user, table, {"fields.0.value": "get('current_record.id')"}
+    )
+    ActionHandler.undo(
+        user,
+        [PageActionScopeType.value(page.id)],
+        get_untrusted_client_session_id(user),
+    )
+
+    assert table.fields.get().config["value"]["formula"] == "''"

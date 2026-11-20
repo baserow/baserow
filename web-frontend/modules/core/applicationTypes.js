@@ -1,5 +1,6 @@
 import { Registerable } from '@baserow/modules/core/registry'
 import ApplicationForm from '@baserow/modules/core/components/application/ApplicationForm'
+import CreateApplicationModal from '@baserow/modules/core/components/application/CreateApplicationModal'
 
 /**
  * The application type base class that can be extended when creating a plugin
@@ -75,6 +76,15 @@ export class ApplicationType extends Registerable {
    */
   getApplicationFormComponent() {
     return ApplicationForm
+  }
+
+  /**
+   * The modal that creates an application of this type. It receives the
+   * `applicationType` and `workspace` props, emits `created` with the new
+   * application and exposes `toggle`, `show` and `hide`.
+   */
+  getCreateModalComponent() {
+    return CreateApplicationModal
   }
 
   /**

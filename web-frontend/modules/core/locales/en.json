@@ -6,6 +6,7 @@
     "contents": "Content found during import",
     "typeHtml": "HTML element",
     "riskHtml": "Inserts markup directly into the page. It may load external resources or collect information from visitors.",
+    "riskHeadHtml": "Adds HTML to the head of every page. It may run scripts or load external resources in visitors’ browsers.",
     "riskIframe": "Embeds another page or HTML that may display misleading content or collect information entered by visitors.",
     "riskCode": "Runs code that may read, change, or send data to external services using the workflow’s configured access.",
     "riskScript": "Runs JavaScript in visitors’ browsers that may access page data or send information to external services.",
@@ -20,6 +21,7 @@
     "typeCodeNode": "Code node",
     "typeCss": "Custom CSS",
     "typeJs": "Custom JavaScript",
+    "typeHeadHtml": "Custom HTML in head",
     "typeScript": "External script",
     "typeStylesheet": "External stylesheet",
     "typeUnknown": "Active content",
@@ -47,6 +49,12 @@
     "invalidMessage": "Try connecting again from the app. If it keeps happening, remove the Baserow server from the app and add it again.",
     "unknownClient": "This app's sign-in registration is unknown or has expired. Remove the Baserow server from the app and add it again.",
     "clientRejected": "This app can't sign in to this Baserow server. A Baserow administrator can find the reason in the server log.",
+    "invalidTarget": "This server URL can't be used to sign in. Copy the URL from the OAuth tab in your Baserow MCP settings and add the server to the app again.",
+    "legacyWarning": "You connected through the old MCP endpoint, so only these tools are available. Use the URL from the OAuth tab in your Baserow MCP settings to access all tools.",
+    "legacyTools": "Tools",
+    "legacySubtitle": "It will act as you in the workspace of the old MCP endpoint.",
+    "legacyNoTools": "The old MCP endpoint has no tools available. Use the URL from the OAuth tab in your Baserow MCP settings instead.",
+    "legacyEndpointNotFound": "This old MCP endpoint URL doesn't exist or isn't yours. Use the URL from the OAuth tab in your Baserow MCP settings instead.",
     "loadFailed": "Couldn't load this sign-in request.",
     "loadFailedMessage": "Check your connection and reload the page to try again.",
     "failed": "Could not complete the connection.",
@@ -152,7 +160,8 @@
   },
   "copied": {
     "label": "Copied!",
-    "linkFailed": "The link couldn't be copied to the clipboard."
+    "linkFailedTitle": "Link not copied",
+    "linkFailedMessage": "Your browser didn't allow copying to the clipboard. Allow it and try again."
   },
   "sampleDataViewer": {
     "payloadLabel": "Output",
@@ -193,16 +202,16 @@
   "InstallTemplateJobType": {
     "installing": "Installing",
     "installedTitle": "Template installed",
-    "installingTitle": "Installing {name}",
-    "installedMessage": "Successfully installed {name}",
-    "failedTitle": "{name} couldn't be installed",
+    "installingTitle": "Installing “{name}”",
+    "installedMessage": "Successfully installed “{name}”",
+    "failedTitle": "“{name}” couldn’t be installed",
     "dismiss": "Dismiss"
   },
   "downloadTemplateToast": {
     "preparingTitle": "Preparing download…",
-    "preparingMessage": "Exporting \"{name}\" as a workspace file",
+    "preparingMessage": "Exporting “{name}” as a workspace file",
     "readyTitle": "Download ready",
-    "readyMessage": "\"{name}\" is ready to download",
+    "readyMessage": "“{name}” is ready to download. To import it, open “Add new…” → “Import data” in a workspace’s sidebar.",
     "failedTitle": "Download failed",
     "download": "Download",
     "dismiss": "Dismiss"
@@ -678,6 +687,32 @@
     "allTemplates": "All templates",
     "noResults": "No templates found"
   },
+  "templateCategoryNames": {
+    "Application Themes": "Application Themes",
+    "Baserow": "Baserow",
+    "Business Continuity": "Business Continuity",
+    "Business Operations": "Business Operations",
+    "Business Strategy": "Business Strategy",
+    "Finance and Accounting": "Finance and Accounting",
+    "Food and Restaurants": "Food and Restaurants",
+    "Governance": "Governance",
+    "HR and Recruiting": "HR and Recruiting",
+    "Health and Wellness": "Health and Wellness",
+    "Legal": "Legal",
+    "Marketing": "Marketing",
+    "Nonprofits": "Nonprofits",
+    "Personal and Hobbies": "Personal and Hobbies",
+    "Product Management": "Product Management",
+    "Project Management": "Project Management",
+    "Public Sector": "Public Sector",
+    "Real Estate": "Real Estate",
+    "Sales and CRM": "Sales and CRM",
+    "Software Development": "Software Development",
+    "Students": "Students",
+    "Teachers": "Teachers",
+    "Travel and Outdoors": "Travel and Outdoors",
+    "🔥 Most Popular": "🔥 Most Popular"
+  },
   "templateEmptyState": {
     "noResultsTitle": "No templates found",
     "noResultsDescription": "No templates match “{query}”. Try a different search."
@@ -692,6 +727,7 @@
     "workspaceNoPermission": "You don't have permission to add applications to this workspace.",
     "more": "More",
     "copyLink": "Copy sharing link",
+    "copyPrivateLink": "Copy private link",
     "download": "Download",
     "noWorkspace": "A template is installed into a workspace. Create a workspace first, then install the template into it.",
     "noWorkspaceAskInvite": "You aren't a member of any workspace. A template is installed into a workspace, so you will need to be invited to a workspace by an administrator first.",
@@ -709,8 +745,9 @@
     "submitForReviewAgain": "Submit for review again",
     "makePrivate": "Make private",
     "blockedTitle": "“{name}” is blocked",
-    "blockedDescription": "It's on the Blocked tab of the admin Templates page.",
+    "blockedDescription": "It’s on the Blocked tab of the admin Templates page.",
     "blockReasonChangedTitle": "Block reason of “{name}” changed",
+    "blockReasonChangedDescription": "It stays blocked, and its author sees the new reason.",
     "changeBlockReason": "Change block reason"
   },
   "templateModal": {
@@ -718,7 +755,8 @@
     "publicTemplates": "Shared templates",
     "yourTemplates": "Your templates",
     "unavailableTitle": "Template not available",
-    "unavailableDescription": "This template is no longer shared. The list shows the shared templates as they are now."
+    "unavailableDescription": "This template is no longer shared. The list shows the shared templates as they are now.",
+    "linkUnavailableDescription": "The link points to a template that doesn’t exist or is no longer shared."
   },
   "createUserTemplateModal": {
     "detailsTitle": "New template",
@@ -728,8 +766,10 @@
     "contentDescription": "Choose the workspace to take the content from, then pick what the template should include.",
     "create": "Create template",
     "cannotBeCancelled": "It’s not possible to cancel, because the template has already been created.",
-    "failedAfterCreated": "The template was created, but something went wrong afterwards.",
-    "failedPublicAfterCreated": "The template was created, but it couldn’t be made public, so it stays private. You can make it public from “Your templates”."
+    "failedAfterCreatedTitle": "Template created with an error",
+    "failedAfterCreatedMessage": "Something went wrong after it was created.",
+    "failedPublicAfterCreatedTitle": "Template created but still private",
+    "failedPublicAfterCreatedMessage": "It couldn’t be made public. You can make it public from “Your templates”."
   },
   "userTemplateVisibilityForm": {
     "visibility": "Visibility",
@@ -748,9 +788,13 @@
     "save": "Save changes",
     "update": "Update template",
     "updated": "Template updated",
-    "failedAfterUpdated": "The template was updated, but something went wrong afterwards.",
-    "failedPublicAfterUpdated": "The template was updated, but it couldn’t be made public, so it stays private. You can make it public from “Your templates”.",
-    "blockedAfterUpdated": "The template was updated, but an administrator blocked it, so it can’t be made public until they unblock it.",
+    "updatedMessage": "Your changes to “{name}” are saved.",
+    "failedAfterUpdatedTitle": "Template updated with an error",
+    "failedAfterUpdatedMessage": "Something went wrong after it was updated.",
+    "failedPublicAfterUpdatedTitle": "Template updated but still private",
+    "failedPublicAfterUpdatedMessage": "It couldn’t be made public. You can make it public from “Your templates”.",
+    "blockedAfterUpdatedTitle": "Template updated but blocked",
+    "blockedAfterUpdatedMessage": "An administrator blocked it, so it can’t be made public until they unblock it.",
     "cannotBeCancelled": "It’s not possible to cancel, because the template has already been updated.",
     "invalidKeptDetails": "The icon or a category of the template can’t be used anymore. Change them with “Edit details” first, then update the content.",
     "reviewTitle": "Saving sends this template back to review",
@@ -760,12 +804,21 @@
     "rejectedTitle": "Saving doesn’t send this template back to review",
     "rejectedText": "It stays rejected. Make it public once your changes are ready.",
     "blockedTitle": "An admin will be notified of your changes",
-    "blockedText": "This template is blocked, so only an admin can put it back."
+    "blockedText": "This template is blocked, so only an admin can put it back.",
+    "privateTitle": "Saving removes this template from the template browser",
+    "publicAgainNeedsApproval": "Making it public again needs an admin’s approval.",
+    "publicAgainAnyTime": "You can make it public again any time."
   },
   "deleteUserTemplateModal": {
     "title": "Are you sure you want to delete “{name}”?",
     "description": "The template is removed for everyone in this instance. Copies people already installed in their workspaces are not affected.",
     "delete": "Delete template"
+  },
+  "makeTemplatePrivateModal": {
+    "title": "Make “{name}” private?",
+    "description": "“{name}” leaves Shared templates. Copies people already installed stay in their workspaces.",
+    "reviewDescription": "“{name}” won’t be listed in Shared templates, and its review is withdrawn. Copies people already installed stay in their workspaces.",
+    "makePrivate": "Make private"
   },
   "makeTemplatePublicModal": {
     "title": "Make “{name}” public?",
@@ -779,18 +832,18 @@
   "userTemplatePrivateLink": {
     "emptyTitle": "This template has no private link",
     "emptyDescription": "Anyone with the link can preview this template. To install or download it, they need to sign in.",
-    "create": "Create a sharing link",
+    "create": "Create a private link",
     "sharedTitle": "This template is shared via a private link",
     "sharedDescription": "Anyone with the link can preview this template. To install or download it, they need to sign in.",
     "copy": "Copy link",
     "regenerate": "Generate a new link",
     "regenerateHint": "Regenerating creates a new link and breaks the old one.",
-    "remove": "Disable shared link",
-    "createdTitle": "Sharing link created",
+    "remove": "Disable private link",
+    "createdTitle": "Private link created",
     "createdDescription": "Anyone with the link can preview this template. To install or download it, they need to sign in.",
-    "regeneratedTitle": "New sharing link generated",
+    "regeneratedTitle": "New private link generated",
     "regeneratedDescription": "The old link no longer works.",
-    "removedTitle": "Sharing link disabled",
+    "removedTitle": "Private link disabled",
     "removedDescription": "The link no longer works. If the template is public, it stays public.",
     "blocked": "This template is blocked, so its private link can't be changed."
   },
@@ -852,8 +905,7 @@
     "makePublic": "Make public",
     "submitForReviewAgain": "Submit for review again",
     "makePrivate": "Make private",
-    "privateLink": "Sharing link",
-    "copyLink": "Copy sharing link",
+    "privateLink": "Private link",
     "delete": "Delete"
   },
   "publicTemplateList": {
@@ -1139,7 +1191,10 @@
     "settingAllowReportingAbuseName": "Allow reporting abuse",
     "settingAllowReportingAbuseDescription": "When enabled, visitors of publicly shared views, forms, dashboards and published applications can report them for abuse, and all instance admins are notified about the report.",
     "settingUserTemplatesRequireApprovalName": "Templates need approval",
-    "settingUserTemplatesRequireApprovalDescription": "When enabled, a template made public is listed in the template browser only after an instance admin approves it, and so is every change to a listed template. Turning it off approves the templates in review that an admin can approve, except the ones rejected since their last approval."
+    "settingUserTemplatesRequireApprovalDescription": "When enabled, a template made public is listed in the template browser only after an instance admin approves it, and so is every change to a listed template.",
+    "settingUserTemplatesRequireApprovalOffTitle": "Turn off template approval?",
+    "settingUserTemplatesRequireApprovalOffMessage": "Templates waiting for review are listed right away, except the ones rejected since their last approval. From then on, templates made public and changes to listed templates are listed without an admin’s approval.",
+    "settingUserTemplatesRequireApprovalOff": "Turn off"
   },
   "formSidebar": {
     "fields": "Fields",
@@ -1655,7 +1710,7 @@
   },
   "templatesAdmin": {
     "title": "Templates",
-    "subtitle": "Every public template on this instance, and every one submitted for review.",
+    "subtitle": "Every user template on this instance: public, in review, rejected, blocked and private.",
     "inReview": "In review",
     "public": "Public",
     "rejectedTab": "Rejected",
@@ -1665,6 +1720,11 @@
     "rejectedEmpty": "No rejected templates.",
     "blockedTab": "Blocked",
     "blockedEmpty": "No blocked templates.",
+    "privateTab": "Private",
+    "privateEmpty": "No private templates.",
+    "privateLink": "Private link",
+    "hasPrivateLink": "Has a private link",
+    "noPrivateLink": "No private link",
     "template": "Template",
     "author": "Author",
     "reason": "Reason",
@@ -1826,7 +1886,9 @@
     "backToOverview": "Back",
     "noEndpointsMessage": "No MCP (Model Context Protocol) server endpoints have been added. These can be used to directly integrate with an LLM like Claude, and let the LLM perform actions directly in Baserow. Create a server endpoint to get started.",
     "oauthTab": "OAuth",
-    "endpointTab": "Endpoint"
+    "endpointTab": "Endpoint",
+    "configOnlyTitle": "Only for config files",
+    "configOnlyMessage": "These endpoint URLs only work in config files, such as in Claude Desktop, Cursor or Windsurf. Apps that ask you to sign in, like ChatGPT and claude.ai, only get all tools with the URL from the OAuth tab."
   },
   "mcpOAuthConnections": {
     "title": "Connect an AI tool",
@@ -1836,6 +1898,7 @@
     "setupStepsLink": "Baserow docs",
     "claudeCodePluginInstructions": "Install the Baserow plugin. It adds the server and skills that teach Claude how to use Baserow. When it asks for the URL, paste the one above. Then run `/mcp` to sign in.",
     "claudeCodeServerInstructions": "Or add only the server:",
+    "chatGptInstructions": "1. In ChatGPT, open **Plugins**, click **Add** in the top right and choose **Add custom MCP server**.\n1. Give it a name and paste the URL above as the server URL.\n1. Pick **OAuth** as authentication, tick the box to confirm and click **Create as a plugin**.\n1. Sign in to Baserow and pick the workspace when ChatGPT asks.",
     "addToCursor": "Add to Cursor",
     "cursorInstructions": "Or add this to `~/.cursor/mcp.json`. Cursor asks you to sign in when it connects.",
     "addToVsCode": "Add to VS Code",

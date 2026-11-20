@@ -1,0 +1,9 @@
+{
+    "type": "feature",
+    "message": "Add custom HTML to the document head of Application Builder apps.",
+    "issue_origin": "github",
+    "issue_number": 5890,
+    "domain": "builder",
+    "bullet_points": [],
+    "created_at": "2026-11-18"
+}

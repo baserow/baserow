@@ -11,7 +11,6 @@ from baserow.contrib.integrations.local_baserow.integration_types import (
     LocalBaserowIntegrationType,
 )
 from baserow.core.cache import local_cache
-from baserow.core.exceptions import PermissionException
 from baserow.core.handler import CoreHandler
 from baserow.core.integrations.exceptions import IntegrationImproperlyConfigured
 from baserow.core.integrations.registries import integration_type_registry
@@ -107,7 +106,7 @@ def test_update_local_baserow_integration_keeps_existing_authorization(data_fixt
 
 
 @pytest.mark.django_db
-def test_only_identity_managers_bind_an_integration_to_an_identity(data_fixture):
+def test_workspace_members_bind_an_integration_to_an_identity(data_fixture):
     admin = data_fixture.create_user()
     member = data_fixture.create_user()
     workspace = data_fixture.create_workspace(
@@ -116,23 +115,16 @@ def test_only_identity_managers_bind_an_integration_to_an_identity(data_fixture)
     application = data_fixture.create_builder_application(workspace=workspace)
     identity = data_fixture.create_identity(workspace=workspace, role_uid="ADMIN")
     integration_type = integration_type_registry.get("local_baserow")
-    binding = {
-        "authorized_subject_type": "auth.User",
-        "authorized_subject_id": identity.id,
-    }
 
-    with pytest.raises(PermissionException):
-        IntegrationService().create_integration(
-            member, integration_type, application=application, **binding
-        )
     integration = IntegrationService().create_integration(
-        admin, integration_type, application=application, **binding
-    )
-    kept = IntegrationService().update_integration(
-        member, integration, name="Renamed", **binding
+        member,
+        integration_type,
+        application=application,
+        authorized_subject_type="auth.User",
+        authorized_subject_id=identity.id,
     )
 
-    assert kept.integration.authorized_subject == identity
+    assert integration.authorized_subject == identity
 
 
 def _application_acting_as(data_fixture, authorized_by: str):
@@ -163,11 +155,11 @@ def _application_acting_as(data_fixture, authorized_by: str):
     "authorized_by,copied_by,acts_as",
     [
         ("identity", "admin", "identity"),
-        ("identity", "member", "member"),
+        ("identity", "member", "identity"),
         ("admin", "member", "admin"),
     ],
 )
-def test_a_copy_keeps_the_identity_only_for_identity_managers(
+def test_a_copy_keeps_the_identity_for_members_who_may_bind_it(
     data_fixture, authorized_by, copied_by, acts_as
 ):
     application, people = _application_acting_as(data_fixture, authorized_by)
@@ -183,11 +175,11 @@ def test_a_copy_keeps_the_identity_only_for_identity_managers(
     "authorized_by,restored_by,acts_as",
     [
         ("identity", "admin", "identity"),
-        ("identity", "member", "member"),
+        ("identity", "member", "identity"),
         ("admin", "member", "admin"),
     ],
 )
-def test_a_restored_snapshot_keeps_the_identity_only_for_identity_managers(
+def test_a_restored_snapshot_keeps_the_identity_for_members_who_may_bind_it(
     data_fixture, authorized_by, restored_by, acts_as
 ):
     application, people = _application_acting_as(data_fixture, authorized_by)

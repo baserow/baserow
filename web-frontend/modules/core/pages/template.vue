@@ -13,5 +13,22 @@ const route = useRoute()
 
 // Keeps the page mounted when another template is opened from its list, so that
 // the list keeps its search and category. The legacy page is keyed by the slug.
-definePageMeta({ key: 'template' })
+definePageMeta({
+  key: 'template',
+  middleware: [
+    (to) => {
+      const { $store, $featureFlagIsEnabled } = useNuxtApp()
+      if (
+        $featureFlagIsEnabled(FF_USER_TEMPLATES) &&
+        $store.getters['auth/isAuthenticated'] &&
+        $store.getters['auth/getUserObject'].completed_onboarding
+      ) {
+        return navigateTo(
+          { name: 'all-workspaces', query: { template: to.params.slug } },
+          { replace: true }
+        )
+      }
+    },
+  ],
+})
 </script>

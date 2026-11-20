@@ -199,6 +199,10 @@ $chat-ease: cubic-bezier(0.22, 1, 0.36, 1);
   display: flex;
   gap: 4px;
   padding: 4px 0;
+
+  .chat-markdown + & {
+    margin-top: 8px;
+  }
 }
 
 .chat-typing__dot {
@@ -290,6 +294,11 @@ $chat-ease: cubic-bezier(0.22, 1, 0.36, 1);
   width: 16px;
   height: 16px;
   font-size: 16px;
+}
+
+.chat-step-group__header > .chat-step-group__icon {
+  align-self: flex-start;
+  margin-top: 2px;
 }
 
 .chat-step-group__icon--waiting {
@@ -408,6 +417,46 @@ $chat-ease: cubic-bezier(0.22, 1, 0.36, 1);
 
   &:focus-visible {
     outline: 2px solid $palette-blue-500;
+  }
+}
+
+.chat-step-group__description,
+.chat-step-group__links {
+  margin: 0 8px 8px 32px;
+  overflow-wrap: anywhere;
+}
+
+.chat-step-group__links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.chat-tool-input__table {
+  width: 100%;
+  border-collapse: collapse;
+
+  th,
+  td {
+    padding: 4px 8px;
+    text-align: left;
+    vertical-align: top;
+    overflow-wrap: anywhere;
+  }
+
+  th {
+    width: 1%;
+    white-space: nowrap;
+  }
+
+  tr + tr {
+    border-top: 1px solid $palette-neutral-200;
+  }
+
+  pre {
+    margin: 0;
+    white-space: pre-wrap;
+    font: inherit;
   }
 }
 

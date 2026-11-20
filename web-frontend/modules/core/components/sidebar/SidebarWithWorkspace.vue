@@ -47,11 +47,14 @@
                 @click="openCreateApplicationModal(applicationGroup.type)"
               >
                 <i class="iconoir-plus"></i>
-                <CreateApplicationModal
+                <component
+                  :is="
+                    applicationGroup.applicationType.getCreateModalComponent()
+                  "
                   :ref="'createApplicationModal' + applicationGroup.type"
                   :application-type="applicationGroup.applicationType"
                   :workspace="selectedWorkspace"
-                ></CreateApplicationModal>
+                ></component>
               </a>
             </div>
             <div
@@ -144,12 +147,11 @@
 <script>
 import { useId } from 'vue'
 import { notifyIf } from '@baserow/modules/core/utils/error'
-import CreateApplicationModal from '@baserow/modules/core/components/application/CreateApplicationModal'
 import CreateApplicationContext from '@baserow/modules/core/components/application/CreateApplicationContext'
 
 export default {
   name: 'SidebarWithWorkspace',
-  components: { CreateApplicationContext, CreateApplicationModal },
+  components: { CreateApplicationContext },
   props: {
     applications: {
       type: Array,

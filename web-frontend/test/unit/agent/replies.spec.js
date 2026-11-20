@@ -167,7 +167,7 @@ describe('Agent replies', () => {
     const card = wrapper.get('.chat-step-group')
     expect(card.find('.chat-step-group__input').exists()).toBe(false)
     await card.get('button').trigger('click')
-    expect(card.get('pre').text()).toContain('Planning')
+    expect(card.get('table').text()).toContain('Planning')
 
     const done = {
       ...running,
@@ -191,7 +191,25 @@ describe('Agent replies', () => {
     expect(activity(wrapper).classes()).not.toContain(
       'chat-composer__activity--visible'
     )
-    expect(card.get('pre').text()).toContain('Planning')
+    expect(card.get('table').text()).toContain('Planning')
+  })
+
+  test('keeps workspace reads active between calls until the reply starts writing', async () => {
+    const wrapper = await startReply()
+    const read = toolStep('read-1', 'list_tables', 'running')
+    await receive('run-1', 'step', read)
+    await receive('run-1', 'step', { ...read, status: 'done' })
+    expect(wrapper.get('.chat-step-group').attributes('aria-busy')).toBe('true')
+    expect(typing(wrapper)).toBe(false)
+    await receive('run-1', 'step', toolStep('read-2', 'list_views', 'running'))
+    expect(wrapper.findAll('.chat-step-group__line')).toHaveLength(2)
+    await receive('run-1', 'step', toolStep('read-2', 'list_views', 'done'))
+    await streamText('run-1', 'Here are the results')
+    expect(wrapper.get('.chat-step-group').attributes('aria-busy')).toBe(
+      'false'
+    )
+    expect(wrapper.text()).toContain('Here are the results')
+    expect(typing(wrapper)).toBe(true)
   })
 
   test('names the first running call while other calls queue or wait for approval', async () => {
@@ -245,7 +263,7 @@ describe('Agent replies', () => {
     const change = wrapper.findAll('.chat-step-group')[1]
     expect(change.find('pre').exists()).toBe(false)
     await change.get('button').trigger('click')
-    expect(change.get('pre').text()).toContain('Planning')
+    expect(change.get('table').text()).toContain('Planning')
     expect(api.stream).not.toHaveBeenCalled()
   })
 

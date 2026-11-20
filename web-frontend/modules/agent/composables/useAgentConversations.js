@@ -138,7 +138,6 @@ export function useAgentConversations(agent, configuration) {
   let conversationsReloadPending = false
   // Changes since a list read started, whose older copy would undo them.
   let conversationChanges = 0
-  let loadingWaitingScope = null
 
   const conversationItems = computed(() => [
     ...conversations.value.filter((item) => item.pinned && matchesFilter(item)),
@@ -222,6 +221,12 @@ export function useAgentConversations(agent, configuration) {
       !waitingForApproval.value
   )
   // Deciding continues the reply, so it needs sending access, even when shared.
+  const canReviewPending = computed(
+    () =>
+      configuration.readyToSend.value &&
+      canReadConversations.value &&
+      canCreateMessage.value
+  )
   const canDecide = computed(
     () => configuration.readyToSend.value && canMessageSelected.value
   )
@@ -668,12 +673,21 @@ export function useAgentConversations(agent, configuration) {
   }
 
   /** Decide held steps of a reply, then follow the run that resumes it. */
-  async function decideApprovals(reply, decisions, { alwaysAllow } = {}) {
-    if (!canDecide.value || decidingReplies.has(reply.uuid)) return
+  async function decideApprovals(
+    reply,
+    decisions,
+    { alwaysAllow } = {},
+    conversationUuid = selectedUuid.value
+  ) {
+    if (
+      !canReviewPending.value ||
+      !conversationUuid ||
+      decidingReplies.has(reply.uuid)
+    )
+      return
     const currentScope = scope
     const application = agent.value
     const agentId = application.id
-    const conversationUuid = selectedUuid.value
     decidingReplies.add(reply.uuid)
     try {
       const { data } = await service.decideApprovals(
@@ -699,6 +713,7 @@ export function useAgentConversations(agent, configuration) {
         conversation.run_id = latest.run_id
         followReplies(conversation, latest)
       }
+      return history?.items.find((item) => item.uuid === data.uuid) || data
     } catch (error) {
       const code = error.response?.data?.error
       if (!scopeIsCurrent(currentScope)) return
@@ -744,61 +759,14 @@ export function useAgentConversations(agent, configuration) {
     }
   }
 
-  /**
-   * Select the next waiting conversation after the selected one, loading older
-   * pages first while the Agent's count says some wait beyond the loaded ones.
-   */
-  async function selectNextWaitingConversation() {
-    if (!canReadConversations.value || loadingWaitingScope === scope) return
-    const currentScope = scope
-    const clickedFrom = selectedUuid.value
-    if (conversationFilter.value === 'pinned') {
-      await setConversationFilter('waiting')
-      if (!scopeIsCurrent(currentScope)) return
-    }
-    const filter = conversationFilter.value
-    loadingWaitingScope = currentScope
-    try {
-      while (!waitingAfterSelected() && moreWaitingUnloaded()) {
-        const cursor = conversationsCursor.value
-        await loadMoreConversations()
-        if (
-          !scopeIsCurrent(currentScope) ||
-          conversationFilter.value !== filter
-        )
-          return
-        if (conversationsCursor.value === cursor) break
-      }
-      if (selectedUuid.value !== clickedFrom) return
-      const next =
-        waitingAfterSelected() || conversationItems.value.find(isWaiting)
-      if (next) selectConversation(next)
-    } finally {
-      if (loadingWaitingScope === currentScope) loadingWaitingScope = null
-    }
-  }
-
   function isWaiting(conversation) {
     return conversation.pending_approval_count > 0
   }
 
-  function waitingAfterSelected() {
-    const items = conversationItems.value
-    const selectedIndex = items.findIndex(
-      (item) => item.uuid === selectedUuid.value
-    )
-    return items.slice(selectedIndex + 1).find(isWaiting)
-  }
-
-  function moreWaitingUnloaded() {
-    const loadedCount = conversations.value.reduce(
-      (sum, item) => sum + (item.pending_approval_count || 0),
-      0
-    )
-    return (
-      Boolean(conversationsCursor.value) &&
-      loadedCount < (agent.value.pending_count || 0)
-    )
+  function openPendingConversation(conversation) {
+    if (!findConversation(conversation.uuid))
+      unlistedConversation.value = conversation
+    selectConversation(conversation)
   }
 
   async function updateConversation(conversation, values) {
@@ -1067,7 +1035,8 @@ export function useAgentConversations(agent, configuration) {
     updateMessage,
     sendMessage,
     decideApprovals,
-    selectNextWaitingConversation,
+    openPendingConversation,
+    canReviewPending,
     stopReply,
     updateConversation,
     deleteConversation,

@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, test } from 'vitest'
+import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 import { flushPromises } from '@vue/test-utils'
 import { h } from 'vue'
 
@@ -19,6 +19,7 @@ describe('TemplatePreview', () => {
   })
 
   afterEach(async () => {
+    vi.restoreAllMocks()
     await testApp.afterEach()
   })
 
@@ -38,6 +39,44 @@ describe('TemplatePreview', () => {
     await wrapper.findAll('.tree__link')[0].trigger('click')
 
     expect(selectedTables()).toEqual(['First table'])
+  })
+
+  test('opens another application when the preferred one is a hidden agent', async () => {
+    testApp.mock.reset()
+    testApp.mock
+      .onGet(`/applications/workspace/${template.workspace_id}/`)
+      .reply(200, [
+        {
+          id: 3,
+          name: 'Ticket triage',
+          order: 1,
+          type: 'agent',
+          workspace: { id: template.workspace_id },
+        },
+        {
+          id: 1,
+          name: 'Support',
+          order: 2,
+          type: 'database',
+          workspace: { id: template.workspace_id },
+          tables: [{ id: 10, name: 'Tickets', order: 1, database_id: 1 }],
+        },
+      ])
+    vi.spyOn(
+      testApp.$registry.get('application', 'agent'),
+      'canBeCreated'
+    ).mockReturnValue(false)
+    const wrapper = await testApp.mount(TemplatePreview, {
+      props: { template: { ...template, open_application: 3 } },
+      global: { stubs: { TableTemplate: true } },
+    })
+    await flushPromises()
+
+    expect(wrapper.text()).not.toContain('Ticket triage')
+    expect(
+      wrapper.findAll('.tree__sub-link').map((link) => link.text())
+    ).toEqual(['Tickets'])
+    expect(wrapper.find('table-template-stub').exists()).toBe(true)
   })
 
   test('keeps the content of a new copy of the same template', async () => {

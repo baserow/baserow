@@ -1,10 +1,30 @@
 <template>
-  <div v-if="text" class="chat-tool-input">
+  <div v-if="input" class="chat-tool-input">
+    <div v-if="rows" class="chat-tool-input__values" tabindex="0">
+      <table
+        class="chat-tool-input__table"
+        :aria-label="$t('toolPresentation.input')"
+      >
+        <tbody>
+          <tr v-for="[key, value] in rows" :key="key">
+            <th scope="row">{{ key }}</th>
+            <td>
+              <pre>{{
+                typeof value === 'string'
+                  ? value
+                  : JSON.stringify(value, null, 2)
+              }}</pre>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
     <pre
+      v-else
       class="chat-tool-input__values"
       tabindex="0"
       :aria-label="$t('toolPresentation.input')"
-    ><code>{{ text }}</code></pre>
+    ><code>{{ JSON.stringify(input.values, null, 2) }}</code></pre>
     <p v-if="input.truncated" class="chat-tool-input__note">
       {{ $t('toolPresentation.inputTruncated') }}
     </p>
@@ -20,7 +40,13 @@ const props = defineProps({
   input: { type: Object, default: null },
 })
 
-const text = computed(() =>
-  props.input ? JSON.stringify(props.input.values, null, 2) : ''
-)
+const rows = computed(() => {
+  const values = props.input?.values
+  return values &&
+    typeof values === 'object' &&
+    !Array.isArray(values) &&
+    Object.keys(values).length
+    ? Object.entries(values)
+    : null
+})
 </script>

@@ -196,6 +196,8 @@ class UpdateUserTemplateActionType(ActionType):
         :param description: The description of the revision.
         :param icon: The icon class name, an iconoir class.
         :param category_ids: The ids of the existing categories of the revision.
+            Only an update of the content keeps reserved ones, which the author
+            didn't choose in it.
         :param progress_builder: A progress builder that allows for publishing
             progress.
         :param track_content: Called with the content copied so far. Shared
@@ -249,6 +251,7 @@ class UpdateUserTemplateActionType(ActionType):
                 workspace=template_workspace,
                 archive=archive_name,
                 metadata=metadata,
+                allow_reserved=source_workspace is not None,
             )
             params = cls.Params(
                 template_id=root.id,

@@ -1,4 +1,4 @@
-import { onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { useNuxtApp } from '#app'
 import { useI18n } from 'vue-i18n'
 import cloneDeep from 'lodash/cloneDeep'
@@ -8,8 +8,8 @@ import { notifyIf } from '@baserow/modules/core/utils/error'
 import AgentTriggerService from '@baserow/modules/agent/services/agentTriggers'
 import { API_ERROR_CODE } from '@baserow/modules/agent/constants'
 import {
-  agentTriggerTypeOf,
-  defaultTriggerMessage,
+  newTriggerMessage,
+  newTriggerValues,
   serviceTypeOf,
 } from '@baserow/modules/agent/utils/triggers'
 import { getRunAsStatus } from '@baserow/modules/agent/utils/runAs'
@@ -65,6 +65,7 @@ export function useAgentTriggers(agent, getRunAs = () => null) {
   const loadError = ref(false)
   const typesLoadError = ref(false)
   const savingIds = reactive(new Set())
+  const deletingIds = reactive(new Set())
   const serviceErrors = reactive({})
   // Per trigger id: how often a failed save reverted its service values.
   const serviceReverts = reactive({})
@@ -80,15 +81,6 @@ export function useAgentTriggers(agent, getRunAs = () => null) {
   let scope = 0
   let listRequest = 0
   let typesRequest = 0
-
-  /**
-   * @param {object} serviceType A trigger's service type.
-   * @returns {object} The opening message of a new trigger of that type: the
-   *   one an Agent words for it, else its name and the time it fired.
-   */
-  const defaultMessage = (serviceType) =>
-    agentTriggerTypeOf($registry, serviceType.type)?.getDefaultMessage() ??
-    defaultTriggerMessage(t, serviceType)
 
   const agentId = () => agent.value?.id
   const scopeIsCurrent = (currentScope) => scope === currentScope
@@ -202,14 +194,9 @@ export function useAgentTriggers(agent, getRunAs = () => null) {
    */
   async function createTrigger(type) {
     const currentScope = scope
-    const serviceType = $registry.get('service', type)
-    const defaults = serviceType.getDefaultValues(null, {})
+    const values = newTriggerValues($registry, t, type)
     try {
-      const { data } = await service.create(agentId(), {
-        type,
-        message: defaultMessage(serviceType),
-        service: defaults,
-      })
+      const { data } = await service.create(agentId(), values)
       if (scopeIsCurrent(currentScope)) {
         track(data)
         triggers.value.push(data)
@@ -474,9 +461,10 @@ export function useAgentTriggers(agent, getRunAs = () => null) {
     const previousType = serviceTypeOf($registry, trigger.type)
     if (
       previousType &&
-      trigger.message?.formula === defaultMessage(previousType).formula
+      trigger.message?.formula ===
+        newTriggerMessage($registry, t, previousType).formula
     ) {
-      values.message = defaultMessage(serviceType)
+      values.message = newTriggerMessage($registry, t, serviceType)
     }
     updateTrigger(trigger, values)
   }
@@ -488,23 +476,24 @@ export function useAgentTriggers(agent, getRunAs = () => null) {
    * @param {object} trigger The trigger to delete.
    */
   async function deleteTrigger(trigger) {
-    const currentScope = scope
-    const index = triggers.value.indexOf(trigger)
-    if (index === -1) return
     const entry = saved.get(trigger.id)
+    if (!entry || deletingIds.has(trigger.id)) return
+    deletingIds.add(trigger.id)
     scheduledSaves.get(trigger.id)?.cancel()
-    triggers.value.splice(index, 1)
     try {
-      await service.delete(entry?.agentId ?? agentId(), trigger.id)
+      await service.delete(entry.agentId, trigger.id)
+      if (saved.get(trigger.id) === entry) removeTrigger(trigger)
     } catch (error) {
-      if (!scopeIsCurrent(currentScope)) return
-      if (errorCode(error) !== API_ERROR_CODE.AGENT_TRIGGER_DOES_NOT_EXIST) {
-        triggers.value.splice(index, 0, trigger)
+      if (saved.get(trigger.id) !== entry) return
+      if (errorCode(error) === API_ERROR_CODE.AGENT_TRIGGER_DOES_NOT_EXIST) {
+        removeTrigger(trigger)
+      } else {
         notifyIf(error, 'trigger')
-        return
+        if (typedFields.has(trigger.id)) scheduledSaves.get(trigger.id)()
       }
+    } finally {
+      deletingIds.delete(trigger.id)
     }
-    forget(trigger.id)
   }
 
   function flushScheduledSaves() {
@@ -545,7 +534,10 @@ export function useAgentTriggers(agent, getRunAs = () => null) {
   onBeforeUnmount(flushScheduledSaves)
 
   return {
-    triggers,
+    triggers: computed(() =>
+      triggers.value.filter(({ id }) => !deletingIds.has(id))
+    ),
+    allTriggers: triggers,
     triggerTypes,
     typesVersion,
     loading,

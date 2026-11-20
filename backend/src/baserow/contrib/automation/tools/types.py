@@ -12,7 +12,8 @@ from django.conf import settings
 from django.core.exceptions import ValidationError as DjangoValidationError
 
 from pydantic import BaseModel as PydanticBaseModel
-from pydantic import ConfigDict, Field, PrivateAttr, model_validator
+from pydantic import ConfigDict, Field, PrivateAttr, field_validator, model_validator
+from pydantic.json_schema import SkipJsonSchema
 
 from baserow.contrib.automation.nodes.models import AutomationNode
 from baserow.contrib.automation.tools.formulas import (
@@ -262,6 +263,10 @@ class AutomationFieldValue(BaseModel):
 # ---------------------------------------------------------------------------
 
 
+# The branch label that names a router's default branch, unless a branch has it.
+DEFAULT_BRANCH = "default"
+
+
 class NodeRefs:
     """
     The nodes a new node can follow, by the ref of a node defined earlier in the
@@ -314,7 +319,18 @@ class NodeRefs:
                 f"router_edge_label '{edge_label}' is given, but node '{ref}' is "
                 "not a router. Leave it out to follow the node."
             )
+        if edge_label.lower() == DEFAULT_BRANCH:
+            named = [label for label in edges if label.lower() == DEFAULT_BRANCH]
+            if named:
+                raise DjangoValidationError(
+                    f"router_edge_label '{edge_label}' could mean the default branch "
+                    f"or the branch named '{named[0]}' of node '{ref}'. Leave "
+                    "router_edge_label out for the default branch. For that "
+                    "branch, use before_node_id with a node on it, or rename it."
+                )
+            return node_id, ""
         uid = edges.get(edge_label)
+        matches = []
         if uid is None:
             matches = [
                 uid
@@ -324,9 +340,13 @@ class NodeRefs:
             uid = matches[0] if len(matches) == 1 else None
         if uid is None:
             labels = ", ".join(f"'{label}'" for label in edges) or "none"
+            reason = (
+                f"matches several branches of node '{ref}', use the exact label"
+                if matches
+                else f"is not a branch of node '{ref}'"
+            )
             raise DjangoValidationError(
-                f"router_edge_label '{edge_label}' is not a branch of node "
-                f"'{ref}'. Its branches: {labels}."
+                f"router_edge_label '{edge_label}' {reason}. Its branches: {labels}."
             )
         return node_id, uid
 
@@ -503,20 +523,37 @@ class ActionNodeCreate(BaseModel):
         "", max_length=75, description="Display name. Defaults to the node type."
     )
     type: ActionNodeType
-    previous_node_ref: str = Field(
-        ...,
+    previous_node_ref: str | None = Field(
+        default=None,
         description="The ref of the node this one follows: a node defined earlier "
-        "in the call, or the ID of a node already in the workflow.",
+        "in the call, or the ID of a node already in the workflow. The new node is "
+        "inserted there, and the node that followed it then follows the new one. "
+        "Give this or before_node_id.",
     )
     router_edge_label: str = Field(
         default="",
         description="Branch label if previous node is a router.",
+    )
+    before_node_id: int | None = Field(
+        default=None,
+        description="The ID of a node already in the workflow to insert this one "
+        "right before, in its place: on the same branch, or first in the same "
+        "container. That node and the nodes after it then follow the new one. Use "
+        "it to add a node before an existing one, instead of previous_node_ref and "
+        "router_edge_label. Give this or previous_node_ref.",
     )
 
     # -- router --
     edges: list[RouterEdgeCreate] | None = Field(
         default=None,
         description="(router) Branches. A default branch is auto-created.",
+    )
+    shifted_node_edge_label: str | None = Field(
+        default=None,
+        description="(router) Required when this router is inserted before a "
+        "node: the label of the branch that node moves to, with the nodes after "
+        f"it, or '{DEFAULT_BRANCH}' for the default branch, which runs only when no "
+        "branch matches.",
     )
 
     # -- smtp_email --
@@ -590,11 +627,36 @@ class ActionNodeCreate(BaseModel):
     def _validate_required_for_type(self):
         if not self.label:
             self.label = self.type.replace("_", " ").capitalize()
+        if (self.previous_node_ref is None) == (self.before_node_id is None):
+            raise ValueError("Give either previous_node_ref or before_node_id.")
+        if self.before_node_id is not None and self.router_edge_label:
+            raise ValueError(
+                "router_edge_label is not used with before_node_id: the new node "
+                "takes the branch of the node it is inserted before."
+            )
         labels = [edge.label.lower() for edge in self.edges or []]
         if len(labels) != len(set(labels)):
             raise ValueError("Each router branch needs its own label.")
         if self.type == "router" and self.edges is not None and not labels:
             raise ValueError("router requires at least one branch in edges")
+        shifted = self.shifted_node_edge_label
+        if (
+            shifted
+            and self.type == "router"
+            and shifted.lower() == DEFAULT_BRANCH
+            and DEFAULT_BRANCH in labels
+        ):
+            raise ValueError(
+                f"shifted_node_edge_label '{shifted}' could mean the default branch "
+                f"or the branch named '{shifted}'. Rename that branch, then use "
+                f"'{DEFAULT_BRANCH}' for the default branch or the new name for the "
+                "branch."
+            )
+        if shifted and self.type == "router" and self.shifted_node_edge_uid() is None:
+            raise ValueError(
+                f"shifted_node_edge_label '{self.shifted_node_edge_label}' is not a "
+                f"branch of this router. Use {self.branch_choices()}."
+            )
         required = self._REQUIRED_FIELDS.get(self.type)
         if required:
             missing = [
@@ -610,6 +672,30 @@ class ActionNodeCreate(BaseModel):
         if self.type != "router":
             return None
         return {edge.label: edge._uid for edge in self.edges or []}
+
+    def shifted_node_edge_uid(self) -> str | None:
+        """
+        The uid of the branch shifted_node_edge_label names: empty for the default
+        branch, None when it names none or is empty.
+        """
+
+        label = self.shifted_node_edge_label
+        if self.type != "router" or not label:
+            return None
+        # No branch is named like it: the validation refuses that.
+        if label.lower() == DEFAULT_BRANCH:
+            return ""
+        edges = self.edges or []
+        matches = matching_branches([edge.label for edge in edges], label)
+        return edges[matches[0]]._uid if len(matches) == 1 else None
+
+    def branch_choices(self) -> str:
+        """The values shifted_node_edge_label takes, for an error."""
+
+        labels = [f"'{edge.label}'" for edge in self.edges or []]
+        return " or ".join(
+            filter(None, [", ".join(labels), f"'{DEFAULT_BRANCH}' (default branch)"])
+        )
 
     def to_orm_service_dict(self, values: ServiceValues) -> dict[str, Any]:
         """
@@ -893,7 +979,7 @@ def _ai_agent_update_service(
 
 # The node values each type takes, beyond the ones every node has.
 _NODE_FIELDS: dict[str, set[str]] = {
-    "router": {"edges"},
+    "router": {"edges", "shifted_node_edge_label"},
     "smtp_email": {
         "to_emails",
         "cc_emails",
@@ -916,6 +1002,7 @@ _COMMON_FIELDS = {
     "type",
     "previous_node_ref",
     "router_edge_label",
+    "before_node_id",
 }
 
 
@@ -954,12 +1041,50 @@ _TO_UPDATE_SERVICE: dict[str, Callable] = {
 # ---------------------------------------------------------------------------
 
 
+class WorkflowNodeCreate(ActionNodeCreate):
+    """
+    An action node of a new workflow. It follows a node by ref: there is no
+    existing node to insert it before.
+    """
+
+    previous_node_ref: str = Field(
+        ...,
+        description="The ref of the node this one follows: the trigger or a node "
+        "defined earlier in the workflow.",
+    )
+    before_node_id: SkipJsonSchema[int | None] = None
+
+    @field_validator("before_node_id")
+    @classmethod
+    def _refuse_before_node_id(cls, value):
+        if value is not None:
+            raise ValueError(
+                "A new workflow has no node to insert before: place each node "
+                "with previous_node_ref."
+            )
+        return value
+
+
 class WorkflowCreate(BaseModel):
     """A workflow to create, with its trigger and the nodes after it."""
 
     name: str = Field(..., max_length=255, description="Workflow name.")
     trigger: TriggerNodeCreate = Field(..., description="The trigger node.")
-    nodes: list[ActionNodeCreate] = Field(
+    nodes: list[WorkflowNodeCreate] = Field(
         default_factory=list,
         description="Action nodes executed after the trigger. Each node has one previous_node_ref.",
     )
+
+    @field_validator("nodes", mode="before")
+    @classmethod
+    def _accept_action_nodes(cls, nodes):
+        # Callers in code build the nodes as ActionNodeCreate.
+        if not isinstance(nodes, list):
+            return nodes
+        return [
+            node.model_dump(exclude_unset=True)
+            if isinstance(node, ActionNodeCreate)
+            and not isinstance(node, WorkflowNodeCreate)
+            else node
+            for node in nodes
+        ]

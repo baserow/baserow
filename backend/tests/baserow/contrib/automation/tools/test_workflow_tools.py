@@ -5,6 +5,7 @@ from unittest.mock import patch
 from django.core.exceptions import ValidationError as DjangoValidationError
 
 import pytest
+from pydantic import ValidationError as PydanticValidationError
 
 from baserow.contrib.automation.nodes.models import AutomationNode
 from baserow.contrib.automation.tools.types import ActionNodeCreate, WorkflowCreate
@@ -442,3 +443,36 @@ def test_a_branch_of_a_node_that_is_not_a_router_writes_nothing(automation_ctx):
 def test_a_router_needs_a_branch():
     with pytest.raises(ValueError, match="router requires at least one branch"):
         ActionNodeCreate(ref="r", type="router", previous_node_ref="t", edges=[])
+
+
+def test_a_new_workflow_refuses_before_node_id():
+    # A new workflow has no existing node to insert before.
+    with pytest.raises(
+        PydanticValidationError, match="place each node with previous_node_ref"
+    ):
+        WorkflowCreate(
+            name="Orders",
+            trigger={
+                "ref": "trigger",
+                "type": "rows_created",
+                "rows_triggers_settings": {"table_id": 1},
+            },
+            nodes=[_email(previous=None, before_node_id=5)],
+        )
+
+
+def test_a_new_workflow_node_without_previous_node_ref_names_only_it():
+    with pytest.raises(PydanticValidationError) as error:
+        WorkflowCreate(
+            name="Orders",
+            trigger={
+                "ref": "trigger",
+                "type": "rows_created",
+                "rows_triggers_settings": {"table_id": 1},
+            },
+            nodes=[_email(previous=None)],
+        )
+
+    assert "previous_node_ref" in str(error.value)
+    assert "before_node_id" not in str(error.value)
+    assert "before_node_id" not in str(WorkflowCreate.model_json_schema())

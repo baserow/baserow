@@ -694,6 +694,51 @@ describe('Agent configuration', () => {
     trashed: false,
   }
 
+  describe('pending tools of an imported agent', () => {
+    const pending = (extra = {}) =>
+      completeConfiguration({
+        run_as: null,
+        allowed_tools: [],
+        pending_tools: ['list_tables', 'create_rows'],
+        ...extra,
+      })
+    const body = (wrapper) => wrapper.get('.agent-configuration__body')
+
+    test('shows the pending tools helper while there is no identity', async () => {
+      mockConfiguration(testApp, pending())
+      const wrapper = await mount()
+      await openSection(wrapper, 'agent.workspaceAccess')
+
+      expect(body(wrapper).text()).toContain('agent.pendingToolsHelper')
+      expect(body(wrapper).text()).not.toContain(
+        'agent.noWorkspaceAccessHelper'
+      )
+    })
+
+    test('picking an identity sends no tools so the pending ones apply', async () => {
+      testApp.mock
+        .onGet('/agent/10/run-as-identities/')
+        .reply(200, page([{ id: 7, name: 'Investor' }]))
+      mockConfiguration(testApp, pending())
+      mockSaves(
+        testApp,
+        pending({
+          run_as: { type: 'auth.User', id: 7, name: 'Investor' },
+          allowed_tools: ['list_tables', 'create_rows'],
+          pending_tools: [],
+        })
+      )
+      const wrapper = await mount()
+      await openSection(wrapper, 'agent.workspaceAccess')
+      await pickRunAs(wrapper, 'Investor')
+      await flushPromises()
+
+      expect(savedValues(testApp)).toEqual([
+        { run_as_subject_type: 'auth.User', run_as_subject_id: 7 },
+      ])
+    })
+  })
+
   const workspaceAccessRow = (wrapper) =>
     wrapper
       .findAll('.menu-list__item-button')
@@ -1664,7 +1709,10 @@ describe('Agent configuration', () => {
 
   test('keeps workspace tool controls inactive for a read-only member', async () => {
     allowed.value = (operation) => operation !== 'application.update'
-    mockConfiguration(testApp, withTools(['list_tables', 'create_rows']))
+    mockConfiguration(
+      testApp,
+      withTools(['list_tables', 'create_rows', 'delete_rows'])
+    )
     const wrapper = await mount()
     await openSection(wrapper, 'agent.workspaceAccess')
     const tools = wrapper.get('.agent-workspace-tools')
@@ -2102,22 +2150,19 @@ describe('Agent configuration', () => {
     ])
   })
 
-  test('locks the ask switch while no change tool is allowed', async () => {
-    mockConfiguration(testApp, withTools(['list_tables']))
-    const wrapper = await mount()
-    await openSection(wrapper, 'agent.workspaceAccess')
-    const ask = askSwitch(wrapper)
-    expect(ask.attributes('aria-checked')).toBe('false')
-    expect(ask.attributes('aria-disabled')).toBe('true')
-    expect(ask.element.tabIndex).toBe(-1)
+  test.each([
+    ['read only', ['list_tables']],
+    ['custom', ['list_tables', 'create_rows']],
+  ])(
+    'hides the ask switch outside the Everything preset (%s)',
+    async (_, allowedTools) => {
+      mockConfiguration(testApp, withTools(allowedTools))
+      const wrapper = await mount()
+      await openSection(wrapper, 'agent.workspaceAccess')
 
-    await ask.trigger('click')
-    await ask.trigger('keydown', { key: 'Enter' })
-    await flushPromises()
-
-    expect(groupCount(wrapper)).toBe('agent.toolsSummary')
-    expect(savedValues(testApp)).toEqual([])
-  })
+      expect(wrapper.find('.agent-workspace-tools__ask').exists()).toBe(false)
+    }
+  )
 
   test('renames the Agent through the application with the trimmed name', async () => {
     mockRename(testApp, { ...agentData, name: 'Support' })

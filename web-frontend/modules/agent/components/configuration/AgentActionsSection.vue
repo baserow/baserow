@@ -8,7 +8,8 @@
         size="small"
         button-type="button"
         icon="iconoir-plus"
-        :disabled="loading || atLimit"
+        :disabled="loading || creating || atLimit"
+        :loading="creating"
         aria-haspopup="menu"
         @click="picker.toggle($event.currentTarget)"
         >{{ $t('agent.addAction') }}</ButtonText
@@ -40,10 +41,11 @@
     <p v-else-if="!actions.length" class="agent-actions__empty">
       {{ $t('agent.noActions') }}
     </p>
-    <div v-else class="agent-actions__list">
+    <div v-else ref="list" class="agent-actions__list">
       <AgentActionCard
         v-for="action in actions"
         :key="action.id"
+        :data-card-id="action.id"
         :expanded="expandedIds.has(action.id)"
         :action="action"
         :workspace="workspace"
@@ -62,14 +64,14 @@
       :workspace="workspace"
       :search-placeholder="$t('agent.searchActionTypes')"
       :empty-text="$t('agent.noActionTypes')"
-      @select="addAction"
+      @select="addItem"
     />
   </section>
 </template>
 
 <script setup>
 import { computed, inject, ref, watch } from 'vue'
-import { useExpandedItems } from '@baserow/modules/agent/composables/useExpandedItems'
+import { useAgentCardList } from '@baserow/modules/agent/composables/useExpandedItems'
 import { useStore } from 'vuex'
 import ButtonText from '@baserow/modules/core/components/ButtonText'
 import AgentCardListHeader from '@baserow/modules/agent/components/configuration/AgentCardListHeader'
@@ -96,6 +98,7 @@ const {
   actions,
   loading,
   loadError,
+  allActions,
   savingIds,
   saveErrors,
   fetchActions,
@@ -104,19 +107,15 @@ const {
   deleteAction,
   flush,
 } = useAgentActions(agent, () => emit('reload'))
-const { expandedIds, allExpanded, toggle, toggleAll } =
-  useExpandedItems(actions)
+const { expandedIds, allExpanded, toggle, toggleAll, list, creating, addItem } =
+  useAgentCardList(actions, createAction, allActions)
 const atLimit = computed(
   () =>
     Boolean(props.configuration.max_actions) &&
-    actions.value.length >= props.configuration.max_actions
+    allActions.value.length >= props.configuration.max_actions
 )
 watch(
   () => agent.value?.id,
   () => expandedIds.clear()
 )
-async function addAction(type) {
-  const item = await createAction(type)
-  if (item) expandedIds.add(item.id)
-}
 </script>

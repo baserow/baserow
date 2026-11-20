@@ -69,6 +69,29 @@
   margin: 20px 0;
 }
 
+.mcp-authorize__legacy-tools {
+  margin-top: 20px;
+}
+
+.mcp-authorize__tools {
+  max-height: 240px;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  list-style: none;
+}
+
+.mcp-authorize__tool {
+  padding: 6px 0;
+  font-size: 13px;
+  line-height: 20px;
+  color: $palette-neutral-1200;
+
+  &:not(:last-child) {
+    border-bottom: 1px solid $palette-neutral-200;
+  }
+}
+
 .mcp-authorize__warning {
   margin-bottom: 16px;
   padding: 12px;

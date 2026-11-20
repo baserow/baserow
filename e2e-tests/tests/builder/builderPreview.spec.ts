@@ -35,7 +35,7 @@ import { expect, test } from "../baserowTest";
  *   just e2e test tests/builder/builderPreview.spec.ts --workers=1
  */
 test.describe("Builder preview test suite", () => {
-  test("loads authenticated custom CSS and JavaScript @enterprise", async ({
+  test("loads authenticated custom CSS, JavaScript and head HTML @enterprise", async ({
     context,
     builderPagePage,
     workspacePage,
@@ -43,11 +43,13 @@ test.describe("Builder preview test suite", () => {
     const license = await createLicense(ENTERPRISE_LICENSE);
     const cssMarker = "preview-css-loaded";
     const jsMarker = "preview-js-loaded";
+    const headHtml = '<meta name="test-preview-head" content="draft">';
 
     try {
       await getClient(workspacePage.workspace.user).patch(
         `applications/${builderPagePage.builder.id}/`,
         {
+          head_html: headHtml,
           custom_code: {
             css: `html { --preview-custom-code: ${cssMarker}; }`,
             js: `document.documentElement.dataset.previewCustomCode = "${jsMarker}";`,
@@ -68,9 +70,24 @@ test.describe("Builder preview test suite", () => {
         ),
       ]);
 
-      await previewPage.goto(grantResponse.data.url, {
+      const documentResponse = await previewPage.goto(grantResponse.data.url, {
         waitUntil: "networkidle",
       });
+      expect(documentResponse?.status()).toBe(200);
+      const head = (await documentResponse!.text()).match(
+        /<head>[\s\S]*?<\/head>/
+      )?.[0];
+      if (
+        new URL(baserowConfig.BUILDER_PREVIEW_URL).hostname !==
+        new URL(baserowConfig.PUBLIC_WEB_FRONTEND_URL).hostname
+      ) {
+        expect(head).toContain(headHtml);
+        expect(documentResponse!.headers()["cache-control"]).toContain(
+          "no-store"
+        );
+      } else {
+        expect(head).not.toContain(headHtml);
+      }
 
       for (const response of await customCodeResponses) {
         expect(response.status()).toBe(200);

@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Signing in to MCP with an old endpoint URL now shows only that endpoint's tools, and the ChatGPT setup steps are back in the MCP settings",
+    "issue_origin": "github",
+    "issue_number": null,
+    "domain": "core",
+    "bullet_points": [],
+    "created_at": "2026-11-19"
+}

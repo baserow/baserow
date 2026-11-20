@@ -27,11 +27,12 @@
         @edit="openUpdateModal(selectedTemplate, $event)"
         @delete="openDeleteModal"
         @make-public="openMakePublicModal"
-        @make-private="makePrivate"
+        @make-private="openMakePrivateModal"
       ></TemplateDetails>
       <TemplateList
         v-show="selectedTemplate === null && tab === 'official'"
         :categories="categories"
+        :initial-category-id="initialCategoryId"
         :active="open && selectedTemplate === null && tab === 'official'"
         class="templates__body"
         @selected="selectTemplate"
@@ -76,7 +77,8 @@
           !creating &&
           !updating &&
           !deleting &&
-          !makingPublic
+          !makingPublic &&
+          !makingPrivate
         "
         class="templates__body"
         @selected="selectTemplate($event, true)"
@@ -84,7 +86,7 @@
         @edit="openUpdateModal"
         @delete="openDeleteModal"
         @make-public="openMakePublicModal"
-        @make-private="makePrivate"
+        @make-private="openMakePrivateModal"
       >
         <template #head>
           <SegmentControl
@@ -139,6 +141,15 @@
       @hidden="makingPublic = false"
       @made-public="templateChanged"
     ></MakeTemplatePublicModal>
+    <!-- Not keyed, so that a running request is still handled after the modal is
+    opened for another template. -->
+    <MakeTemplatePrivateModal
+      v-if="showTabs && madePrivateTemplate !== null"
+      ref="makeTemplatePrivateModal"
+      :template="madePrivateTemplate"
+      @hidden="makingPrivate = false"
+      @made-private="templateChanged"
+    ></MakeTemplatePrivateModal>
   </Modal>
 </template>
 
@@ -155,6 +166,7 @@ import {
 
 import CreateUserTemplateModal from '@baserow/modules/core/components/template/CreateUserTemplateModal'
 import DeleteUserTemplateModal from '@baserow/modules/core/components/template/DeleteUserTemplateModal'
+import MakeTemplatePrivateModal from '@baserow/modules/core/components/template/MakeTemplatePrivateModal'
 import MakeTemplatePublicModal from '@baserow/modules/core/components/template/MakeTemplatePublicModal'
 import PublicTemplateList from '@baserow/modules/core/components/template/PublicTemplateList'
 import TemplateDetails from '@baserow/modules/core/components/template/TemplateDetails'
@@ -162,11 +174,14 @@ import TemplateList from '@baserow/modules/core/components/template/TemplateList
 import UpdateUserTemplateModal from '@baserow/modules/core/components/template/UpdateUserTemplateModal'
 import UserTemplateList from '@baserow/modules/core/components/template/UserTemplateList'
 
+const MOST_POPULAR_CATEGORY_NAME = '🔥 Most Popular'
+
 export default {
   name: 'TemplateModal',
   components: {
     CreateUserTemplateModal,
     DeleteUserTemplateModal,
+    MakeTemplatePrivateModal,
     MakeTemplatePublicModal,
     PublicTemplateList,
     TemplateDetails,
@@ -221,8 +236,11 @@ export default {
       // While a template is asked to be made public, its modal takes the search
       // shortcut.
       makingPublic: false,
-      // The ids of the templates that are being made private.
-      madePrivate: new Set(),
+      // The user's template that is or was last asked to be made private.
+      madePrivateTemplate: null,
+      // While a template is asked to be made private, its modal takes the search
+      // shortcut.
+      makingPrivate: false,
       // The id of the public template that was last opened, until it's loaded.
       selectingPublic: null,
     }
@@ -252,6 +270,16 @@ export default {
           icon: 'iconoir-box',
         },
       ]
+    },
+    // A computed, because the list reads it only when it's mounted, as soon as
+    // the categories are loaded.
+    initialCategoryId() {
+      if (!this.$featureFlagIsEnabled(FF_USER_TEMPLATES)) {
+        return null
+      }
+      return this.categories.find(
+        ({ name }) => name === MOST_POPULAR_CATEGORY_NAME
+      )?.id
     },
     tabIndex() {
       return this.tabs.findIndex((tab) => tab.value === this.tab)
@@ -288,35 +316,71 @@ export default {
     isOwnTemplate,
     /**
      * Opens the modal on the details of the template with the provided id or
-     * slug, or else of the default template.
+     * slug, or else on the list (on the default template without user templates).
      */
     async show(templateId = null, ...args) {
-      if (!(await this.openAndLoad(...args))) {
+      const listError = await this.openAndLoad(...args)
+      const linked = typeof templateId === 'string'
+      if (listError && !linked) {
+        this.failLoading(listError)
         return
       }
+      const opensDefault =
+        templateId === null && !this.$featureFlagIsEnabled(FF_USER_TEMPLATES)
       const template = this.categories
         .flatMap((category) => category.templates)
         .find((t) =>
-          templateId === null
+          opensDefault
             ? t.is_default
             : t.id === templateId || t.slug === templateId
         )
       if (template) {
         this.selectTemplate(template)
+      } else if (linked) {
+        await this.selectLinkedTemplate(templateId)
+        if (listError) {
+          if (this.selectedTemplate === null) {
+            this.hide()
+          }
+          this.loading = false
+        }
+      }
+    },
+    /**
+     * Shows the template a link points to that isn't an official one, like a public
+     * user template.
+     */
+    async selectLinkedTemplate(slug) {
+      try {
+        const { data } = await TemplateService(this.$client).fetch(slug)
+        if (this.selectedTemplate === null) {
+          this.selectTemplate(data, isOwnTemplate(data))
+        }
+      } catch (error) {
+        if (error.response?.status === 404) {
+          this.$store.dispatch('toast/error', {
+            title: this.$t('templateModal.unavailableTitle'),
+            message: this.$t('templateModal.linkUnavailableDescription'),
+          })
+        } else {
+          notifyIf(error, 'templates')
+        }
       }
     },
     async showShared(search) {
-      if (await this.openAndLoad()) {
-        this.sharedSearch = search
-        this.tab = 'public'
+      const listError = await this.openAndLoad()
+      if (listError) {
+        this.failLoading(listError)
+        return
       }
+      this.sharedSearch = search
+      this.tab = 'public'
     },
     /**
      * Opens the modal and fetches all the templates and their categories, so
      * that the user can browse them.
      *
-     * @returns {Promise<boolean>} False if they couldn't be fetched, which closes
-     *   the modal.
+     * @returns {Promise<Error|null>} The error if they couldn't be fetched.
      */
     async openAndLoad(...args) {
       modal.methods.show.call(this, ...args)
@@ -332,12 +396,14 @@ export default {
         const { data } = await TemplateService(this.$client).fetchAll()
         this.categories = data
         this.loading = false
-        return true
+        return null
       } catch (error) {
-        notifyIf(error, 'templates')
-        this.hide()
-        return false
+        return error
       }
+    },
+    failLoading(error) {
+      notifyIf(error, 'templates')
+      this.hide()
     },
     selectTab(tab) {
       this.tab = tab
@@ -461,23 +527,6 @@ export default {
       await this.$nextTick()
       this.$refs.deleteUserTemplateModal.show()
     },
-    async makePrivate({ id, slug }) {
-      if (this.madePrivate.has(id)) {
-        return
-      }
-      this.madePrivate.add(id)
-      try {
-        const { data } = await TemplateService(this.$client).setVisibility(
-          slug,
-          'private'
-        )
-        this.templateChanged(data)
-      } catch (error) {
-        notifyIf(error, 'templates')
-      } finally {
-        this.madePrivate.delete(id)
-      }
-    },
     /**
      * Shows the changed visibility of a user's template in the lists, its preview
      * and its update modal.
@@ -503,6 +552,13 @@ export default {
       // Mounts the modal the first time.
       await this.$nextTick()
       this.$refs.makeTemplatePublicModal.show()
+    },
+    async openMakePrivateModal(template) {
+      this.madePrivateTemplate = template
+      this.makingPrivate = true
+      // Mounts the modal the first time.
+      await this.$nextTick()
+      this.$refs.makeTemplatePrivateModal.show()
     },
     /**
      * The deleted template disappears from the list, its preview and its update

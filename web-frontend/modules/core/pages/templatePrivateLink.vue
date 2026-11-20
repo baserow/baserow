@@ -10,24 +10,14 @@
  * `utils/templatePrivateLink`.
  */
 import TemplatePage from '@baserow/modules/core/components/template/TemplatePage'
-import { FF_USER_TEMPLATES } from '@baserow/modules/core/plugins/featureFlags'
 
-const { $featureFlagIsEnabled, $store } = useNuxtApp()
+const { $store } = useNuxtApp()
 
 // Must precede the stylesheets and scripts, or they send the token as Referer.
 // A number does that; aliases like 'critical' don't.
 useHead({
   meta: [{ name: 'referrer', content: 'no-referrer', tagPriority: 0 }],
 })
-
-if (!$featureFlagIsEnabled(FF_USER_TEMPLATES)) {
-  throw createError({
-    statusCode: 404,
-    message: 'Template not found.',
-    data: { report: false },
-    fatal: true,
-  })
-}
 
 // The middlewares refreshed the permissions without the token.
 if ($store.getters['auth/isAuthenticated']) {

@@ -1,27 +1,45 @@
 """Tests for add_nodes, update_nodes and delete_nodes, shared by MCP and Kuma."""
 
+from copy import deepcopy
 from unittest.mock import patch
 from uuid import uuid4
 
 from django.core.exceptions import ValidationError as DjangoValidationError
+from django.db import connection
+from django.test.utils import CaptureQueriesContext
 
 import pytest
+from pydantic import ValidationError as PydanticValidationError
 
+from baserow.api.sessions import get_untrusted_client_session_id
+from baserow.contrib.automation.action_scopes import WorkflowActionScopeType
 from baserow.contrib.automation.nodes.actions import (
     DeleteAutomationNodeActionType,
     UpdateAutomationNodeActionType,
 )
+from baserow.contrib.automation.nodes.handler import AutomationNodeHandler
 from baserow.contrib.automation.nodes.models import AutomationNode
+from baserow.contrib.automation.nodes.service import AutomationNodeService
+from baserow.contrib.automation.nodes.trash_types import (
+    AutomationNodeTrashableItemType,
+)
 from baserow.contrib.automation.tools.nodes import (
     add_nodes,
     delete_nodes,
     list_nodes,
     update_nodes,
 )
-from baserow.contrib.automation.tools.types import ActionNodeCreate, NodeUpdate
+from baserow.contrib.automation.tools.types import (
+    ActionNodeCreate,
+    NodeRefs,
+    NodeUpdate,
+)
+from baserow.core.action.handler import ActionHandler
 from baserow.core.action.models import Action
 from baserow.core.cache import local_cache
 from baserow.core.formula.types import BASEROW_FORMULA_MODE_ADVANCED
+from baserow.core.trash.exceptions import TrashItemRestorationDisallowed
+from baserow.core.trash.handler import TrashHandler
 
 from .conftest import create_node, create_workflow
 
@@ -73,6 +91,854 @@ def test_add_nodes_after_an_existing_node_and_each_other(automation_ctx):
     assert graph[str(first["id"])]["next"][""] == [second["id"]]
     (error,) = result["formula_errors"]
     assert (error["node_id"], error["field"]) == (second["id"], "subject")
+
+
+@pytest.mark.django_db
+def test_add_nodes_before_an_existing_node_keeps_it_and_reports_it(automation_ctx):
+    ctx, automation, table, _ = automation_ctx
+    workflow, trigger = create_workflow(ctx.user, automation, "Flow", table)
+    (email,) = add_nodes(ctx, workflow.id, [_email(previous=str(trigger.id))])[
+        "created_nodes"
+    ]
+
+    result = add_nodes(
+        ctx,
+        workflow.id,
+        [
+            ActionNodeCreate(
+                ref="slack",
+                label="Ping",
+                type="slack_write_message",
+                previous_node_ref=str(trigger.id),
+                channel="sales",
+                text="New lead",
+            ),
+            _email(ref="log", previous="slack", label="Log"),
+        ],
+    )
+
+    slack, log = result["created_nodes"]
+    assert result["shifted_nodes"] == [
+        {
+            "id": email["id"],
+            "label": email["label"],
+            "type": "smtp_email",
+            "previous_node_ref": str(log["id"]),
+        }
+    ]
+    assert [node["id"] for node in list_nodes(ctx, workflow.id)["nodes"]] == [
+        trigger.id,
+        slack["id"],
+        log["id"],
+        email["id"],
+    ]
+    service = AutomationNode.objects.get(id=email["id"]).service.specific
+    assert service.subject["formula"] == "'Hi'"
+
+
+@pytest.mark.django_db
+def test_add_nodes_before_a_node_on_a_router_branch(automation_ctx):
+    ctx, automation, table, _ = automation_ctx
+    workflow, trigger = create_workflow(ctx.user, automation, "Flow", table)
+    big = str(uuid4())
+    router = create_node(
+        ctx.user,
+        workflow,
+        "router",
+        reference_node_id=trigger.id,
+        service={"edges": [{"uid": big, "label": "Big"}]},
+    )
+    (email,) = add_nodes(
+        ctx, workflow.id, [_email(previous=str(router.id), router_edge_label="Big")]
+    )["created_nodes"]
+
+    result = add_nodes(
+        ctx,
+        workflow.id,
+        [_email(ref="log", previous=str(router.id), router_edge_label="Big")],
+    )
+
+    (log,) = result["created_nodes"]
+    graph = workflow.get_graph().graph
+    assert graph[str(router.id)]["next"][big] == [log["id"]]
+    assert graph[str(log["id"])]["next"][""] == [email["id"]]
+    (shifted,) = result["shifted_nodes"]
+    assert shifted["id"] == email["id"]
+    assert shifted["previous_node_ref"] == str(log["id"])
+    assert "router_edge_label" not in shifted
+
+
+@pytest.mark.django_db
+def test_add_nodes_router_before_a_node_moves_it_onto_the_named_branch(
+    automation_ctx,
+):
+    ctx, automation, table, name = automation_ctx
+    workflow, trigger = create_workflow(ctx.user, automation, "Flow", table)
+    (email,) = add_nodes(ctx, workflow.id, [_email(previous=str(trigger.id))])[
+        "created_nodes"
+    ]
+    (after,) = add_nodes(
+        ctx, workflow.id, [_email(ref="after", previous=str(email["id"]))]
+    )["created_nodes"]
+    before = deepcopy(workflow.get_graph().graph)
+
+    result = add_nodes(
+        ctx,
+        workflow.id,
+        [
+            ActionNodeCreate(
+                ref="router",
+                type="router",
+                previous_node_ref=str(trigger.id),
+                edges=[
+                    {
+                        "label": "acme.com",
+                        "condition": f"contains(get('previous_node.{trigger.id}"
+                        f".0.field_{name.id}'), 'acme.com')",
+                    }
+                ],
+                shifted_node_edge_label="ACME.com",
+            )
+        ],
+    )
+
+    (router,) = result["created_nodes"]
+    (shifted,) = result["shifted_nodes"]
+    assert (shifted["id"], shifted["router_edge_label"]) == (email["id"], "acme.com")
+    (edge,) = AutomationNode.objects.get(id=router["id"]).service.specific.edges.all()
+    graph = workflow.get_graph().graph
+    # The email runs on the branch, and the node after it still follows it.
+    assert graph[str(router["id"])]["next"] == {str(edge.uid): [email["id"]]}
+    assert graph[str(email["id"])]["next"][""] == [after["id"]]
+
+    scope = [WorkflowActionScopeType.value(workflow.id)]
+    session = get_untrusted_client_session_id(ctx.user)
+    ActionHandler.undo(ctx.user, scope, session)
+    workflow.reload_graph()
+    assert workflow.graph == before
+
+    ActionHandler.redo(ctx.user, scope, session)
+    workflow.reload_graph()
+    assert workflow.graph[str(router["id"])]["next"] == {str(edge.uid): [email["id"]]}
+
+
+@pytest.mark.django_db
+def test_undo_router_insert_keeps_a_node_added_on_its_default_output(
+    automation_ctx,
+):
+    ctx, automation, table, _ = automation_ctx
+    workflow, trigger = create_workflow(ctx.user, automation, "Flow", table)
+    (email,) = add_nodes(ctx, workflow.id, [_email(previous=str(trigger.id))])[
+        "created_nodes"
+    ]
+    (after,) = add_nodes(
+        ctx, workflow.id, [_email(ref="after", previous=str(email["id"]))]
+    )["created_nodes"]
+    (router,) = add_nodes(
+        ctx,
+        workflow.id,
+        [
+            ActionNodeCreate(
+                ref="router",
+                type="router",
+                previous_node_ref=str(trigger.id),
+                edges=[{"label": "Big", "condition": "true"}],
+                shifted_node_edge_label="Big",
+            )
+        ],
+    )["created_nodes"]
+    scope = [WorkflowActionScopeType.value(workflow.id)]
+    session = get_untrusted_client_session_id(ctx.user)
+
+    # Another session adds a node on the router's default output.
+    workflow.reload_graph()
+    other = _email_node(
+        ctx, workflow, AutomationNode.objects.get(id=router["id"]), "Other"
+    )
+    graph = workflow.get_graph().graph
+    assert graph[str(router["id"])]["next"][""] == [other.id]
+
+    ActionHandler.undo(ctx.user, scope, session)
+
+    workflow.reload_graph()
+    graph = workflow.graph
+    assert str(router["id"]) not in graph
+    assert graph["0"] == trigger.id
+    assert graph[str(trigger.id)]["next"] == {"": [email["id"]]}
+    assert graph[str(email["id"])]["next"] == {"": [after["id"]]}
+    assert graph[str(after["id"])]["next"] == {"": [other.id]}
+    assert not Action.objects.filter(error__isnull=False).exists()
+
+    ActionHandler.redo(ctx.user, scope, session)
+
+    # Other is back on the router's default output, not after the branch.
+    (edge,) = AutomationNode.objects.get(id=router["id"]).service.specific.edges.all()
+    workflow.reload_graph()
+    graph = workflow.graph
+    assert graph[str(router["id"])]["next"] == {
+        str(edge.uid): [email["id"]],
+        "": [other.id],
+    }
+    assert graph[str(email["id"])]["next"] == {"": [after["id"]]}
+    assert not graph[str(after["id"])].get("next", {}).get("")
+
+    ActionHandler.undo(ctx.user, scope, session)
+
+    workflow.reload_graph()
+    graph = workflow.graph
+    assert str(router["id"]) not in graph
+    assert graph[str(trigger.id)]["next"] == {"": [email["id"]]}
+    assert graph[str(email["id"])]["next"] == {"": [after["id"]]}
+    assert graph[str(after["id"])]["next"] == {"": [other.id]}
+    assert not Action.objects.filter(error__isnull=False).exists()
+
+
+@pytest.mark.django_db
+def test_restore_from_trash_after_undo_puts_the_nodes_back_on_the_branch(
+    automation_ctx,
+):
+    ctx, automation, table, _ = automation_ctx
+    workflow, trigger = create_workflow(ctx.user, automation, "Flow", table)
+    (email,) = add_nodes(ctx, workflow.id, [_email(previous=str(trigger.id))])[
+        "created_nodes"
+    ]
+    (router,) = add_nodes(
+        ctx,
+        workflow.id,
+        [
+            ActionNodeCreate(
+                ref="router",
+                type="router",
+                previous_node_ref=str(trigger.id),
+                edges=[{"label": "Match", "condition": "true"}],
+                shifted_node_edge_label="Match",
+            )
+        ],
+    )["created_nodes"]
+    workflow.reload_graph()
+    fallback = _email_node(
+        ctx, workflow, AutomationNode.objects.get(id=router["id"]), "Fallback"
+    )
+    scope = [WorkflowActionScopeType.value(workflow.id)]
+    session = get_untrusted_client_session_id(ctx.user)
+    ActionHandler.undo(ctx.user, scope, session)
+
+    # Restored from the trash instead of with redo.
+    TrashHandler.restore_item(
+        ctx.user, AutomationNodeTrashableItemType.type, router["id"]
+    )
+
+    (edge,) = AutomationNode.objects.get(id=router["id"]).service.specific.edges.all()
+    workflow.reload_graph()
+    assert workflow.graph[str(router["id"])]["next"] == {
+        str(edge.uid): [email["id"]],
+        "": [fallback.id],
+    }
+    assert not workflow.graph[str(email["id"])].get("next", {}).get("")
+
+
+def _insert_router_before_email(ctx, automation, table):
+    workflow, trigger = create_workflow(ctx.user, automation, "Flow", table)
+    (email,) = add_nodes(ctx, workflow.id, [_email(previous=str(trigger.id))])[
+        "created_nodes"
+    ]
+    (router,) = add_nodes(
+        ctx,
+        workflow.id,
+        [
+            ActionNodeCreate(
+                ref="router",
+                type="router",
+                previous_node_ref=str(trigger.id),
+                edges=[{"label": "Match", "condition": "true"}],
+                shifted_node_edge_label="Match",
+            )
+        ],
+    )["created_nodes"]
+    scope = [WorkflowActionScopeType.value(workflow.id)]
+    session = get_untrusted_client_session_id(ctx.user)
+    return workflow, trigger, email, router, scope, session
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("restore", ["redo", "trash"])
+def test_restore_router_insert_refuses_when_a_node_was_added_before_its_nodes(
+    automation_ctx, restore
+):
+    ctx, automation, table, _ = automation_ctx
+    workflow, trigger, email, router, scope, session = _insert_router_before_email(
+        ctx, automation, table
+    )
+    ActionHandler.undo(ctx.user, scope, session)
+    # Another session adds a step after the trigger, meant to run every time.
+    workflow.reload_graph()
+    slack = _email_node(ctx, workflow, trigger, "Slack")
+    workflow.reload_graph()
+    before = deepcopy(workflow.graph)
+
+    if restore == "redo":
+        (action,) = ActionHandler.redo(ctx.user, scope, session)
+        assert "TrashItemRestorationDisallowed" in action.error
+    else:
+        with pytest.raises(TrashItemRestorationDisallowed, match=f"node {slack.id}"):
+            TrashHandler.restore_item(
+                ctx.user, AutomationNodeTrashableItemType.type, router["id"]
+            )
+
+    workflow.reload_graph()
+    assert workflow.graph == before
+    assert AutomationNode.objects_and_trash.get(id=router["id"]).trashed
+
+
+@pytest.mark.django_db
+def test_redo_router_insert_refuses_when_a_node_was_swapped_after_undo(
+    automation_ctx,
+):
+    ctx, automation, table, _ = automation_ctx
+    workflow, trigger, email, router, scope, session = _insert_router_before_email(
+        ctx, automation, table
+    )
+    workflow.reload_graph()
+    joined = _email_node(
+        ctx, workflow, AutomationNode.objects.get(id=router["id"]), "Joined"
+    )
+    ActionHandler.undo(ctx.user, scope, session)
+    # Another session swaps the joined node for a new one after the email.
+    AutomationNodeService().delete_node(ctx.user, joined.id)
+    workflow.reload_graph()
+    later = _email_node(ctx, workflow, AutomationNode.objects.get(id=email["id"]), "K")
+    workflow.reload_graph()
+    before = deepcopy(workflow.graph)
+
+    # K runs every time now: back on the default output it would run only when
+    # no branch matches.
+    (action,) = ActionHandler.redo(ctx.user, scope, session)
+
+    assert "TrashItemRestorationDisallowed" in action.error
+    assert f"node {later.id} was added" in action.error
+    workflow.reload_graph()
+    assert workflow.graph == before
+
+
+@pytest.mark.django_db
+def test_redo_router_insert_refuses_when_a_default_node_was_deleted_after_undo(
+    automation_ctx,
+):
+    ctx, automation, table, _ = automation_ctx
+    workflow, trigger = create_workflow(ctx.user, automation, "Flow", table)
+    (email,) = add_nodes(ctx, workflow.id, [_email(previous=str(trigger.id))])[
+        "created_nodes"
+    ]
+    (router,) = add_nodes(
+        ctx,
+        workflow.id,
+        [
+            ActionNodeCreate(
+                ref="router",
+                type="router",
+                previous_node_ref=str(trigger.id),
+                edges=[{"label": "Big", "condition": "true"}],
+                shifted_node_edge_label="Big",
+            )
+        ],
+    )["created_nodes"]
+    workflow.reload_graph()
+    first = _email_node(
+        ctx, workflow, AutomationNode.objects.get(id=router["id"]), "First"
+    )
+    workflow.reload_graph()
+    second = _email_node(ctx, workflow, first, "Second")
+    scope = [WorkflowActionScopeType.value(workflow.id)]
+    session = get_untrusted_client_session_id(ctx.user)
+    ActionHandler.undo(ctx.user, scope, session)
+    # Another session deletes the first node that was on the default output.
+    AutomationNodeService().delete_node(ctx.user, first.id)
+    workflow.reload_graph()
+    before = deepcopy(workflow.graph)
+
+    (action,) = ActionHandler.redo(ctx.user, scope, session)
+
+    assert "TrashItemRestorationDisallowed" in action.error
+    workflow.reload_graph()
+    assert workflow.graph == before
+    assert str(second.id) in workflow.graph
+
+
+@pytest.mark.django_db
+def test_undo_router_insert_refuses_to_hang_default_nodes_on_a_router(
+    automation_ctx,
+):
+    ctx, automation, table, _ = automation_ctx
+    workflow, trigger = create_workflow(ctx.user, automation, "Flow", table)
+    (email,) = add_nodes(ctx, workflow.id, [_email(previous=str(trigger.id))])[
+        "created_nodes"
+    ]
+    add_nodes(
+        ctx,
+        workflow.id,
+        [
+            ActionNodeCreate(
+                ref="router2",
+                type="router",
+                previous_node_ref=str(email["id"]),
+                edges=[{"label": "Small", "condition": "true"}],
+            )
+        ],
+    )
+    (router,) = add_nodes(
+        ctx,
+        workflow.id,
+        [
+            ActionNodeCreate(
+                ref="router",
+                type="router",
+                previous_node_ref=str(trigger.id),
+                edges=[{"label": "Big", "condition": "true"}],
+                shifted_node_edge_label="Big",
+            )
+        ],
+    )["created_nodes"]
+    workflow.reload_graph()
+    other = _email_node(
+        ctx, workflow, AutomationNode.objects.get(id=router["id"]), "Other"
+    )
+    workflow.reload_graph()
+    before = deepcopy(workflow.graph)
+    scope = [WorkflowActionScopeType.value(workflow.id)]
+    session = get_untrusted_client_session_id(ctx.user)
+
+    # On the branch, the chain ends in a router: Other would then run only when
+    # none of its branches match, so the undo is refused.
+    (action,) = ActionHandler.undo(ctx.user, scope, session)
+
+    assert "AutomationNodeNotDeletable" in action.error
+    workflow.reload_graph()
+    assert workflow.graph == before
+    assert AutomationNode.objects.filter(id=other.id).exists()
+
+
+@pytest.mark.django_db
+def test_undo_router_insert_refuses_to_hang_default_nodes_on_a_router_mid_chain(
+    automation_ctx,
+):
+    ctx, automation, table, _ = automation_ctx
+    workflow, trigger = create_workflow(ctx.user, automation, "Flow", table)
+    (email,) = add_nodes(ctx, workflow.id, [_email(previous=str(trigger.id))])[
+        "created_nodes"
+    ]
+    add_nodes(
+        ctx,
+        workflow.id,
+        [
+            ActionNodeCreate(
+                ref="router2",
+                type="router",
+                previous_node_ref=str(email["id"]),
+                edges=[{"label": "Small", "condition": "true"}],
+            ),
+            _email(ref="r2_default", previous="router2"),
+        ],
+    )
+    (router,) = add_nodes(
+        ctx,
+        workflow.id,
+        [
+            ActionNodeCreate(
+                ref="router",
+                type="router",
+                previous_node_ref=str(trigger.id),
+                edges=[{"label": "Big", "condition": "true"}],
+                shifted_node_edge_label="Big",
+            )
+        ],
+    )["created_nodes"]
+    workflow.reload_graph()
+    other = _email_node(
+        ctx, workflow, AutomationNode.objects.get(id=router["id"]), "Other"
+    )
+    workflow.reload_graph()
+    before = deepcopy(workflow.graph)
+    scope = [WorkflowActionScopeType.value(workflow.id)]
+    session = get_untrusted_client_session_id(ctx.user)
+
+    # The chain on the branch ends in a node on Router2's default branch: Other
+    # would then run only when none of Router2's branches match.
+    (action,) = ActionHandler.undo(ctx.user, scope, session)
+
+    assert "AutomationNodeNotDeletable" in action.error
+    assert "This step can't be undone" in action.error
+    workflow.reload_graph()
+    assert workflow.graph == before
+    assert AutomationNode.objects.filter(id=other.id).exists()
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("at_head", [True, False])
+def test_undo_router_insert_refuses_when_another_node_joined_the_branch(
+    automation_ctx, at_head
+):
+    ctx, automation, table, _ = automation_ctx
+    workflow, trigger = create_workflow(ctx.user, automation, "Flow", table)
+    (email,) = add_nodes(ctx, workflow.id, [_email(previous=str(trigger.id))])[
+        "created_nodes"
+    ]
+    (router,) = add_nodes(
+        ctx,
+        workflow.id,
+        [
+            ActionNodeCreate(
+                ref="router",
+                type="router",
+                previous_node_ref=str(trigger.id),
+                edges=[{"label": "Match", "condition": "true"}],
+                shifted_node_edge_label="Match",
+            )
+        ],
+    )["created_nodes"]
+    (edge,) = AutomationNode.objects.get(id=router["id"]).service.specific.edges.all()
+    # Another editor adds a step on the branch, so it runs only on a match.
+    workflow.reload_graph()
+    slack = create_node(
+        ctx.user,
+        workflow,
+        "smtp_email",
+        label="Slack",
+        reference_node_id=router["id"] if at_head else email["id"],
+        output=str(edge.uid) if at_head else "",
+    )
+    workflow.reload_graph()
+    before = deepcopy(workflow.graph)
+    scope = [WorkflowActionScopeType.value(workflow.id)]
+    session = get_untrusted_client_session_id(ctx.user)
+
+    (action,) = ActionHandler.undo(ctx.user, scope, session)
+
+    assert "AutomationNodeNotDeletable" in action.error
+    assert f"node {slack.id} on its branch wasn't moved there" in action.error
+    workflow.reload_graph()
+    assert workflow.graph == before
+
+
+def _undo_router_insert_queries(ctx, automation, table, length):
+    workflow, trigger = create_workflow(ctx.user, automation, f"Flow {length}", table)
+    add_nodes(
+        ctx,
+        workflow.id,
+        [_email(ref="e0", previous=str(trigger.id))]
+        + [_email(ref=f"e{i}", previous=f"e{i - 1}") for i in range(1, length)],
+    )
+    (router,) = add_nodes(
+        ctx,
+        workflow.id,
+        [
+            ActionNodeCreate(
+                ref="router",
+                type="router",
+                previous_node_ref=str(trigger.id),
+                edges=[{"label": "Big", "condition": "true"}],
+                shifted_node_edge_label="Big",
+            )
+        ],
+    )["created_nodes"]
+    workflow.reload_graph()
+    _email_node(ctx, workflow, AutomationNode.objects.get(id=router["id"]), "Other")
+    scope = [WorkflowActionScopeType.value(workflow.id)]
+    session = get_untrusted_client_session_id(ctx.user)
+    with CaptureQueriesContext(connection) as queries:
+        (action,) = ActionHandler.undo(ctx.user, scope, session)
+    assert not action.error
+    return len(queries)
+
+
+@pytest.mark.django_db
+def test_undo_router_insert_checks_the_chain_in_a_fixed_number_of_queries(
+    automation_ctx,
+):
+    ctx, automation, table, _ = automation_ctx
+
+    short = _undo_router_insert_queries(ctx, automation, table, 2)
+    long = _undo_router_insert_queries(ctx, automation, table, 10)
+
+    assert long == short
+
+
+@pytest.mark.django_db
+def test_undo_router_insert_checks_the_chain_under_the_graph_lock(automation_ctx):
+    ctx, automation, table, _ = automation_ctx
+    workflow, trigger = create_workflow(ctx.user, automation, "Flow", table)
+    (email,) = add_nodes(ctx, workflow.id, [_email(previous=str(trigger.id))])[
+        "created_nodes"
+    ]
+    (router,) = add_nodes(
+        ctx,
+        workflow.id,
+        [
+            ActionNodeCreate(
+                ref="router",
+                type="router",
+                previous_node_ref=str(trigger.id),
+                edges=[{"label": "Big", "condition": "true"}],
+                shifted_node_edge_label="Big",
+            )
+        ],
+    )["created_nodes"]
+    workflow.reload_graph()
+    other = _email_node(
+        ctx, workflow, AutomationNode.objects.get(id=router["id"]), "Other"
+    )
+    workflow.reload_graph()
+    stale = deepcopy(workflow.graph)
+    # Another session adds a router with branches at the end of the Big chain
+    # after the undo read the graph, but before it took the lock.
+    router2 = create_node(
+        ctx.user,
+        workflow,
+        "router",
+        reference_node_id=email["id"],
+        service={"edges": [{"uid": str(uuid4()), "label": "Small"}]},
+    )
+    workflow.reload_graph()
+    before = deepcopy(workflow.graph)
+    scope = [WorkflowActionScopeType.value(workflow.id)]
+    session = get_untrusted_client_session_id(ctx.user)
+    get_node = AutomationNodeHandler.get_node
+
+    stale_reads = [router["id"]]
+
+    def get_node_reading_stale_graph(self, node_id, *args, **kwargs):
+        node = get_node(self, node_id, *args, **kwargs)
+        if node_id in stale_reads:
+            stale_reads.remove(node_id)
+            node.workflow.reload_graph()
+            node.workflow.graph.clear()
+            node.workflow.graph.update(deepcopy(stale))
+        return node
+
+    with patch.object(AutomationNodeHandler, "get_node", get_node_reading_stale_graph):
+        (action,) = ActionHandler.undo(ctx.user, scope, session)
+
+    assert not stale_reads
+    assert action.error and "AutomationNodeNotDeletable" in action.error
+    workflow.reload_graph()
+    assert workflow.graph == before
+    assert workflow.graph[str(email["id"])]["next"] == {"": [router2.id]}
+    assert AutomationNode.objects.filter(id=other.id).exists()
+
+
+@pytest.mark.django_db
+def test_redo_router_insert_broadcasts_the_final_graph_once(
+    automation_ctx, django_capture_on_commit_callbacks
+):
+    ctx, automation, table, _ = automation_ctx
+    workflow, trigger = create_workflow(ctx.user, automation, "Flow", table)
+    (email,) = add_nodes(ctx, workflow.id, [_email(previous=str(trigger.id))])[
+        "created_nodes"
+    ]
+    (router,) = add_nodes(
+        ctx,
+        workflow.id,
+        [
+            ActionNodeCreate(
+                ref="router",
+                type="router",
+                previous_node_ref=str(trigger.id),
+                edges=[{"label": "Big", "condition": "true"}],
+                shifted_node_edge_label="Big",
+            )
+        ],
+    )["created_nodes"]
+    scope = [WorkflowActionScopeType.value(workflow.id)]
+    session = get_untrusted_client_session_id(ctx.user)
+    ActionHandler.undo(ctx.user, scope, session)
+
+    with patch(
+        "baserow.contrib.automation.workflows.ws.signals.broadcast_to_permitted_users"
+    ) as broadcast:
+        with django_capture_on_commit_callbacks(execute=True):
+            ActionHandler.redo(ctx.user, scope, session)
+
+    updates = [
+        call.args[4]["workflow"]
+        for call in broadcast.delay.call_args_list
+        if call.args[4]["type"] == "automation_workflow_updated"
+    ]
+    (update,) = updates
+    assert list(update["graph"][str(router["id"])]["next"].values()) == [[email["id"]]]
+
+
+@pytest.mark.django_db
+def test_add_nodes_router_at_the_end_keeps_no_branch_for_undo(automation_ctx):
+    ctx, automation, table, _ = automation_ctx
+    workflow, trigger = create_workflow(ctx.user, automation, "Flow", table)
+
+    add_nodes(
+        ctx,
+        workflow.id,
+        [
+            ActionNodeCreate(
+                ref="router",
+                type="router",
+                previous_node_ref=str(trigger.id),
+                edges=[{"label": "Big", "condition": "true"}],
+                shifted_node_edge_label="Big",
+            )
+        ],
+    )
+
+    # Nothing moved onto the branch, so undo and redo leave it alone.
+    assert Action.objects.latest("id").params["next_output"] == ""
+
+
+@pytest.mark.django_db
+def test_add_nodes_reads_the_graph_a_cached_handler_missed(automation_ctx):
+    ctx, automation, table, _ = automation_ctx
+    workflow, trigger = create_workflow(ctx.user, automation, "Flow", table)
+    (email,) = add_nodes(ctx, workflow.id, [_email(previous=str(trigger.id))])[
+        "created_nodes"
+    ]
+    stale = deepcopy(workflow.get_graph().graph)
+    (other,) = add_nodes(
+        ctx, workflow.id, [_email(ref="other", previous=str(email["id"]))]
+    )["created_nodes"]
+    # As in a Kuma run, where an earlier call's handler stays cached after
+    # another session changed the graph.
+    cached = workflow.get_graph().graph
+    cached.clear()
+    cached.update(stale)
+
+    (log,) = add_nodes(ctx, workflow.id, [_email(ref="log", previous=str(trigger.id))])[
+        "created_nodes"
+    ]
+
+    assert [node["id"] for node in list_nodes(ctx, workflow.id)["nodes"]] == [
+        trigger.id,
+        log["id"],
+        email["id"],
+        other["id"],
+    ]
+
+
+@pytest.mark.django_db
+def test_add_nodes_router_before_a_node_needs_its_branch_chosen(automation_ctx):
+    ctx, automation, table, _ = automation_ctx
+    workflow, trigger = create_workflow(ctx.user, automation, "Flow", table)
+    (email,) = add_nodes(ctx, workflow.id, [_email(previous=str(trigger.id))])[
+        "created_nodes"
+    ]
+    before = deepcopy(workflow.get_graph().graph)
+    router = {
+        "type": "router",
+        "previous_node_ref": str(trigger.id),
+        "edges": [{"label": "Big", "condition": "true"}],
+    }
+
+    with pytest.raises(DjangoValidationError, match="'Big' or 'default'"):
+        add_nodes(
+            ctx,
+            workflow.id,
+            # The first node is fine; the router after it is not.
+            [
+                _email(ref="log", previous=str(trigger.id)),
+                ActionNodeCreate(ref="r", **{**router, "previous_node_ref": "log"}),
+            ],
+        )
+
+    workflow.reload_graph()
+    assert workflow.graph == before
+    assert AutomationNode.objects.filter(workflow=workflow).count() == 2
+
+    result = add_nodes(
+        ctx,
+        workflow.id,
+        [ActionNodeCreate(ref="r", shifted_node_edge_label="Default", **router)],
+    )
+
+    (created,) = result["created_nodes"]
+    assert workflow.get_graph().graph[str(created["id"])]["next"] == {"": [email["id"]]}
+
+
+@pytest.mark.django_db
+def test_add_nodes_router_before_a_node_of_the_call_names_it_by_ref(automation_ctx):
+    ctx, automation, table, _ = automation_ctx
+    workflow, trigger = create_workflow(ctx.user, automation, "Flow", table)
+
+    with pytest.raises(DjangoValidationError, match="before node 'a'"):
+        add_nodes(
+            ctx,
+            workflow.id,
+            [
+                _email(ref="a", previous=str(trigger.id)),
+                ActionNodeCreate(
+                    ref="r",
+                    type="router",
+                    previous_node_ref=str(trigger.id),
+                    edges=[{"label": "Big", "condition": "true"}],
+                    shifted_node_edge_label="",
+                ),
+            ],
+        )
+
+    assert AutomationNode.objects.filter(workflow=workflow).count() == 1
+
+
+@pytest.mark.django_db
+def test_add_nodes_router_at_the_end_takes_an_empty_shifted_label(automation_ctx):
+    ctx, automation, table, _ = automation_ctx
+    workflow, trigger = create_workflow(ctx.user, automation, "Flow", table)
+
+    result = add_nodes(
+        ctx,
+        workflow.id,
+        [
+            ActionNodeCreate(
+                ref="r",
+                type="router",
+                previous_node_ref=str(trigger.id),
+                edges=[{"label": "Big", "condition": "true"}],
+                shifted_node_edge_label="",
+            ),
+            _email(ref="after", previous="r", router_edge_label="default"),
+        ],
+    )
+
+    router, after = result["created_nodes"]
+    graph = workflow.get_graph().graph
+    assert graph[str(router["id"])]["next"] == {"": [after["id"]]}
+
+
+def test_add_nodes_rejects_a_shifted_node_edge_label_the_router_lacks():
+    with pytest.raises(PydanticValidationError, match="'Big' is not a branch"):
+        ActionNodeCreate(
+            ref="router",
+            type="router",
+            previous_node_ref="1",
+            edges=[{"label": "Small", "condition": "true"}],
+            shifted_node_edge_label="Big",
+        )
+
+
+@pytest.mark.parametrize("shifted", ["default", "Default"])
+def test_add_nodes_rejects_default_when_a_branch_is_named_default(shifted):
+    # A branch named Default would hide the default branch: there would be no way
+    # left to shift the node onto the default branch.
+    with pytest.raises(PydanticValidationError, match="Rename that branch"):
+        ActionNodeCreate(
+            ref="router",
+            type="router",
+            previous_node_ref="1",
+            edges=[{"label": "Default", "condition": "true"}],
+            shifted_node_edge_label=shifted,
+        )
+
+
+@pytest.mark.django_db
+def test_add_nodes_after_the_last_node_shifts_nothing(automation_ctx):
+    ctx, automation, table, _ = automation_ctx
+    workflow, trigger = create_workflow(ctx.user, automation, "Flow", table)
+
+    result = add_nodes(ctx, workflow.id, [_email(previous=str(trigger.id))])
+
+    assert "shifted_nodes" not in result
 
 
 @pytest.mark.django_db
@@ -771,3 +1637,418 @@ def test_update_nodes_keeps_a_branch_listed_without_a_condition(automation_ctx):
         for edge in router.service.specific.edges.all()
     }
     assert edges == {"Big": "true", "Small": ""}
+
+
+@pytest.mark.parametrize("label", ["default", "Default", "DEFAULT"])
+@pytest.mark.parametrize(
+    "branches", [{"Default": "uid1"}, {"Default": "uid1", "DEFAULT": "uid2"}]
+)
+def test_node_refs_refuses_default_when_a_branch_is_named_default(label, branches):
+    refs = NodeRefs()
+    refs.add("router", 1, branches)
+
+    with pytest.raises(DjangoValidationError) as error:
+        refs.resolve("router", label)
+
+    message = str(error.value)
+    assert "could mean the default branch or the branch named" in message
+    assert "Leave router_edge_label out for the default branch" in message
+    assert "before_node_id" in message and "rename" in message
+
+
+@pytest.mark.django_db
+def test_add_nodes_refuses_default_on_a_router_with_a_branch_named_default(
+    automation_ctx,
+):
+    ctx, automation, table, _ = automation_ctx
+    workflow, trigger = create_workflow(ctx.user, automation, "Flow", table)
+    router = create_node(
+        ctx.user,
+        workflow,
+        "router",
+        reference_node_id=trigger.id,
+        service={"edges": [{"uid": str(uuid4()), "label": "Default"}]},
+    )
+    before = deepcopy(workflow.get_graph().graph)
+
+    with pytest.raises(DjangoValidationError, match="could mean the default branch"):
+        add_nodes(
+            ctx,
+            workflow.id,
+            [_email(previous=str(router.id), router_edge_label="default")],
+        )
+
+    workflow.reload_graph()
+    assert workflow.graph == before
+
+
+def test_node_refs_refuses_a_label_that_names_several_branches():
+    refs = NodeRefs()
+    refs.add("yes", 3, {"Yes": "uid4", "YES": "uid5"})
+    with pytest.raises(DjangoValidationError) as error:
+        refs.resolve("yes", "yes")
+    assert "matches several branches" in str(error.value)
+    assert "leave router_edge_label out" not in str(error.value)
+    refs.add("plain", 2, {"Big": "uid3"})
+    assert refs.resolve("plain", "default") == (2, "")
+
+
+@pytest.mark.django_db
+def test_add_nodes_before_node_id_puts_a_router_before_an_iterator_child(
+    automation_ctx,
+):
+    ctx, automation, table, _ = automation_ctx
+    workflow, trigger = create_workflow(ctx.user, automation, "Flow", table)
+    iterator = create_node(ctx.user, workflow, "iterator", reference_node_id=trigger.id)
+    child = create_node(
+        ctx.user,
+        workflow,
+        "smtp_email",
+        reference_node_id=iterator.id,
+        position="child",
+    )
+
+    result = add_nodes(
+        ctx,
+        workflow.id,
+        [
+            ActionNodeCreate(
+                ref="router",
+                type="router",
+                before_node_id=child.id,
+                edges=[{"label": "Match", "condition": "true"}],
+                shifted_node_edge_label="Match",
+            )
+        ],
+    )
+
+    (router,) = result["created_nodes"]
+    (edge,) = AutomationNode.objects.get(id=router["id"]).service.specific.edges.all()
+    graph = workflow.get_graph().graph
+    assert graph[str(iterator.id)]["children"] == {"": [router["id"]]}
+    assert graph[str(router["id"])]["next"] == {str(edge.uid): [child.id]}
+    (shifted,) = result["shifted_nodes"]
+    assert (shifted["id"], shifted["router_edge_label"]) == (child.id, "Match")
+
+
+@pytest.mark.django_db
+def test_add_nodes_before_node_id_keeps_the_branch_when_labels_repeat(
+    automation_ctx,
+):
+    ctx, automation, table, _ = automation_ctx
+    workflow, trigger = create_workflow(ctx.user, automation, "Flow", table)
+    first, second = str(uuid4()), str(uuid4())
+    router = create_node(
+        ctx.user,
+        workflow,
+        "router",
+        reference_node_id=trigger.id,
+        service={
+            "edges": [{"uid": first, "label": "Big"}, {"uid": second, "label": "Big"}]
+        },
+    )
+    email = create_node(
+        ctx.user, workflow, "smtp_email", reference_node_id=router.id, output=second
+    )
+
+    (log,) = add_nodes(
+        ctx, workflow.id, [_email(ref="log", previous=None, before_node_id=email.id)]
+    )["created_nodes"]
+
+    graph = workflow.get_graph().graph
+    assert graph[str(router.id)]["next"] == {second: [log["id"]]}
+    assert graph[str(log["id"])]["next"] == {"": [email.id]}
+
+
+@pytest.mark.django_db
+def test_add_nodes_before_node_id_leaves_a_node_added_before_it(automation_ctx):
+    ctx, automation, table, _ = automation_ctx
+    workflow, trigger = create_workflow(ctx.user, automation, "Flow", table)
+    (email,) = add_nodes(ctx, workflow.id, [_email(previous=str(trigger.id))])[
+        "created_nodes"
+    ]
+    # Another editor adds a log step after the trigger, after the caller listed
+    # the nodes.
+    (log,) = add_nodes(ctx, workflow.id, [_email(ref="log", previous=str(trigger.id))])[
+        "created_nodes"
+    ]
+
+    (router,) = add_nodes(
+        ctx,
+        workflow.id,
+        [
+            ActionNodeCreate(
+                ref="router",
+                type="router",
+                before_node_id=email["id"],
+                edges=[{"label": "Match", "condition": "true"}],
+                shifted_node_edge_label="Match",
+            )
+        ],
+    )["created_nodes"]
+
+    (edge,) = AutomationNode.objects.get(id=router["id"]).service.specific.edges.all()
+    graph = workflow.get_graph().graph
+    assert graph[str(trigger.id)]["next"] == {"": [log["id"]]}
+    assert graph[str(log["id"])]["next"] == {"": [router["id"]]}
+    assert graph[str(router["id"])]["next"] == {str(edge.uid): [email["id"]]}
+
+
+@pytest.mark.django_db
+def test_add_nodes_before_node_id_router_needs_its_branch_chosen(automation_ctx):
+    ctx, automation, table, _ = automation_ctx
+    workflow, trigger = create_workflow(ctx.user, automation, "Flow", table)
+    (email,) = add_nodes(ctx, workflow.id, [_email(previous=str(trigger.id))])[
+        "created_nodes"
+    ]
+
+    with pytest.raises(DjangoValidationError, match=f"before node '{email['id']}'"):
+        add_nodes(
+            ctx,
+            workflow.id,
+            [
+                ActionNodeCreate(
+                    ref="router",
+                    type="router",
+                    before_node_id=email["id"],
+                    edges=[{"label": "Match", "condition": "true"}],
+                )
+            ],
+        )
+
+
+@pytest.mark.django_db
+def test_add_nodes_before_node_id_refuses_the_trigger_and_unknown_nodes(
+    automation_ctx,
+):
+    ctx, automation, table, _ = automation_ctx
+    workflow, trigger = create_workflow(ctx.user, automation, "Flow", table)
+    other, other_trigger = create_workflow(ctx.user, automation, "Other", table)
+    (email,) = add_nodes(ctx, other.id, [_email(previous=str(other_trigger.id))])[
+        "created_nodes"
+    ]
+    before = deepcopy(workflow.get_graph().graph)
+
+    with pytest.raises(DjangoValidationError, match="trigger"):
+        add_nodes(
+            ctx,
+            workflow.id,
+            [_email(previous=None, before_node_id=trigger.id)],
+        )
+    with pytest.raises(DjangoValidationError, match="not the ID of a node"):
+        add_nodes(
+            ctx,
+            workflow.id,
+            [_email(previous=None, before_node_id=email["id"])],
+        )
+
+    workflow.reload_graph()
+    assert workflow.graph == before
+
+
+@pytest.mark.parametrize(
+    "position,error",
+    [
+        ({}, "Give either"),
+        ({"previous_node_ref": "1", "before_node_id": 2}, "Give either"),
+        ({"before_node_id": 2, "router_edge_label": "Big"}, "takes the branch"),
+    ],
+)
+def test_add_nodes_takes_exactly_one_position(position, error):
+    with pytest.raises(PydanticValidationError, match=error):
+        ActionNodeCreate(
+            ref="mail",
+            type="smtp_email",
+            to_emails="team@example.com",
+            subject="Hi",
+            body="Hello",
+            **position,
+        )
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("restore", ["redo", "trash"])
+def test_restore_router_insert_keeps_a_node_moved_off_the_branch(
+    automation_ctx, restore
+):
+    ctx, automation, table, _ = automation_ctx
+    workflow, trigger, email, router, scope, session = _insert_router_before_email(
+        ctx, automation, table
+    )
+    # Another session moves the email from the branch to the default output.
+    AutomationNodeService().move_node(ctx.user, email["id"], router["id"], "south", "")
+    ActionHandler.undo(ctx.user, scope, session)
+
+    if restore == "redo":
+        ActionHandler.redo(ctx.user, scope, session)
+    else:
+        TrashHandler.restore_item(
+            ctx.user, AutomationNodeTrashableItemType.type, router["id"]
+        )
+
+    workflow.reload_graph()
+    assert workflow.graph[str(router["id"])]["next"] == {"": [email["id"]]}
+    assert not Action.objects.filter(error__isnull=False).exists()
+
+
+def _insert_router_before_email_and_iterator(ctx, automation, table):
+    workflow, trigger = create_workflow(ctx.user, automation, "Flow", table)
+    (email,) = add_nodes(ctx, workflow.id, [_email(previous=str(trigger.id))])[
+        "created_nodes"
+    ]
+    iterator = create_node(
+        ctx.user, workflow, "iterator", reference_node_id=email["id"]
+    )
+    (router,) = add_nodes(
+        ctx,
+        workflow.id,
+        [
+            ActionNodeCreate(
+                ref="router",
+                type="router",
+                previous_node_ref=str(trigger.id),
+                edges=[{"label": "Match", "condition": "true"}],
+                shifted_node_edge_label="Match",
+            )
+        ],
+    )["created_nodes"]
+    scope = [WorkflowActionScopeType.value(workflow.id)]
+    session = get_untrusted_client_session_id(ctx.user)
+    return workflow, email, iterator, router, scope, session
+
+
+def _add_step(ctx, workflow, email, iterator, where):
+    workflow.reload_graph()
+    if where == "between":
+        return _email_node(
+            ctx, workflow, AutomationNode.objects.get(id=email["id"]), "K"
+        )
+    return create_node(
+        ctx.user,
+        workflow,
+        "smtp_email",
+        label="K",
+        reference_node_id=iterator.id,
+        position="child",
+    )
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("where", ["between", "child"])
+def test_undo_router_insert_refuses_when_a_step_was_added_on_the_branch(
+    automation_ctx, where
+):
+    ctx, automation, table, _ = automation_ctx
+    workflow, email, iterator, router, scope, session = (
+        _insert_router_before_email_and_iterator(ctx, automation, table)
+    )
+    # Another session adds a step on the branch, meant to run only on a match.
+    added = _add_step(ctx, workflow, email, iterator, where)
+    workflow.reload_graph()
+    before = deepcopy(workflow.graph)
+
+    (action,) = ActionHandler.undo(ctx.user, scope, session)
+
+    assert "AutomationNodeNotDeletable" in action.error
+    assert f"node {added.id}" in action.error
+    workflow.reload_graph()
+    assert workflow.graph == before
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("restore", ["redo", "trash"])
+@pytest.mark.parametrize("where", ["between", "child"])
+def test_restore_router_insert_refuses_when_a_step_was_added_after_undo(
+    automation_ctx, restore, where
+):
+    ctx, automation, table, _ = automation_ctx
+    workflow, email, iterator, router, scope, session = (
+        _insert_router_before_email_and_iterator(ctx, automation, table)
+    )
+    ActionHandler.undo(ctx.user, scope, session)
+    # Another session adds a step, meant to run every time.
+    _add_step(ctx, workflow, email, iterator, where)
+    workflow.reload_graph()
+    before = deepcopy(workflow.graph)
+
+    if restore == "redo":
+        (action,) = ActionHandler.redo(ctx.user, scope, session)
+        assert "TrashItemRestorationDisallowed" in action.error
+    else:
+        with pytest.raises(TrashItemRestorationDisallowed, match="changed"):
+            TrashHandler.restore_item(
+                ctx.user, AutomationNodeTrashableItemType.type, router["id"]
+            )
+
+    workflow.reload_graph()
+    assert workflow.graph == before
+    assert AutomationNode.objects_and_trash.get(id=router["id"]).trashed
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("restore", ["redo", "trash"])
+def test_restore_router_insert_refuses_when_a_step_was_appended_after_its_nodes(
+    automation_ctx, restore
+):
+    ctx, automation, table, _ = automation_ctx
+    workflow, trigger, email, router, scope, session = _insert_router_before_email(
+        ctx, automation, table
+    )
+    ActionHandler.undo(ctx.user, scope, session)
+    # Another session appends a step after the email, meant to run every time:
+    # on the default output it would run only when no branch matches.
+    workflow.reload_graph()
+    later = _email_node(ctx, workflow, AutomationNode.objects.get(id=email["id"]), "K")
+    workflow.reload_graph()
+    before = deepcopy(workflow.graph)
+
+    if restore == "redo":
+        (action,) = ActionHandler.redo(ctx.user, scope, session)
+        assert "TrashItemRestorationDisallowed" in action.error
+        assert f"node {later.id} was added" in action.error
+    else:
+        with pytest.raises(TrashItemRestorationDisallowed, match=f"node {later.id}"):
+            TrashHandler.restore_item(
+                ctx.user, AutomationNodeTrashableItemType.type, router["id"]
+            )
+
+    workflow.reload_graph()
+    assert workflow.graph == before
+    assert AutomationNode.objects_and_trash.get(id=router["id"]).trashed
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("restore", ["redo", "trash"])
+def test_restore_router_insert_leaves_a_change_past_the_step_after_its_nodes(
+    automation_ctx, restore
+):
+    ctx, automation, table, _ = automation_ctx
+    workflow, trigger, email, router, scope, session = _insert_router_before_email(
+        ctx, automation, table
+    )
+    workflow.reload_graph()
+    fallback = _email_node(
+        ctx, workflow, AutomationNode.objects.get(id=router["id"]), "Fallback"
+    )
+    ActionHandler.undo(ctx.user, scope, session)
+    # Another session appends a step after the fallback step, past the step
+    # right after the email.
+    workflow.reload_graph()
+    later = _email_node(ctx, workflow, fallback, "K")
+
+    if restore == "redo":
+        ActionHandler.redo(ctx.user, scope, session)
+    else:
+        TrashHandler.restore_item(
+            ctx.user, AutomationNodeTrashableItemType.type, router["id"]
+        )
+
+    (edge,) = AutomationNode.objects.get(id=router["id"]).service.specific.edges.all()
+    workflow.reload_graph()
+    assert workflow.graph[str(router["id"])]["next"] == {
+        str(edge.uid): [email["id"]],
+        "": [fallback.id],
+    }
+    assert not workflow.graph[str(email["id"])].get("next", {}).get("")
+    assert workflow.graph[str(fallback.id)]["next"] == {"": [later.id]}
+    assert not Action.objects.filter(error__isnull=False).exists()

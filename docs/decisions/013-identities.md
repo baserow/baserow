@@ -16,8 +16,7 @@ permissions, Created by, Last modified by, collaborator assignments, mentions an
 background jobs. Nothing converts between the identity that acts and the user stored
 in a foreign key.
 
-The `Agent` model is removed. Its unused `core_agent` table stays for one release so
-old processes can finish during deployment.
+Identities replace the earlier Agent permission subject.
 
 ## Context
 
@@ -49,7 +48,7 @@ UserProfile. `AUTH_USER_MODEL` does not change and there is no Agent proxy.
 An identity has a User, a UserProfile and one WorkspaceUser membership, which
 supplies its workspace. Its workspace role is stored on WorkspaceUser, scoped roles
 use RoleAssignment, and team and field grants use the existing User paths. Its stored
-subject type is `auth.User`; the `core.Agent` subject registration disappears.
+subject type is `auth.User`; there is no separate Agent subject.
 
 UserProfile also stores the trash state and last activity of an identity.
 `date_joined` is its creation time and `first_name` its only name, limited to 150
@@ -93,12 +92,10 @@ unknown type matches neither, and neither says that a user is active or authoriz
 These checks at the human-only boundaries and the people-only default managers
 enforce the distinction. RBAC `Actor` and `Subject` keep their meanings.
 
-Subject code does not repeat the check. `UserSubjectType` stays the type both kinds
-are registered and stored under, `auth.User`. It holds what they share and forwards
-what differs to `HumanSubjectType` and `IdentitySubjectType`; its `get_specific_type`
-is the only place in subject code that reads the user type.
-`subject_type_registry.get_specific_type(subject)` returns the specific type, while
-`get_by_model` returns the stored type and never reads the profile.
+Subject code does not repeat the check. Both kinds are stored under the `auth.User`
+subject type, which holds what they share and forwards what differs to a human or an
+identity specific type. Resolving that specific type is the only place in subject
+code that reads the user type; looking up the stored type never reads the profile.
 
 ### Identity execution and user sign-in are separate
 
@@ -130,8 +127,8 @@ Permissions reuse the existing membership and role managers:
 - An identity whose stored role is unavailable after an edition or license change is
   denied, never given a more permissive role.
 
-Identities produce audit events but no undo history or human analytics;
-`is_interactive_user` on the specific subject type says which. They cannot own
+Identities produce audit events but no undo history or human analytics; the
+specific subject type says which. They cannot own
 personal views, receive notifications, occupy a license seat or count as the
 remaining human administrator. Feature access follows the existing workspace and
 instance entitlements.
@@ -154,11 +151,13 @@ only to an active identity of the application's workspace. A trashed identity re
 be restored; a disabled, deleted or foreign one reports it as missing. Either way the
 application has no workspace access until someone picks an active identity.
 
-Binding an Agent application or a Local Baserow integration to an identity takes
-`identity.update`, held by workspace admins, because everyone who can edit the bound
-application acts with the identity's access. Keeping or clearing a binding needs no
-extra permission, and run-as choices list no identities for someone who cannot bind
-them. A duplicate or a restored snapshot is a new binding, also when the original
+Binding an Agent application or a Local Baserow integration to an existing identity
+takes the permission to bind identities, held by workspace builders and admins, and
+by every member without role-based access. Everyone who can edit the bound
+application then acts with the identity's access, which can exceed their own; this is
+accepted so builders can use the identities admins create. Creating, editing and
+deleting identities stays with admins. Keeping or clearing a binding needs no extra
+permission, and run-as choices list no identities for someone who cannot bind them. A duplicate or a restored snapshot is a new binding, also when the original
 lost its own since, so it keeps the identity only when the person who makes it may
 bind identities. Otherwise an Agent application loses its run-as and a Local Baserow
 integration is authorized as that person, as an import from another workspace is.
@@ -193,45 +192,6 @@ synthetic address is not an email. Identities never receive email or in-app
 notifications and are never subscribed to row comment notifications; a later trigger
 or setting can let one react.
 
-### Removal and migration
-
-Historical migration `0121_agent.py` stays. One new core migration,
-`0139_user_identities`, adds the profile fields with database defaults and removes
-Agent. All runtime imports, `core.Agent` registrations, queries and client branches
-go.
-
-Production has no Agents or identities, so legacy Agent data is disposable. The
-migration deletes Agent rows without converting them, with what would break without
-the model: Agent trash entries and the role assignments and team memberships of
-Agents. Local Baserow authorizations and run-as bindings to an Agent are cleared;
-such an application keeps its configuration but has no workspace access until an
-identity is picked. Other nonproduction leftovers, such as action history, are left
-alone.
-
-The empty `core_agent` table stays for one release, because old processes still query
-it, including Django's workspace deletion cascade. Imports that carry a `core.Agent`
-authorization are rejected clearly and never fall back to the importing person's
-authority. The reverse migration refuses to drop the user type while identities
-exist, since older code would treat an enabled identity as a human account.
-
-Profiles cached by the previous release lack the new fields. The user cache, used by
-HTTP and WebSocket authentication, and the database token cache treat such an entry
-as a miss and reload it, so a valid person is never locked out and missing metadata
-never authorizes an identity. A second, non-atomic migration,
-`0140_userprofile_trashed_idx`, builds the partial trash index with the shared
-recoverable concurrent-index operation and gives a human profile to any user that
-lacks one.
-
-### Deployment gate
-
-Old code treats every User as a person: an identity with an ADMIN membership could
-make an old backend let the last human administrator leave. So identity creation
-stays disabled until every backend and worker of the previous version has drained.
-Until then `FEATURE_FLAGS` must contain none of `agents`, `identities` or `*` on the
-backend or frontend. The creation API enforces the flag, and nothing may create
-identities through services, scripts or imports. A database that already contains identities must not run old and new
-backends together, and removing the flag does not make a rollback safe.
-
 ## Alternatives
 
 - **Keep Agent plus User:** preserves class-based separation, but requires two
@@ -242,8 +202,8 @@ backends together, and removing the flag does not make a rollback safe.
   but it is Django's default manager. Existing call sites, seat counts, login,
   password reset and code outside this repository would silently include identities;
   a forgotten opt-in should hide an identity, not bill, email or authenticate it.
-- **Replace Django's User model:** would support fields directly on User, but adds
-  a much larger migration across the existing foreign-key graph.
+- **Replace Django's User model:** would support fields directly on User, but is a
+  much larger change across the existing foreign-key graph.
 - **Register identities under their own subject type name:** shows the kind in
   every stored reference, but one row could then be stored under two type names
   and nothing in the database rejects the wrong one. The identity subject type
@@ -271,7 +231,7 @@ or owns something points at a Subject instead of a User.
 | Copies of a name and email | Two, synchronized by code that bulk updates, raw SQL and older workers bypass | One |
 | Deleted accounts | Leave a Subject that keeps the name and email, so erasing personal data needs its own step | Unchanged |
 | Ids | Subjects reuse user ids and identities draw from the user sequence, so resetting it collides | One row per id |
-| Rollout | New tables, a backfill of every user, a deploy that synchronizes, a drain, a reconcile, a persisted switch | One migration adding three profile columns |
+| Schema change | New tables, every user copied into them, and both kept in sync until the switch | Three new profile fields |
 | Stored formats | Collaborator values in formula cells and the import and export format change | Unchanged |
 | What stays on User | Sign-in, sessions, two-factor authentication, OAuth grants, tokens, invitations and license seats; 8 of the 52 columns belong to Django and the OAuth library | Nothing moves |
 | Human-only rules | Still needed: an identity cannot sign in, take a seat or own a personal view | Needed, stated by the default managers and the subject types |

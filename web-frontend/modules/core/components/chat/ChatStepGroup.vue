@@ -62,6 +62,14 @@
         {{ stepStatusText({ status, changesData, failureHint, partial }, $t) }}
       </span>
     </div>
+    <p v-if="description" class="chat-step-group__description">
+      {{ description }}
+    </p>
+    <div v-if="links.length" class="chat-step-group__links">
+      <NuxtLink v-for="link in links" :key="link.id" :to="link.to">{{
+        link.label
+      }}</NuxtLink>
+    </div>
     <div v-if="hasDetails && expanded" :id="detailsId">
       <ul v-if="lines.length" class="chat-step-group__lines">
         <li v-for="line in lines" :key="line.id" class="chat-step-group__line">
@@ -122,6 +130,8 @@ import ChatToolInput from '@baserow/modules/core/components/chat/ChatToolInput'
 const props = defineProps({
   title: { type: String, required: true },
   status: { type: String, required: true },
+  description: { type: String, default: '' },
+  links: { type: Array, default: () => [] },
   changesData: { type: Boolean, default: false },
   lines: { type: Array, default: () => [] },
   input: { type: Object, default: null },

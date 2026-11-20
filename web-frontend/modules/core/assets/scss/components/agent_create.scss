@@ -1,0 +1,172 @@
+.agent-create {
+  display: flex;
+  flex-direction: column;
+  max-height: calc(100vh - 80px);
+}
+
+.agent-create__head {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 8px;
+  padding: 16px 48px 16px 20px;
+  border-bottom: 1px solid $palette-neutral-200;
+}
+
+.agent-create__title {
+  margin: 0;
+  font-size: 14px;
+  line-height: 20px;
+  font-weight: 600;
+  color: $palette-neutral-1200;
+}
+
+.agent-create__body {
+  flex: 1;
+  min-height: 0;
+  padding: 20px;
+  overflow-y: auto;
+}
+
+.agent-create__foot {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 16px 20px;
+  border-top: 1px solid $palette-neutral-200;
+}
+
+.agent-create__note {
+  flex: 1;
+  font-size: 12px;
+  line-height: 18px;
+  color: $palette-neutral-700;
+}
+
+.agent-create__suggestions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.agent-create__suggestion {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  border: 1px solid $palette-neutral-300;
+  background: $palette-neutral-0;
+  font-size: 12px;
+  line-height: 18px;
+  font-weight: 500;
+  color: $palette-neutral-1200;
+  cursor: pointer;
+
+  @include rounded($rounded);
+
+  &:hover {
+    background: $palette-neutral-50;
+  }
+
+  &:focus-visible {
+    outline: 2px solid $palette-blue-500;
+    outline-offset: 1px;
+  }
+}
+
+.agent-create__suggestion-icon {
+  font-size: 14px;
+  color: $palette-neutral-700;
+}
+
+.agent-create__intro {
+  margin: 0 0 16px;
+  font-size: 12px;
+  line-height: 18px;
+  color: $palette-neutral-700;
+}
+
+.agent-create__section {
+  margin-top: 20px;
+  padding-top: 20px;
+  border-top: 1px solid $palette-neutral-200;
+}
+
+.agent-create__start {
+  width: 100%;
+
+  .segment-control__button {
+    flex: 1;
+  }
+}
+
+.agent-create__schedule {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 8px;
+  padding: 12px;
+  background: $palette-neutral-25;
+  border: 1px solid $palette-neutral-200;
+
+  @include rounded($rounded-md);
+}
+
+.agent-create__schedule-icon {
+  font-size: 16px;
+  color: $palette-neutral-700;
+}
+
+.agent-create__schedule-name,
+.agent-create__extra-name {
+  font-size: 13px;
+  line-height: 20px;
+  font-weight: 500;
+  color: $palette-neutral-1200;
+}
+
+.agent-create__schedule-description,
+.agent-create__extra-description {
+  font-size: 12px;
+  line-height: 18px;
+  color: $palette-neutral-700;
+}
+
+.agent-create__role {
+  flex-shrink: 0;
+  margin-left: auto;
+}
+
+.agent-create__extras {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border: 1px solid $palette-neutral-200;
+
+  @include rounded($rounded-md);
+}
+
+.agent-create__extra {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+
+  & + & {
+    border-top: 1px solid $palette-neutral-200;
+  }
+}
+
+.agent-create__extra-icon {
+  flex-shrink: 0;
+  font-size: 16px;
+  color: $palette-neutral-700;
+}
+
+.agent-create__extra-text {
+  flex: 1;
+  min-width: 0;
+}

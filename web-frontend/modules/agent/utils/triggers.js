@@ -70,6 +70,36 @@ export function agentTriggerTypeOf(registry, type) {
 }
 
 /**
+ * @param {object} registry The app registry.
+ * @param {Function} t The translate function.
+ * @param {object} serviceType A trigger's service type.
+ * @returns {object} The opening message of a new trigger of that type: the one
+ *   an Agent words for it, else its name and the time it fired.
+ */
+export function newTriggerMessage(registry, t, serviceType) {
+  return (
+    agentTriggerTypeOf(registry, serviceType.type)?.getDefaultMessage() ??
+    defaultTriggerMessage(t, serviceType)
+  )
+}
+
+/**
+ * @param {object} registry The app registry.
+ * @param {Function} t The translate function.
+ * @param {string} type The service type of the trigger.
+ * @returns {object} What a new trigger of that type is created with: the type's
+ *   default service values and its opening message.
+ */
+export function newTriggerValues(registry, t, type) {
+  const serviceType = registry.get('service', type)
+  return {
+    type,
+    message: newTriggerMessage(registry, t, serviceType),
+    service: serviceType.getDefaultValues(null, {}),
+  }
+}
+
+/**
  * A removed plugin's trigger type is unknown here, and `Registry.get` would throw.
  *
  * @param {object} registry The app registry.

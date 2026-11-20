@@ -131,6 +131,8 @@ describe('Agent action editor', () => {
         return [200, clone(saved)]
       })
   }
+  const misconfigured = (wrapper) =>
+    wrapper.find('.agent-action-card__misconfigured')
   async function settle() {
     await vi.advanceTimersByTimeAsync(500)
     await flushPromises()
@@ -148,9 +150,10 @@ describe('Agent action editor', () => {
         .map((node) => node.attributes('aria-checked'))
     ).toEqual(['true', 'false'])
     expect(wrapper.findAllComponents(AgentFormulaInput)).toHaveLength(7)
-    expect(wrapper.get('.agent-action-card').text()).toContain(
-      'agent.actionMisconfigured'
-    )
+    expect(wrapper.find('.alert').exists()).toBe(false)
+    await misconfigured(wrapper).trigger('click')
+    const errors = testApp.body.get('.agent-action-card__misconfigured-list')
+    expect(errors.findAll('li')).toHaveLength(2)
     expect(wrapper.get('.agent-action-card__service').text()).toContain(
       'to_email'
     )
@@ -315,9 +318,7 @@ describe('Agent action editor', () => {
     const saved = patches(testApp)[0][1]
     expect(saved.inputs).toHaveLength(2)
     expect(saved.service).toEqual({ to_emails: formula() })
-    expect(wrapper.get('.agent-action-card').text()).not.toContain(
-      'agent.actionMisconfigured'
-    )
+    expect(misconfigured(wrapper).exists()).toBe(false)
     expect(wrapper.get('.agent-action-card__service').text()).toContain(
       'subject'
     )
@@ -336,16 +337,12 @@ describe('Agent action editor', () => {
       },
     ])
     const wrapper = await mountSection([action])
-    expect(wrapper.get('.agent-action-card').text()).not.toContain(
-      'agent.actionMisconfigured'
-    )
+    expect(misconfigured(wrapper).exists()).toBe(false)
 
     await wrapper.get('.agent-action-inputs__delete').trigger('click')
     await settle()
 
-    expect(wrapper.get('.agent-action-card').text()).toContain(
-      'agent.actionMisconfigured'
-    )
+    expect(misconfigured(wrapper).exists()).toBe(true)
   })
 
   test('cards and input editors collapse without losing unsaved values', async () => {
@@ -521,6 +518,21 @@ describe('Agent action editor', () => {
     expect(wrapper.get('.agent-action-card__body input').element.value).toBe(
       'follow_up'
     )
+  })
+
+  test('hides a deleting action immediately and restores it when deletion fails', async () => {
+    testApp.dontFailOnErrorResponses()
+    const held = deferredReply()
+    testApp.mock.onDelete('/agent/10/actions/1/').reply(held.reply)
+    const wrapper = await mountSection([emailAction()])
+    await wrapper.get('.agent-action-card__footer button').trigger('click')
+    expect(wrapper.find('.agent-action-card').exists()).toBe(false)
+    await flushPromises()
+    held.resolve(500, {})
+    await flushPromises()
+    expect(
+      wrapper.get('.agent-action-card__toggle').attributes('aria-expanded')
+    ).toBe('true')
   })
 
   test('realtime changes update the current agent and preserve local drafts', async () => {

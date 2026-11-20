@@ -48,6 +48,50 @@ describe('SidebarWithWorkspace', () => {
     }
   )
 
+  test('keeps an agent from realtime events hidden without its flag', async () => {
+    vi.spyOn(
+      testApp.$registry.get('application', 'agent'),
+      'canBeCreated'
+    ).mockReturnValue(false)
+    await testApp.store.dispatch('application/forceCreate', {
+      id: 2,
+      name: 'Support',
+      type: 'database',
+      tables: [],
+      workspace,
+    })
+    const agent = {
+      id: 3,
+      name: 'Ticket triage',
+      order: 2,
+      type: 'agent',
+      workspace,
+    }
+    testApp.nuxtApp.$realtime._dispatchEvent({
+      type: 'application_created',
+      application: agent,
+    })
+    testApp.nuxtApp.$realtime._dispatchEvent({
+      type: 'application_updated',
+      application_id: agent.id,
+      application: { ...agent, name: 'Renamed triage' },
+    })
+
+    const wrapper = await testApp.mount(SidebarWithWorkspace, {
+      props: {
+        applications:
+          testApp.store.getters['application/getAllOfWorkspace'](workspace),
+        selectedWorkspace: workspace,
+      },
+    })
+
+    expect(testApp.store.getters['application/get'](3).name).toBe(
+      'Renamed triage'
+    )
+    expect(wrapper.text()).toContain('Support')
+    expect(wrapper.text()).not.toContain('triage')
+  })
+
   test('folds groups independently for each workspace', async () => {
     const secondWorkspace = { ...workspace, id: 3, name: 'Second workspace' }
     const application = { id: 2, name: 'Data', type: 'database', tables: [] }

@@ -1,5 +1,8 @@
 <template>
-  <ChatMessage v-if="message.role === MESSAGE_ROLE.TRIGGER">
+  <ChatMessage
+    v-if="message.role === MESSAGE_ROLE.TRIGGER"
+    class="chat-message--trigger"
+  >
     <AgentTriggerStartCard
       :content="message.content"
       :trigger-type="triggerType"
@@ -30,6 +33,8 @@
         v-else
         :title="entry.group.title"
         :status="entry.group.status"
+        :description="entry.group.description"
+        :links="entry.group.links"
         :changes-data="entry.group.changesData"
         :failure-hint="entry.group.failureHint"
         :lines="entry.group.lines"
@@ -39,13 +44,18 @@
     </template>
     <div v-if="own" class="chat-message__bubble">{{ message.content }}</div>
     <div
-      v-else-if="shown.content || (shown.replying && !toolRunning)"
+      v-else-if="shown.content || (shown.replying && !entries.length)"
       class="chat-message__bubble"
       aria-live="polite"
       :aria-busy="shown.replying"
     >
-      <ChatTyping v-if="!shown.content" />
-      <ChatMarkdown v-else :content="shown.content" />
+      <ChatMarkdown v-if="shown.content" :content="shown.content" agent-links />
+      <ChatTyping
+        v-if="
+          !shown.content ||
+          (shown.replying && entries.length && !hasRunningStep)
+        "
+      />
     </div>
     <div
       v-if="outcome.error"
@@ -76,17 +86,17 @@ import ChatMarkdown from '@baserow/modules/core/components/chat/ChatMarkdown'
 import ChatMessage from '@baserow/modules/core/components/chat/ChatMessage'
 import ChatTyping from '@baserow/modules/core/components/chat/ChatTyping'
 import ChatStepGroup from '@baserow/modules/core/components/chat/ChatStepGroup'
-import {
-  groupToolSteps,
-  toolActivity,
-} from '@baserow/modules/core/toolPresentationTypes'
+import { groupToolSteps } from '@baserow/modules/core/toolPresentationTypes'
 import {
   isTerminalStatus,
   STEP_STATUS,
 } from '@baserow/modules/core/chatRuns/constants'
 import AgentApprovalCard from '@baserow/modules/agent/components/AgentApprovalCard'
 import AgentTriggerStartCard from '@baserow/modules/agent/components/AgentTriggerStartCard'
-import { replyOutcome } from '@baserow/modules/agent/utils/replies'
+import {
+  approvalItem,
+  replyOutcome,
+} from '@baserow/modules/agent/utils/replies'
 
 const NO_STEPS = []
 const NO_APPROVALS = []
@@ -134,30 +144,6 @@ const shown = computed(() => {
   }
 })
 
-function approvalItem(step, approval) {
-  const {
-    title,
-    input,
-    failureHint,
-    status,
-    changesData,
-    partial,
-    itemErrors,
-  } = toolActivity(step, $registry, t)
-  return {
-    id: approval.id,
-    status: approval.status,
-    stepStatus: status,
-    changesData,
-    tool: approval.tool,
-    title,
-    input,
-    failureHint,
-    partial,
-    itemErrors,
-  }
-}
-
 /** One card per pause at its first held step; other steps keep core groups. */
 function stepEntries(steps, approvals) {
   const approvalOfStep = new Map(
@@ -187,7 +173,9 @@ function stepEntries(steps, approvals) {
       cardOfPause.set(approval.pause, card)
       entries.push(card)
     }
-    cardOfPause.get(approval.pause).items.push(approvalItem(step, approval))
+    cardOfPause
+      .get(approval.pause)
+      .items.push(approvalItem(step, approval, $registry, t))
   }
   addOthers()
   return entries
@@ -202,9 +190,36 @@ const approvals = computed(() =>
     ? NO_APPROVALS
     : shown.value.approvals
 )
-const entries = computed(() => stepEntries(steps.value, approvals.value))
-const toolRunning = computed(() =>
-  steps.value?.some((step) => step.status === STEP_STATUS.RUNNING)
+const hasRunningStep = computed(() =>
+  steps.value.some((step) => step.status === STEP_STATUS.RUNNING)
 )
+const groupedEntries = computed(() => stepEntries(steps.value, approvals.value))
+const awaitingText = computed(
+  () => shown.value.replying && !shown.value.content
+)
+const entries = computed(() => {
+  const items = groupedEntries.value
+  const last = items.at(-1)?.group
+  // A model may spend time choosing its next workspace read after the last one
+  // finishes. Keep the group active until text, a different step or a terminal event.
+  if (
+    last?.lines.length &&
+    last.status === STEP_STATUS.DONE &&
+    awaitingText.value
+  ) {
+    return [
+      ...items.slice(0, -1),
+      {
+        ...items.at(-1),
+        group: {
+          ...last,
+          status: STEP_STATUS.RUNNING,
+          title: t('toolPresentation.workspaceRunning'),
+        },
+      },
+    ]
+  }
+  return items
+})
 const outcome = computed(() => replyOutcome(shown.value))
 </script>

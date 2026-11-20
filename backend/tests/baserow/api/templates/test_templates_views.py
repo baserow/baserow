@@ -30,6 +30,7 @@ def test_list_templates(api_client, data_fixture):
     category_1 = data_fixture.create_template_category(name="Cat 1")
     category_3 = data_fixture.create_template_category(name="Cat 3")
     category_2 = data_fixture.create_template_category(name="Cat 2")
+    baserow = data_fixture.create_template_category(name="Baserow")
 
     template_1 = data_fixture.create_template(
         name="Template 1",
@@ -56,6 +57,12 @@ def test_list_templates(api_client, data_fixture):
 
     assert response_json == [
         {
+            "id": baserow.id,
+            "name": "Baserow",
+            "templates": [],
+            "user_selectable": False,
+        },
+        {
             "id": category_1.id,
             "name": "Cat 1",
             "templates": [
@@ -74,6 +81,7 @@ def test_list_templates(api_client, data_fixture):
                     "author_name": None,
                 }
             ],
+            "user_selectable": True,
         },
         {
             "id": category_2.id,
@@ -108,6 +116,7 @@ def test_list_templates(api_client, data_fixture):
                     "author_name": None,
                 },
             ],
+            "user_selectable": True,
         },
         {
             "id": category_3.id,
@@ -128,6 +137,7 @@ def test_list_templates(api_client, data_fixture):
                     "author_name": None,
                 }
             ],
+            "user_selectable": True,
         },
     ]
 
@@ -370,27 +380,6 @@ def test_list_templates_keeps_category_without_templates(api_client, data_fixtur
 
 
 @pytest.mark.django_db
-def test_get_template_ignores_user_templates_with_flag_off(
-    api_client, data_fixture, settings
-):
-    settings.FEATURE_FLAGS = []
-    official = data_fixture.create_template(type=None)
-    user_template = data_fixture.create_user_template()
-
-    response = api_client.get(
-        reverse("api:templates:item", kwargs={"slug": official.slug})
-    )
-    assert response.status_code == HTTP_200_OK
-    assert response.json()["id"] == official.id
-
-    response = api_client.get(
-        reverse("api:templates:item", kwargs={"slug": user_template.slug})
-    )
-    assert response.status_code == HTTP_404_NOT_FOUND
-    assert response.json()["error"] == "ERROR_TEMPLATE_DOES_NOT_EXIST"
-
-
-@pytest.mark.django_db
 @override_settings(APPLICATION_TEMPLATES_DIR=TEST_TEMPLATES_DIR)
 def test_sync_install_template_ignores_user_templates(api_client, data_fixture):
     owner, owner_token = data_fixture.create_user_and_token()
@@ -499,24 +488,30 @@ def test_async_install_user_template_anonymous(api_client, data_fixture):
 
 
 @pytest.mark.django_db
-def test_async_install_user_template_with_flag_off(api_client, data_fixture, settings):
-    owner, token = data_fixture.create_user_and_token()
-    user_template = create_template(data_fixture, owner, "public")
-    workspace = data_fixture.create_workspace(user=owner)
-    # The client still shows the template when the feature is switched off.
+@pytest.mark.parametrize("state", ["public", "shared"])
+def test_async_install_user_template_with_flag_off(
+    api_client, data_fixture, settings, state
+):
     settings.FEATURE_FLAGS = []
+    user_template = create_template(data_fixture, data_fixture.create_user(), state)
+    user, token = data_fixture.create_user_and_token()
+    workspace = data_fixture.create_workspace(user=user)
+    headers = {"HTTP_AUTHORIZATION": f"JWT {token}"}
+    if state == "shared":
+        headers["HTTP_BASEROW_TEMPLATE_AUTHORIZATION"] = (
+            user_template.private_link_token
+        )
 
     response = api_client.post(
         reverse(
             "api:templates:install_async",
             kwargs={"workspace_id": workspace.id, "template_id": user_template.id},
         ),
-        HTTP_AUTHORIZATION=f"JWT {token}",
+        **headers,
     )
 
-    assert response.status_code == HTTP_404_NOT_FOUND
-    assert response.json()["error"] == "ERROR_TEMPLATE_DOES_NOT_EXIST"
-    assert not InstallTemplateJob.objects.exists()
+    assert response.status_code == HTTP_202_ACCEPTED, response.json()
+    assert InstallTemplateJob.objects.get().template_id == user_template.id
 
 
 @pytest.mark.django_db

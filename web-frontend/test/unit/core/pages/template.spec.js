@@ -53,4 +53,36 @@ describe('template page', () => {
     expect(wrapper.find(`.${shown}`).exists()).toBe(true)
     expect(wrapper.find(`.${hidden}`).exists()).toBe(false)
   })
+
+  it.each([
+    [
+      'signed in',
+      { completed_onboarding: true },
+      'all-workspaces',
+      { template: 'crm' },
+    ],
+    [
+      'signed in before the onboarding',
+      { completed_onboarding: false },
+      'template',
+      {},
+    ],
+    ['anonymous', null, 'template', {}],
+  ])(
+    'a template link opened %s lands on %s',
+    async (_title, user, name, query) => {
+      if (user) {
+        testApp.authenticate({ id: 1, ...user })
+      }
+      testApp.mock.onGet('/settings/').reply(200, {})
+      testApp.mock.onGet('/workspaces/').reply(200, [])
+      testApp.mock.onGet('/applications/').reply(200, [])
+      testApp.mock.onGet(/\/jobs\//).reply(200, { jobs: [] })
+      const router = useRouter()
+      await router.push('/template/crm').catch(() => {})
+
+      expect(router.currentRoute.value.name).toBe(name)
+      expect(router.currentRoute.value.query).toStrictEqual(query)
+    }
+  )
 })

@@ -1,3 +1,4 @@
+import flushPromises from 'flush-promises'
 import { TestApp } from '@baserow/test/helpers/testApp'
 import AllWorkspaces from '@baserow/modules/core/pages/allWorkspaces'
 import AllWorkspacesHeader from '@baserow/modules/core/components/allWorkspaces/AllWorkspacesHeader'
@@ -49,5 +50,28 @@ describe('All workspaces page', () => {
 
     expect(offered).toContain('database')
     expect(offered).not.toContain('agent')
+  })
+
+  test('opens the linked template in the Templates modal', async () => {
+    testApp.authenticate({ id: 1, preferences: {}, completed_onboarding: true })
+    testApp.mock.onGet('/settings/').reply(200, {})
+    testApp.mock.onGet('/workspaces/').reply(200, [])
+    testApp.mock.onGet('/applications/').reply(200, [])
+    testApp.mock.onGet(/\/jobs\//).reply(200, { jobs: [] })
+    const show = vi.fn()
+    await testApp.mount(AllWorkspaces, {
+      route: '/all-workspaces?template=sprint-tracker',
+      global: {
+        stubs: {
+          TemplateModal: { template: '<div />', methods: { show } },
+        },
+      },
+    })
+    await flushPromises()
+
+    expect(show).toHaveBeenCalledWith('sprint-tracker')
+    await vi.waitFor(() =>
+      expect(useRouter().currentRoute.value.query).toStrictEqual({})
+    )
   })
 })

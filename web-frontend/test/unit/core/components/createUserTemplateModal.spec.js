@@ -266,13 +266,16 @@ describe('CreateUserTemplateModal', () => {
     ).toHaveLength(1)
   })
 
-  test("doesn't ask for a category when there are none", async () => {
+  test.each([
+    [[]],
+    [[{ id: 4, name: 'Most Popular', user_selectable: false }]],
+  ])("doesn't ask for a category when none can be picked: %o", async (list) => {
     let request = null
     testApp.mock.onPost('/jobs/').reply((config) => {
       request = JSON.parse(config.data)
       return [200, runningJob({ category_ids: [] })]
     })
-    const wrapper = await mountAndShow({ categories: [] })
+    const wrapper = await mountAndShow({ categories: list })
 
     expect(wrapper.find('.chips').exists()).toBe(false)
     expect(wrapper.text()).not.toContain('userTemplateDetailsForm.categories')
@@ -495,7 +498,7 @@ describe('CreateUserTemplateModal', () => {
     [true, 'createUserTemplateModal.failedPublicAfterCreated'],
   ])(
     'is handled as created when it failed after the template was created (public %s)',
-    async (makePublic, title) => {
+    async (makePublic, toast) => {
       testApp.mock
         .onPost('/jobs/')
         .reply(200, runningJob({ make_public: makePublic }))
@@ -514,7 +517,8 @@ describe('CreateUserTemplateModal', () => {
       expect(wrapper.findComponent({ name: 'Modal' }).vm.open).toBe(false)
       expect(testApp.store.state.toast.items[0]).toMatchObject({
         type: 'warning',
-        title,
+        title: `${toast}Title`,
+        message: `${toast}Message`,
       })
     }
   )

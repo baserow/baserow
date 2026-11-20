@@ -2,23 +2,36 @@
   <div
     ref="card"
     class="agent-approval"
+    :class="{ 'agent-approval--compact': compact }"
     role="group"
     tabindex="-1"
     :aria-labelledby="titleId"
   >
     <div class="agent-approval__header">
-      <i class="iconoir-shield-check agent-approval__icon" aria-hidden="true" />
+      <span
+        v-if="deciding"
+        class="agent-approval__saving"
+        role="status"
+        :aria-label="$t('agent.saving')"
+      />
+      <i
+        v-else-if="!$slots.title"
+        class="iconoir-shield-check agent-approval__icon"
+        aria-hidden="true"
+      />
       <span :id="titleId" class="agent-approval__title">
-        {{
-          pending.length
-            ? $t(
-                disabled
-                  ? 'agent.approvalRequestReadOnly'
-                  : 'agent.approvalRequest',
-                { name: agent.name }
-              )
-            : $t('agent.approvalReviewed')
-        }}
+        <slot name="title">
+          {{
+            pending.length
+              ? $t(
+                  disabled
+                    ? 'agent.approvalRequestReadOnly'
+                    : 'agent.approvalRequest',
+                  { name: agent.name }
+                )
+              : $t('agent.approvalReviewed')
+          }}
+        </slot>
       </span>
       <Button
         v-if="pending.length && canAlwaysAllow"
@@ -38,7 +51,7 @@
           :disabled="locked"
           @click="askToReject(pending, $event)"
         >
-          {{ $t(pending.length > 1 ? 'agent.rejectAll' : 'agent.reject') }}
+          {{ $t(decidesAll ? 'agent.rejectAll' : 'agent.reject') }}
         </Button>
         <Button
           ref="headerApprove"
@@ -47,7 +60,7 @@
           :disabled="locked"
           @click="approve(pending)"
         >
-          {{ $t(pending.length > 1 ? 'agent.approveAll' : 'agent.approve') }}
+          {{ $t(decidesAll ? 'agent.approveAll' : 'agent.approve') }}
         </Button>
       </div>
       <div v-else class="agent-approval__summary">
@@ -108,6 +121,11 @@
               {{ $t('agent.approve') }}
             </Button>
           </div>
+        </div>
+        <div v-if="item.links?.length" class="chat-step-group__links">
+          <NuxtLink v-for="link in item.links" :key="link.id" :to="link.to">{{
+            link.label
+          }}</NuxtLink>
         </div>
         <p v-if="item.failureHint" class="agent-approval__item-note">
           {{ item.failureHint }}
@@ -184,6 +202,8 @@ const props = defineProps({
   canAlwaysAllow: { type: Boolean, default: false },
   /** A decision about these steps is being saved. */
   deciding: { type: Boolean, default: false },
+  /** Short button labels, for lists of several cards. */
+  compact: { type: Boolean, default: false },
 })
 const emit = defineEmits(['decide'])
 
@@ -204,18 +224,22 @@ const pending = computed(() =>
 )
 const { $registry } = useNuxtApp()
 const { locale, t } = useI18n()
-const pendingToolNames = computed(() =>
-  [...new Set(pending.value.map((item) => item.tool))].map((tool) =>
-    agentToolLabel(tool, $registry, t)
-  )
-)
-const alwaysAllowLabel = computed(() =>
-  pendingToolNames.value.length > 1
+const pendingToolNames = computed(() => [
+  ...new Set(
+    pending.value.map(
+      (item) => item.toolLabel || agentToolLabel(item.tool, $registry, t)
+    )
+  ),
+])
+const decidesAll = computed(() => !props.compact && pending.value.length > 1)
+const alwaysAllowLabel = computed(() => {
+  if (props.compact) return t('agent.alwaysAllow')
+  return pendingToolNames.value.length > 1
     ? t('agent.alwaysAllowAllPendingTools')
     : t('agent.alwaysAllowTools', { tools: pendingToolNames.value[0] })
-)
+})
 const alwaysAllowTitle = computed(() =>
-  pendingToolNames.value.length > 1
+  props.compact || pendingToolNames.value.length > 1
     ? new Intl.ListFormat(locale.value, { type: 'conjunction' }).format(
         pendingToolNames.value
       )

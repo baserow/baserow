@@ -61,9 +61,28 @@ test.describe("Agent triggers", () => {
     const section = await agentPage.openSection(COPY.section);
     await expect(section.getByText(COPY.empty)).toBeVisible();
 
+    const add = section.getByRole("button", { name: COPY.addTrigger });
+    const initialBounds = await add.boundingBox();
+    let release!: () => void;
+    const held = new Promise<void>((resolve) => (release = resolve));
+    await page.route(
+      `**/api/agent/${agent.id}/triggers/`,
+      async (route) => {
+        await held;
+        await route.continue();
+      },
+      { times: 1 }
+    );
     const created = agentPage.waitForTriggerResponse("POST");
-    await section.getByRole("button", { name: COPY.addTrigger }).click();
+    await add.click();
     await page.getByText(PERIODIC, { exact: true }).click();
+    try {
+      await expect(add).toBeDisabled();
+      await expect(add.locator(".button-text__spinner")).toBeVisible();
+      expect(await add.boundingBox()).toEqual(initialBounds);
+    } finally {
+      release();
+    }
     const createdResponse = await created;
     expect(createdResponse.status()).toBe(200);
     const trigger = await createdResponse.json();
@@ -72,7 +91,9 @@ test.describe("Agent triggers", () => {
       enabled: true,
       service: { interval: "DAY", hour: 9, minute: 0 },
     });
-    await expect(section.getByText(/^Every day at 09:00/)).toBeVisible();
+    await expect(
+      section.getByRole("textbox", { name: "Rename trigger" })
+    ).toHaveValue(/^Every day at 09:00/);
 
     const scheduled = agentPage.waitForTriggerResponse(
       "PATCH",

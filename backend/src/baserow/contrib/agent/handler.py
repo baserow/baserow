@@ -175,7 +175,7 @@ class AgentHandler:
         run_as = self.resolve_run_as_subject(
             agent.run_as_subject_type, agent.run_as_subject_id, agent.workspace
         )
-        deactivated = self.get_deactivated_tools(agent)
+        deactivated = self.get_deactivated_tools(agent.workspace)
         tools = self.get_tool_configuration(agent, deactivated)
         with_tools = (
             (run_as.status == AgentRunAsState.ACTIVE and bool(tools["allowed_tools"]))
@@ -195,6 +195,11 @@ class AgentHandler:
             ),
             run_as=run_as,
             **tools,
+            pending_tools=(
+                []
+                if agent.run_as_subject_type and agent.run_as_subject_id
+                else self.get_pending_tool_configuration(agent)["allowed_tools"]
+            ),
             deactivated_tools=deactivated,
             web_search_enabled=agent.web_search_enabled,
             web_search_available=web_search_tool is not None,
@@ -303,17 +308,36 @@ class AgentHandler:
             readiness = AgentReadinessState.READY
         return readiness, errors
 
-    def get_deactivated_tools(self, agent: AgentApplication) -> list[str]:
+    def get_deactivated_tools(self, workspace: Workspace) -> list[str]:
         """
-        :param agent: The Agent to read.
-        :return: The names of the registered tools the Agent's workspace can't
-            use, in registry order.
+        :param workspace: The workspace the Agent belongs to.
+        :return: The names of the registered tools the workspace can't use, in
+            registry order.
         """
 
         return [
             tool_type.type
             for tool_type in agent_tool_type_registry.get_all()
-            if tool_type.is_deactivated(agent.workspace)
+            if tool_type.is_deactivated(workspace)
+        ]
+
+    def get_available_tools(self, deactivated_tools: list[str]) -> list[dict]:
+        """
+        List every tool an Agent can be allowed to call.
+
+        :param deactivated_tools: The names of the tools the workspace can't use.
+        :return: Each registered tool's name, group, whether it changes data and
+            whether it's deactivated, in registration order.
+        """
+
+        return [
+            {
+                "name": tool_type.type,
+                "group": tool_type.group,
+                "changes_data": tool_type.changes_data,
+                "deactivated": tool_type.type in deactivated_tools,
+            }
+            for tool_type in agent_tool_type_registry.get_all()
         ]
 
     def get_stored_tool_configuration(
@@ -332,6 +356,57 @@ class AgentHandler:
             "ask_first_tools": [name for name in allowed_tools if ask_first[name]],
         }
 
+    def filter_tool_choices(
+        self, allowed_tools: list[str], ask_first_tools: list[str]
+    ) -> AgentToolConfiguration:
+        """
+        Keep the registered tools, in registry order, and ask first only for the
+        allowed ones.
+
+        :param allowed_tools: Tool names, possibly no longer registered.
+        :param ask_first_tools: The names of those that wait for the owner.
+        :return: The tool configuration that can be applied.
+        """
+
+        allowed = [
+            name
+            for name in agent_tool_type_registry.get_types()
+            if name in set(allowed_tools)
+        ]
+        return {
+            "allowed_tools": allowed,
+            "ask_first_tools": [name for name in allowed if name in ask_first_tools],
+        }
+
+    def get_pending_tool_configuration(
+        self, agent: AgentApplication
+    ) -> AgentToolConfiguration:
+        """
+        :param agent: The Agent to read.
+        :return: The tool choices an imported Agent applies when an identity is
+            first picked, or empty lists.
+        """
+
+        pending = agent.pending_tool_choices or {}
+        return self.filter_tool_choices(
+            pending.get("allowed_tools") or [], pending.get("ask_first_tools") or []
+        )
+
+    def get_exported_tool_configuration(
+        self, agent: AgentApplication
+    ) -> AgentToolConfiguration:
+        """
+        The tool choices a copy of the Agent carries: its tools, or the pending
+        choices of an imported Agent that has no identity yet.
+
+        :param agent: The Agent to export.
+        :return: The allowed and ask first tool names.
+        """
+
+        if agent.run_as_subject_type and agent.run_as_subject_id:
+            return self.get_stored_tool_configuration(agent)
+        return self.get_pending_tool_configuration(agent)
+
     def get_tool_configuration(
         self, agent: AgentApplication, deactivated: list[str] | None = None
     ) -> AgentToolConfiguration:
@@ -341,7 +416,7 @@ class AgentHandler:
         if not stored["allowed_tools"]:
             return stored
         if deactivated is None:
-            deactivated = self.get_deactivated_tools(agent)
+            deactivated = self.get_deactivated_tools(agent.workspace)
         return {
             "allowed_tools": [
                 name for name in stored["allowed_tools"] if name not in deactivated
@@ -558,10 +633,22 @@ class AgentHandler:
                 setattr(agent, field, value)
                 changed_fields.append(field)
         has_run_as = bool(agent.run_as_subject_type and agent.run_as_subject_id)
+        tools_sent = allowed_tools is not None
+        if not had_run_as and has_run_as and not tools_sent:
+            # An imported Agent turns on the tools it was set up with.
+            pending = self.get_pending_tool_configuration(agent)
+            if pending["allowed_tools"]:
+                allowed_tools = pending["allowed_tools"]
+                ask_first_tools = pending["ask_first_tools"]
         if not has_run_as or (not had_run_as and allowed_tools is None):
             # No workspace access deliberately turns tools off. Selecting an
             # identity later must not reactivate old default tool rows.
             allowed_tools, ask_first_tools = [], None
+        # Tools without an identity stay off, so sending them keeps the pending
+        # ones. Once there's an identity they were applied or replaced.
+        if agent.pending_tool_choices is not None and has_run_as:
+            agent.pending_tool_choices = None
+            changed_fields.append("pending_tool_choices")
         tools_changed = allowed_tools is not None and (
             set(allowed_tools) != set(original_values["allowed_tools"])
             or (
@@ -1098,6 +1185,24 @@ class AgentHandler:
 
         return AgentToolApproval.objects.filter(status=AgentToolApproval.Status.PENDING)
 
+    def list_pending_replies(
+        self, conversations: QuerySet[AgentConversation]
+    ) -> QuerySet[AgentMessage]:
+        """Load pending approvals and their steps for the given conversations."""
+
+        pending = self._pending_approvals()
+        return (
+            AgentMessage.objects.filter(
+                Exists(pending.filter(reply_id=OuterRef("pk"))),
+                conversation__in=conversations,
+            )
+            .only("uuid", "steps", "conversation")
+            .select_related("conversation__trigger__service")
+            .prefetch_related(
+                Prefetch("approvals", queryset=pending, to_attr="pending_approvals")
+            )
+        )
+
     def get_conversation_pending_approval_counts(
         self, conversation_ids: list[int]
     ) -> dict[int, int]:
@@ -1364,7 +1469,9 @@ class AgentHandler:
         )
         # A generation keeps its selected identity and tools until it ends or is
         # stopped. Configuration edits apply when the next generation is prepared.
-        deactivated = self.get_deactivated_tools(agent) if acting_subject else []
+        deactivated = (
+            self.get_deactivated_tools(agent.workspace) if acting_subject else []
+        )
         tools: AgentToolConfiguration = (
             self.get_tool_configuration(agent, deactivated)
             if acting_subject

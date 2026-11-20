@@ -206,6 +206,29 @@ class AutomationNodeHandler:
         except AutomationNode.DoesNotExist:
             raise AutomationNodeDoesNotExist(node_id)
 
+    def reload_graph(self, workflow: AutomationWorkflow) -> None:
+        """
+        Read a workflow's graph again, and drop the cached nodes. To be used after a
+        savepoint rolled back, as the cached graph still holds the changes it undid.
+
+        :param workflow: The workflow to reload the graph of.
+        """
+
+        workflow.reload_graph()
+        self.invalidate_node_cache(workflow)
+
+    def lock_graph(self, workflow: AutomationWorkflow) -> None:
+        """
+        Lock the workflow's graph for the rest of the transaction. The graph is read
+        again first: a handler cached earlier in the same run holds a stale graph and
+        skips the lock. Must be called inside a transaction.
+
+        :param workflow: The workflow to lock the graph of.
+        """
+
+        self.reload_graph(workflow)
+        workflow.get_graph().lock_for_update()
+
     def lock_nodes(
         self, workflow: AutomationWorkflow, node_ids: List[int]
     ) -> List[int]:

@@ -29,15 +29,15 @@ describe('TemplateInstall', () => {
   let testApp = null
   let push = null
 
-  beforeEach(() => {
+  beforeEach(async () => {
     testApp = new TestApp()
+    await testApp.nuxtApp.$router.replace('/template/project-tracker')
     push = vi.spyOn(testApp.nuxtApp.$router, 'push').mockResolvedValue()
   })
 
   afterEach(async () => {
     permission.check = () => true
     push.mockRestore()
-    await testApp.nuxtApp.$router.replace('/template/project-tracker')
     await testApp.afterEach()
   })
 
@@ -274,7 +274,7 @@ describe('TemplateInstall', () => {
     expect(wrapper.findAll('.context__menu-item-link')).toHaveLength(1)
 
     wrapper = await testApp.mount(TemplateInstall, {
-      props: { template, showCopyLink: false },
+      props: { template, copyLinkKind: null },
     })
     expect(
       wrapper.find('.template-install__actions .button-icon').exists()
@@ -414,7 +414,12 @@ describe('TemplateInstall', () => {
     test.each([
       ['a user template', userTemplate, true, ['download']],
       ['an official template', template, true, []],
-      ['a user template while user templates are off', userTemplate, false, []],
+      [
+        'a user template while user templates are off',
+        userTemplate,
+        false,
+        ['download'],
+      ],
     ])('menu of %s', async (_, shown, flag, extra) => {
       signIn()
       const wrapper = await mountWithMenu(
