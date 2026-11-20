@@ -1,13 +1,20 @@
+from typing import Any, Iterable
+
+from django.contrib.auth.models import AbstractUser
+
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
 from baserow.api.pagination import PageNumberPagination
+from baserow.contrib.automation.history.constants import HistoryStatusChoices
+from baserow.contrib.automation.history.models import AutomationNodeHistory
 from baserow.contrib.automation.models import (
     AutomationHistory,
     AutomationWorkflow,
     AutomationWorkflowHistory,
 )
+from baserow.contrib.automation.nodes.access import AutomationNodeAccess
 from baserow.contrib.automation.workflows.constants import (
     ALLOW_TEST_RUN_MINUTES,
 )
@@ -143,9 +150,46 @@ class AutomationWorkflowHistoryTriggeredBySerializer(serializers.Serializer):
     name = serializers.CharField(source="triggered_by_name", read_only=True)
 
 
+def workflow_history_context(
+    user: AbstractUser, runs: Iterable[AutomationWorkflowHistory]
+) -> dict[str, Any]:
+    """
+    The context to serialize runs for a user with. A run's message is the error of
+    the node that failed, which can name the fields and values of a table the user
+    may not see, so the runs whose failed node shows them such data are listed.
+
+    :param runs: The runs that will be serialized.
+    """
+
+    run_ids = [run.id for run in runs]
+    access = AutomationNodeAccess(user, include_trashed=True)
+    failed = AutomationNodeHistory.objects.filter(
+        workflow_history_id__in=run_ids, status=HistoryStatusChoices.ERROR
+    ).select_related("node__workflow")
+    return {
+        "message_hidden_run_ids": {
+            history.workflow_history_id
+            for history in failed
+            if access.history_hidden(history)
+        }
+    }
+
+
 class AutomationWorkflowHistorySerializer(AutomationHistorySerializer):
+    """
+    A run of a workflow. Its message is left out for the runs the context's
+    `message_hidden_run_ids` lists, and for all of them without that context.
+    """
+
     plugin_data = serializers.SerializerMethodField()
     triggered_by = serializers.SerializerMethodField()
+
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        hidden_run_ids = self.context.get("message_hidden_run_ids")
+        if hidden_run_ids is None or instance.id in hidden_run_ids:
+            data["message"] = ""
+        return data
 
     class Meta:
         model = AutomationWorkflowHistory

@@ -5,18 +5,18 @@ from django.core.serializers.json import DjangoJSONEncoder
 from django.db import transaction
 from django.dispatch import receiver
 
-from baserow.contrib.automation.api.nodes.serializers import AutomationNodeSerializer
 from baserow.contrib.automation.models import AutomationWorkflow
 from baserow.contrib.automation.nodes.models import AutomationNode
-from baserow.contrib.automation.nodes.object_scopes import AutomationNodeObjectScopeType
 from baserow.contrib.automation.nodes.operations import (
     ListAutomationNodeOperationType,
-    ReadAutomationNodeOperationType,
 )
 from baserow.contrib.automation.nodes.signals import (
     automation_node_created,
     automation_node_deleted,
     automation_node_updated,
+)
+from baserow.contrib.automation.nodes.ws.tasks import (
+    broadcast_node_event_to_permitted_users,
 )
 from baserow.contrib.automation.workflows.object_scopes import (
     AutomationWorkflowObjectScopeType,
@@ -53,22 +53,26 @@ def bounded_node_event(event: dict) -> dict:
     return {**event, "node": node, "requires_refresh": True}
 
 
+def broadcast_node_event(node: AutomationNode, user: AbstractUser, event_type: str):
+    """
+    Broadcasts the node to the users who may read it, each getting the copy they
+    may see. The node is read, checked and serialized by the task, not here: a
+    test run sends an event for every node, and doing that work for each would
+    make the request read the whole workflow again for every node.
+    """
+
+    broadcast_node_event_to_permitted_users.delay(
+        node.workflow.automation.workspace_id,
+        node.id,
+        event_type,
+        getattr(user, "web_socket_id", None),
+    )
+
+
 @receiver(automation_node_created)
 def node_created(sender, node: AutomationNode, user: AbstractUser, **kwargs):
     transaction.on_commit(
-        lambda: broadcast_to_permitted_users.delay(
-            node.workflow.automation.workspace_id,
-            ReadAutomationNodeOperationType.type,
-            AutomationNodeObjectScopeType.type,
-            node.id,
-            bounded_node_event(
-                {
-                    "type": "automation_node_created",
-                    "node": AutomationNodeSerializer(node).data,
-                }
-            ),
-            getattr(user, "web_socket_id", None),
-        )
+        lambda: broadcast_node_event(node, user, "automation_node_created")
     )
 
 
@@ -95,17 +99,5 @@ def node_deleted(
 @receiver(automation_node_updated)
 def node_updated(sender, node: AutomationNode, user: AbstractUser, **kwargs):
     transaction.on_commit(
-        lambda: broadcast_to_permitted_users.delay(
-            node.workflow.automation.workspace_id,
-            ReadAutomationNodeOperationType.type,
-            AutomationNodeObjectScopeType.type,
-            node.id,
-            bounded_node_event(
-                {
-                    "type": "automation_node_updated",
-                    "node": AutomationNodeSerializer(node).data,
-                }
-            ),
-            getattr(user, "web_socket_id", None),
-        )
+        lambda: broadcast_node_event(node, user, "automation_node_updated")
     )

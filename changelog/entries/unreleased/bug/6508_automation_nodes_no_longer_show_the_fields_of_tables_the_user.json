@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Automation nodes no longer show the fields of a table the user has no access to",
+    "issue_origin": "github",
+    "issue_number": 6508,
+    "domain": "automation",
+    "bullet_points": [],
+    "created_at": "2026-11-16"
+}

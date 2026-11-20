@@ -59,6 +59,7 @@ DEFAULT_DEFERRED_CALLABLES: List[str] = [
     "baserow.ws.tasks.broadcast_to_channel_group.delay",
     "baserow.ws.tasks.broadcast_to_users.delay",
     "baserow.ws.tasks.broadcast_to_permitted_users.delay",
+    "baserow.contrib.automation.nodes.ws.tasks.broadcast_node_event_to_permitted_users.delay",
     "baserow.ws.tasks.broadcast_to_group.delay",
     "baserow.ws.tasks.broadcast_to_groups.delay",
     "baserow.ws.tasks.broadcast_application_created.delay",

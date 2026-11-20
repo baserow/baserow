@@ -13,6 +13,10 @@ from django.utils.translation import gettext as _
 
 from pydantic import Field
 
+from baserow.contrib.automation.nodes.access import (
+    AutomationNodeAccess,
+    visible_schema,
+)
 from baserow.contrib.automation.nodes.actions import (
     CreateAutomationNodeActionType,
     DeleteAutomationNodeActionType,
@@ -140,40 +144,63 @@ def formula_path(node: AutomationNode) -> str:
     return path + ".0" if service.get_type().returns_list(service) else path
 
 
-def output_schema(node: AutomationNode) -> dict[str, Any]:
+def output_schema(node: AutomationNode, access: AutomationNodeAccess) -> dict[str, Any]:
     """
     What a node outputs, for the formulas of the nodes after it: the formula path
     to its data and its properties, keyed as the path expects.
+
+    :param access: What the user may see of the node. When they may not see its
+        table, the properties are left out and `table_accessible` is False. When
+        they may not see a table of a node it reads, the properties built from
+        its test run data are left out and `reads_hidden_data` is True.
     """
 
     service = node.service.specific
-    service_type = service.get_type()
-    schema = service_type.generate_schema(service) or {}
+    path = formula_path(node)
+    if not access.table_allows(service):
+        return {"formula_path": path, "properties": {}, "table_accessible": False}
+    schema = visible_schema(service, access) or {}
     if schema.get("type") == "array":
         schema = schema.get("items") or {}
-    return {
-        "formula_path": formula_path(node),
-        "properties": _compact_properties(schema),
-    }
+    output = {"formula_path": path, "properties": _compact_properties(schema)}
+    if not access.data_allows(service):
+        output["reads_hidden_data"] = True
+    return output
 
 
-def node_outputs(
-    workflow: AutomationWorkflow,
-) -> Callable[[int], dict[str, Any] | None]:
+class NodeOutputs:
     """
-    Returns the output schema of a node of the workflow by its ID, or None when
-    the workflow has no such node, reading each node once.
+    The output schema of a node of a workflow by its ID, or None when the
+    workflow has no such node, reading each node once.
     """
 
-    cache: dict[int, dict[str, Any] | None] = {}
+    def __init__(self, user: AbstractUser, workflow: AutomationWorkflow):
+        self.workflow = workflow
+        self.access = AutomationNodeAccess(user)
+        self._cache: dict[int, dict[str, Any] | None] = {}
 
-    def outputs(node_id: int) -> dict[str, Any] | None:
-        if node_id not in cache:
-            node = AutomationNode.objects.filter(workflow=workflow, id=node_id).first()
-            cache[node_id] = None if node is None else output_schema(node)
-        return cache[node_id]
+    def __call__(self, node_id: int) -> dict[str, Any] | None:
+        if node_id not in self._cache:
+            node = AutomationNode.objects.filter(
+                workflow=self.workflow, id=node_id
+            ).first()
+            if node is not None:
+                self.access.add_nodes([node])
+            self._cache[node_id] = (
+                None if node is None else output_schema(node, self.access)
+            )
+        return self._cache[node_id]
 
-    return outputs
+    def any_hidden(self) -> bool:
+        """Whether a node of the workflow shows data the user may not see."""
+
+        return self.access.workflow_has_hidden_data(self.workflow)
+
+
+def node_outputs(user: AbstractUser, workflow: AutomationWorkflow) -> NodeOutputs:
+    """The output schemas of the nodes of a workflow, as the user may see them."""
+
+    return NodeOutputs(user, workflow)
 
 
 def describe_node(
@@ -214,11 +241,19 @@ def describe_workflow_nodes(
     """
 
     workflow = get_workflow_in_workspace(ctx, workflow_id)
+    # All the nodes, also those no path reaches, which nodes can still read.
+    workflow_nodes = list(AutomationNodeService().get_nodes(ctx.user, workflow))
+    ordered = nodes_in_order(ctx.user, workflow, workflow_nodes)
+    access = (
+        AutomationNodeAccess(ctx.user).add_nodes(workflow_nodes, all_of_workflow=True)
+        if with_output_schema
+        else None
+    )
     nodes = []
-    for node, previous, output in nodes_in_order(ctx.user, workflow):
+    for node, previous, output in ordered:
         description = describe_node(node, previous, output)
         if with_output_schema:
-            description["output_schema"] = output_schema(node)
+            description["output_schema"] = output_schema(node, access)
         nodes.append(description)
     return nodes
 
@@ -237,7 +272,8 @@ def list_nodes(
     the container's id as parent_node_id instead. A router lists its branches.
     output_schema
     says what a node outputs: a later node's formula reads a property with
-    get('<formula_path>.<property key>').
+    get('<formula_path>.<property key>'). A node with table_accessible false shows
+    a table you can't access, so formulas can't read it.
     """
 
     return {"nodes": describe_workflow_nodes(ctx, workflow_id)}
@@ -362,7 +398,9 @@ def create_node(
     """
 
     ctx.update_status(_("Creating node %(label)s...") % {"label": spec.label})
-    values = ServiceValues(field_ids, refs=refs.ids(), outputs=node_outputs(workflow))
+    values = ServiceValues(
+        field_ids, refs=refs.ids(), outputs=node_outputs(ctx.user, workflow)
+    )
     data: dict[str, Any] = {"label": spec.label}
     if isinstance(spec, TriggerNodeCreate):
         data["service"] = spec.to_orm_service_dict()
@@ -487,7 +525,7 @@ def update_node(
         as_formulas,
         refs=refs,
         updating=True,
-        outputs=node_outputs(workflow),
+        outputs=node_outputs(ctx.user, workflow),
     )
     data: dict[str, Any] = {}
     if node_update.label is not None:

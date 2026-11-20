@@ -7,6 +7,7 @@ from pydantic_ai import RunContext
 from pydantic_ai.models.test import TestModel
 from pydantic_ai.usage import RunUsage
 
+from baserow.contrib.automation.nodes.access import ALLOW_ALL
 from baserow.contrib.automation.nodes.models import AutomationNode
 from baserow.contrib.automation.nodes.operations import (
     DeleteAutomationNodeOperationType,
@@ -1777,6 +1778,69 @@ def test_a_failed_read_before_generation_leaves_the_formula_error(
     assert error["error"] == "read failed"
 
 
+@pytest.mark.django_db
+def test_formula_examples_leave_out_tables_the_user_cannot_see(
+    enterprise_data_fixture, enable_enterprise, synced_roles
+):
+    fixture = enterprise_data_fixture
+    admin = fixture.create_user()
+    workspace = fixture.create_workspace(user=admin)
+    table = fixture.create_database_table(
+        database=fixture.create_database_application(workspace=workspace)
+    )
+    fixture.create_text_field(table=table, name="Salary")
+    workflow = fixture.create_automation_workflow(
+        automation=fixture.create_automation_application(workspace=workspace),
+        trigger_type="local_baserow_rows_created",
+        trigger_service_kwargs={"table": table},
+    )
+    action = fixture.create_core_router_action_node(workflow=workflow)
+    restricted = fixture.create_user()
+    fixture.create_user_workspace(
+        user=restricted, workspace=workspace, permissions="NO_ACCESS"
+    )
+    RoleAssignmentHandler().assign_role(
+        restricted,
+        workspace,
+        role=Role.objects.get(uid="BUILDER"),
+        scope=workflow.automation.application_ptr,
+    )
+
+    seen = automation_agents.WorkflowExamples(admin).context_for(action)
+    assert "Salary" in str(seen.get_context_metadata())
+
+    hidden = automation_agents.WorkflowExamples(restricted).context_for(action)
+    assert "Salary" not in str(hidden.context) + str(hidden.get_context_metadata())
+
+
+@pytest.mark.django_db
+def test_formula_requests_leave_out_fields_the_user_cannot_see(
+    enterprise_data_fixture, enable_enterprise, synced_roles, row_action_node
+):
+    admin, node, field = row_action_node
+    workspace = node.workflow.automation.workspace
+    field.name = "Salary"
+    field.save()
+    restricted = enterprise_data_fixture.create_user()
+    enterprise_data_fixture.create_user_workspace(
+        user=restricted, workspace=workspace, permissions="NO_ACCESS"
+    )
+    RoleAssignmentHandler().assign_role(
+        restricted,
+        workspace,
+        role=Role.objects.get(uid="BUILDER"),
+        scope=node.workflow.automation.application_ptr,
+    )
+    errors = [{"field_id": field.id, "field": "values", "formula": "", "error": ""}]
+
+    def requests_for(user):
+        access = automation_agents.AutomationNodeAccess(user).add_nodes([node])
+        return automation_agents.formula_requests(node, errors, access)
+
+    assert requests_for(admin)[field.id]["name"] == "Salary"
+    assert "Salary" not in str(requests_for(restricted))
+
+
 @pytest.mark.django_db(transaction=True)
 def test_add_nodes_tells_the_generator_which_node_wrote_the_previous_row(
     data_fixture, monkeypatch, real_formula_pass
@@ -1870,8 +1934,10 @@ def test_formula_requests_name_the_node_this_one_follows(data_fixture, label):
     )
     error = {"field": "row_id", "formula": "$formula: the created row"}
 
-    [request] = automation_agents.formula_requests(node, [error], previous).values()
-    [without] = automation_agents.formula_requests(node, [error]).values()
+    [request] = automation_agents.formula_requests(
+        node, [error], ALLOW_ALL, previous
+    ).values()
+    [without] = automation_agents.formula_requests(node, [error], ALLOW_ALL).values()
 
     named = f"node {previous.id} ('{label}')" if label else f"node {previous.id}:"
     assert f"This node follows {named}" in request

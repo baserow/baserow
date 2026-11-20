@@ -10,11 +10,14 @@ from mcp.shared.memory import (
 
 from baserow.contrib.automation.nodes.registries import automation_node_type_registry
 from baserow.contrib.automation.nodes.service import AutomationNodeService
+from baserow.contrib.automation.tools.nodes import node_outputs
 from baserow.contrib.automation.workflows.constants import WorkflowState
 from baserow.contrib.automation.workflows.handler import AutomationWorkflowHandler
 from baserow.contrib.automation.workflows.models import AutomationWorkflow
 from baserow.contrib.automation.workflows.service import AutomationWorkflowService
 from baserow.core.mcp import BaserowMCPServer, current_key
+from baserow_enterprise.role.handler import RoleAssignmentHandler
+from baserow_enterprise.role.models import Role
 
 
 def _call(endpoint, name, arguments):
@@ -111,3 +114,69 @@ def test_pause_uses_the_role_of_the_update_operation(team):
     assert result.isError is False, result.content[0].text
     copy.refresh_from_db()
     assert copy.state == WorkflowState.PAUSED
+
+
+def _automation_builder_without_database_access(fixture, workspace, automation):
+    """A user who may build the automation but has no access to anything else."""
+
+    user = fixture.create_user()
+    fixture.create_user_workspace(
+        user=user, workspace=workspace, permissions="NO_ACCESS"
+    )
+    RoleAssignmentHandler().assign_role(
+        user,
+        workspace,
+        role=Role.objects.get(uid="BUILDER"),
+        scope=automation.application_ptr,
+    )
+    return user
+
+
+@pytest.mark.django_db(transaction=True)
+def test_list_nodes_hides_the_fields_of_a_table_the_user_cannot_see(team):
+    fixture, workspace, automation, builder, _ = team
+    table = fixture.create_database_table(
+        database=fixture.create_database_application(workspace=workspace)
+    )
+    salary = fixture.create_text_field(table=table, name="Salary")
+    workflow = AutomationWorkflowService().create_workflow(
+        builder, automation.id, "Flow"
+    )
+    trigger = AutomationNodeService().create_node(
+        builder,
+        automation_node_type_registry.get("local_baserow_rows_created"),
+        workflow,
+        service={"table_id": table.id},
+    )
+    restricted = _automation_builder_without_database_access(
+        fixture, workspace, automation
+    )
+
+    def list_nodes_as(user):
+        endpoint = fixture.create_mcp_endpoint(
+            user=user, workspace=workspace, allowed_tools=["list_nodes"]
+        )
+        result = _call(endpoint, "list_nodes", {"workflow_id": workflow.id})
+        assert result.isError is False, result.content[0].text
+        return result.content[0].text
+
+    (node,) = json.loads(list_nodes_as(builder))["nodes"]
+    assert node["output_schema"]["properties"][f"field_{salary.id}"] == {
+        "title": "Salary",
+        "type": "string",
+    }
+
+    text = list_nodes_as(restricted)
+    (node,) = json.loads(text)["nodes"]
+    assert node["id"] == trigger.id
+    assert node["output_schema"] == {
+        "formula_path": f"previous_node.{trigger.id}.0",
+        "properties": {},
+        "table_accessible": False,
+    }
+    assert "Salary" not in text
+    assert f"field_{salary.id}" not in text
+
+    # The outputs formulas are checked against, which formula errors list.
+    assert node_outputs(restricted, workflow)(trigger.id)["properties"] == {}
+    assert node_outputs(builder, workflow)(trigger.id)["properties"]

@@ -54,6 +54,18 @@ class DispatchContext(RuntimeFormulaContext, ABC):
     # redirect, as they always have.
     redirects_stay_on_host = False
 
+    def get_sample_data_table_ids(self, service: Service) -> Optional[List[int]]:
+        """
+        The IDs of the database tables the sample data about to be stored for the
+        service is built from, so that who may see it can be decided from them
+        later. None when the context can't tell, which is what a context that
+        doesn't read data of other services gives.
+
+        :param service: The specific service whose sample data is stored.
+        """
+
+        return None
+
     def __init__(
         self,
         workspace: Optional["Workspace"] = None,

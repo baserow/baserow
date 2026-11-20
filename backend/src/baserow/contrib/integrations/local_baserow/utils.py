@@ -1,4 +1,4 @@
-from typing import Any, Callable, List, Optional, Union
+from typing import Any, Callable, Iterable, List, Optional, Union
 
 from django.contrib.auth.models import AbstractUser
 
@@ -6,9 +6,11 @@ from loguru import logger
 from rest_framework.fields import Field
 from rest_framework.serializers import Serializer
 
+from baserow.contrib.database.fields.operations import ListFieldsOperationType
 from baserow.contrib.database.fields.utils import (
     guess_json_type_from_response_serializer_field,
 )
+from baserow.contrib.database.table.models import Table
 from baserow.core.formula.service_file import ServiceFile
 from baserow.core.formula.validator import (
     ensure_array,
@@ -18,9 +20,11 @@ from baserow.core.formula.validator import (
     ensure_integer,
     ensure_string,
 )
+from baserow.core.handler import CoreHandler
 from baserow.core.services.exceptions import (
     ServiceImproperlyConfiguredDispatchException,
 )
+from baserow.core.services.models import Service
 from baserow.core.types import Subject
 from baserow.core.user_files.exceptions import (
     FileSizeTooLargeError,
@@ -132,3 +136,91 @@ def guess_cast_function_from_response_serializer_field(
         if json_type_choice
         else None
     )
+
+
+class ServiceTableAccess:
+    """
+    Whether a user may see the fields of the tables a service reads or writes.
+    The schema and context data of such a service name the table's fields, so
+    they are only shown to a user who may list them, whatever else they may see
+    of the table, like a view of it. A table that no longer exists is one they
+    may not see. Each table is checked once, so one instance can be shared by every
+    service of a request.
+    """
+
+    operation = ListFieldsOperationType
+
+    def __init__(self, user: Optional[AbstractUser]):
+        self.user = user
+        self._allowed: dict[int, bool] = {}
+        self._tables: dict[int, Optional[Table]] = {}
+
+    def _get_tables(self, table_ids: Iterable[int]) -> dict[int, Optional[Table]]:
+        missing = {table_id for table_id in table_ids if table_id not in self._tables}
+        if missing:
+            self._tables.update(dict.fromkeys(missing))
+            self._tables.update(
+                {
+                    table.id: table
+                    for table in Table.objects_and_trash.select_related(
+                        "database__workspace"
+                    ).filter(id__in=missing)
+                }
+            )
+        return {table_id: self._tables[table_id] for table_id in table_ids}
+
+    def allows(self, service: Service) -> bool:
+        """
+        :param service: The specific service.
+        :return: False when the service has a table whose fields the user may
+            not list, True otherwise.
+        """
+
+        return all(
+            self.allows_table(table_id)
+            for table_id in service.get_type().get_table_ids(service)
+        )
+
+    def allows_table(self, table_id: int) -> bool:
+        """Whether the user may list the fields of the table."""
+
+        if self.user is None:
+            return False
+
+        if table_id not in self._allowed:
+            table = self._get_tables([table_id])[table_id]
+            self._allowed[table_id] = table is not None and (
+                CoreHandler().check_permissions(
+                    self.user,
+                    self.operation.type,
+                    workspace=table.database.workspace,
+                    context=table,
+                    raise_permission_exceptions=False,
+                )
+            )
+        return self._allowed[table_id]
+
+    def users_allowed_on(
+        self, table_ids: Iterable[int], users: Iterable[AbstractUser]
+    ) -> set[AbstractUser]:
+        """
+        :return: The users among the given ones who may list the fields of every
+            one of the tables, with a check for all of them at once for each table.
+        """
+
+        table_ids = list(table_ids)
+        tables = self._get_tables(table_ids)
+        allowed = set(users) if all(tables.values()) else set()
+        for table_id in table_ids:
+            if not allowed:
+                break
+            table = tables[table_id]
+            allowed &= set(
+                CoreHandler().check_permission_for_multiple_actors(
+                    list(allowed),
+                    self.operation.type,
+                    table.database.workspace,
+                    context=table,
+                )
+            )
+        return allowed

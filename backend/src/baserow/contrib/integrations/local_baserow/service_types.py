@@ -5,6 +5,7 @@ from typing import (
     Generator,
     List,
     Optional,
+    Set,
     Tuple,
     Type,
     Union,
@@ -316,6 +317,9 @@ class LocalBaserowTableServiceType(LocalBaserowServiceType):
         LastModifiedByFieldType.type,
         MultipleCollaboratorsFieldType.type,
     ]
+
+    def get_table_ids(self, service: ServiceSubClass) -> Set[int]:
+        return {service.table_id} if service.table_id is not None else set()
 
     def outdates_sample_data(self, changes: Dict[str, Tuple]) -> bool:
         """

@@ -41,6 +41,15 @@ class AutomationNodeTrashableItemType(GraphPointTrashableItemType):
     def get_parent(self, trashed_item: AutomationActionNode) -> AutomationWorkflow:
         return trashed_item.workflow
 
+    def permanently_delete_item(self, trashed_item, trash_item_lookup_cache=None):
+        from baserow.contrib.automation.nodes.backfill import (
+            fill_workflow_table_ids_before_edit,
+        )
+
+        # The nodes that read it no longer can tell what it read once it's gone.
+        fill_workflow_table_ids_before_edit(trashed_item.workflow)
+        return super().permanently_delete_item(trashed_item, trash_item_lookup_cache)
+
     def get_restore_operation_type(self) -> str:
         return RestoreAutomationNodeOperationType.type
 

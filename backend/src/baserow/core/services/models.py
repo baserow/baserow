@@ -62,6 +62,14 @@ class Service(
         null=True,
         help_text="Store the sample data used for generating a schema.",
     )
+    sample_data_table_ids = models.JSONField(
+        default=None,
+        blank=True,
+        null=True,
+        help_text="The IDs of the database tables the sample data was built from: "
+        "the tables of the service and of what it read when the sample was stored. "
+        "Null when it isn't known.",
+    )
 
     class Meta:
         ordering = ("id",)
