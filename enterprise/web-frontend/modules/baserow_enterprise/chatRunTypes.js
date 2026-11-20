@@ -11,9 +11,9 @@ import {
   isTerminalStatus,
 } from '@baserow/modules/core/chatRuns/constants'
 import {
-  getStoredOnboardingRunId,
+  getOnboardingRunId,
   getTabId,
-  storeOnboardingRunId,
+  setOnboardingRunId,
 } from '@baserow_enterprise/utils/assistantTabStorage'
 
 export const ASSISTANT_RUN_TYPE = 'assistant'
@@ -32,7 +32,7 @@ export class AssistantChatRunType extends ChatRunType {
   }
 
   shouldRetainFollower(follower) {
-    return follower.runId === getStoredOnboardingRunId()
+    return follower.runId === getOnboardingRunId()
   }
 
   refreshChat(chatId) {
@@ -171,7 +171,7 @@ export class AssistantChatRunType extends ChatRunType {
           }
         }
         // Unlike live navigation, the onboarding table also opens on replay.
-        if (follower.runId === getStoredOnboardingRunId()) {
+        if (follower.runId === getOnboardingRunId()) {
           this.openOnboardingTable(follower)
         }
         break
@@ -208,7 +208,7 @@ export class AssistantChatRunType extends ChatRunType {
         (location) => location.type === DATABASE_TABLE
       )
     if (table && this.app.$store.getters['assistant/isPanelOpen']) {
-      storeOnboardingRunId(null)
+      setOnboardingRunId(null)
       this.app.$store.dispatch('assistant/forceNavigate', table)
     }
   }

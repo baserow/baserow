@@ -17,7 +17,7 @@ import assistantStore from '@baserow_enterprise/store/assistant'
 import { AssistantChatRunType } from '@baserow_enterprise/chatRunTypes'
 import {
   storeChatUuid,
-  storeOnboardingRunId,
+  setOnboardingRunId,
 } from '@baserow_enterprise/utils/assistantTabStorage'
 import { PasswordAuthProviderType as CorePasswordAuthProviderType } from '@baserow/modules/core/authProviderTypes'
 import { MadeWithBaserowBuilderPageDecoratorType } from '@baserow_enterprise/builderPageDecoratorTypes'
@@ -186,7 +186,7 @@ export default defineNuxtPlugin({
         (authenticated) => {
           if (!authenticated) {
             storeChatUuid(null)
-            storeOnboardingRunId(null)
+            setOnboardingRunId(null)
             $store.dispatch('assistant/reset')
             $store.commit('assistant/SET_UI_LOCATION', null)
           }
