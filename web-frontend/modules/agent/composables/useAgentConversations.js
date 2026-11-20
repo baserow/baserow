@@ -1119,6 +1119,7 @@ export function useAgentConversations(agent, configuration) {
     canSend,
     pendingApprovalCount,
     waitingForApproval,
+    canApprove,
     canDecide,
     decidingReplies,
     newConversation,

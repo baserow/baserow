@@ -53,6 +53,7 @@ const rowsTrigger = (extra = {}) => ({
     schema: rowsSchema,
   },
   on_overlap: 'wait',
+  may_ask_person: true,
   batch_size: 20,
   last_fired_on: null,
   last_skipped_on: null,
@@ -1182,6 +1183,46 @@ describe('Agent triggers', () => {
       ['/agent/10/triggers/1/', { on_overlap: 'wait' }],
     ])
     expect(checked()).toEqual([false, true, false])
+  })
+
+  test('offers asking a person as a described switch and saves it alone', async () => {
+    testApp.mock
+      .onPatch('/agent/10/triggers/1/')
+      .reply(200, periodicTrigger({ may_ask_person: false }))
+    const wrapper = await mountSection([periodicTrigger()])
+    const section = wrapper.get('.agent-trigger-card__ask-person')
+    const toggle = section.get('.agent-trigger-card__ask-person-switch')
+    const textOf = (id) => section.get(`[id="${id}"]`).text()
+
+    expect(toggle.attributes('role')).toBe('switch')
+    expect(toggle.attributes('aria-checked')).toBe('true')
+    expect(textOf(toggle.attributes('aria-labelledby'))).toBe(
+      'agent.triggerMayAskPerson'
+    )
+    const description = section.get(
+      `[id="${toggle.attributes('aria-describedby')}"]`
+    )
+    expect(description.element.tagName).toBe('P')
+    expect(description.text()).toBe('agent.triggerMayAskPersonDescription')
+
+    await toggle.trigger('click')
+    await flushPromises()
+
+    expect(patches(testApp)).toEqual([
+      ['/agent/10/triggers/1/', { may_ask_person: false }],
+    ])
+    expect(toggle.attributes('aria-checked')).toBe('false')
+  })
+
+  test('leaves asking a person alone when the card is read-only', async () => {
+    const wrapper = await mountSection([periodicTrigger()], ['periodic'], false)
+    const toggle = wrapper.get('.agent-trigger-card__ask-person-switch')
+
+    expect(toggle.attributes('aria-disabled')).toBe('true')
+    await toggle.trigger('click')
+    await flushPromises()
+
+    expect(patches(testApp)).toEqual([])
   })
 
   test('tells how many runs can wait, as the server allows', async () => {
