@@ -1,6 +1,6 @@
 import asyncio
 import threading
-from collections.abc import Callable, Coroutine
+from collections.abc import Awaitable, Callable, Coroutine
 from concurrent.futures import Future, ThreadPoolExecutor
 from dataclasses import dataclass
 from typing import Any, TypeVar
@@ -114,6 +114,7 @@ class ShieldedToolset(WrapperToolset[Any]):
     """
 
     executor: ToolExecutor
+    before_call: Callable[[], Awaitable[None]] | None = None
 
     async def call_tool(
         self,
@@ -130,6 +131,8 @@ class ShieldedToolset(WrapperToolset[Any]):
         :return: What the tool returned.
         """
 
+        if self.before_call is not None:
+            await self.before_call()
         call = self.executor.start_tool_call(
             self.wrapped.call_tool(name, tool_args, ctx, tool)
         )

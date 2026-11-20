@@ -1076,6 +1076,8 @@ def create_views(
     errors: list[dict[str, Any]] = []
     with transaction.atomic():
         for view in views:
+            if ctx.is_cancelled():
+                break
             if view.name in used_names:
                 errors.append(
                     item_error(

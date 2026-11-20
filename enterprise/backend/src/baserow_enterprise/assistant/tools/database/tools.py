@@ -756,7 +756,7 @@ def update_fields(
     if not fields:
         return {"updated_fields": [], "changed": False}
 
-    tool_context = ctx.deps.tool_context()
+    tool_context = ctx.deps.tool_context(cooperative_cancellation=True)
     try:
         result = shared_fields.update_fields(tool_context, fields)
     except DjangoValidationError as exc:
@@ -764,7 +764,7 @@ def update_fields(
         raise ModelRetry(" ".join(exc.messages))
 
     formula_errors, other_errors = _split_formula_errors(result)
-    if formula_errors:
+    if formula_errors and not tool_context.is_cancelled():
         formula_fixer = make_formula_fixer(
             ctx.deps.user, ctx.deps.workspace, ctx.deps.tool_helpers
         )
@@ -817,7 +817,9 @@ def delete_fields(
     if not field_ids:
         return {"deleted_field_ids": [], "changed": False}
 
-    result = shared_fields.delete_fields(ctx.deps.tool_context(), field_ids)
+    result = shared_fields.delete_fields(
+        ctx.deps.tool_context(cooperative_cancellation=True), field_ids
+    )
 
     _refresh_row_tools(ctx)
     return result
@@ -858,7 +860,9 @@ def create_views(
 
     table = helpers.get_table(ctx.deps.user, ctx.deps.workspace, table_id)
     try:
-        result = shared_views.create_views(ctx.deps.tool_context(), table.id, views)
+        result = shared_views.create_views(
+            ctx.deps.tool_context(cooperative_cancellation=True), table.id, views
+        )
     except DjangoValidationError as exc:
         raise ModelRetry(" ".join(exc.messages))
     except SharedToolInputError as exc:

@@ -268,7 +268,7 @@ def create_pages(
     ]
 
     created = shared_pages.create_pages_with_options(
-        ctx.deps.tool_context(),
+        ctx.deps.tool_context(cooperative_cancellation=True),
         application_id,
         new_pages,
         BuilderWriteOptions(item_error=_input_item_error),
