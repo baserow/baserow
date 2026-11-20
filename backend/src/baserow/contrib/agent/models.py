@@ -140,6 +140,7 @@ class AgentTrigger(TrashableModelMixin, CreatedAndUpdatedOnMixin, models.Model):
         default=AGENT_TRIGGER_DEFAULT_BATCH_SIZE,
         db_default=AGENT_TRIGGER_DEFAULT_BATCH_SIZE,
     )
+    may_ask_person = models.BooleanField(default=True, db_default=True)
     # A skip is shown while it is newer than the last accepted firing.
     last_fired_on = models.DateTimeField(null=True, blank=True)
     last_skipped_on = models.DateTimeField(null=True, blank=True)
@@ -340,6 +341,7 @@ class AgentToolApproval(BigAutoFieldMixin, models.Model):
         db_default=Status.PENDING,
     )
     reason = models.TextField(blank=True, default="", db_default="")
+    answer = models.TextField(blank=True, default="", db_default="")
     decided_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         null=True,

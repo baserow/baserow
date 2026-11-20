@@ -161,3 +161,38 @@ OUTPUT_RETRIES = 3
 # readable.
 WEB_SEARCH_STEP_MAX_QUERIES = 5
 WEB_SEARCH_STEP_QUERY_MAX_LENGTH = 512
+ASK_PERSON_TOOL_NAME = "ask_person"
+ASK_PERSON_ANSWER_METADATA_KEY = "answer"
+ASK_PERSON_ANSWER_MAX_LENGTH = 10_000
+ASK_PERSON_QUESTION_MAX_LENGTH = 4_000
+ASK_PERSON_DESCRIPTION = (
+    "Ask a person for a fact or a decision you need to finish this task and can't "
+    "get from your tools or the data you have. Nobody reads this conversation while "
+    "you work, so a question written in your reply reaches nobody: use this tool. "
+    "The run pauses until someone answers or dismisses the question. Ask one clear "
+    "question that makes sense on its own, with the context needed to answer it. "
+    "Don't use it to confirm what you can reasonably decide yourself."
+)
+ASK_PERSON_DISMISSED_NOTE = (
+    "The question was dismissed, so nobody will answer it. Continue without the "
+    "answer if you can; otherwise stop and explain what is missing."
+)
+ASK_PERSON_DISMISSED_HISTORY = "(Dismissed without an answer.)"
+UNATTENDED_REPLY_INSTRUCTIONS = (
+    'The trigger "{trigger}" started this reply, and nobody reads it while you '
+    "work. Don't ask for confirmation or preferences in your reply: make reasonable "
+    "assumptions and say which. End with what you did and what you couldn't do."
+)
+UNATTENDED_REPLY_UNNAMED_INSTRUCTIONS = (
+    "A trigger started this reply, and nobody reads it while you work. Don't ask "
+    "for confirmation or preferences in your reply: make reasonable assumptions and "
+    "say which. End with what you did and what you couldn't do."
+)
+UNATTENDED_ASK_PERSON_INSTRUCTIONS = (
+    f"When you can't finish without a fact or a decision only a person can give, "
+    f"call {ASK_PERSON_TOOL_NAME}."
+)
+UNATTENDED_NO_PERSON_INSTRUCTIONS = (
+    "Nobody will answer questions during this run. When you can't finish, stop and "
+    "explain what is missing."
+)

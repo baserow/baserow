@@ -31,7 +31,7 @@ ERROR_AGENT_CONVERSATION_IS_EXAMPLE = (
 ERROR_AGENT_CONVERSATION_WAITING_FOR_APPROVAL = (
     "ERROR_AGENT_CONVERSATION_WAITING_FOR_APPROVAL",
     409,
-    "Approve or reject the agent's held steps before sending a new message.",
+    "Respond to what's waiting in this conversation before sending a new message.",
 )
 ERROR_AGENT_TOOL_REQUIREMENTS_MISSING = (
     "ERROR_AGENT_TOOL_REQUIREMENTS_MISSING",
@@ -42,4 +42,10 @@ ERROR_AGENT_TOOL_APPROVAL_NOT_PENDING = (
     "ERROR_AGENT_TOOL_APPROVAL_NOT_PENDING",
     409,
     "These steps are not waiting for a decision any more.",
+)
+ERROR_AGENT_TOOL_DECISION_INVALID = (
+    "ERROR_AGENT_TOOL_DECISION_INVALID",
+    400,
+    "An answer is needed to answer a question, only a question takes one, and "
+    "dismissing a question takes no reason.",
 )

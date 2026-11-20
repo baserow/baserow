@@ -38,6 +38,11 @@ BATCH_SIZE_HELP_TEXT = (
     "conversation receives: a larger event starts one conversation per batch. "
     "Payloads that aren't lists ignore it."
 )
+MAY_ASK_PERSON_HELP_TEXT = (
+    "Whether a run may pause to ask a person a question that people who can "
+    "approve tool calls answer. Off, the agent finishes on its own or stops and "
+    "explains why."
+)
 
 
 class AgentTriggerSerializer(serializers.ModelSerializer):
@@ -67,6 +72,7 @@ class AgentTriggerSerializer(serializers.ModelSerializer):
             "message",
             "on_overlap",
             "batch_size",
+            "may_ask_person",
             "service",
             "last_fired_on",
             "last_skipped_on",
@@ -77,6 +83,7 @@ class AgentTriggerSerializer(serializers.ModelSerializer):
             "name": {"help_text": NAME_HELP_TEXT},
             "on_overlap": {"help_text": ON_OVERLAP_HELP_TEXT},
             "batch_size": {"help_text": BATCH_SIZE_HELP_TEXT},
+            "may_ask_person": {"help_text": MAY_ASK_PERSON_HELP_TEXT},
             "last_fired_on": {
                 "read_only": True,
                 "help_text": "When a firing last started or queued a conversation.",
@@ -156,6 +163,9 @@ class CreateAgentTriggerSerializer(
         default=AGENT_TRIGGER_DEFAULT_BATCH_SIZE,
         help_text=BATCH_SIZE_HELP_TEXT,
     )
+    may_ask_person = serializers.BooleanField(
+        required=False, default=True, help_text=MAY_ASK_PERSON_HELP_TEXT
+    )
 
 
 class UpdateAgentTriggerSerializer(
@@ -195,6 +205,9 @@ class UpdateAgentTriggerSerializer(
         max_value=AGENT_TRIGGER_MAX_BATCH_SIZE,
         required=False,
         help_text=BATCH_SIZE_HELP_TEXT,
+    )
+    may_ask_person = serializers.BooleanField(
+        required=False, help_text=MAY_ASK_PERSON_HELP_TEXT
     )
 
 

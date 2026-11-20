@@ -44,6 +44,7 @@ from baserow.contrib.agent.exceptions import (
     AgentNotReady,
     AgentRunAsSubjectDoesNotExist,
     AgentToolApprovalNotPending,
+    AgentToolDecisionInvalid,
     AgentToolRequirementsMissing,
 )
 from baserow.contrib.agent.handler import AgentHandler
@@ -70,6 +71,7 @@ from .errors import (
     ERROR_AGENT_NOT_READY,
     ERROR_AGENT_RUN_AS_SUBJECT_DOES_NOT_EXIST,
     ERROR_AGENT_TOOL_APPROVAL_NOT_PENDING,
+    ERROR_AGENT_TOOL_DECISION_INVALID,
     ERROR_AGENT_TOOL_REQUIREMENTS_MISSING,
 )
 from .serializers import (
@@ -110,6 +112,7 @@ AGENT_EXCEPTIONS = {
     AgentConversationWaitingForApproval: ERROR_AGENT_CONVERSATION_WAITING_FOR_APPROVAL,
     AgentConversationIsExample: ERROR_AGENT_CONVERSATION_IS_EXAMPLE,
     AgentToolApprovalNotPending: ERROR_AGENT_TOOL_APPROVAL_NOT_PENDING,
+    AgentToolDecisionInvalid: ERROR_AGENT_TOOL_DECISION_INVALID,
     AgentToolRequirementsMissing: ERROR_AGENT_TOOL_REQUIREMENTS_MISSING,
     ChatRunAlreadyActive: ERROR_CHAT_RUN_IN_PROGRESS,
     ChatRunLimitReached: ERROR_AGENT_BUSY,
@@ -143,6 +146,13 @@ MESSAGE_WRITE_ERRORS = {
 }
 APPROVAL_WRITE_ERRORS = {
     **CONVERSATION_WRITE_ERRORS,
+    400: get_error_schema(
+        [
+            "ERROR_REQUEST_BODY_VALIDATION",
+            "ERROR_AGENT_NOT_READY",
+            "ERROR_AGENT_TOOL_DECISION_INVALID",
+        ]
+    ),
     409: get_error_schema(["ERROR_AGENT_TOOL_APPROVAL_NOT_PENDING"]),
 }
 

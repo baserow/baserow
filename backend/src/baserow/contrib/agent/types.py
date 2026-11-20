@@ -78,6 +78,8 @@ class AgentToolDecision(TypedDict):
     approved: bool
     reason: NotRequired[str]
     """Why a held call is rejected, for the model."""
+    answer: NotRequired[str]
+    """The answer to a held question, for the model."""
 
 
 @dataclass
@@ -229,6 +231,12 @@ class AgentReplyRequest:
     """Whether web search is turned on, even when the model can't use it."""
     started_by_trigger: bool = False
     """Whether a trigger started the conversation, so its prompt is outside data."""
+    unattended: bool = False
+    """Whether nobody reads the reply as it's written: it answers a trigger."""
+    trigger_name: str | None = None
+    """The trigger's own name, or None when it has none."""
+    may_ask_person: bool = False
+    """Whether an unattended reply may hold a question for a person."""
     web_fetch_enabled: bool = False
     """Whether the reply may open web pages, which Baserow fetches for any model."""
 
