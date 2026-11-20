@@ -11,6 +11,8 @@ from typing import TYPE_CHECKING, Any, Literal, Optional, get_args, get_origin
 
 from django.conf import settings
 
+import httpx
+import httpx2
 from loguru import logger
 from pydantic_ai.exceptions import ModelAPIError, ModelHTTPError
 
@@ -52,6 +54,26 @@ class GenerativeAIModelConfiguration:
 
 
 _DEFAULT_MODEL_CONFIGURATION = GenerativeAIModelConfiguration()
+
+# Groq and Mistral SDKs still use httpx, the others httpx2.
+_TRANSPORT_ERRORS = (httpx.TransportError, httpx2.TransportError)
+
+
+def _is_transport_failure(error: BaseException) -> bool:
+    """
+    A provider can also report a failure inside a 200 answer, without a status, so
+    only a failed connection proves the request got no answer.
+
+    :param error: What the model raised.
+    :return: Whether the connection to the provider failed or broke.
+    """
+
+    cause = error.__cause__
+    while cause is not None:
+        if isinstance(cause, _TRANSPORT_ERRORS):
+            return True
+        cause = cause.__cause__
+    return False
 
 
 def call_with_supported_kwargs(method: Any, **kwargs) -> Any:
@@ -936,15 +958,14 @@ class GenerativeAIModelType(Instance):
         """
 
         if isinstance(error, ModelHTTPError):
-            if error.status_code in (401, 403):
+            if error.status_code == 401:
                 return ProviderFailure.AUTH_FAILED
             if error.status_code == 429:
                 return ProviderFailure.RATE_LIMITED
             if error.status_code == 408 or error.status_code >= 500:
                 return ProviderFailure.UNAVAILABLE
             return None
-        # Without a status the request got no answer: a broken connection or stream.
-        if isinstance(error, ModelAPIError):
+        if isinstance(error, ModelAPIError) and _is_transport_failure(error):
             return ProviderFailure.UNAVAILABLE
         return None
 

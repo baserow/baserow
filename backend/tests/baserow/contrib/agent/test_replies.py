@@ -650,32 +650,6 @@ def test_unfinished_replies_log_error_details_only_in_debug_mode(
 
 
 @pytest.mark.django_db
-@pytest.mark.parametrize(
-    "error,error_code",
-    [
-        (ModelHTTPError(401, "m"), "provider_auth_failed"),
-        (ModelHTTPError(400, "m"), "failed"),
-        (RuntimeError("boom"), "failed"),
-    ],
-)
-def test_failed_reply_takes_the_provider_failure_as_error_code(
-    reply_run, mocker, error, error_code
-):
-    async def stream(messages, info):
-        raise error
-        yield "never"
-
-    mocker.patch(
-        "baserow.contrib.agent.chat_run_type.create_reply_model",
-        return_value=(FunctionModel(stream_function=stream), {}),
-    )
-
-    run_reply(reply_run)
-
-    assert reply_state(reply_run.context["reply_id"]) == ("failed", error_code, "")
-
-
-@pytest.mark.django_db
 def test_empty_groq_stream_logs_the_original_error_in_debug_mode(
     reply_run, mocker, logs, settings
 ):

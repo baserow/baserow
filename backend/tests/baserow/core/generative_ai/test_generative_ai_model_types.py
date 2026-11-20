@@ -1,6 +1,8 @@
 from typing import Any
 from unittest.mock import MagicMock, patch
 
+import httpx
+import httpx2
 import pytest
 from botocore.stub import Stubber
 from pydantic_ai import BinaryContent, TextContent, UploadedFile
@@ -1334,15 +1336,35 @@ GOOGLE_INVALID_API_KEY = {
 XAI_INVALID_API_KEY = "Incorrect API key provided. You can obtain an API key."
 
 
+def raised_from(error: Exception, cause: Exception) -> Exception:
+    error.__cause__ = cause
+    return error
+
+
 @pytest.mark.parametrize(
     "provider_type,error,failure",
     [
         ("openai", ModelHTTPError(401, "m"), "provider_auth_failed"),
-        ("openai", ModelHTTPError(403, "m"), "provider_auth_failed"),
+        ("openai", ModelHTTPError(403, "m"), None),
         ("openai", ModelHTTPError(429, "m"), "provider_rate_limited"),
         ("openai", ModelHTTPError(408, "m"), "provider_unavailable"),
-        ("openai", ModelHTTPError(503, "m"), "provider_unavailable"),
-        ("openai", ModelAPIError("m", "Connection error."), "provider_unavailable"),
+        ("openai", ModelHTTPError(500, "m"), "provider_unavailable"),
+        (
+            "openai",
+            raised_from(ModelAPIError("m", "m"), httpx2.ConnectError("refused")),
+            "provider_unavailable",
+        ),
+        (
+            "groq",
+            raised_from(ModelAPIError("m", "m"), httpx.ReadTimeout("timed out")),
+            "provider_unavailable",
+        ),
+        ("openai", ModelAPIError("m", "invalid_prompt: flagged"), None),
+        (
+            "openai",
+            raised_from(ModelAPIError("m", "m"), RuntimeError("error chunk")),
+            None,
+        ),
         ("openai", ModelHTTPError(400, "m", GOOGLE_INVALID_API_KEY), None),
         ("openai", ModelHTTPError(400, "m", XAI_INVALID_API_KEY), None),
         ("openai", RuntimeError("boom"), None),
@@ -1351,7 +1373,13 @@ XAI_INVALID_API_KEY = "Incorrect API key provided. You can obtain an API key."
             ModelHTTPError(400, "m", GOOGLE_INVALID_API_KEY),
             "provider_auth_failed",
         ),
-        ("google", ModelHTTPError(400, "m", {"error": {"details": []}}), None),
+        (
+            "google",
+            ModelHTTPError(
+                400, "m", {"error": {"details": [{"reason": "SERVICE_DISABLED"}]}}
+            ),
+            None,
+        ),
         ("google", ModelHTTPError(429, "m"), "provider_rate_limited"),
         ("xai", ModelHTTPError(400, "m", XAI_INVALID_API_KEY), "provider_auth_failed"),
         ("xai", ModelHTTPError(400, "m", "Model not found"), None),
