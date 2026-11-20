@@ -34,6 +34,7 @@ from baserow.core.generative_ai.exceptions import (
     GenerativeAIPromptError,
     ModelDoesNotBelongToType,
     get_user_friendly_error_message,
+    is_provider_fault,
 )
 from baserow.core.handler import CoreHandler
 from baserow.core.job_types import _empty_transaction_context
@@ -43,7 +44,11 @@ from baserow.core.jobs.registries import JobType
 from baserow.core.utils import ChildProgressBuilder
 from baserow_premium.api.fields.errors import ERROR_AI_FIELD_PROMPT_INVALID
 
-from .exceptions import AIFieldEmptyPromptError, AIFieldPromptInvalidError
+from .exceptions import (
+    AIFieldEmptyPromptError,
+    AIFieldPromptInvalidError,
+    AIFieldProviderError,
+)
 from .handler import AIFieldHandler
 from .models import AIField, AIFieldScheduledUpdate, GenerateAIValuesJob
 from .visitors import get_ai_prompt_error
@@ -68,6 +73,10 @@ class GenerateAIValuesJobType(JobType):
         FieldDoesNotExist: ERROR_FIELD_DOES_NOT_EXIST,
         AIFieldPromptInvalidError: ERROR_AI_FIELD_PROMPT_INVALID,
         ModelDoesNotBelongToType: ERROR_MODEL_DOES_NOT_BELONG_TO_TYPE,
+    }
+    job_exceptions_map = {
+        # The rows that failed were already reported to the user with this error.
+        AIFieldProviderError: "{e}",
     }
     serializer_field_names = [
         "field_id",
@@ -406,6 +415,10 @@ class AIValueGenerator:
         # Marker to keep track if any errors ocurred during the process.
         self.error_msg = None
 
+        # Whether every error came from the provider, like an invalid key or no
+        # credits left, rather than from Baserow.
+        self.only_provider_errors = True
+
         self.row_handler = RowHandler()
         self.on_progress = on_progress
 
@@ -462,7 +475,7 @@ class AIValueGenerator:
             block=True,
         )
 
-    def handle_error(self, error_message: str):
+    def handle_error(self, error_message: str, from_provider: bool = False):
         """
         Error handling routine, if an error occurred during getting AI model response
         for a row.
@@ -471,10 +484,12 @@ class AIValueGenerator:
         the frontend on a first occurrence of an error.
 
         :param error_message: The exception message to log and send with the signal.
+        :param from_provider: Whether the provider was at fault, see `is_provider_fault`.
         """
 
         self.stop_scheduling_rows()
         self.error_msg = error_message
+        self.only_provider_errors = self.only_provider_errors and from_provider
 
     def raise_if_error(self):
         """
@@ -483,9 +498,14 @@ class AIValueGenerator:
 
         This should be called at the end of processing, to inform the caller that
         there was an error.
+
+        :raises AIFieldProviderError: When the provider was at fault for every error.
+        :raises GenerativeAIPromptError: When any other error occurred.
         """
 
         if self.error_msg:
+            if self.only_provider_errors:
+                raise AIFieldProviderError(self.error_msg)
             raise GenerativeAIPromptError(self.error_msg)
 
     def process(self, rows: QuerySet[GeneratedTableModel]):
@@ -576,7 +596,7 @@ class AIValueGenerator:
 
         if isinstance(result.result, Exception):
             exc = result.result
-            self.handle_error(str(exc))
+            self.handle_error(str(exc), from_provider=is_provider_fault(exc))
 
         self.finished += 1
         self.in_process.remove(result.row.id)

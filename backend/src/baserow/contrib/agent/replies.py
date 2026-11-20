@@ -60,6 +60,7 @@ from baserow.core.chat_runs.models import ChatRunStatus
 from baserow.core.chat_runs.steps import ChatRunSteps, ToolCallInputEvent
 from baserow.core.chat_runs.types import ChatRunOutcome
 from baserow.core.generative_ai.constants import WEB_SEARCH_MAX_PER_REPLY
+from baserow.core.generative_ai.exceptions import ignore_provider_faults_in_sentry
 from baserow.core.generative_ai.model_profiles import AGENT
 from baserow.core.generative_ai.output_validation import ModelOutputValidator
 from baserow.core.generative_ai.registries import generative_ai_model_type_registry
@@ -443,25 +444,29 @@ class AgentResponder:
             # The SDK would refuse the whole request rather than leave search out.
             web_search_tool = None
             self._search_unavailable()
-        async with self._model:
-            try:
-                await self._run_model(web_search_tool)
-            except ModelHTTPError as exc:
-                # Some models refuse the tool, which only the provider knows. A refused
-                # request searched nothing and showed nothing, so it can run again.
-                if (
-                    web_search_tool is None
-                    or exc.status_code != 400
-                    or self._text
-                    or self._steps.started
-                ):
-                    raise
-                logger.warning(
-                    "Agent reply {} got a 400 with web search, retrying without it",
-                    self._request.reply_id,
-                )
-                self._search_unavailable()
-                await self._run_model(None)
+        # A failed reply shows the user that it failed, so the provider's fault isn't
+        # reported to Sentry.
+        with ignore_provider_faults_in_sentry():
+            async with self._model:
+                try:
+                    await self._run_model(web_search_tool)
+                except ModelHTTPError as exc:
+                    # Some models refuse the tool, which only the provider knows. A
+                    # refused request searched nothing and showed nothing, so it can
+                    # run again.
+                    if (
+                        web_search_tool is None
+                        or exc.status_code != 400
+                        or self._text
+                        or self._steps.started
+                    ):
+                        raise
+                    logger.warning(
+                        "Agent reply {} got a 400 with web search, retrying without it",
+                        self._request.reply_id,
+                    )
+                    self._search_unavailable()
+                    await self._run_model(None)
 
     async def _run_model(self, web_search_tool: WebSearchTool | None) -> None:
         """

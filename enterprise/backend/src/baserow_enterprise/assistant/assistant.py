@@ -10,7 +10,6 @@ from django.contrib.auth.models import AbstractUser
 from loguru import logger
 from pydantic_ai import Agent, UnexpectedModelBehavior, capture_run_messages
 from pydantic_ai._thinking_part import split_content_into_text_and_thinking
-from pydantic_ai.exceptions import ModelAPIError, ModelHTTPError
 from pydantic_ai.messages import (
     AgentStreamEvent,
     FunctionToolCallEvent,
@@ -38,7 +37,12 @@ from baserow.core.chat_runs.constants import (
 )
 from baserow.core.chat_runs.models import ChatRunStatus
 from baserow.core.chat_runs.types import ChatRunOutcome
+from baserow.core.generative_ai.exceptions import (
+    get_provider_api_error_types,
+    is_provider_fault,
+)
 from baserow.core.models import Workspace
+from baserow.core.sentry import ignore_sentry_exceptions
 from baserow.core.utils import exception_capturer
 from baserow_enterprise.assistant.action_memory import get_verified_tool_outcomes
 from baserow_enterprise.assistant.agents import main_agent, title_agent
@@ -153,25 +157,6 @@ def _short_title(text: str) -> str:
         return title
     cut = title[: _TITLE_MAX_CHARS - 1].rsplit(" ", 1)[0].rstrip(" ,.;:-")
     return f"{cut}…"
-
-
-_PROVIDER_RETRY_STATUS_CODES = (408, 409, 429)
-
-
-def _is_provider_outage(exc: Exception) -> bool:
-    """
-    Whether a failed run comes from the model provider rather than from
-    Baserow, so that reporting it would only add noise.
-
-    :param exc: The exception that ended the run.
-    :return: True for rate limits, timeouts, provider server errors, and
-        errors without a status code, which pydantic-ai raises for broken
-        connections and streams.
-    """
-
-    if isinstance(exc, ModelHTTPError):
-        return exc.status_code in _PROVIDER_RETRY_STATUS_CODES or exc.status_code >= 500
-    return isinstance(exc, ModelAPIError)
 
 
 @dataclass(frozen=True)
@@ -463,7 +448,14 @@ class Assistant:
         """
 
         try:
-            with capture_run_messages() as run_messages:
+            # The AI client integrations of Sentry report every provider error,
+            # while a failed run is reported below only when it isn't the
+            # provider's fault, and the user always gets an error message. Other
+            # exceptions captured during the run are still sent.
+            with (
+                ignore_sentry_exceptions(get_provider_api_error_types),
+                capture_run_messages() as run_messages,
+            ):
                 self._agent_messages = run_messages
                 try:
                     with self._telemetry.trace(
@@ -506,7 +498,7 @@ class Assistant:
                 self._chat.id,
                 type(exc).__name__,
             )
-            if not _is_provider_outage(exc):
+            if not is_provider_fault(exc):
                 # Loguru logs don't reach Sentry.
                 exception_capturer(exc)
             queue.put_nowait(exc)

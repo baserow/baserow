@@ -14,6 +14,7 @@ from baserow.core.sentry import (
     before_send,
     drop_expected_asyncio_disconnect_events,
     ignore_sentry_exceptions,
+    ignore_sentry_exceptions_if,
     log_sentry_event_to_console,
 )
 from baserow.core.sentry_transport import ConsoleSentryTransport
@@ -324,3 +325,19 @@ def test_ignore_sentry_exceptions_resolves_lazy_types_only_with_sentry(
         sentry_sdk.capture_exception(ValueError("kept"))
 
     assert _sent(sentry_events) == ["kept"]
+
+
+def test_ignore_sentry_exceptions_if_drops_only_the_matching_exceptions(
+    sentry_events,
+):
+    def is_dropped(exc: BaseException) -> bool:
+        return str(exc).startswith("dropped")
+
+    with ignore_sentry_exceptions_if(is_dropped):
+        sentry_sdk.capture_exception(ValueError("dropped"))
+        sentry_sdk.capture_exception(ValueError("kept"))
+        sentry_sdk.capture_message("kept message")
+
+    sentry_sdk.capture_exception(ValueError("dropped, but outside"))
+
+    assert _sent(sentry_events) == ["kept", "kept message", "dropped, but outside"]

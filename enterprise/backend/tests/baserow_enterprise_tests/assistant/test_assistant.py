@@ -10,7 +10,9 @@ from uuid import uuid4
 from django.test.utils import override_settings
 
 import pytest
+import sentry_sdk
 from asgiref.sync import async_to_sync
+from google.genai import errors as google_errors
 from pydantic_ai import ModelRetry
 from pydantic_ai.exceptions import ModelAPIError, ModelHTTPError, UsageLimitExceeded
 from pydantic_ai.messages import (
@@ -47,6 +49,7 @@ from baserow.core.ai_provider.handler import AIProviderHandler
 from baserow.core.ai_provider.models import AIProviderConfig, AIProviderModel
 from baserow.core.chat_runs.handler import ChatRunHandler
 from baserow.core.chat_runs.models import ChatRunStatus
+from baserow.test_utils.sentry import sent_exception_types
 from baserow_enterprise.assistant.action_memory import (
     MAX_VERIFIED_TOOL_OUTCOMES_CHARS,
     get_mutation_evidence,
@@ -2905,6 +2908,52 @@ class TestAssistantRunFailures:
         assert (
             _captured_trace(mock_get_client)["$ai_error_type"] == type(error).__name__
         )
+
+    @pytest.mark.parametrize(
+        "client_error, status_code, sent",
+        [
+            # The provider's fault isn't reported at all.
+            (google_errors.ClientError(429, {"error": {}}), 429, []),
+            (google_errors.ClientError(401, {"error": {}}), 401, []),
+            # A request the provider rejects is reported once, by the assistant.
+            (google_errors.ClientError(400, {"error": {}}), 400, ["ModelHTTPError"]),
+            # A Baserow bug during the run is still reported where it happens.
+            (TypeError("unexpected keyword"), 429, ["TypeError"]),
+        ],
+    )
+    @patch("baserow_enterprise.assistant.telemetry.get_posthog_client")
+    @patch("baserow_enterprise.assistant.agents.main_agent.run_stream_events")
+    def test_provider_errors_are_reported_to_sentry_only_by_baserow(
+        self,
+        mock_run_stream_events,
+        mock_get_client,
+        client_error,
+        status_code,
+        sent,
+        sentry_events,
+        enterprise_data_fixture,
+        scoped_assistant_model,
+    ):
+        user = enterprise_data_fixture.create_user()
+        workspace = enterprise_data_fixture.create_workspace(user=user)
+        chat = AssistantChat.objects.create(
+            user=user, workspace=workspace, title="Chat"
+        )
+
+        error = ModelHTTPError(status_code=status_code, model_name="m", body="")
+
+        def fail_like_an_ai_client(*args, **kwargs):
+            # Like the Sentry AI client integrations, which capture the client
+            # error before pydantic-ai turns it into a ModelHTTPError.
+            sentry_sdk.capture_exception(client_error)
+            raise error from client_error
+
+        mock_run_stream_events.side_effect = fail_like_an_ai_client
+
+        outcome = _run_chat(chat, workspace, user)
+        assert outcome.status == ChatRunStatus.FAILED
+
+        assert sent_exception_types(sentry_events) == sent
 
     @patch("baserow_enterprise.assistant.telemetry.get_posthog_client")
     @patch("baserow_enterprise.assistant.agents.main_agent.run_stream_events")
