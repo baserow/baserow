@@ -4,6 +4,8 @@
       ref="nameInput"
       :model-value="modelValue.name"
       :placeholder="$t('agent.setupNamePlaceholder')"
+      :maxlength="IDENTITY_NAME_MAX_LENGTH"
+      @focus.once="$event.target.select()"
       @update:model-value="update({ name: $event })"
     />
   </FormGroup>
@@ -26,7 +28,7 @@
       :key="suggestion.labelKey"
       type="button"
       class="agent-create__suggestion"
-      @click="update(suggestionSetup(suggestion, t, offeredActionTypes))"
+      @click="applySuggestion(suggestion)"
     >
       <i class="agent-create__suggestion-icon" :class="suggestion.icon"></i>
       {{ $t(suggestion.labelKey) }}
@@ -37,7 +39,9 @@
 <script setup>
 import { computed, nextTick, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { useStore } from 'vuex'
 import {
+  IDENTITY_NAME_MAX_LENGTH,
   SETUP_SUGGESTIONS,
   setupActionTypes,
   suggestionSetup,
@@ -49,6 +53,7 @@ const props = defineProps({
 })
 const emit = defineEmits(['update:modelValue'])
 const { t } = useI18n()
+const store = useStore()
 const { $registry } = useNuxtApp()
 const nameInput = ref(null)
 const offeredActionTypes = computed(() =>
@@ -57,6 +62,13 @@ const offeredActionTypes = computed(() =>
 
 function update(values) {
   emit('update:modelValue', { ...props.modelValue, ...values })
+}
+
+function applySuggestion(suggestion) {
+  const takenNames = store.getters['application/getAllOfWorkspace'](
+    props.workspace
+  ).map((application) => application.name)
+  update(suggestionSetup(suggestion, t, offeredActionTypes.value, takenNames))
 }
 
 onMounted(async () => {

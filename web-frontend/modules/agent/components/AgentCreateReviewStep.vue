@@ -203,6 +203,7 @@ import { UserSubjectType } from '@baserow/modules/core/subjectTypes'
 import IdentityService from '@baserow/modules/core/services/identity'
 import ManageIdentityModal from '@baserow/modules/core/components/settings/identities/ManageIdentityModal'
 import AgentToolPermissionsModal from '@baserow/modules/agent/components/configuration/AgentToolPermissionsModal'
+import { usableAgentTools } from '@baserow/modules/agent/agentTools'
 import {
   SCHEDULE_TRIGGER_TYPE,
   SETUP_ACTS_AS,
@@ -218,7 +219,7 @@ const PERMISSION_PRESETS = [
   {
     value: SETUP_PERMISSIONS.READ,
     label: 'agent.setupPermissionsRead',
-    icon: 'iconoir-eye',
+    icon: 'iconoir-eye-empty',
   },
   {
     value: SETUP_PERMISSIONS.ASK,
@@ -307,7 +308,7 @@ const customToolsSeed = computed(
 const customSummary = computed(() =>
   t('agent.setupPermissionsCustomSummary', {
     on: props.modelValue.customTools.allowed_tools.length,
-    total: props.availableTools.length,
+    total: usableAgentTools(props.availableTools).length,
     count: props.modelValue.customTools.ask_first_tools.length,
   })
 )

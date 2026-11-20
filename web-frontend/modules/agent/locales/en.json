@@ -488,7 +488,8 @@
     "setupLaterNote": "You can change all of this later.",
     "setupConfiguration": "Instructions, model and workspace access",
     "setupPartialTitle": "Some choices weren't applied",
-    "setupPartialMessage": "Set them up in Configuration: {items}"
+    "setupPartialMessage": "Set them up in Configuration: {items}",
+    "setupWebSearchUnsupported": "The chosen model can't search the web, so web search is off."
   },
   "trashType": {
     "agent_conversation": "conversation",

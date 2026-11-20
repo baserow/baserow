@@ -26,7 +26,9 @@ describe('toolsForPermissions', () => {
     [SETUP_PERMISSIONS.ASK, ['list_tables', 'create_rows'], ['create_rows']],
     [SETUP_PERMISSIONS.CHANGE, ['list_tables', 'create_rows'], []],
   ])('%s', (permissions, allowed, askFirst) => {
-    expect(toolsForPermissions(tools, permissions)).toEqual({
+    const locked = { name: 'list_row_comments', deactivated: true }
+
+    expect(toolsForPermissions([...tools, locked], permissions)).toEqual({
       allowed_tools: allowed,
       ask_first_tools: askFirst,
     })
@@ -67,7 +69,7 @@ describe('suggestionSetup', () => {
       )
 
       expect(
-        suggestionSetup(suggestion, (text) => text, ['smtp_email'])
+        suggestionSetup(suggestion, (text) => text, ['smtp_email'], [])
       ).toEqual({
         name: `agent.setupSuggestion${key}Name`,
         instructions: `agent.setupSuggestion${key}Instructions`,
@@ -85,8 +87,17 @@ describe('suggestionSetup', () => {
       ({ setup }) => setup.actionTypes.length
     )
 
-    expect(suggestionSetup(outreach, (text) => text, []).actionTypes).toEqual(
-      []
+    expect(
+      suggestionSetup(outreach, (text) => text, [], []).actionTypes
+    ).toEqual([])
+  })
+
+  test('numbers the name when an application already has it', () => {
+    const [suggestion] = SETUP_SUGGESTIONS
+    const name = suggestion.nameKey
+
+    expect(suggestionSetup(suggestion, (text) => text, [], [name]).name).toBe(
+      `${name} 1`
     )
   })
 })
@@ -259,15 +270,15 @@ describe('applyAgentSetup', () => {
     expect(requests).toEqual([
       [
         'POST',
+        '/identities/workspace/1/',
+        { name: 'Deal scout', role_uid: 'EDITOR' },
+      ],
+      [
+        'POST',
         '/applications/workspace/1/',
         { name: 'Deal scout', type: 'agent', init_with_data: true },
       ],
       ['GET', '/agent/10/configuration/', undefined],
-      [
-        'POST',
-        '/identities/workspace/1/',
-        { name: 'Deal scout', role_uid: 'EDITOR' },
-      ],
       [
         'PATCH',
         '/agent/10/configuration/',
@@ -322,28 +333,14 @@ describe('applyAgentSetup', () => {
     ])
   })
 
-  test('goes on without an identity it could not create', async () => {
+  test('creates nothing when the identity is rejected', async () => {
     testApp.dontFailOnErrorResponses()
     mockAll({ identityStatus: 400 })
 
-    const { notApplied } = await apply(full)
-
-    expect(notApplied).toEqual(['agent.setupActsAs'])
+    await expect(apply(full)).rejects.toThrow()
     expect(requests.map(([method, url]) => `${method} ${url}`)).toEqual([
-      'POST /applications/workspace/1/',
-      'GET /agent/10/configuration/',
       'POST /identities/workspace/1/',
-      'PATCH /agent/10/configuration/',
-      'PATCH /agent/10/configuration/',
-      'POST /agent/10/triggers/',
-      'POST /agent/10/actions/',
     ])
-    expect(requests[3][2]).toEqual({
-      instructions: 'Find companies.',
-      provider_type: 'openai',
-      model_identifier: 'model-two',
-      reasoning_effort: 'low',
-    })
   })
 
   test('sends custom tools as chosen without the configuration', async () => {
@@ -377,11 +374,12 @@ describe('applyAgentSetup', () => {
       savedConfiguration: { web_search_available: false },
     })
 
-    const { notApplied } = await apply(
+    const { notApplied, webSearchUnsupported } = await apply(
       setup({ webSearch: true, actionTypes: ['smtp_email'] })
     )
 
-    expect(notApplied).toEqual(['agent.webSearch', emailName()])
+    expect(notApplied).toEqual([emailName()])
+    expect(webSearchUnsupported).toBe(true)
     expect(requests.map(([method, url]) => `${method} ${url}`)).toEqual([
       'POST /applications/workspace/1/',
       'GET /agent/10/configuration/',
@@ -391,21 +389,22 @@ describe('applyAgentSetup', () => {
   })
 
   test.each([
-    ['turns on', true, [], [{ web_search_enabled: true }]],
-    ['reports', false, ['agent.webSearch'], []],
+    ['turns on', true, [{ web_search_enabled: true }]],
+    ['reports unsupported', false, []],
   ])(
     '%s web search from the read configuration when nothing else is saved',
-    async (_, available, expected, saves) => {
+    async (_, available, saves) => {
       mockAll({
         configurationData: configuration({ web_search_available: available }),
         savedConfiguration: { web_search_available: !available },
       })
 
-      const { notApplied } = await apply(
+      const { notApplied, webSearchUnsupported } = await apply(
         setup({ instructions: '', webSearch: true })
       )
 
-      expect(notApplied).toEqual(expected)
+      expect(notApplied).toEqual([])
+      expect(webSearchUnsupported).toBe(!available)
       expect(requests.slice(2).map(([, , body]) => body)).toEqual(saves)
     }
   )
@@ -414,7 +413,7 @@ describe('applyAgentSetup', () => {
     testApp.dontFailOnErrorResponses()
     mockAll({ applicationStatus: 400 })
 
-    await expect(apply(full)).rejects.toThrow()
+    await expect(apply(setup())).rejects.toThrow()
     expect(requests.map(([method, url]) => `${method} ${url}`)).toEqual([
       'POST /applications/workspace/1/',
     ])

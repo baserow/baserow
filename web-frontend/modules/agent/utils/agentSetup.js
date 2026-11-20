@@ -3,11 +3,13 @@ import AgentTriggerService from '@baserow/modules/agent/services/agentTriggers'
 import AgentActionService from '@baserow/modules/agent/services/agentActions'
 import { AGENT_APPLICATION_TYPE } from '@baserow/modules/agent/constants'
 import { ActionToolPresentationType } from '@baserow/modules/agent/toolPresentationTypes'
+import { usableAgentTools } from '@baserow/modules/agent/agentTools'
 import {
   newTriggerValues,
   serviceTypeOf,
 } from '@baserow/modules/agent/utils/triggers'
 import { UserSubjectType } from '@baserow/modules/core/subjectTypes'
+import { getNextAvailableNameInSequence } from '@baserow/modules/core/utils/string'
 import { getEnabledModelsForAIProviderFeature } from '@baserow/modules/core/aiProviderModelFeatureTypes'
 
 export const SCHEDULE_TRIGGER_TYPE = 'periodic'
@@ -24,6 +26,8 @@ export const SETUP_PERMISSIONS = Object.freeze({
   CUSTOM: 'custom',
 })
 const AI_AGENT_FEATURE = 'ai_agent'
+// The agent's new identity takes its name, and identity names are shorter.
+export const IDENTITY_NAME_MAX_LENGTH = 150
 
 /**
  * @typedef {object} AgentSetup
@@ -159,12 +163,13 @@ export function emptyAgentSetup(name, workspace, canCreateIdentity) {
  * @param {object} suggestion One of `SETUP_SUGGESTIONS`.
  * @param {Function} t The translate function.
  * @param {string[]} offeredActionTypes The action types the wizard offers.
+ * @param {string[]} takenNames The names already used in the workspace.
  * @returns {object} The choices the suggestion fills in: its name, its
  *   instructions and the setup they describe.
  */
-export function suggestionSetup(suggestion, t, offeredActionTypes) {
+export function suggestionSetup(suggestion, t, offeredActionTypes, takenNames) {
   return {
-    name: t(suggestion.nameKey),
+    name: getNextAvailableNameInSequence(t(suggestion.nameKey), takenNames),
     instructions: t(suggestion.instructionsKey),
     ...suggestion.setup,
     actionTypes: suggestion.setup.actionTypes.filter((type) =>
@@ -203,10 +208,11 @@ export function setupEnabledModels(workspace) {
  *   allowed and those that ask first.
  */
 export function toolsForPermissions(availableTools, permissions) {
+  const usableTools = usableAgentTools(availableTools)
   const allowed =
     permissions === SETUP_PERMISSIONS.READ
-      ? availableTools.filter((tool) => !tool.changes_data)
-      : availableTools
+      ? usableTools.filter((tool) => !tool.changes_data)
+      : usableTools
   return {
     allowed_tools: allowed.map((tool) => tool.name),
     ask_first_tools:
@@ -252,7 +258,7 @@ export function setupActionTypes(registry, workspace) {
  * @param {AgentSetup} setup The wizard's choices.
  * @param {string|undefined} roleUid The suggested role for automatic creation.
  * @returns {Promise<{type: string, id: number}|null>} The identity to run as,
- *   or null when none was chosen or it could not be created.
+ *   or null when none was chosen.
  */
 async function resolveIdentity({ store }, workspace, setup, roleUid) {
   const { actsAs } = setup
@@ -310,13 +316,9 @@ async function readConfiguration(agentService, agentId) {
 /**
  * @param {object} agentService The agent application service.
  * @param {number} agentId The id of the new agent.
- * @param {object|null} configuration The configuration the agent has now, null
- *   when it is unknown.
- * @returns {Promise<boolean>} Whether web search was turned on. It is only
- *   tried when the agent's model can search.
+ * @returns {Promise<boolean>} Whether web search was turned on.
  */
-async function enableWebSearch(agentService, agentId, configuration) {
-  if (!configuration?.web_search_available) return false
+async function enableWebSearch(agentService, agentId) {
   try {
     await agentService.updateConfiguration(agentId, {
       web_search_enabled: true,
@@ -328,19 +330,22 @@ async function enableWebSearch(agentService, agentId, configuration) {
 }
 
 /**
- * Creates the agent, then applies each choice through the endpoints its
- * Configuration uses. Only the agent itself must be created; any other step
- * that fails is reported and the rest still runs.
+ * Creates the new identity and the agent, then applies each choice through the
+ * endpoints its Configuration uses. Only the identity and the agent must be
+ * created; any other step that fails is reported and the rest still runs.
  *
  * @param {{store: object, client: object, registry: object, t: Function}} context
  * @param {object} workspace The workspace the agent is created in.
  * @param {AgentSetup} setup The wizard's choices.
  * @param {string|undefined} roleUid The workspace role shown for a new identity.
- * @returns {Promise<{application: object, notApplied: string[]}>} The created
- *   agent and the translated labels of what wasn't applied.
+ * @returns {Promise<{application: object, notApplied: string[],
+ *   webSearchUnsupported: boolean}>} The created agent, the translated labels of
+ *   what wasn't applied and whether the chosen model can't search the web.
  */
 export async function applyAgentSetup(context, workspace, setup, roleUid) {
   const { store, client, registry, t } = context
+  // First, so a name the identity rejects stops the wizard before anything exists.
+  const runAs = await resolveIdentity(context, workspace, setup, roleUid)
   const application = await store.dispatch('application/create', {
     type: AGENT_APPLICATION_TYPE,
     workspace,
@@ -350,13 +355,6 @@ export async function applyAgentSetup(context, workspace, setup, roleUid) {
   const agentService = AgentApplicationService(client)
 
   const configuration = await readConfiguration(agentService, application.id)
-
-  let runAs = null
-  try {
-    runAs = await resolveIdentity(context, workspace, setup, roleUid)
-  } catch {
-    notApplied.push(t('agent.setupActsAs'))
-  }
 
   const values = configurationValues(configuration, runAs, setup, notApplied, t)
   let saved = configuration
@@ -370,11 +368,13 @@ export async function applyAgentSetup(context, workspace, setup, roleUid) {
     }
   }
 
-  if (
-    setup.webSearch &&
-    !(await enableWebSearch(agentService, application.id, saved))
-  ) {
-    notApplied.push(t('agent.webSearch'))
+  const webSearchUnsupported = Boolean(
+    setup.webSearch && saved && !saved.web_search_available
+  )
+  if (setup.webSearch && !webSearchUnsupported) {
+    if (!saved || !(await enableWebSearch(agentService, application.id))) {
+      notApplied.push(t('agent.webSearch'))
+    }
   }
 
   if (setup.start === SETUP_START.SCHEDULE) {
@@ -402,5 +402,5 @@ export async function applyAgentSetup(context, workspace, setup, roleUid) {
     }
   }
 
-  return { application, notApplied }
+  return { application, notApplied, webSearchUnsupported }
 }

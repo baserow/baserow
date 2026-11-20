@@ -90,6 +90,7 @@ import AgentApplicationService from '@baserow/modules/agent/services/agentApplic
 import { FF_IDENTITIES } from '@baserow/modules/core/plugins/featureFlags'
 import { getNextAvailableNameInSequence } from '@baserow/modules/core/utils/string'
 import { notifyIf } from '@baserow/modules/core/utils/error'
+import { ResponseErrorMessage } from '@baserow/modules/core/plugins/clientHandler'
 import {
   applyAgentSetup,
   emptyAgentSetup,
@@ -154,8 +155,9 @@ async function loadAvailableTools() {
       props.workspace.id
     )
     availableTools.value = data
-  } catch {
+  } catch (caught) {
     availableTools.value = []
+    showError(caught)
   }
 }
 
@@ -177,7 +179,14 @@ function next() {
 
 function showError(caught) {
   if (!caught.handler) throw caught
-  const message = caught.handler.getMessage('application')
+  const message = caught.handler.getMessage('application', null, {
+    name: {
+      invalid_name: new ResponseErrorMessage(
+        t('identities.invalidNameTitle'),
+        t('error.nameContainsUrl')
+      ),
+    },
+  })
   error.title = message.title
   error.message = message.message
   error.visible = true
@@ -203,9 +212,15 @@ async function create() {
     loading.value = false
   }
   // The agent exists from here on, so nothing may offer to create it again.
-  const { application, notApplied } = created
+  const { application, notApplied, webSearchUnsupported } = created
   emit('created', application)
   hide()
+  if (webSearchUnsupported) {
+    store.dispatch('toast/warning', {
+      title: t('agent.setupPartialTitle'),
+      message: t('agent.setupWebSearchUnsupported'),
+    })
+  }
   if (notApplied.length) {
     store.dispatch('toast/warning', {
       title: t('agent.setupPartialTitle'),

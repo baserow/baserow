@@ -101,6 +101,12 @@ describe('AgentCreateModal', () => {
 
   test('continues once named, and a suggestion fills the setup', async () => {
     const wrapper = await open()
+    const input = nameInput(wrapper).element
+    await nameInput(wrapper).trigger('focus')
+    expect([input.selectionStart, input.selectionEnd]).toEqual([
+      0,
+      input.value.length,
+    ])
 
     await nameInput(wrapper).setValue(' ')
     expect(
@@ -353,6 +359,15 @@ describe('AgentCreateModal', () => {
     expect(
       button(wrapper, 'agent.createApplication').attributes('disabled')
     ).toBeUndefined()
+  })
+
+  test('shows an error when the tools cannot be read', async () => {
+    testApp.dontFailOnErrorResponses()
+    testApp.mock.onGet('/agent/tools/workspace/1/').reply(500)
+
+    const wrapper = await open()
+
+    expect(wrapper.find('.agent-create .alert').exists()).toBe(true)
   })
 
   test('opens the agent and warns about what was not applied', async () => {
