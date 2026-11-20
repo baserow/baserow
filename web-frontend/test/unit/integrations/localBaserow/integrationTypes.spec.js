@@ -60,6 +60,9 @@ describe('LocalBaserowIntegrationType', () => {
     expect(
       integrationType('smtp').getWorkspaceHint({ host: 'smtp.example.com' })
     ).toBeNull()
+    expect(
+      integrationType('smtp').getPromotionHint({ host: 'smtp.example.com' })
+    ).toBeNull()
   })
 
   const promotionHint = (subject) =>
@@ -102,8 +105,15 @@ describe('LocalBaserowIntegrationType', () => {
     ).toBe('localBaserowIntegrationType.localBaserowPromotionSubjectHint')
   })
 
-  test('promoting an integration that runs as nobody has no hint', () => {
-    expect(promotionHint(null)).toBeNull()
+  test('promoting an integration nobody authorized says it will run as you', () => {
+    // The backend authorizes it as the user promoting it.
+    expect(promotionHint(null)).toBe(
+      'localBaserowIntegrationType.localBaserowPromotionUnauthorizedHint'
+    )
+  })
+
+  test('promoting an integration with a trashed identity has no hint', () => {
+    // The backend keeps the identity, and the error message says it's trashed.
     expect(
       promotionHint({
         id: 3,
@@ -112,9 +122,6 @@ describe('LocalBaserowIntegrationType', () => {
         name: 'Support bot',
         trashed: true,
       })
-    ).toBeNull()
-    expect(
-      integrationType('smtp').getPromotionHint({ host: 'smtp.example.com' })
     ).toBeNull()
   })
 })

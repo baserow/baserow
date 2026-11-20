@@ -66,13 +66,19 @@ export class LocalBaserowIntegrationType extends IntegrationType {
   /**
    * Mirrors what the backend does when the integration moves to the workspace: a
    * person can only authorize an integration as themselves, so one authorized as
-   * someone else is authorized as the user promoting it, while an identity
-   * belongs to the workspace and is kept.
+   * someone else, or as nobody, is authorized as the user promoting it, while an
+   * identity belongs to the workspace and is kept, even trashed.
    */
   getPromotionHint(integration) {
     const subject = integration.authorized_subject
-    // Not configured, the summary and the error message already say so.
-    if (!subject || subject.trashed) {
+    // Nobody authorized it, or the person who did no longer exists.
+    if (!subject) {
+      return this.app.$i18n.t(
+        'localBaserowIntegrationType.localBaserowPromotionUnauthorizedHint'
+      )
+    }
+    // A trashed identity is kept, so it stays unusable, as its error says.
+    if (subject.trashed) {
       return null
     }
 

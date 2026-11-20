@@ -152,15 +152,22 @@ class LocalBaserowIntegrationType(IntegrationType):
         A person can only authorize an integration as themselves (see
         `prepare_values`), and the move changes which applications act as them, so
         an integration authorized as another person is authorized as the user
-        moving it instead. An identity belongs to the workspace and is kept.
+        moving it instead. So is one authorized as nobody: either no subject is
+        stored, because the person or identity was permanently deleted or it never
+        had one, or the stored user no longer exists, because deleting a user in
+        the admin tools leaves its id. An identity belongs to the workspace and is
+        kept, even trashed. The promotion modal says which one happens, see
+        `getPromotionHint` in the frontend.
         """
 
-        if (
-            integration.authorized_subject_type == "auth.User"
-            and integration.authorized_subject_id != user.id
-            and not is_identity(integration.authorized_subject_including_trash)
+        subject_type = subject_type_registry.get_by_model(user)
+        is_the_user = (
+            integration.authorized_subject_type == subject_type.type
+            and integration.authorized_subject_id == user.id
+        )
+        if not is_the_user and not is_identity(
+            integration.authorized_subject_including_trash
         ):
-            subject_type = subject_type_registry.get_by_model(user)
             integration.authorized_subject_type = subject_type.type
             integration.authorized_subject_id = user.id
 

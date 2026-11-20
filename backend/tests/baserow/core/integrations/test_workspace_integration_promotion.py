@@ -8,6 +8,7 @@ import uuid
 
 import pytest
 
+from baserow.contrib.integrations.local_baserow.models import LocalBaserowIntegration
 from baserow.core.action.handler import ActionHandler
 from baserow.core.action.models import Action
 from baserow.core.action.registries import action_type_registry
@@ -237,6 +238,51 @@ def test_promoting_a_local_baserow_integration_authorizes_it_as_the_admin(
     assert subject(as_admin) == ("auth.User", admin.id)
     # An identity belongs to the workspace.
     assert subject(as_identity) == ("auth.User", identity.id)
+
+
+@pytest.mark.django_db
+def test_promoting_a_local_baserow_integration_nobody_can_act_as(data_fixture):
+    admin = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=admin)
+    shared_application = data_fixture.create_shared_application(workspace=workspace)
+    builder = data_fixture.create_builder_application(workspace=workspace)
+    deleted_user = data_fixture.create_user()
+    deleted_user_id = deleted_user.id
+    # Deleting a user in the admin tools leaves its id on the integration.
+    deleted_user.delete()
+    unauthorized_subjects = [
+        ("auth.User", deleted_user_id),
+        # What a permanently deleted account or identity leaves.
+        (None, None),
+        # Integrations that had no user before subjects were typed.
+        ("auth.User", None),
+    ]
+    unauthorized = []
+    for subject_type, subject_id in unauthorized_subjects:
+        integration = data_fixture.create_local_baserow_integration(
+            application=builder, authorized_user=admin
+        )
+        LocalBaserowIntegration.objects.filter(id=integration.id).update(
+            authorized_subject_type=subject_type, authorized_subject_id=subject_id
+        )
+        unauthorized.append(integration)
+    trashed_identity = data_fixture.create_identity(workspace=workspace, trashed=True)
+    as_trashed_identity = data_fixture.create_local_baserow_integration(
+        application=builder, authorized_identity=trashed_identity
+    )
+
+    for integration in [*unauthorized, as_trashed_identity]:
+        _promote(admin, integration, shared_application)
+
+    def subject(integration):
+        integration = Integration.objects.get(id=integration.id).specific
+        return integration.authorized_subject_type, integration.authorized_subject_id
+
+    # The promotion modal says it will run as the admin.
+    for integration in unauthorized:
+        assert subject(integration) == ("auth.User", admin.id)
+    # An identity belongs to the workspace, so it stays even trashed.
+    assert subject(as_trashed_identity) == ("auth.User", trashed_identity.id)
 
 
 @pytest.mark.django_db
