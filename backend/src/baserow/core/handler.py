@@ -8,6 +8,7 @@ from contextlib import nullcontext
 from dataclasses import dataclass
 from io import BufferedReader, BytesIO
 from pathlib import Path
+from time import monotonic
 from typing import IO, Any, Callable, Dict, List, NewType, Optional, Tuple, Union, cast
 from zipfile import ZIP_DEFLATED, ZipFile
 
@@ -952,7 +953,7 @@ class CoreHandler:
         )
 
     def create_missing_shared_applications(
-        self, workspace_ids: Iterable[int]
+        self, workspace_ids: Iterable[int], skip_locked: bool = False
     ) -> list[SharedApplication]:
         """
         Creates the shared application of each given workspace that doesn't have one,
@@ -965,6 +966,10 @@ class CoreHandler:
         application of every workspace: https://github.com/baserow/baserow/issues/6758
 
         :param workspace_ids: The ids of the workspaces to check.
+        :param skip_locked: Skips a workspace whose row another transaction has
+            locked instead of waiting for it, e.g. a long import that inserts an
+            application into it. The backfill sets it; the listing doesn't, because
+            it must return the shared application.
         :return: The shared applications created.
         """
 
@@ -978,8 +983,12 @@ class CoreHandler:
         created = []
         for workspace_id in missing_workspace_ids:
             with transaction.atomic():
+                # None when the workspace was trashed since, or with `skip_locked`
+                # when another transaction holds a lock on it.
                 workspace = (
-                    Workspace.objects.select_for_update(of=("self",))
+                    Workspace.objects.select_for_update(
+                        of=("self",), skip_locked=skip_locked
+                    )
                     .filter(id=workspace_id)
                     .first()
                 )
@@ -994,15 +1003,21 @@ class CoreHandler:
 
         return created
 
-    def create_all_missing_shared_applications(self, batch_size: int = 100) -> int:
+    def create_all_missing_shared_applications(
+        self, batch_size: int = 100, deadline: float | None = None
+    ) -> int:
         """
         Creates the missing shared application of every workspace, a batch of
-        workspaces at a time. Run by the transitional backfill task.
+        workspaces at a time. Run by the transitional backfill task. A workspace
+        locked by another transaction is skipped and left for the next call, so a
+        call never waits on a row lock.
 
         TODO ZDM: removed with the backfill task,
         https://github.com/baserow/baserow/issues/6758
 
         :param batch_size: How many workspaces without one are looked up at a time.
+        :param deadline: A `time.monotonic()` value. Once it has passed, no further
+            batch is started and the workspaces left are left for the next call.
         :return: The number of shared applications created.
         """
 
@@ -1018,9 +1033,24 @@ class CoreHandler:
                 .values_list("id", flat=True)[:batch_size]
             )
             if not workspace_ids:
+                if created_count:
+                    logger.info(
+                        "Created {} missing shared applications, none is left.",
+                        created_count,
+                    )
                 return created_count
 
-            created_count += len(self.create_missing_shared_applications(workspace_ids))
+            if deadline is not None and monotonic() >= deadline:
+                logger.info(
+                    "Created {} missing shared applications, stopped at the "
+                    "deadline. The next run creates the ones left.",
+                    created_count,
+                )
+                return created_count
+
+            created_count += len(
+                self.create_missing_shared_applications(workspace_ids, skip_locked=True)
+            )
             last_workspace_id = workspace_ids[-1]
 
     def update_workspace(

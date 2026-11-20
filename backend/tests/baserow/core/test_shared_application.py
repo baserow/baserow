@@ -1,4 +1,8 @@
 from io import BytesIO
+from time import monotonic
+from unittest.mock import patch
+
+from django.db import connection, transaction
 
 import pytest
 
@@ -16,10 +20,14 @@ from baserow.core.models import (
     SHARED_APPLICATION_NAME,
     Application,
     SharedApplication,
+    Workspace,
 )
 from baserow.core.registries import ImportExportConfig, application_type_registry
 from baserow.core.snapshots.handler import SnapshotHandler
-from baserow.core.tasks import create_missing_shared_applications_task
+from baserow.core.tasks import (
+    CREATE_MISSING_SHARED_APPLICATIONS_TIME_LIMIT,
+    create_missing_shared_applications_task,
+)
 from baserow.core.tools import ToolContext
 from baserow.core.tools.applications import visible_applications
 from baserow.core.trash.handler import TrashHandler
@@ -258,12 +266,90 @@ def test_create_all_missing_shared_applications_walks_every_workspace(data_fixtu
 
 
 @pytest.mark.django_db
+def test_create_all_missing_shared_applications_stops_at_the_deadline(data_fixture):
+    workspaces = [data_fixture.create_workspace() for _ in range(3)]
+    handler = CoreHandler()
+
+    # The deadline hasn't passed before the first batch, and has before the second.
+    with patch("baserow.core.handler.monotonic", side_effect=[0, 10]):
+        created_count = handler.create_all_missing_shared_applications(
+            batch_size=1, deadline=5
+        )
+
+    assert created_count == 1
+    assert SharedApplication.objects.filter(workspace=workspaces[0]).count() == 1
+    assert SharedApplication.objects.filter(workspace__in=workspaces[1:]).count() == 0
+    # The next call creates the ones left.
+    assert handler.create_all_missing_shared_applications() == 2
+
+
+@pytest.mark.django_db(transaction=True, databases=["default", "default-copy"])
+def test_create_all_missing_shared_applications_skips_a_locked_workspace(
+    data_fixture,
+):
+    locked = data_fixture.create_workspace()
+    free = data_fixture.create_workspace()
+    handler = CoreHandler()
+
+    # Fails instead of hanging if the backfill waits for the lock.
+    with connection.cursor() as cursor:
+        cursor.execute("SET lock_timeout = '5s'")
+    try:
+        # Another connection holds the workspace row, like a long import would.
+        with transaction.atomic(using="default-copy"):
+            Workspace.objects.using("default-copy").select_for_update().get(
+                id=locked.id
+            )
+            assert handler.create_all_missing_shared_applications() == 1
+    finally:
+        with connection.cursor() as cursor:
+            cursor.execute("RESET lock_timeout")
+
+    assert SharedApplication.objects.filter(workspace=free).count() == 1
+    assert SharedApplication.objects.filter(workspace=locked).count() == 0
+    # The next call creates it once the lock is released.
+    assert handler.create_all_missing_shared_applications() == 1
+    assert SharedApplication.objects.filter(workspace=locked).count() == 1
+
+
+@pytest.mark.django_db
+def test_create_all_missing_shared_applications_with_a_passed_deadline(data_fixture):
+    workspace = data_fixture.create_workspace()
+
+    created_count = CoreHandler().create_all_missing_shared_applications(
+        deadline=monotonic()
+    )
+
+    assert created_count == 0
+    assert SharedApplication.objects.filter(workspace=workspace).count() == 0
+
+
+@pytest.mark.django_db
 def test_backfill_task_creates_the_missing_shared_applications(data_fixture):
     workspace = data_fixture.create_workspace()
 
     create_missing_shared_applications_task()
 
     assert SharedApplication.objects.filter(workspace=workspace).count() == 1
+
+
+@pytest.mark.django_db
+def test_backfill_task_stops_at_its_time_limit_without_raising(data_fixture):
+    workspace = data_fixture.create_workspace()
+
+    with patch("baserow.core.tasks.CREATE_MISSING_SHARED_APPLICATIONS_TIME_LIMIT", 0):
+        create_missing_shared_applications_task()
+
+    assert SharedApplication.objects.filter(workspace=workspace).count() == 0
+
+
+def test_backfill_task_celery_limits_leave_room_for_its_own_deadline():
+    # Without its own soft limit, the worker default (5 minutes) would cut a run
+    # off before or at the same time as its deadline, and the run would fail.
+    task = create_missing_shared_applications_task
+
+    assert CREATE_MISSING_SHARED_APPLICATIONS_TIME_LIMIT < task.soft_time_limit
+    assert task.soft_time_limit < task.time_limit <= task.lock_expiry
 
 
 @pytest.mark.django_db
