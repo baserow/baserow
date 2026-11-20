@@ -53,6 +53,29 @@ describe('Tooltip directive', () => {
     expect(document.querySelector('.tooltip')).toBeTruthy()
   })
 
+  it.each([true, false])(
+    'shows the tooltip on keyboard focus only when asked to: %s',
+    async (showOnFocus) => {
+      document.querySelectorAll('.tooltip').forEach((el) => el.remove())
+      const FocusComponent = {
+        template: `<div tabindex="0" v-tooltip:[options]="'hello'">test</div>`,
+        directives: { tooltip },
+        data() {
+          return { options: { showOnFocus } }
+        },
+      }
+      const wrapper = shallowMount(FocusComponent)
+
+      await wrapper.trigger('focus')
+      expect(!!document.querySelector('.tooltip')).toBe(showOnFocus)
+
+      await wrapper.trigger('blur')
+      await new Promise((resolve) => setTimeout(resolve, 0))
+      expect(document.querySelector('.tooltip')).toBeFalsy()
+      wrapper.unmount()
+    }
+  )
+
   it('applies the right position and no arrow classes', async () => {
     const PositionedComponent = {
       template: `
