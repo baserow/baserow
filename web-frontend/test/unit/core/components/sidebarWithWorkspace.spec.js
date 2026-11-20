@@ -47,4 +47,86 @@ describe('SidebarWithWorkspace', () => {
       expect(heading?.find('.tree__heading-add').exists() ?? false).toBe(false)
     }
   )
+
+  test('folds groups independently for each workspace', async () => {
+    const secondWorkspace = { ...workspace, id: 3, name: 'Second workspace' }
+    const application = { id: 2, name: 'Data', type: 'database', tables: [] }
+    const wrapper = await testApp.mount(SidebarWithWorkspace, {
+      props: {
+        applications: [
+          { ...application, workspace },
+          { ...application, id: 4, workspace: secondWorkspace },
+        ],
+        selectedWorkspace: workspace,
+      },
+    })
+    const databases = wrapper
+      .findAll('button.tree__heading-name')
+      .find((button) => button.text() === databaseType.getNamePlural())
+    const databaseList = wrapper.get('[data-highlight="applications-database"]')
+    const builderList = wrapper.get('[data-highlight="applications-builder"]')
+
+    expect(databases.attributes('aria-expanded')).toBe('true')
+    await databases.trigger('click')
+    expect(databases.attributes('aria-expanded')).toBe('false')
+    expect(databaseList.element.closest('[inert]')).not.toBeNull()
+    expect(builderList.element.closest('[inert]')).toBeNull()
+
+    await wrapper.setProps({ selectedWorkspace: secondWorkspace })
+    expect(databases.attributes('aria-expanded')).toBe('true')
+    expect(databaseList.element.closest('[inert]')).toBeNull()
+
+    await wrapper.setProps({ selectedWorkspace: workspace })
+    expect(databases.attributes('aria-expanded')).toBe('false')
+    await databases.trigger('click')
+    expect(databaseList.element.closest('[inert]')).toBeNull()
+  })
+
+  test('keeps open application sublists when selection changes', async () => {
+    const { store, $registry } = testApp
+    vi.spyOn(
+      $registry.get('application', 'builder'),
+      'isVisible'
+    ).mockReturnValue(true)
+    const database = await store.dispatch('application/forceCreate', {
+      id: 2,
+      name: 'Data',
+      type: 'database',
+      tables: [],
+      workspace,
+    })
+    const builder = await store.dispatch('application/forceCreate', {
+      id: 3,
+      name: 'Website',
+      type: 'builder',
+      pages: [],
+      workspace,
+    })
+    await store.dispatch('application/select', database)
+    const wrapper = await testApp.mount(SidebarWithWorkspace, {
+      props: {
+        applications: [database, builder],
+        selectedWorkspace: workspace,
+      },
+    })
+    const databaseTitle = wrapper.get('.tree__link[aria-label="Data"]')
+    const builderTitle = wrapper.get('.tree__link[aria-label="Website"]')
+    const databasePanel = wrapper.get('.tree__item .tree__group')
+    expect(databaseTitle.attributes('aria-expanded')).toBe('true')
+    expect(builderTitle.attributes('aria-expanded')).toBe('false')
+
+    await builderTitle.trigger('click')
+    expect(builderTitle.attributes('aria-expanded')).toBe('true')
+    expect(store.getters['application/isSelected'](database)).toBe(true)
+
+    await store.dispatch('application/select', builder)
+    expect(builderTitle.attributes('aria-expanded')).toBe('true')
+    expect(databaseTitle.attributes('aria-expanded')).toBe('true')
+    expect(databasePanel.element.hasAttribute('inert')).toBe(false)
+
+    await builderTitle.trigger('click')
+    expect(builderTitle.attributes('aria-expanded')).toBe('false')
+    expect(databaseTitle.attributes('aria-expanded')).toBe('true')
+    expect(store.getters['application/isSelected'](builder)).toBe(true)
+  })
 })
