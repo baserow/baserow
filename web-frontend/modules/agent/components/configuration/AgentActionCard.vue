@@ -18,11 +18,39 @@
           action.name || serviceType?.name || action.type
         }}</span>
       </button>
+      <template v-if="configurationErrors.length">
+        <button
+          type="button"
+          class="agent-action-card__misconfigured"
+          aria-haspopup="dialog"
+          :aria-label="$t('agent.actionMisconfigured')"
+          @click="
+            misconfiguredContext.toggle($event.currentTarget, 'bottom', 'right')
+          "
+        >
+          <Icon icon="iconoir-warning-circle" type="error" aria-hidden="true" />
+        </button>
+        <Context
+          ref="misconfiguredContext"
+          class="agent-action-card__misconfigured-context"
+          role="dialog"
+          :aria-label="$t('agent.actionMisconfigured')"
+        >
+          <p class="agent-action-card__misconfigured-text">
+            {{ $t('agent.actionMisconfigured') }}
+          </p>
+          <ul class="agent-action-card__misconfigured-list">
+            <li v-for="error in configurationErrors" :key="error">
+              {{ error }}
+            </li>
+          </ul>
+        </Context>
+      </template>
       <Icon
-        v-if="configurationErrors.length || saveError"
+        v-else-if="saveError"
         icon="iconoir-warning-circle"
         type="error"
-        :aria-label="saveError || $t('agent.actionMisconfigured')"
+        :aria-label="saveError"
         role="img"
       />
       <span class="agent-action-card__saving-slot">
@@ -49,16 +77,6 @@
       />
     </header>
     <div v-show="expanded" class="agent-action-card__body">
-      <Alert
-        v-if="configurationErrors.length"
-        type="warning"
-        class="margin-bottom-2"
-      >
-        <p>{{ $t('agent.actionMisconfigured') }}</p>
-        <ul>
-          <li v-for="error in configurationErrors" :key="error">{{ error }}</li>
-        </ul>
-      </Alert>
       <FormGroup
         :label="$t('agent.actionName')"
         :help-icon-tooltip="$t('agent.actionNameHelp')"
@@ -167,6 +185,7 @@ import { useNuxtApp } from '#app'
 import { useI18n } from 'vue-i18n'
 import Icon from '@baserow/modules/core/components/Icon'
 import ButtonText from '@baserow/modules/core/components/ButtonText'
+import Context from '@baserow/modules/core/components/Context'
 import ReadOnlyForm from '@baserow/modules/core/components/ReadOnlyForm'
 import AgentFormulaInput from '@baserow/modules/agent/components/configuration/AgentFormulaInput'
 import AgentActionInputs from '@baserow/modules/agent/components/configuration/AgentActionInputs'
@@ -189,6 +208,7 @@ const { $registry } = useNuxtApp()
 const { t } = useI18n()
 const agent = inject('agentApplication')
 const form = ref(null)
+const misconfiguredContext = ref(null)
 const serviceType = computed(() => serviceTypeOf($registry, props.action.type))
 provide('formulaComponent', AgentFormulaInput)
 provide('dataProvidersAllowed', ['tool_input'])

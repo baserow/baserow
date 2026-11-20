@@ -63,6 +63,10 @@
 
   @include elevation($elevation-low);
   @include rounded($rounded-md);
+
+  &:has(.agent-trigger-card__name:focus:not(:read-only)) {
+    border-color: $palette-blue-500;
+  }
 }
 
 .agent-trigger-card__type {
@@ -345,16 +349,14 @@
 }
 
 .agent-trigger-start__text {
-  @extend %ellipsis;
-
   padding: 10px 16px;
-  color: $palette-neutral-900;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
 }
 
-.agent-trigger-start--expanded .agent-trigger-start__text {
-  overflow: visible;
-  overflow-wrap: anywhere;
-  text-overflow: clip;
-  white-space: pre-wrap;
-  color: $palette-neutral-1200;
+.agent-trigger-start--collapsed .agent-trigger-start__text {
+  height: 0;
+  padding-block: 0;
+  overflow: hidden;
+  visibility: hidden;
 }

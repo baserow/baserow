@@ -1,7 +1,7 @@
 <template>
   <div
     class="agent-trigger-start"
-    :class="{ 'agent-trigger-start--expanded': expanded }"
+    :class="{ 'agent-trigger-start--collapsed': !expanded }"
   >
     <button
       type="button"
@@ -19,7 +19,7 @@
       />
     </button>
     <div :id="textId" class="agent-trigger-start__text">
-      {{ expanded ? content : firstLine }}
+      {{ content }}
     </div>
   </div>
 </template>
@@ -50,5 +50,4 @@ const title = computed(() => {
   const name = props.triggerName || serviceType.value?.name
   return name ? t('agent.startedBy', { name }) : t('agent.startedByTrigger')
 })
-const firstLine = computed(() => props.content.trim().split('\n', 1)[0])
 </script>

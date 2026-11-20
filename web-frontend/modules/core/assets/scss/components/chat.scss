@@ -199,6 +199,10 @@ $chat-ease: cubic-bezier(0.22, 1, 0.36, 1);
   display: flex;
   gap: 4px;
   padding: 4px 0;
+
+  .chat-markdown + & {
+    margin-top: 8px;
+  }
 }
 
 .chat-typing__dot {
