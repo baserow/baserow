@@ -1,15 +1,5 @@
 <template>
   <section class="agent-triggers" :aria-busy="loading">
-    <component
-      :is="component"
-      v-for="(component, index) in permissionSettings"
-      :key="`${agent.id}-${index}`"
-      :agent="agent"
-      :workspace="workspace"
-      :editable="editable"
-      :has-trigger="triggers.length > 0"
-      :has-enabled-trigger="triggers.some((trigger) => trigger.enabled)"
-    />
     <div class="agent-triggers__header">
       <h3 class="agent-triggers__title">{{ $t('agent.triggers') }}</h3>
       <ButtonText
@@ -103,7 +93,7 @@ import ButtonText from '@baserow/modules/core/components/ButtonText'
 import AgentCardListHeader from '@baserow/modules/agent/components/configuration/AgentCardListHeader'
 import AgentTriggerCard from '@baserow/modules/agent/components/configuration/AgentTriggerCard'
 import AgentTriggerPicker from '@baserow/modules/agent/components/configuration/AgentTriggerPicker'
-import { useAgentTriggers } from '@baserow/modules/agent/composables/useAgentTriggers'
+import { injectAgentTriggers } from '@baserow/modules/agent/composables/useAgentTriggers'
 import { RUN_AS_STATUS } from '@baserow/modules/agent/constants'
 import { getRunAsStatus } from '@baserow/modules/agent/utils/runAs'
 
@@ -114,10 +104,6 @@ const props = defineProps({
   /** Whether the user may add, change and delete triggers. */
   editable: Boolean,
 })
-const { $registry } = useNuxtApp()
-const permissionSettings = Object.values($registry.getAll('plugin'))
-  .map((plugin) => plugin.getAgentParticipationSettingsComponent?.())
-  .filter(Boolean)
 const store = useStore()
 const agent = inject('agentApplication')
 const picker = ref(null)
@@ -136,6 +122,7 @@ const {
   triggerTypes,
   typesVersion,
   loading,
+  loaded,
   loadError,
   typesLoadError,
   savingIds,
@@ -146,7 +133,7 @@ const {
   updateTrigger,
   changeTriggerType,
   deleteTrigger,
-} = useAgentTriggers(agent, () => props.configuration.run_as)
+} = injectAgentTriggers()
 const { expandedIds, allExpanded, toggle, toggleAll, list, creating, addItem } =
   useAgentCardList(triggers, createTrigger, allTriggers)
 watch(
@@ -155,11 +142,15 @@ watch(
 )
 // Initialize once per successful opening, preserving later manual toggles.
 let initializedFor = null
-watch([loading, () => agent.value?.id], ([busy, id]) => {
-  if (busy || loadError.value || !id || initializedFor === id) return
-  initializedFor = id
-  if (triggers.value.length === 1) expandedIds.add(triggers.value[0].id)
-})
+watch(
+  [loaded, () => agent.value?.id],
+  ([isLoaded, id]) => {
+    if (!isLoaded || !id || initializedFor === id) return
+    initializedFor = id
+    if (triggers.value.length === 1) expandedIds.add(triggers.value[0].id)
+  },
+  { immediate: true }
+)
 // A trigger added before the list loaded would be dropped by the list reply.
 const canAddTriggers = computed(
   () =>

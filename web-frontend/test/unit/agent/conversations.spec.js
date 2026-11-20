@@ -914,9 +914,10 @@ describe('Agent conversations', () => {
     ).toBe('B')
   })
 
-  test('shows a shared conversation without a composer, with its trigger start card', async () => {
+  test('shows a triggered conversation without a composer to someone who can approve but not continue, with its trigger start card', async () => {
     allowed.value = (op) =>
-      withoutConfiguration(op) && op !== 'agent_application.approve_tool_calls'
+      withoutConfiguration(op) &&
+      op !== 'agent_application.continue_triggered_conversation'
     mockConversations(
       testApp,
       conversationsPage([sharedConversation('digest', 'Daily digest')])

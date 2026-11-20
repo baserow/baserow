@@ -165,6 +165,8 @@ export async function createAgentPage() {
   mockConfiguration(testApp, completeConfiguration())
   mockConversations(testApp, conversationsPage([]))
   mockStartConversation(testApp, acceptConversation)
+  testApp.mock.onGet('/agent/10/triggers/').reply(200, [])
+  testApp.mock.onGet('/agent/10/trigger-types/').reply(200, [])
   // Nuxt's $hasPermission is a non-configurable getter, so override a child.
   const permissionApp = Object.create(testApp.nuxtApp)
   Object.defineProperty(permissionApp, '$hasPermission', {

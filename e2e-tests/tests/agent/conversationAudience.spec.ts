@@ -170,7 +170,7 @@ test("a support team can approve privately after the author leaves", async ({
     });
     const agentPage = new AgentPage({ page, goto }, agent);
     await agentPage.goto();
-    const section = await agentPage.openSection("When it runs");
+    const section = await agentPage.openSection("Permissions");
     const approval = section
       .locator(".control")
       .filter({ hasText: "Who can approve tool calls" });
@@ -238,16 +238,34 @@ test("a support team can approve privately after the author leaves", async ({
   }
 });
 
-test("a triggered conversation appears shared and a teammate can continue it", async ({
+test("a triggered conversation appears shared and a teammate can continue it once allowed", async ({
   page,
   goto,
   workspacePage,
 }) => {
   const { workspace, user } = workspacePage;
+  const license = await createLicense(ENTERPRISE_LICENSE);
   const member = await createUser();
   try {
-    await joinWorkspace(workspace, [member], "MEMBER");
+    await joinWorkspace(workspace, [member], "EDITOR");
     const agent = await supportAgent(workspace);
+    const agentPage = new AgentPage({ page, goto }, agent);
+    await agentPage.goto();
+    const section = await agentPage.openSection("Permissions");
+    const continuing = section.locator(".control").filter({
+      hasText: "Who can continue triggered conversations",
+    });
+    await expect(continuing.locator(".dropdown__selected")).toContainText(
+      "Nobody"
+    );
+    const saved = page.waitForResponse(
+      (response) =>
+        response.url().endsWith(`agent-permissions/${agent.id}/continue/`) &&
+        response.request().method() === "PUT"
+    );
+    await continuing.locator(".dropdown__selected").click();
+    await continuing.getByText("Editors and higher", { exact: true }).click();
+    expect((await saved).ok()).toBe(true);
     const { data: trigger } = await getClient(user).post(
       `agent/${agent.id}/triggers/`,
       {
@@ -263,7 +281,6 @@ test("a triggered conversation appears shared and a teammate can continue it", a
     await expect
       .poll(() => conversations(member, agent.id), { timeout: workerTimeout })
       .toMatchObject([{ title, started_by_trigger: true, shared: true }]);
-    const agentPage = new AgentPage({ page, goto }, agent);
     await agentPage.authenticate(member);
     await agentPage.goto();
     const row = page.locator(".agent-conversations__row", { hasText: title });
@@ -292,5 +309,6 @@ test("a triggered conversation appears shared and a teammate can continue it", a
       ]);
   } finally {
     await deleteUser(member);
+    await deleteLicense(license);
   }
 });

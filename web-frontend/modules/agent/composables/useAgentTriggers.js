@@ -1,4 +1,13 @@
-import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
+import {
+  computed,
+  inject,
+  onBeforeUnmount,
+  onMounted,
+  provide,
+  reactive,
+  ref,
+  watch,
+} from 'vue'
 import { useNuxtApp } from '#app'
 import { useI18n } from 'vue-i18n'
 import cloneDeep from 'lodash/cloneDeep'
@@ -26,6 +35,7 @@ const TRIGGER_FIELDS = [
 const PICKED_FIELDS = ['type', 'name', 'enabled', 'on_overlap']
 const SAVED_FIELDS = [...TRIGGER_FIELDS, 'service']
 const TYPE_CHANGE_FIELDS = ['type', 'service', 'message']
+const AGENT_TRIGGERS = Symbol('agentTriggers')
 
 /**
  * @param {object} trigger A trigger as the server returned it.
@@ -49,9 +59,9 @@ const savedValuesOf = (trigger) =>
  * @param {import('vue').Ref<object>} agent The Agent whose triggers are listed.
  * @param {Function} getRunAs Returns the Agent's configured run identity, or
  *   null.
- * @returns {object} The triggers, their loading and saving state, the options
- *   of each trigger type with a counter that changes whenever they reload,
- *   whether either failed to load, and actions.
+ * @returns {object} The triggers, their loading and saving state, whether the
+ *   list has loaded, the options of each trigger type with a counter that
+ *   changes whenever they reload, whether either failed to load, and actions.
  */
 export function useAgentTriggers(agent, getRunAs = () => null) {
   const { $client, $registry } = useNuxtApp()
@@ -62,6 +72,7 @@ export function useAgentTriggers(agent, getRunAs = () => null) {
   const triggerTypes = ref(null)
   const typesVersion = ref(0)
   const loading = ref(false)
+  const loaded = ref(false)
   const loadError = ref(false)
   const typesLoadError = ref(false)
   const savingIds = reactive(new Set())
@@ -145,6 +156,7 @@ export function useAgentTriggers(agent, getRunAs = () => null) {
       if (!isCurrent()) return
       data.forEach(track)
       triggers.value = data
+      loaded.value = true
     } catch {
       if (isCurrent()) loadError.value = true
     } finally {
@@ -508,6 +520,7 @@ export function useAgentTriggers(agent, getRunAs = () => null) {
     triggerTypes.value = null
     typesLoadError.value = false
     loading.value = false
+    loaded.value = false
     loadError.value = false
     savingIds.clear()
     inFlight.clear()
@@ -541,6 +554,7 @@ export function useAgentTriggers(agent, getRunAs = () => null) {
     triggerTypes,
     typesVersion,
     loading,
+    loaded,
     loadError,
     typesLoadError,
     savingIds,
@@ -553,3 +567,22 @@ export function useAgentTriggers(agent, getRunAs = () => null) {
     deleteTrigger,
   }
 }
+
+/**
+ * Loads an Agent's triggers once for the component and everything inside it, so
+ * the configuration sections share one list that stays current while they open
+ * and close.
+ *
+ * @param {import('vue').Ref<object>} agent The Agent whose triggers are listed.
+ * @param {Function} getRunAs Returns the Agent's configured run identity, or
+ *   null.
+ * @returns {object} What `useAgentTriggers` returns.
+ */
+export function provideAgentTriggers(agent, getRunAs) {
+  const agentTriggers = useAgentTriggers(agent, getRunAs)
+  provide(AGENT_TRIGGERS, agentTriggers)
+  return agentTriggers
+}
+
+/** @returns {object} The triggers an ancestor loaded with `provideAgentTriggers`. */
+export const injectAgentTriggers = () => inject(AGENT_TRIGGERS)

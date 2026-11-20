@@ -19,14 +19,9 @@ import DateDependencyFieldTypeIcon from '@baserow_enterprise/components/dateDepe
 import ExportWorkspaceModalWarning from '@baserow_enterprise/components/ExportWorkspaceModalWarning'
 import { RestrictedViewOwnershipType } from '@baserow_enterprise/viewOwnershipTypes'
 
-import AgentParticipationSettings from '@baserow_enterprise/components/agent/AgentParticipationSettings'
 export class EnterprisePlugin extends BaserowPlugin {
   static getType() {
     return 'enterprise'
-  }
-
-  getAgentParticipationSettingsComponent() {
-    return AgentParticipationSettings
   }
 
   getSidebarWorkspaceComponents(workspace) {

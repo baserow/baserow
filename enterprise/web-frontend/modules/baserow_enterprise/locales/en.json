@@ -23,17 +23,22 @@
     "createRowCommentsDoneCountTable": "Posted {count} comment in {table} | Posted {count} comments in {table}"
   },
   "agentPermissions": {
+    "section": "Permissions",
+    "sectionDescription": "Who can chat, approve tool calls and continue conversations started by triggers.",
     "chat": "Who can chat",
     "approve": "Who can approve tool calls",
-    "approveHelp": "Also allows replies in conversations started by triggers.",
+    "continue": "Who can continue triggered conversations",
     "managePeople": "Manage people and teams",
     "loadError": "Couldn’t load agent permissions.",
+    "EDITOR": "Editors and higher",
     "CUSTOM": "Specific users or teams",
     "NOBODY": "Nobody",
+    "EVERYONE": "Everyone in the workspace",
+    "default": "Default",
     "loading": "Loading…",
-    "needsTrigger": "Add a trigger before turning off chat.",
-    "noApproval": "Tool calls that need approval will wait until someone can approve them.",
-    "triggerPaused": "Chat is off and all triggers are paused."
+    "nobodyCanInteract": "Without an enabled trigger, nobody can interact with this agent.",
+    "chooseSubjects": "Choose at least one person or team for {setting}.",
+    "unlicensedNote": "Without Advanced or Enterprise, every member can chat and approve tool calls, and nobody can continue conversations started by triggers."
   },
   "agentPermissionSubjects": {
     "accessNote": "Changes apply immediately. People and team members need Editor access or higher on this agent.",

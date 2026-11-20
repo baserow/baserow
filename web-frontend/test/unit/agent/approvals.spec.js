@@ -679,10 +679,14 @@ describe('Agent tool approvals', () => {
     [true, false],
     [false, true],
   ])(
-    'trigger follow-ups and approvals use the approval permission: %s',
-    async (canSend, disabled) => {
-      allowed.value = (operation) =>
-        canSend || operation !== 'agent_application.approve_tool_calls'
+    'trigger follow-ups use the continue permission (%s) and approvals the approval permission (%s)',
+    async (canContinue, canApprove) => {
+      const denied = [
+        !canContinue && 'agent_application.continue_triggered_conversation',
+        !canApprove && 'agent_application.approve_tool_calls',
+      ]
+      allowed.value = (operation) => !denied.includes(operation)
+      const disabled = !canApprove
       const shared = sharedConversation('digest', 'Daily digest')
       mockConversations(
         testApp,
@@ -704,7 +708,7 @@ describe('Agent tool approvals', () => {
       const wrapper = await mount()
       await selectConversation(wrapper, shared.title)
 
-      expect(composerExists(wrapper)).toBe(canSend)
+      expect(composerExists(wrapper)).toBe(canContinue)
       expect(title(wrapper)).toBe(
         disabled ? 'agent.approvalRequestReadOnly' : 'agent.approvalRequest'
       )
@@ -715,7 +719,7 @@ describe('Agent tool approvals', () => {
       await flushPromises()
 
       expect(sentBodies(testApp)).toEqual(
-        canSend ? [{ decisions: [{ id: 1, approved: true }] }] : []
+        canApprove ? [{ decisions: [{ id: 1, approved: true }] }] : []
       )
     }
   )

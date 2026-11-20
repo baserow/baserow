@@ -185,10 +185,13 @@ export function useAgentConversations(agent, configuration) {
   const canApprove = computed(() =>
     permission('agent_application.approve_tool_calls')
   )
+  const canContinueTriggered = computed(() =>
+    permission('agent_application.continue_triggered_conversation')
+  )
   const canWriteSelected = computed(() => {
     const conversation = selectedConversation.value
     if (!conversation || !canReadConversations.value) return false
-    if (conversation.started_by_trigger) return canApprove.value
+    if (conversation.started_by_trigger) return canContinueTriggered.value
     return (
       canCreateMessage.value &&
       (!conversation.local || canCreateConversation.value)

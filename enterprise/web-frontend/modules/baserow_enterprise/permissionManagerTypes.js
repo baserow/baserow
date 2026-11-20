@@ -134,8 +134,12 @@ export class AgentParticipationPermissionManagerType extends PermissionManagerTy
   static getType() {
     return 'agent_participation'
   }
+  /** Decides every operation it grants, and only refuses the others. */
   hasPermission(permissions, operation, context) {
-    if (permissions[operation]?.includes(context?.id)) return false
+    if (operation in permissions.allowed) {
+      return permissions.allowed[operation].includes(context?.id)
+    }
+    if (permissions.denied[operation]?.includes(context?.id)) return false
     return null
   }
 }

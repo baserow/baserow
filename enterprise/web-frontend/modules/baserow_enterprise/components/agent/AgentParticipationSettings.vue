@@ -1,13 +1,10 @@
 <template>
-  <div class="margin-bottom-3">
+  <div class="agent-participation">
     <FormGroup
-      v-for="capability in capabilities"
+      v-for="capability in AGENT_CAPABILITIES"
       :key="capability"
       class="margin-bottom-2"
       :label="$t('agentPermissions.' + capability)"
-      :helper-text="
-        capability === 'approve' ? $t('agentPermissions.approveHelp') : ''
-      "
       required
       small-label
     >
@@ -18,7 +15,7 @@
         icon="iconoir-lock"
         :disabled="!editable"
         @click="paywall.show()"
-        >{{ roleLabel('EDITOR') }}</Button
+        >{{ roleLabel(AGENT_UNLICENSED_ROLES[capability]) }}</Button
       >
       <PermissionRoleSelect
         v-else
@@ -43,22 +40,14 @@
         @click="openPeople(capability)"
         >{{ $t('agentPermissions.managePeople') }}</ButtonText
       >
-      <template
-        v-if="
-          rules?.[capability].role === 'NOBODY' &&
-          (capability === 'approve' || !hasEnabledTrigger)
-        "
-        #warning
-        >{{
-          $t(
-            capability === 'approve'
-              ? 'agentPermissions.noApproval'
-              : 'agentPermissions.triggerPaused'
-          )
-        }}</template
-      >
+      <template v-if="licensed && problems[capability]" #warning>{{
+        problems[capability]
+      }}</template>
     </FormGroup>
-    <Alert v-if="loadError" type="error">
+    <p v-if="!licensed" class="agent-participation__note">
+      {{ $t('agentPermissions.unlicensedNote') }}
+    </p>
+    <Alert v-if="licensed && loadError" type="error">
       {{ $t('agentPermissions.loadError') }}
       <template #actions
         ><ButtonText button-type="button" @click="load">{{
@@ -80,6 +69,7 @@
       />
     </Modal>
     <PaidFeaturesModal
+      v-if="workspace"
       ref="paywall"
       :workspace="workspace"
       initial-selected-type="rbac"
@@ -87,86 +77,78 @@
   </div>
 </template>
 <script setup>
-import isEqual from 'lodash/isEqual'
-import { computed, reactive, ref, watch } from 'vue'
+import { computed, inject, reactive, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useStore } from 'vuex'
 import { notifyIf } from '@baserow/modules/core/utils/error'
+import { injectAgentTriggers } from '@baserow/modules/agent/composables/useAgentTriggers'
 import EnterpriseFeatures from '@baserow_enterprise/features'
+import AgentPermissionsService from '@baserow_enterprise/services/agentPermissions'
+import {
+  AGENT_CAPABILITIES,
+  AGENT_DEFAULT_ROLES,
+  AGENT_UNLICENSED_ROLES,
+  agentRuleProblems,
+} from '@baserow_enterprise/utils/agentPermissions'
 import PaidFeaturesModal from '@baserow_premium/components/PaidFeaturesModal'
 import FieldPermissionSubjectsSelector from '@baserow_enterprise/components/fieldPermissions/FieldPermissionSubjectsSelector'
 import PermissionRoleSelect from '@baserow_enterprise/components/fieldPermissions/PermissionRoleSelect'
 
+defineOptions({ inheritAttrs: false })
 const props = defineProps({
-  agent: { type: Object, required: true },
-  workspace: { type: Object, required: true },
+  /** Whether the user may change the rules. */
   editable: Boolean,
-  hasTrigger: Boolean,
-  hasEnabledTrigger: Boolean,
 })
-const capabilities = ['chat', 'approve']
+const ROLES = ['EDITOR', 'BUILDER', 'ADMIN', 'CUSTOM', 'NOBODY']
 const { $client, $hasFeature } = useNuxtApp()
 const { t } = useI18n()
 const store = useStore()
-const licensed = computed(() =>
-  $hasFeature(EnterpriseFeatures.RBAC, props.workspace.id)
+const agent = inject('agentApplication')
+const agentTriggers = reactive(injectAgentTriggers())
+const workspace = computed(() =>
+  agent.value ? store.getters['workspace/get'](agent.value.workspace.id) : null
 )
-const base = computed(() => '/agent-permissions/' + props.agent.id + '/')
-const rules = ref(null)
+const licensed = computed(() =>
+  Boolean(
+    workspace.value && $hasFeature(EnterpriseFeatures.RBAC, workspace.value.id)
+  )
+)
+const stored = computed(() =>
+  store.getters['agentParticipationRules/get'](agent.value.id)
+)
+const rules = computed(() => stored.value?.rules || null)
+const loadError = computed(() => Boolean(stored.value?.loadError))
+const problems = computed(() =>
+  agentRuleProblems(t, rules.value, agentTriggers)
+)
 const peopleModal = ref(null)
 const paywall = ref(null)
 const selector = ref(null)
 const editingPeople = ref(null)
 const pendingRoles = reactive({})
-const loadError = ref(false)
-let revision = 0
 
 function roleLabel(role) {
-  return ['CUSTOM', 'NOBODY'].includes(role)
-    ? t('agentPermissions.' + role)
-    : t('fieldPermissionModal.' + role.toLowerCase() + 'Title')
+  return ['BUILDER', 'ADMIN'].includes(role)
+    ? t('fieldPermissionModal.' + role.toLowerCase() + 'Title')
+    : t('agentPermissions.' + role)
 }
 
 function roleOptions(capability) {
-  return ['EDITOR', 'BUILDER', 'ADMIN', 'CUSTOM', 'NOBODY'].map((uid) => {
-    const disabled =
-      uid === 'NOBODY' && capability === 'chat' && !props.hasTrigger
-    return {
-      uid,
-      title: roleLabel(uid),
-      disabled,
-      desc: disabled ? t('agentPermissions.needsTrigger') : null,
-    }
-  })
+  return ROLES.filter(
+    (uid) => !(uid === 'NOBODY' && capability === 'approve')
+  ).map((uid) => ({
+    uid,
+    title: roleLabel(uid),
+    desc:
+      uid === AGENT_DEFAULT_ROLES[capability]
+        ? t('agentPermissions.default')
+        : null,
+  }))
 }
 
-async function load() {
-  const request = ++revision
-  loadError.value = false
-  if (!licensed.value) {
-    rules.value = null
-    return
-  }
-  try {
-    const { data } = await $client.get(base.value)
-    if (request !== revision) return
-    if (!rules.value) rules.value = {}
-    // Keeping unchanged subjects preserves an open picker across permission refreshes.
-    for (const capability of capabilities) {
-      if (!isEqual(rules.value[capability], data[capability])) {
-        rules.value[capability] = data[capability]
-      }
-    }
-  } catch (error) {
-    if (request === revision) {
-      loadError.value = true
-      notifyIf(error)
-    }
-  }
+function load() {
+  store.dispatch('agentParticipationRules/fetch', { agentId: agent.value.id })
 }
-watch([licensed, () => props.workspace._?.permissions], load, {
-  immediate: true,
-})
 
 function openPeople(capability) {
   editingPeople.value = capability
@@ -176,29 +158,28 @@ function openPeople(capability) {
 function chooseRole(capability, role) {
   if (!props.editable || pendingRoles[capability] || !rules.value) return
   if (role === 'CUSTOM') openPeople(capability)
-  else if (
-    role !== rules.value[capability].role &&
-    !(role === 'NOBODY' && capability === 'chat' && !props.hasTrigger)
-  ) {
+  else if (role !== rules.value[capability].role) {
     saveRule(capability, role, [])
   }
 }
 
 function fetchOptions(params) {
-  return $client.get(base.value + 'options/', { params })
+  return AgentPermissionsService($client).fetchSubjectOptions(
+    agent.value.id,
+    params
+  )
 }
 
 async function saveRule(capability, role, subjects) {
   if (!props.editable || !licensed.value || pendingRoles[capability]) return
   pendingRoles[capability] = role
   try {
-    const { data } = await $client.put(base.value + capability + '/', {
+    await store.dispatch('agentParticipationRules/save', {
+      agentId: agent.value.id,
+      capability,
       role,
       subjects,
     })
-    // An earlier permissions refresh may still contain the previous rule.
-    revision++
-    if (rules.value) rules.value[capability] = data
   } catch (error) {
     if (editingPeople.value === capability) selector.value?.reset()
     notifyIf(error)
@@ -207,7 +188,7 @@ async function saveRule(capability, role, subjects) {
     delete pendingRoles[capability]
   }
   try {
-    await store.dispatch('workspace/forceFetchPermissions', props.workspace)
+    await store.dispatch('workspace/forceFetchPermissions', workspace.value)
   } catch (error) {
     notifyIf(error)
   }
