@@ -219,7 +219,8 @@ class UpdateIntegrationActionType(IntegrationActionTypeMixin, UndoableActionType
             params.integration_id
         )
 
-        if params.service_ids is not None:
+        promoted = params.service_ids is not None
+        if promoted:
             service_ids, user_source_ids = cls._get_using_ids(integration.id)
             new_service_ids = set(service_ids) - set(params.service_ids)
             new_user_source_ids = set(user_source_ids) - set(params.user_source_ids)
@@ -227,7 +228,12 @@ class UpdateIntegrationActionType(IntegrationActionTypeMixin, UndoableActionType
                 raise IntegrationUsedSincePromotion()
 
         IntegrationService().update_integration(
-            user, integration, **params.integration_original_params
+            user,
+            integration,
+            # Nothing else may move it out of the workspace, as only the check
+            # above makes sure no other application uses it by now.
+            allow_demotion=promoted,
+            **params.integration_original_params,
         )
 
     @classmethod

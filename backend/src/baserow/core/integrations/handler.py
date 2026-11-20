@@ -446,6 +446,7 @@ class IntegrationHandler:
         integration_type: IntegrationType,
         integration: IntegrationForUpdate,
         application: Optional[Application] = None,
+        allow_demotion: bool = False,
         **kwargs,
     ) -> Integration:
         """
@@ -457,6 +458,8 @@ class IntegrationHandler:
         :param application: The application to move the integration to, if any. It
             only moves between an application and the shared application of the
             same workspace, and is placed last there.
+        :param allow_demotion: Whether it may move from the shared application
+            back to an application, which only undoing a promotion does.
         :param kwargs: The values that should be set on the integration.
         :raises IntegrationCannotMoveToApplication: When it can't move to the
             application.
@@ -467,7 +470,9 @@ class IntegrationHandler:
         """
 
         if application is not None and application.id != integration.application_id:
-            self._check_application_change(integration_type, integration, application)
+            self._check_application_change(
+                integration_type, integration, application, allow_demotion
+            )
             integration.application = application
             integration.order = Integration.get_last_order(application)
 
@@ -488,18 +493,23 @@ class IntegrationHandler:
         integration_type: IntegrationType,
         integration: Integration,
         application: Application,
+        allow_demotion: bool,
     ):
         """
         Checks that the integration can move to the given application: only
         between an application and the shared application of the same workspace,
-        which is promoting it or undoing that. The integration of a published copy
-        or a snapshot has no workspace, so it never moves. Neither does the
-        integration of an application whose services can't choose theirs, like a
-        dashboard: its new services would be left without one.
+        which is promoting it or, with `allow_demotion`, undoing that. Nothing else
+        takes it out of the workspace, because other applications may use it by
+        then, and only the undo checks that none started to. The integration of a
+        published copy or a snapshot has no workspace, so it never moves. Neither
+        does the integration of an application whose services can't choose theirs,
+        like a dashboard: its new services would be left without one.
 
         :param integration_type: The type of the integration.
         :param integration: The integration, still in its current application.
         :param application: The application it moves to.
+        :param allow_demotion: Whether it may move from the shared application to
+            an application.
         :raises IntegrationCannotMoveToApplication: When it can't move there.
         :raises ApplicationOperationNotSupported: When the application doesn't
             accept integrations of its type, or the application on the other end
@@ -515,6 +525,9 @@ class IntegrationHandler:
                 or self.is_shared_application(application)
             )
         ):
+            raise IntegrationCannotMoveToApplication()
+
+        if not allow_demotion and not self.is_shared_application(application):
             raise IntegrationCannotMoveToApplication()
 
         # One end is the shared application, the other the application it's

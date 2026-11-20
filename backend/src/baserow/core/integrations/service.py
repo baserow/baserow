@@ -334,6 +334,7 @@ class IntegrationService:
         self,
         user: AbstractUser,
         integration: IntegrationForUpdate,
+        allow_demotion: bool = False,
         **kwargs,
     ) -> UpdatedIntegration:
         """
@@ -343,10 +344,15 @@ class IntegrationService:
         An `application_id` other than the integration's moves it to that
         application. That's how it's promoted to the shared application of its
         workspace, and how undoing the promotion moves it back. Moving it also
-        needs the permission to create an integration in that application.
+        needs the permission to create an integration in that application. Where
+        it may move is only checked after both permissions, so a user who may not
+        move it can't tell from the error which kind of application an id is.
 
         :param user: The user trying to update the integration.
         :param integration: The integration that should be updated.
+        :param allow_demotion: Whether it may move from the shared application of
+            its workspace back to an application. Only undoing a promotion sets it,
+            once it checked that nothing else started using the integration.
         :param kwargs: Additional attributes of the integration.
         :return: The updated integration together with the values that changed.
         :raises IntegrationCredentialRequired: When a request-target field changes
@@ -409,6 +415,7 @@ class IntegrationService:
             integration_type,
             integration,
             application=target_application,
+            allow_demotion=allow_demotion,
             **prepared_values,
         )
 

@@ -491,6 +491,35 @@ def test_promote_integration_only_to_the_shared_application_of_its_workspace(
 
 
 @pytest.mark.django_db
+def test_promote_integration_answers_a_non_member_the_same_for_every_target(
+    api_client, data_fixture
+):
+    user = data_fixture.create_user()
+    _, outsider_token = data_fixture.create_user_and_token()
+    workspace = data_fixture.create_workspace(user=user)
+    shared_application = data_fixture.create_shared_application(workspace=workspace)
+    application = data_fixture.create_builder_application(workspace=workspace)
+    other_application = data_fixture.create_builder_application(workspace=workspace)
+    integration = data_fixture.create_local_baserow_integration(
+        application=application, user=user
+    )
+
+    # The permissions are checked first, so the answer tells nothing about the
+    # application: whether it exists, or is the shared application of a workspace.
+    for application_id in [0, other_application.id, shared_application.id]:
+        response = api_client.patch(
+            reverse("api:integrations:item", kwargs={"integration_id": integration.id}),
+            {"application_id": application_id},
+            format="json",
+            HTTP_AUTHORIZATION=f"JWT {outsider_token}",
+        )
+        assert response.status_code == HTTP_401_UNAUTHORIZED
+        assert response.json()["error"] == "PERMISSION_DENIED"
+
+    assert Integration.objects.get(id=integration.id).application_id == application.id
+
+
+@pytest.mark.django_db
 def test_promote_integration_of_a_type_the_workspace_does_not_support(
     api_client, data_fixture
 ):
