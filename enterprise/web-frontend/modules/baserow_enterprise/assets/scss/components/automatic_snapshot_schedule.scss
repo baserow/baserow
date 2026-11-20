@@ -1,0 +1,131 @@
+// Follows the snapshots modal's type scale: 14px for the title and 13px with a 20px
+// line height for everything else.
+.automatic-snapshot-schedule {
+  border: 1px solid $palette-neutral-200;
+  border-radius: 8px;
+  overflow: hidden;
+  line-height: 20px;
+}
+
+.automatic-snapshot-schedule--empty {
+  border-style: dashed;
+  border-color: $palette-neutral-400;
+}
+
+.automatic-snapshot-schedule__main {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  padding: 20px;
+}
+
+.automatic-snapshot-schedule__icon {
+  flex: none;
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+}
+
+.automatic-snapshot-schedule__icon--blue {
+  background-color: $palette-blue-50;
+  color: $palette-blue-700;
+}
+
+.automatic-snapshot-schedule__icon--neutral {
+  background-color: $palette-neutral-100;
+  color: $palette-neutral-900;
+}
+
+.automatic-snapshot-schedule__body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.automatic-snapshot-schedule__head {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.automatic-snapshot-schedule__title {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 20px;
+  color: $palette-neutral-1200;
+}
+
+.automatic-snapshot-schedule__schedule {
+  font-weight: 500;
+  color: $palette-neutral-1200;
+}
+
+.automatic-snapshot-schedule__timezone {
+  font-weight: 400;
+  color: $palette-neutral-900;
+}
+
+.automatic-snapshot-schedule__description,
+.automatic-snapshot-schedule__detail {
+  color: $palette-neutral-900;
+}
+
+.automatic-snapshot-schedule__inline-actions {
+  margin-top: 12px;
+}
+
+.automatic-snapshot-schedule__warning {
+  margin: 0 20px 20px;
+}
+
+.automatic-snapshot-schedule__error {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 0 20px 20px;
+  padding: 8px 12px;
+  border-radius: 6px;
+  background-color: $palette-red-50;
+  color: $palette-red-800;
+
+  i {
+    flex: none;
+    font-size: 16px;
+    line-height: 20px;
+  }
+}
+
+.automatic-snapshot-schedule__footer {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 12px 20px;
+  background-color: $palette-neutral-25;
+  border-top: 1px solid $palette-neutral-200;
+}
+
+// Long application names stay on one line.
+.automatic-snapshot-schedule__customise {
+  @extend %ellipsis;
+
+  display: block;
+  max-width: 280px;
+}
+
+.automatic-snapshot-schedule__modal-title {
+  @extend %ellipsis;
+}
+
+.automatic-snapshot-schedule__footer-note {
+  margin-left: auto;
+  color: $palette-neutral-900;
+}

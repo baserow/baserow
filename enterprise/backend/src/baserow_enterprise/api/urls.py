@@ -2,6 +2,7 @@ from django.urls import include, path
 
 from .admin import urls as admin_urls
 from .audit_log import urls as audit_log_urls
+from .automatic_snapshots import urls as automatic_snapshots_urls
 from .builder.custom_code import urls as custom_code_urls
 from .data_sync import urls as data_sync_urls
 from .field_permissions import urls as field_permissions_urls
@@ -16,6 +17,10 @@ urlpatterns = [
     path("role/", include(role_urls, namespace="role")),
     path("admin/", include(admin_urls, namespace="admin")),
     path("audit-log/", include(audit_log_urls, namespace="audit_log")),
+    path(
+        "automatic-snapshots/",
+        include(automatic_snapshots_urls, namespace="automatic_snapshots"),
+    ),
     path("files/", include(secure_file_serve_urls, namespace="files")),
     path("data-sync/", include(data_sync_urls, namespace="data_sync")),
     path(
