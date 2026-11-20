@@ -515,6 +515,49 @@ describe('Kuma durable streamed send and resume', () => {
     finish()
   })
 
+  test.each(['before', 'after'])(
+    'refreshing the chat list %s an early Stop preserves the request',
+    async (when) => {
+      await open()
+      const starting = store.dispatch('assistant/startRun', {
+        message: 'Hi',
+        workspace,
+      })
+      await flushPromises()
+      service.fetchChats.mockResolvedValue({
+        results: [{ uuid, chat_id: 7, title: '' }],
+      })
+      if (when === 'after') await store.dispatch('assistant/cancelMessage')
+      await store.dispatch('assistant/fetchChats', workspace.id)
+      if (when === 'before') await store.dispatch('assistant/cancelMessage')
+      expect(store.getters['assistant/currentChat'].cancelling).toBe(true)
+
+      await emit('human', human, { cursor: cursor(1) })
+      await starting
+      expect(api.cancel).toHaveBeenCalledExactlyOnceWith('run-1')
+      finish()
+    }
+  )
+
+  test('a refused send clears its early Stop before the next send', async () => {
+    await open()
+    const first = send()
+    await flushPromises()
+    await store.dispatch('assistant/cancelMessage')
+    fail(refused(429, 'ERROR_CHAT_RUN_LIMIT'))
+    expect(await first).toBe(SEND_OUTCOME.FAILED)
+
+    const next = store.dispatch('assistant/startRun', {
+      message: 'Try again',
+      workspace,
+    })
+    await flushPromises()
+    await emit('human', human, { cursor: cursor(1) })
+    await next
+    expect(api.cancel).not.toHaveBeenCalled()
+    finish()
+  })
+
   test('a failed Stop queued before metadata notifies and allows another Stop', async () => {
     const starting = store.dispatch('assistant/startRun', {
       message: 'Hi',

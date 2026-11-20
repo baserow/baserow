@@ -10,7 +10,7 @@
         "Export worker gets 120s to stop in Compose/Helm",
         "New Helm value for that grace period",
         "New BASEROW_ASGI_HTTP_MAX_CONCURRENT_STREAMS",
-        "Stop waits for tools and keeps their changes"
+        "Stop waits for active tools to finish"
     ],
     "created_at": "2026-10-19"
 }

@@ -193,6 +193,36 @@ describe('Kuma HTTP record adapter', () => {
     ])
   })
 
+  test.each(['local', 'remote'])(
+    'a %s Stop suppresses late navigation',
+    async (origin) => {
+      if (origin === 'local') {
+        store.commit('chatRuns/UPDATE_FOLLOWER', {
+          runId: 'run-1',
+          values: { stopRequested: true },
+        })
+      } else {
+        await acceptRecord(store, {
+          kind: 'run.cancel_requested',
+          data: {},
+          cursor: cursor(1),
+        })
+      }
+      await acceptRecord(store, navigation(2))
+      expect(navigated).toEqual([])
+    }
+  )
+
+  test('cancelled onboarding clears its saved target without opening it', async () => {
+    storeOnboardingRunId('run-1')
+    await applySnapshot(store, {
+      status: 'cancelled',
+      message: { ...created, run_status: 'cancelled' },
+    })
+    expect(navigated).toEqual([])
+    expect(getStoredOnboardingRunId()).toBeNull()
+  })
+
   test('a completed onboarding run opens its target in an open panel', async () => {
     storeOnboardingRunId('run-1')
     await applySnapshot(store, { status: 'completed', message: created })

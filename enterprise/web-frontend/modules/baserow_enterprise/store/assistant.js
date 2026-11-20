@@ -121,16 +121,20 @@ export const mutations = {
 
   SET_CHATS(state, chats) {
     const local = new Map(state.chats.map((chat) => [chat.id, chat]))
-    const fetched = chats.map((chat) => ({
-      id: chat.uuid,
-      chatId: chat.chat_id ?? null,
-      title: chat.title,
-      createdAt: chat.created_on,
-      updatedAt: chat.updated_on,
-      // History reads must not re-enable sending before a pending POST settles.
-      loading: local.get(chat.uuid)?.loading ?? false,
-      running: local.get(chat.uuid)?.running ?? false,
-    }))
+    const fetched = chats.map((chat) => {
+      // A pending send holds this object until the server returns its run ID.
+      const existing = local.get(chat.uuid) ?? {
+        loading: false,
+        running: false,
+      }
+      return Object.assign(existing, {
+        id: chat.uuid,
+        chatId: chat.chat_id ?? null,
+        title: chat.title,
+        createdAt: chat.created_on,
+        updatedAt: chat.updated_on,
+      })
+    })
     // A new chat is saved with its first message, so the fetched list can miss it.
     const current = state.chats.find((c) => c.id === state.currentChatId)
     const unsaved =
@@ -657,6 +661,8 @@ export const actions = {
   },
 
   async cancelMessage({ commit, dispatch, getters }) {
+    // Invalidate navigation that may still be loading its target.
+    commit('SET_UI_LOCATION', null)
     const follower = getters.activeFollower
     if (follower) {
       await dispatch('chatRuns/cancelRun', follower.runId, { root: true })

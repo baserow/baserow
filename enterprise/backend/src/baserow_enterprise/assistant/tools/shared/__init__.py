@@ -7,7 +7,6 @@ from .errors import (
     validation_messages,
 )
 from .payloads import require_payload
-from .stopping import stopped_after
 
 __all__ = [
     "get_formula_generator",
@@ -17,5 +16,4 @@ __all__ = [
     "raise_if_permission_denied",
     "return_permission_error",
     "require_payload",
-    "stopped_after",
 ]

@@ -230,7 +230,7 @@ test("a stop during a slow tool waits for the tool and keeps what it made", asyn
 
     await release(holdKey);
     await expect(kuma.lastRunOutcome()).toHaveText(
-      "You stopped Kuma. Changes it made before stopping are kept.",
+      "You stopped Kuma. Any changes already saved are kept.",
       { timeout: 30_000 }
     );
     await kuma.expectIdle();

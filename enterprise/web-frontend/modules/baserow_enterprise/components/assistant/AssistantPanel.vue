@@ -127,12 +127,12 @@ export default {
       )
     },
     assistantRunningMessage() {
+      if (this.isAssistantCancelling) {
+        return this.$t('assistant.statusStopping')
+      }
       const follower = this.activeFollower
       if (!follower) {
         return ''
-      }
-      if (follower.stopRequested || follower.view.cancelRequested) {
-        return this.$t('assistant.statusStopping')
       }
       if (follower.replayUnavailable || !follower.streaming) {
         return this.$t('assistant.statusWaitingForOutput')

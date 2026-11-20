@@ -19,11 +19,8 @@ from baserow_enterprise.assistant.tools.database.types import (
     FieldItemUpdate,
     ViewItemCreate,
 )
-from baserow_enterprise.assistant.tools.shared import stopped_after
 
 from .utils import create_fake_tool_helpers, make_test_ctx
-
-STOPPED_AFTER_TWO = stopped_after(2, 3)
 
 
 @pytest.fixture
@@ -32,7 +29,6 @@ def ctx(data_fixture) -> MagicMock:
 
     user = data_fixture.create_user()
     tool_helpers = create_fake_tool_helpers()
-    tool_helpers.navigate_to = MagicMock()
     statuses: list[str] = []
 
     def update_status(status: str) -> None:
@@ -82,7 +78,6 @@ def test_update_fields_keeps_the_fields_updated_before_the_stop(ctx, three_field
     result = update_fields(ctx, fields=updates, thought="")
 
     assert [f["name"] for f in result["updated_fields"]] == ["RF0", "RF1"]
-    assert result["stopped"] == STOPPED_AFTER_TWO
     assert [f.name for f in Field.objects.order_by("id")] == ["RF0", "RF1", "F2"]
 
 
@@ -93,7 +88,6 @@ def test_delete_fields_keeps_the_fields_deleted_before_the_stop(ctx, three_field
     result = delete_fields(ctx, field_ids=ids, thought="")
 
     assert result["deleted_field_ids"] == ids[:2]
-    assert result["stopped"] == STOPPED_AFTER_TWO
     assert [f.name for f in Field.objects.all()] == ["F2"]
 
 
@@ -104,9 +98,7 @@ def test_create_views_keeps_the_views_created_before_the_stop(ctx, table):
     result = create_views(ctx, thought="", table_id=table.id, views=views)
 
     assert [v["name"] for v in result["created_views"]] == ["V0", "V1"]
-    assert result["stopped"] == STOPPED_AFTER_TWO
     assert [v.name for v in View.objects.order_by("id")] == ["V0", "V1"]
-    ctx.deps.tool_helpers.navigate_to.assert_not_called()
 
 
 @pytest.mark.django_db
@@ -117,7 +109,6 @@ def test_create_pages_keeps_the_pages_created_before_the_stop(data_fixture, ctx)
     result = create_pages(ctx, application_id=builder.id, pages=pages, thought="")
 
     assert [p["name"] for p in result["created_pages"]] == ["P0", "P1"]
-    assert result["stopped"] == STOPPED_AFTER_TWO
     names = Page.objects_without_shared.values_list("name", flat=True)
     assert set(names) == {"P0", "P1"}
 
@@ -150,17 +141,16 @@ def test_formula_repair_stop_keeps_completed_field_updates(
         lambda *args: fixer,
     )
 
-    result = update_fields(
-        ctx,
-        fields=[
-            FieldItemUpdate(field_id=name.id, name="Kept"),
-            *[FieldItemUpdate(field_id=f.id, formula="concat(") for f in formulas],
-        ],
-        thought="",
-    )
+    with pytest.raises(asyncio.CancelledError):
+        update_fields(
+            ctx,
+            fields=[
+                FieldItemUpdate(field_id=name.id, name="Kept"),
+                *[FieldItemUpdate(field_id=f.id, formula="concat(") for f in formulas],
+            ],
+            thought="",
+        )
 
-    assert "Stopped while repairing formulas" in result["stopped"]
-    assert [f["name"] for f in result["updated_fields"]] == ["Kept"]
     name.refresh_from_db()
     assert name.name == "Kept"
     for formula in formulas:

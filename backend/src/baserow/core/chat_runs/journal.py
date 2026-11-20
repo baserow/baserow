@@ -137,8 +137,21 @@ class ChatRunJournal:
     def request_stop(self, reason: ChatRunStopReason) -> None:
         if self._stop_reason is None:
             self._stop_reason = reason
+            if reason == ChatRunStopReason.CANCELLED:
+                self.emit(ChatRunEventKind.RUN_CANCEL_REQUESTED, flush_now=True)
         self.stop_requested.set()
         self._stopped.set()
+
+    async def raise_if_stopping(self) -> None:
+        """Check durable cancellation before admitting work between lease renewals."""
+
+        cancelled = ChatRunHandler().runs.filter(
+            pk=self.run.id, cancel_requested_at__isnull=False
+        )
+        if self._stop_reason is None and await cancelled.aexists():
+            self.request_stop(ChatRunStopReason.CANCELLED)
+        if self._stop_reason is not None:
+            raise asyncio.CancelledError
 
     async def wait_for_stop(self) -> ChatRunStopReason:
         await self._stopped.wait()
@@ -208,8 +221,7 @@ class ChatRunJournal:
             if not renewal.alive:
                 self.request_stop(ChatRunStopReason.LOST)
                 return
-            if renewal.cancel_requested and self._stop_reason is None:
-                self.emit(ChatRunEventKind.RUN_CANCEL_REQUESTED, flush_now=True)
+            if renewal.cancel_requested:
                 self.request_stop(ChatRunStopReason.CANCELLED)
 
     def _renew_lease(self):

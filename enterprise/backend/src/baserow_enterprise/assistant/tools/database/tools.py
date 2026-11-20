@@ -48,7 +48,6 @@ from baserow_enterprise.assistant.tools.shared import (
     raise_if_permission_denied,
     require_payload,
     return_permission_error,
-    stopped_after,
 )
 from baserow_enterprise.assistant.tools.toolset import (
     AssistantFunctionToolset,
@@ -764,10 +763,8 @@ def update_fields(
         # Another operation holds a lock on one of the fields.
         raise ModelRetry(" ".join(exc.messages))
 
-    if (done := result.pop("stopped_after", None)) is not None:
-        result["stopped"] = stopped_after(done, len(fields))
     formula_errors, other_errors = _split_formula_errors(result)
-    if formula_errors and "stopped" not in result:
+    if formula_errors and not tool_context.is_cancelled():
         formula_fixer = make_formula_fixer(
             ctx.deps.user, ctx.deps.workspace, ctx.deps.tool_helpers
         )
@@ -776,12 +773,8 @@ def update_fields(
             formula_fixer,
             fields,
             formula_errors,
+            ctx.deps.tool_helpers.raise_if_cancelled,
         )
-        if tool_context.is_cancelled():
-            result["stopped"] = (
-                "Stopped while repairing formulas because the run was cancelled. "
-                "The finished changes were kept."
-            )
         result["updated_fields"].extend(field.model_dump() for field in repaired)
         result["changed"] = result["changed"] or changed
     _hint_generate_formula(formula_errors)
@@ -827,8 +820,6 @@ def delete_fields(
     result = shared_fields.delete_fields(
         ctx.deps.tool_context(cooperative_cancellation=True), field_ids
     )
-    if (done := result.pop("stopped_after", None)) is not None:
-        result["stopped"] = stopped_after(done, len(field_ids))
 
     _refresh_row_tools(ctx)
     return result
@@ -877,10 +868,8 @@ def create_views(
     except SharedToolInputError as exc:
         raise _retry_with_hint(exc)
 
-    if (done := result.pop("stopped_after", None)) is not None:
-        result["stopped"] = stopped_after(done, len(views))
     created_views = result["created_views"]
-    if created_views and not ctx.deps.tool_helpers.is_cancelled:
+    if created_views:
         ctx.deps.tool_helpers.navigate_to(
             ViewNavigationType(
                 type="database-view",
