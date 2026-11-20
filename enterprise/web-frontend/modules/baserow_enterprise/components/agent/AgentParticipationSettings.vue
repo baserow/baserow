@@ -82,7 +82,6 @@ import { useI18n } from 'vue-i18n'
 import { useStore } from 'vuex'
 import { notifyIf } from '@baserow/modules/core/utils/error'
 import { injectAgentTriggers } from '@baserow/modules/agent/composables/useAgentTriggers'
-import EnterpriseFeatures from '@baserow_enterprise/features'
 import AgentPermissionsService from '@baserow_enterprise/services/agentPermissions'
 import {
   AGENT_CAPABILITIES,
@@ -96,11 +95,13 @@ import PermissionRoleSelect from '@baserow_enterprise/components/fieldPermission
 
 defineOptions({ inheritAttrs: false })
 const props = defineProps({
+  /** The Permissions section type, which tells whether the rules apply. */
+  sectionType: { type: Object, required: true },
   /** Whether the user may change the rules. */
   editable: Boolean,
 })
 const ROLES = ['EDITOR', 'BUILDER', 'ADMIN', 'CUSTOM', 'NOBODY']
-const { $client, $hasFeature } = useNuxtApp()
+const { $client } = useNuxtApp()
 const { t } = useI18n()
 const store = useStore()
 const agent = inject('agentApplication')
@@ -108,11 +109,7 @@ const agentTriggers = reactive(injectAgentTriggers())
 const workspace = computed(() =>
   agent.value ? store.getters['workspace/get'](agent.value.workspace.id) : null
 )
-const licensed = computed(() =>
-  Boolean(
-    workspace.value && $hasFeature(EnterpriseFeatures.RBAC, workspace.value.id)
-  )
-)
+const licensed = computed(() => props.sectionType.isLicensed(workspace.value))
 const stored = computed(() =>
   store.getters['agentParticipationRules/get'](agent.value.id)
 )

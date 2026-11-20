@@ -1,5 +1,6 @@
 import { flushPromises } from '@vue/test-utils'
-import { ref } from 'vue'
+import { createSSRApp, defineComponent, ref } from 'vue'
+import { renderToString } from 'vue/server-renderer'
 import { TestApp } from '@baserow/test/helpers/testApp'
 import AgentConfigurationSidebar from '@baserow/modules/agent/components/AgentConfigurationSidebar'
 import EnterpriseFeatures from '@baserow_enterprise/features'
@@ -388,6 +389,37 @@ describe('agent participation settings', () => {
     expect(wrapper.findAll('.control')[2].text()).toContain(
       'agentPermissions.managePeople'
     )
+  })
+
+  test('loads the rules once mounted, never while rendering on the server', async () => {
+    vi.spyOn(app.nuxtApp.$licenseHandler, 'hasFeature').mockReturnValue(true)
+    const fetches = vi.spyOn(app.store, 'dispatch')
+    const sectionType = app
+      .getRegistry()
+      .get('agentConfigurationSection', 'permissions')
+    const Host = defineComponent({
+      setup() {
+        sectionType.setup({
+          agent: { id: 8 },
+          workspace: app.store.getters['workspace/get'](1),
+        })
+        return () => null
+      },
+    })
+    const rulesFetches = () =>
+      fetches.mock.calls.filter(
+        ([type]) => type === 'agentParticipationRules/fetch'
+      )
+
+    await renderToString(createSSRApp(Host))
+    expect(rulesFetches()).toEqual([])
+
+    mockRules()
+    await app.mount(Host)
+    await flushPromises()
+    expect(rulesFetches()).toEqual([
+      ['agentParticipationRules/fetch', { agentId: 8 }],
+    ])
   })
 
   test('the permission manager decides who continues and only refuses the other operations', () => {

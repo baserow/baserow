@@ -54,16 +54,22 @@ const savedValuesOf = (trigger) =>
  * edited field is saved in a request of its own, one at a time per trigger, so a
  * rejected value never holds back another field and a slow save never reverts a
  * newer edit. What each trigger type's form may choose from is loaded for the
- * Agent's run identity, and again whenever that identity changes.
+ * Agent's run identity once it is known, and again whenever that identity changes.
  *
  * @param {import('vue').Ref<object>} agent The Agent whose triggers are listed.
  * @param {Function} getRunAs Returns the Agent's configured run identity, or
  *   null.
+ * @param {Function} ready Returns whether the run identity is known, so the
+ *   trigger types load for it and not first for none.
  * @returns {object} The triggers, their loading and saving state, whether the
  *   list has loaded, the options of each trigger type with a counter that
  *   changes whenever they reload, whether either failed to load, and actions.
  */
-export function useAgentTriggers(agent, getRunAs = () => null) {
+export function useAgentTriggers(
+  agent,
+  getRunAs = () => null,
+  ready = () => true
+) {
   const { $client, $registry } = useNuxtApp()
   const { t } = useI18n()
   const service = AgentTriggerService($client)
@@ -528,22 +534,27 @@ export function useAgentTriggers(agent, getRunAs = () => null) {
     dueFields.clear()
   }
 
-  onMounted(() => {
-    fetchTriggers()
-    fetchTriggerTypes()
-  })
+  const runAsKey = () => {
+    const runAs = getRunAs()
+    return [runAs?.type, runAs?.id, getRunAsStatus(runAs)].join(':')
+  }
   watch(
     () => agent.value?.id,
     () => {
       reset()
       fetchTriggers()
-      fetchTriggerTypes()
     }
   )
-  watch(() => {
-    const runAs = getRunAs()
-    return [runAs?.type, runAs?.id, getRunAsStatus(runAs)].join(':')
-  }, fetchTriggerTypes)
+  onMounted(() => {
+    fetchTriggers()
+    watch(
+      [() => agent.value?.id, ready, runAsKey],
+      ([, isReady]) => {
+        if (isReady) fetchTriggerTypes()
+      },
+      { immediate: true }
+    )
+  })
   onBeforeUnmount(flushScheduledSaves)
 
   return {
@@ -576,10 +587,11 @@ export function useAgentTriggers(agent, getRunAs = () => null) {
  * @param {import('vue').Ref<object>} agent The Agent whose triggers are listed.
  * @param {Function} getRunAs Returns the Agent's configured run identity, or
  *   null.
+ * @param {Function} ready Returns whether the run identity is known.
  * @returns {object} What `useAgentTriggers` returns.
  */
-export function provideAgentTriggers(agent, getRunAs) {
-  const agentTriggers = useAgentTriggers(agent, getRunAs)
+export function provideAgentTriggers(agent, getRunAs, ready) {
+  const agentTriggers = useAgentTriggers(agent, getRunAs, ready)
   provide(AGENT_TRIGGERS, agentTriggers)
   return agentTriggers
 }

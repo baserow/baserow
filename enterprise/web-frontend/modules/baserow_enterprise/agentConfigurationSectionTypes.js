@@ -1,4 +1,4 @@
-import { markRaw, watch } from 'vue'
+import { markRaw, onMounted, watch } from 'vue'
 import { AgentConfigurationSectionType } from '@baserow/modules/agent/configurationSectionTypes'
 import EnterpriseFeatures from '@baserow_enterprise/features'
 import AgentParticipationSettings from '@baserow_enterprise/components/agent/AgentParticipationSettings'
@@ -37,20 +37,27 @@ export class PermissionsAgentConfigurationSectionType extends AgentConfiguration
     )
   }
 
-  /** Loads the rules with the sidebar, and again when the permissions change. */
+  /**
+   * Loads the rules once the sidebar mounts, never on the server, and again
+   * when the permissions change.
+   */
   setup(context) {
-    watch(
-      [
-        () => context.agent?.id,
-        () => this.isLicensed(context.workspace),
-        () => context.workspace?._?.permissions,
-      ],
-      ([agentId, licensed]) => {
-        if (agentId && licensed) {
-          this.app.$store.dispatch('agentParticipationRules/fetch', { agentId })
-        }
-      },
-      { immediate: true }
+    onMounted(() =>
+      watch(
+        [
+          () => context.agent?.id,
+          () => this.isLicensed(context.workspace),
+          () => context.workspace?._?.permissions,
+        ],
+        ([agentId, licensed]) => {
+          if (agentId && licensed) {
+            this.app.$store.dispatch('agentParticipationRules/fetch', {
+              agentId,
+            })
+          }
+        },
+        { immediate: true }
+      )
     )
   }
 

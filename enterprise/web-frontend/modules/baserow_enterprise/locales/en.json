@@ -24,7 +24,7 @@
   },
   "agentPermissions": {
     "section": "Permissions",
-    "sectionDescription": "Who can chat, approve tool calls and continue conversations started by triggers.",
+    "sectionDescription": "Who can chat, approve tools and continue triggered chats.",
     "chat": "Who can chat",
     "approve": "Who can approve tool calls",
     "continue": "Who can continue triggered conversations",
@@ -37,7 +37,7 @@
     "default": "Default",
     "loading": "Loading…",
     "nobodyCanInteract": "Without an enabled trigger, nobody can interact with this agent.",
-    "chooseSubjects": "Choose at least one person or team for {setting}.",
+    "chooseSubjects": "Choose at least one person or team for “{setting}”.",
     "unlicensedNote": "Without Advanced or Enterprise, every member can chat and approve tool calls, and nobody can continue conversations started by triggers."
   },
   "agentPermissionSubjects": {

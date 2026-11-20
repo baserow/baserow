@@ -124,13 +124,19 @@ const TriggersHost = defineComponent({
   props: {
     configuration: { type: Object, required: true },
     editable: Boolean,
+    loading: Boolean,
   },
   setup(props) {
     provideAgentTriggers(
       inject('agentApplication'),
-      () => props.configuration.run_as
+      () => props.configuration.run_as,
+      () => !props.loading
     )
-    return () => h(AgentWhenItRunsSection, props)
+    return () =>
+      h(AgentWhenItRunsSection, {
+        configuration: props.configuration,
+        editable: props.editable,
+      })
   },
 })
 
@@ -1443,6 +1449,35 @@ describe('Agent triggers', () => {
     expect(
       wrapper.findAll('.dropdown__selected-text').map((item) => item.text())
     ).toEqual(['Orders'])
+  })
+
+  test('loads the trigger types once, after the configuration with its run identity', async () => {
+    const configuration = (values) =>
+      completeConfiguration({
+        available_trigger_types: ['local_baserow_rows_created'],
+        ...values,
+      })
+    testApp.mock.onGet('/agent/10/triggers/').reply(200, [rowsTrigger()])
+    testApp.mock
+      .onGet('/agent/10/trigger-types/')
+      .reply(200, [triggerTypeOf('local_baserow_rows_created')])
+    const wrapper = await testApp.mount(TriggersHost, {
+      props: { configuration: configuration({ run_as: null }), loading: true },
+      global: { provide: { agentApplication: ref(agent) } },
+    })
+    await flushPromises()
+
+    await wrapper.setProps({
+      configuration: configuration(activeRunAs),
+      loading: false,
+    })
+    await flushPromises()
+
+    expect(
+      testApp.mock.history.get
+        .map(({ url }) => url)
+        .filter((url) => url.endsWith('/trigger-types/'))
+    ).toEqual(['/agent/10/trigger-types/'])
   })
 
   test('saves how many rows each conversation gets, for list triggers only', async () => {

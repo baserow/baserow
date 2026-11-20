@@ -163,7 +163,11 @@ const sectionContext = reactive({
       ? store.getters['workspace/get'](agent.value.workspace.id)
       : null
   ),
-  triggers: provideAgentTriggers(agent, () => props.configuration.run_as),
+  triggers: provideAgentTriggers(
+    agent,
+    () => props.configuration.run_as,
+    () => !props.loading
+  ),
 })
 registeredSections.value.forEach((registered) =>
   registered.setup(sectionContext)

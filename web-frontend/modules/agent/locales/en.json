@@ -361,7 +361,7 @@
     "approvalPlaceholder": "Chat will resume after the pending steps are reviewed.",
     "conversationWaitingForApproval": "Approve or reject the steps above before sending a new message.",
     "whenItRuns": "When it runs",
-    "whenItRunsDescription": "Who can chat, approve tool calls, and start the agent with triggers.",
+    "whenItRunsDescription": "Start the agent with triggers.",
     "triggers": "Triggers",
     "addTrigger": "Add trigger",
     "noTriggers": "Without a trigger the agent only runs when you chat with it.",

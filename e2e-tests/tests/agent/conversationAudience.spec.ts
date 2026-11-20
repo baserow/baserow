@@ -245,70 +245,73 @@ test("a triggered conversation appears shared and a teammate can continue it onc
 }) => {
   const { workspace, user } = workspacePage;
   const license = await createLicense(ENTERPRISE_LICENSE);
-  const member = await createUser();
   try {
-    await joinWorkspace(workspace, [member], "EDITOR");
-    const agent = await supportAgent(workspace);
-    const agentPage = new AgentPage({ page, goto }, agent);
-    await agentPage.goto();
-    const section = await agentPage.openSection("Permissions");
-    const continuing = section.locator(".control").filter({
-      hasText: "Who can continue triggered conversations",
-    });
-    await expect(continuing.locator(".dropdown__selected")).toContainText(
-      "Nobody"
-    );
-    const saved = page.waitForResponse(
-      (response) =>
-        response.url().endsWith(`agent-permissions/${agent.id}/continue/`) &&
-        response.request().method() === "PUT"
-    );
-    await continuing.locator(".dropdown__selected").click();
-    await continuing.getByText("Editors and higher", { exact: true }).click();
-    expect((await saved).ok()).toBe(true);
-    const { data: trigger } = await getClient(user).post(
-      `agent/${agent.id}/triggers/`,
-      {
-        type: "http_trigger",
-        name: "Ticket received",
-        message: "get('trigger.body.subject')",
-      }
-    );
-    const title = "Shipping address change";
-    await getClient().post(`webhooks/${trigger.service.uid}/`, {
-      subject: title,
-    });
-    await expect
-      .poll(() => conversations(member, agent.id), { timeout: workerTimeout })
-      .toMatchObject([{ title, started_by_trigger: true, shared: true }]);
-    await agentPage.authenticate(member);
-    await agentPage.goto();
-    const row = page.locator(".agent-conversations__row", { hasText: title });
-    await expect(row).toContainText("Shared");
-    await expect(row).toContainText("Ticket received");
-    await row.locator(".agent-conversations__item").click();
-    await expect(page.locator(".agent-chat")).toContainText("E2E chat", {
-      timeout: workerTimeout,
-    });
-    const followup = "Please confirm the shipping address.";
-    await send(page, followup);
-    const [conversation] = await conversations(user, agent.id);
-    await expect
-      .poll(
-        async () => {
-          const { data } = await getClient(user).get(
-            `agent/${agent.id}/conversations/${conversation.uuid}/messages/`
-          );
-          return data.results.slice(-2);
-        },
-        { timeout: workerTimeout }
-      )
-      .toMatchObject([
-        { role: "user", content: followup, sender: { name: member.name } },
-        { role: "assistant", content: "E2E chat", status: "completed" },
-      ]);
+    const member = await createUser();
+    try {
+      await joinWorkspace(workspace, [member], "EDITOR");
+      const agent = await supportAgent(workspace);
+      const agentPage = new AgentPage({ page, goto }, agent);
+      await agentPage.goto();
+      const section = await agentPage.openSection("Permissions");
+      const continuing = section.locator(".control").filter({
+        hasText: "Who can continue triggered conversations",
+      });
+      await expect(continuing.locator(".dropdown__selected")).toContainText(
+        "Nobody"
+      );
+      const saved = page.waitForResponse(
+        (response) =>
+          response.url().endsWith(`agent-permissions/${agent.id}/continue/`) &&
+          response.request().method() === "PUT"
+      );
+      await continuing.locator(".dropdown__selected").click();
+      await continuing.getByText("Editors and higher", { exact: true }).click();
+      expect((await saved).ok()).toBe(true);
+      const { data: trigger } = await getClient(user).post(
+        `agent/${agent.id}/triggers/`,
+        {
+          type: "http_trigger",
+          name: "Ticket received",
+          message: "get('trigger.body.subject')",
+        }
+      );
+      const title = "Shipping address change";
+      await getClient().post(`webhooks/${trigger.service.uid}/`, {
+        subject: title,
+      });
+      await expect
+        .poll(() => conversations(member, agent.id), { timeout: workerTimeout })
+        .toMatchObject([{ title, started_by_trigger: true, shared: true }]);
+      await agentPage.authenticate(member);
+      await agentPage.goto();
+      const row = page.locator(".agent-conversations__row", { hasText: title });
+      await expect(row).toContainText("Shared");
+      await expect(row).toContainText("Ticket received");
+      await row.locator(".agent-conversations__item").click();
+      await expect(page.locator(".agent-chat")).toContainText("E2E chat", {
+        timeout: workerTimeout,
+      });
+      const followup = "Please confirm the shipping address.";
+      await send(page, followup);
+      const [conversation] = await conversations(user, agent.id);
+      await expect
+        .poll(
+          async () => {
+            const { data } = await getClient(user).get(
+              `agent/${agent.id}/conversations/${conversation.uuid}/messages/`
+            );
+            return data.results.slice(-2);
+          },
+          { timeout: workerTimeout }
+        )
+        .toMatchObject([
+          { role: "user", content: followup, sender: { name: member.name } },
+          { role: "assistant", content: "E2E chat", status: "completed" },
+        ]);
+    } finally {
+      await deleteUser(member);
+    }
   } finally {
-    await deleteUser(member);
     await deleteLicense(license);
   }
 });
