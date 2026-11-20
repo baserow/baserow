@@ -48,7 +48,7 @@ export const makeBuilderPreviewSessionErrorInterceptor = (
 /**
  * Sends browser or SSR preview-session credentials only to preview API URLs.
  */
-export const prepareBuilderPreviewRequest = (previewSsrAuth) => (config) => {
+export const prepareBuilderPreviewRequest = (ssrCookie) => (config) => {
   if (
     config.skipBuilderPreviewRequestHandling ||
     getBuilderPreviewIdFromApiUrl(config.url) === null
@@ -59,8 +59,8 @@ export const prepareBuilderPreviewRequest = (previewSsrAuth) => (config) => {
   config.withCredentials = true
   config.userSourceAuthAsPrimary = true
   config.headers ||= {}
-  if (previewSsrAuth.session) {
-    config.headers.Cookie = `${previewSsrAuth.backendCookieName}=${previewSsrAuth.session}`
+  if (ssrCookie) {
+    config.headers.Cookie = ssrCookie
   }
 
   return config
@@ -72,25 +72,27 @@ export default defineNuxtPlugin({
   setup(nuxtApp) {
     const runtimeConfig = useRuntimeConfig()
     const route = useRoute()
-    const previewSsrAuth = {}
-
-    if (import.meta.server) {
-      const builderId = Number(route.params.builderId)
-      if (Number.isInteger(builderId)) {
-        previewSsrAuth.session = useCookie(
-          getBuilderPreviewSsrCookieName(runtimeConfig)
-        ).value
-        previewSsrAuth.backendCookieName =
-          getBuilderPreviewCookieName(runtimeConfig)
-      }
-    }
+    const session =
+      import.meta.server && Number.isInteger(Number(route.params.builderId))
+        ? useCookie(getBuilderPreviewSsrCookieName(runtimeConfig), {
+            readonly: true,
+          }).value
+        : null
+    const ssrCookie = session
+      ? `${getBuilderPreviewCookieName(runtimeConfig)}=${session}`
+      : null
 
     nuxtApp.$client.interceptors.request.use(
-      prepareBuilderPreviewRequest(previewSsrAuth)
+      prepareBuilderPreviewRequest(ssrCookie)
     )
     nuxtApp.$client.interceptors.response.use(
       null,
       makeBuilderPreviewSessionErrorInterceptor(nuxtApp.$i18n, showError)
     )
+
+    if (ssrCookie) {
+      // Share the scoped credential with optional reads in the same request.
+      return { provide: { builderPreviewSsrCookieHeader: ssrCookie } }
+    }
   },
 })

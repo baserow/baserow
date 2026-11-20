@@ -382,6 +382,14 @@ if (error.value) {
   throw error.value
 }
 
+if (import.meta.server && asyncDataResult.value?.currentPage) {
+  await nuxtApp.callHook('builder:render', {
+    builder: asyncDataResult.value.builder,
+    mode: asyncDataResult.value.mode,
+    requestUrl,
+  })
+}
+
 const workspace = computed(() => asyncDataResult.value?.workspace)
 const builder = computed(() => asyncDataResult.value?.builder)
 const currentPage = computed(() => asyncDataResult.value?.currentPage)
