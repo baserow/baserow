@@ -1,4 +1,10 @@
-import { defineNuxtModule, addPlugin, createResolver } from 'nuxt/kit'
+import {
+  defineNuxtModule,
+  addPlugin,
+  createResolver,
+  extendPages,
+} from 'nuxt/kit'
+import { routes as oauthAccountRoutes } from './oauthAccount/routes'
 import { locales } from '../../config/locales.js'
 
 export default defineNuxtModule({
@@ -12,6 +18,10 @@ export default defineNuxtModule({
     // Register main plugin
     addPlugin({
       src: resolve('./plugin.js'),
+    })
+
+    extendPages((pages) => {
+      pages.push(...oauthAccountRoutes)
     })
 
     nuxt.hook('i18n:registerModule', (register) => {

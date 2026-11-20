@@ -38,6 +38,19 @@ class IntegrationsConfig(AppConfig):
         action_type_registry.register(ConnectMCPServerAccountActionType())
         action_type_registry.register(DisconnectMCPServerAccountActionType())
 
+        from baserow.contrib.integrations.oauth_account.actions import (
+            ConnectOAuthAccountActionType,
+            DisconnectOAuthAccountActionType,
+        )
+
+        action_type_registry.register(ConnectOAuthAccountActionType())
+        action_type_registry.register(DisconnectOAuthAccountActionType())
+
+        from baserow.contrib.integrations.plugins import IntegrationsPlugin
+        from baserow.core.registries import plugin_registry
+
+        plugin_registry.register(IntegrationsPlugin())
+
         from baserow.contrib.integrations.ai.ai_provider_feature_types import (
             AIAgentAIProviderModelFeatureType,
         )

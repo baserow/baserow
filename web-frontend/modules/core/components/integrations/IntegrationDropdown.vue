@@ -72,6 +72,7 @@
         ref="IntegrationCreateEditModal"
         :application="application"
         :integration-type="integrationType"
+        :service-types="serviceTypes"
         create
         @created="select($event.id)"
       />
@@ -80,6 +81,7 @@
         ref="IntegrationEditModal"
         :application="application"
         :integration="editableIntegration"
+        :service-types="serviceTypes"
       />
     </template>
   </Dropdown>
@@ -161,6 +163,15 @@ export default {
       type: Boolean,
       required: false,
       default: false,
+    },
+    /**
+     * The service types the integration is picked for. An integration that
+     * connects an account by signing in asks for what they need.
+     */
+    serviceTypes: {
+      type: Array,
+      required: false,
+      default: () => [],
     },
   },
   emits: ['input', 'update:modelValue'],
