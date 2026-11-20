@@ -1,0 +1,12 @@
+{
+    "type": "breaking_change",
+    "message": "Applications have a max of 0 snapshots until an admin raises it, in the snapshots modal or the workspace's Snapshots settings. Applications that already have snapshots get a max of that many.",
+    "issue_origin": "github",
+    "issue_number": 6607,
+    "domain": "core",
+    "bullet_points": [
+        "API: creating a snapshot of an application with a max of 0 returns ERROR_MAX_SNAPSHOTS_IS_ZERO, and of an application at its max whose snapshots are all protected returns ERROR_MAX_SNAPSHOTS_FULL_OF_PROTECTED. Pass raise_max_snapshots to raise the max by one first.",
+        "API: snapshots are created protected. Pass protected false to let a later snapshot replace it once the application is at its max."
+    ],
+    "created_at": "2026-11-17"
+}

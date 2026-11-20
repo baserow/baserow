@@ -23,7 +23,7 @@ def delete_application_snapshot(self, application_id: int):
         try:
             application = Application.objects.get(id=application_id)
         except Application.DoesNotExist:
-            pass
+            return
 
         TrashHandler().permanently_delete(application)
 

@@ -312,6 +312,44 @@ class Plugin(APIUrlsInstanceMixin, Instance):
 
         return {}
 
+    def get_snapshot_allowance(self, workspace: "Workspace") -> Optional[int]:
+        """
+        Returns the snapshot allowance of the provided workspace: how many snapshots
+        its applications can keep together. A negative value means there is no
+        limit and 0 disables snapshots. `None` leaves it to the other plugins, and
+        then to `BASEROW_MAX_SNAPSHOTS_PER_GROUP`.
+
+        :param workspace: The workspace.
+        :return: The allowance, or `None`.
+        """
+
+        return None
+
+    def allows_max_snapshots_over_allowance(self, workspace: "Workspace") -> bool:
+        """
+        Whether raising a max can take the provided workspace over its snapshot
+        allowance, for example when the plugin gives a grace period before new
+        snapshots are refused. Otherwise a max can only be raised within it.
+
+        :param workspace: The workspace.
+        :return: Whether a max can go over the allowance.
+        """
+
+        return False
+
+    def is_snapshot_creation_blocked(self, workspace: "Workspace") -> bool:
+        """
+        Whether this plugin refuses new snapshots in the provided workspace, for
+        example because it's been over its snapshot allowance for too long. It lets
+        the frontend say so before anyone tries. The plugin still has to refuse them
+        through the `before_snapshot_created` signal.
+
+        :param workspace: The workspace.
+        :return: Whether new snapshots are refused.
+        """
+
+        return False
+
 
 class PluginRegistry(APIUrlsRegistryMixin, Registry[Plugin]):
     """
