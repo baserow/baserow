@@ -573,3 +573,12 @@ Grouped aggregation data sources in Dashboard and Application Builder can save a
 limit, including the Other bucket. `BASEROW_PREMIUM_GROUPED_AGGREGATE_SERVICE_MAX_AGG_BUCKETS`
 (default: `10`) caps this value and is used when no limit is saved. Saved limits are
 capped at execution time if the server maximum is reduced.
+
+### Google integrations
+
+| Environment variable | Description | Default |
+| --- | --- | --- |
+| `BASEROW_GOOGLE_OAUTH_CLIENT_ID` | Optional installation-wide Google OAuth web client ID. Enables the Baserow client option in Google integrations. | Empty |
+| `BASEROW_GOOGLE_OAUTH_CLIENT_SECRET` | Secret for the installation-wide Google OAuth client. Backend only. | Empty |
+
+See [Google integration setup](google-integrations.md) for client configuration and consent requirements.

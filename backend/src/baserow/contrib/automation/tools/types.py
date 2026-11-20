@@ -480,6 +480,7 @@ ActionNodeType = Literal[
     "router",
     "smtp_email",
     "slack_write_message",
+    "google_gmail_send_email",
     "create_row",
     "update_row",
     "delete_row",
@@ -537,6 +538,12 @@ class ActionNodeCreate(BaseModel):
     )
     body_type: Literal["plain", "html"] = "plain"
 
+    # -- google_gmail_send_email --
+    integration_id: int | None = Field(
+        default=None,
+        description="(google_gmail_send_email) Google integration belonging to this application.",
+    )
+
     # -- slack_write_message --
     channel: str | None = Field(default=None, max_length=80)
     text: str | None = Field(
@@ -571,6 +578,12 @@ class ActionNodeCreate(BaseModel):
     _REQUIRED_FIELDS: dict[str, list[tuple[str, str]]] = {
         "router": [("edges", "edges")],
         "smtp_email": [
+            ("to_emails", "to_emails"),
+            ("subject", "subject"),
+            ("body", "body"),
+        ],
+        "google_gmail_send_email": [
+            ("integration_id", "integration_id"),
             ("to_emails", "to_emails"),
             ("subject", "subject"),
             ("body", "body"),
@@ -626,7 +639,13 @@ def _router_to_orm(n: ActionNodeCreate, values: ServiceValues) -> dict[str, Any]
 
 
 def _email_to_orm(n: ActionNodeCreate, values: ServiceValues) -> dict[str, Any]:
+    """Translate composer values and Gmail account selection into service fields."""
     return {
+        **(
+            {"integration_id": n.integration_id}
+            if n.type == "google_gmail_send_email"
+            else {}
+        ),
         "to_emails": values.value("to_emails", n.to_emails),
         "cc_emails": values.value("cc_emails", n.cc_emails),
         "bcc_emails": values.value("bcc_emails", n.bcc_emails),
@@ -680,6 +699,7 @@ def _ai_agent_to_orm(n: ActionNodeCreate, values: ServiceValues) -> dict[str, An
 _TO_ORM_SERVICE: dict[str, Callable] = {
     "router": _router_to_orm,
     "smtp_email": _email_to_orm,
+    "google_gmail_send_email": _email_to_orm,
     "slack_write_message": _slack_to_orm,
     "create_row": _row_action_to_orm,
     "update_row": _row_action_to_orm,
@@ -723,6 +743,12 @@ class NodeUpdate(BaseModel):
         default=None, description=f"(smtp_email) Body.{SUPPORTS_FORMULA}"
     )
     body_type: Literal["plain", "html"] | None = None
+
+    # -- google_gmail_send_email --
+    integration_id: int | None = Field(
+        default=None,
+        description="(google_gmail_send_email) Google integration belonging to this application.",
+    )
 
     # -- slack_write_message --
     channel: str | None = Field(default=None, max_length=80)
@@ -772,7 +798,13 @@ class NodeUpdate(BaseModel):
 def _email_update_service(
     n: NodeUpdate, node: AutomationNode, values: ServiceValues
 ) -> dict[str, Any]:
+    """Update email content while preserving omitted fields and account selection."""
     d = {}
+    if (
+        node.get_type().type == "google_gmail_send_email"
+        and n.integration_id is not None
+    ):
+        d["integration_id"] = n.integration_id
     for name in ("to_emails", "cc_emails", "bcc_emails", "subject", "body"):
         if getattr(n, name) is not None:
             d[name] = values.value(name, getattr(n, name))
@@ -902,6 +934,15 @@ _NODE_FIELDS: dict[str, set[str]] = {
         "body",
         "body_type",
     },
+    "google_gmail_send_email": {
+        "integration_id",
+        "to_emails",
+        "cc_emails",
+        "bcc_emails",
+        "subject",
+        "body",
+        "body_type",
+    },
     "slack_write_message": {"channel", "text"},
     "create_row": {"table_id", "row_id", "values"},
     "update_row": {"table_id", "row_id", "values"},
@@ -942,6 +983,7 @@ def _report_unused(
 _TO_UPDATE_SERVICE: dict[str, Callable] = {
     "router": _router_update_service,
     "smtp_email": _email_update_service,
+    "google_gmail_send_email": _email_update_service,
     "slack_write_message": _slack_update_service,
     "update_row": _row_action_update_service,
     "delete_row": _row_action_update_service,

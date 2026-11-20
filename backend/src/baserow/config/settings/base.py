@@ -1731,6 +1731,10 @@ INTEGRATIONS_HTTP_MAX_RESPONSE_BYTES = int(
     os.getenv("BASEROW_INTEGRATIONS_HTTP_MAX_RESPONSE_BYTES") or 32 * 1024 * 1024
 )
 
+# Optional installation-wide Google OAuth client; secrets stay on the backend.
+GOOGLE_OAUTH_CLIENT_ID = os.getenv("BASEROW_GOOGLE_OAUTH_CLIENT_ID", "")
+GOOGLE_OAUTH_CLIENT_SECRET = os.getenv("BASEROW_GOOGLE_OAUTH_CLIENT_SECRET", "")
+
 # Where the Slack service posts. Only an environment with no way to reach
 # slack.com, the e2e stack for one, points it somewhere else.
 INTEGRATIONS_SLACK_API_URL = (

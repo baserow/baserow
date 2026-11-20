@@ -1,3 +1,4 @@
+import { GoogleGmailSendEmailServiceType } from '@baserow/modules/integrations/google/serviceTypes'
 import { WorkflowActionType } from '@baserow/modules/core/workflowActionTypes'
 import DatabaseWorkflowActionWithService from '@baserow/modules/database/components/field/DatabaseWorkflowActionWithService'
 import OpenUrlWorkflowActionForm from '@baserow/modules/database/components/field/OpenUrlWorkflowActionForm'
@@ -945,5 +946,44 @@ export class CoreStartWorkflowWorkflowActionType extends DatabaseWorkflowActionS
       return this.app.$i18n.t('databaseWorkflowActionType.startWorkflowNotLive')
     }
     return null
+  }
+}
+
+export class GoogleGmailSendEmailWorkflowActionType extends DatabaseExternalWorkflowActionType {
+  static getType() {
+    return 'google_gmail_send_email'
+  }
+  getOrder() {
+    return 65
+  }
+  get icon() {
+    return 'iconoir-mail'
+  }
+  get name() {
+    return this.app.$i18n.t('googleGmail.name')
+  }
+  get serviceType() {
+    return this.app.$registry.get(
+      'service',
+      GoogleGmailSendEmailServiceType.getType()
+    )
+  }
+  get needsIntegration() {
+    return true
+  }
+  get baselineDataSchema() {
+    return {
+      type: 'object',
+      properties: {
+        id: {
+          type: 'string',
+          title: this.app.$i18n.t('googleGmail.messageId'),
+        },
+        threadId: {
+          type: 'string',
+          title: this.app.$i18n.t('googleGmail.threadId'),
+        },
+      },
+    }
   }
 }

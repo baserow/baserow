@@ -1,3 +1,4 @@
+import { GoogleGmailSendEmailServiceType } from '@baserow/modules/integrations/google/serviceTypes'
 import { Registerable } from '@baserow/modules/core/registry'
 import {
   ActionNodeTypeMixin,
@@ -1615,5 +1616,31 @@ export class SlackWriteMessageActionNodeType extends ActionNodeTypeMixin(
       'service',
       SlackWriteMessageServiceType.getType()
     )
+  }
+}
+
+export class GoogleGmailSendEmailActionNodeType extends ActionNodeTypeMixin(
+  NodeType
+) {
+  static getType() {
+    return 'google_gmail_send_email'
+  }
+  getOrder() {
+    return 95
+  }
+  get icon() {
+    return 'iconoir-mail'
+  }
+  get name() {
+    return this.app.$i18n.t('googleGmail.name')
+  }
+  get serviceType() {
+    return this.app.$registry.get(
+      'service',
+      GoogleGmailSendEmailServiceType.getType()
+    )
+  }
+  getDefaultLabel() {
+    return this.name
   }
 }
