@@ -4,6 +4,9 @@ from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
+from baserow.api.applications.serializers import (
+    PolymorphicApplicationResponseSerializer,
+)
 from baserow.api.polymorphic import PolymorphicSerializer
 from baserow.core.integrations.models import Integration
 from baserow.core.integrations.registries import integration_type_registry
@@ -88,4 +91,18 @@ class MoveIntegrationSerializer(serializers.Serializer):
             "If provided, the integration is moved before the integration with this Id. "
             "Otherwise the integration is placed at the end of the page."
         ),
+    )
+
+
+class WorkspaceIntegrationsSerializer(serializers.Serializer):
+    shared_application = PolymorphicApplicationResponseSerializer(
+        allow_null=True,
+        help_text=(
+            "The hidden application of the workspace that owns its workspace "
+            "integrations, or null when the workspace doesn't have one."
+        ),
+    )
+    integrations = PolymorphicIntegrationSerializer(
+        many=True,
+        help_text="The workspace integrations the application can use.",
     )

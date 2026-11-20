@@ -49,10 +49,9 @@ from baserow.contrib.integrations.slack.service_types import (
 from baserow.core.db import specific_queryset
 from baserow.core.exceptions import PermissionException
 from baserow.core.formula.serializers import FormulaSerializerField
-from baserow.core.handler import CoreHandler
 from baserow.core.integrations.handler import IntegrationHandler
 from baserow.core.integrations.models import Integration
-from baserow.core.integrations.operations import ReadIntegrationOperationType
+from baserow.core.integrations.service import IntegrationService
 from baserow.core.registries import ImportExportConfig
 from baserow.core.registry import Instance
 from baserow.core.services.exceptions import (
@@ -346,8 +345,8 @@ class DatabaseWorkflowServiceActionType(
     ) -> bool:
         """
         Whether an imported action keeps the integration it came with: it has
-        to be usable by this action, and readable by whoever asked for the
-        copy when there is one.
+        to be usable by this action, and usable by whoever asked for the copy
+        when there is one, see `IntegrationService.check_can_use_integration`.
 
         :param integration: The integration the copy came with.
         :param field: The button field the copy belongs to.
@@ -360,11 +359,8 @@ class DatabaseWorkflowServiceActionType(
         if copied_by is None:
             return True
         try:
-            CoreHandler().check_permissions(
-                copied_by,
-                ReadIntegrationOperationType.type,
-                workspace=field.table.database.workspace,
-                context=integration,
+            IntegrationService().check_can_use_integration(
+                copied_by, integration, field.table.database
             )
         except PermissionException:
             return False
@@ -454,8 +450,8 @@ class DatabaseWorkflowServiceActionType(
         Refuses an integration this type may not carry. `integration_id` is
         writable, and the service type resolves it without a permission check,
         so this is where a button is kept from using what its editor could not
-        see: the integration must be usable by this action, and readable by
-        the user.
+        see: the integration must be usable by this action, and by the user,
+        see `IntegrationService.check_can_use_integration`.
 
         :param integration_id: The integration the caller wants to attach.
         :param user: The user configuring the action.
@@ -482,11 +478,8 @@ class DatabaseWorkflowServiceActionType(
             )
 
         # Checked against the row already in hand.
-        CoreHandler().check_permissions(
-            user,
-            ReadIntegrationOperationType.type,
-            workspace=field.table.database.workspace,
-            context=integration,
+        IntegrationService().check_can_use_integration(
+            user, integration, field.table.database
         )
 
         return integration

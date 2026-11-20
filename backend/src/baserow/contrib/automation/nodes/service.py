@@ -42,7 +42,7 @@ from baserow.core.graph.exceptions import GraphPointReferencePointInvalid
 from baserow.core.graph.types import GraphPointPositionType
 from baserow.core.handler import CoreHandler
 from baserow.core.integrations.handler import IntegrationHandler
-from baserow.core.integrations.operations import ListIntegrationsWorkspaceOperationType
+from baserow.core.integrations.service import IntegrationService
 from baserow.core.services.models import Service
 from baserow.core.trash.handler import TrashHandler
 
@@ -148,9 +148,10 @@ class AutomationNodeService:
         choice is clear. The automation's own come first: when it has exactly one,
         that one is picked, even if the workspace has some too, as every new
         automation gets a Local Baserow integration of its own. When it has none,
-        the workspace's is picked if there's exactly one, for a user who may list
-        the workspace integrations, since the integration dropdown doesn't offer
-        them otherwise. Several candidates are left for the user to choose from.
+        the workspace's is picked if there's exactly one, for a user who may use
+        the workspace integrations from the automation, since the integration
+        dropdown doesn't offer them otherwise. Several candidates are left for the
+        user to choose from.
 
         :param user: The user creating the node.
         :param workflow: The workflow the node is created in.
@@ -172,12 +173,8 @@ class AutomationNodeService:
 
         if own_integrations:
             candidates = own_integrations
-        elif integrations and CoreHandler().check_permissions(
-            user,
-            ListIntegrationsWorkspaceOperationType.type,
-            workspace=automation.workspace,
-            context=automation.workspace,
-            raise_permission_exceptions=False,
+        elif integrations and IntegrationService().check_can_use_workspace_integrations(
+            user, automation, raise_permission_exceptions=False
         ):
             candidates = integrations
         else:

@@ -3,6 +3,13 @@ export default (client) => {
     fetchAll(applicationId) {
       return client.get(`application/${applicationId}/integrations/`)
     },
+    /**
+     * The workspace integrations the application can use, with the shared
+     * application of the workspace that owns them.
+     */
+    fetchAllOfWorkspace(applicationId) {
+      return client.get(`application/${applicationId}/workspace-integrations/`)
+    },
     create(applicationId, integrationType, values, beforeId = null) {
       const payload = {
         type: integrationType,

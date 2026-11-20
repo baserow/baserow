@@ -29,6 +29,7 @@ from baserow.api.integrations.serializers import (
     IntegrationSerializer,
     MoveIntegrationSerializer,
     UpdateIntegrationSerializer,
+    WorkspaceIntegrationsSerializer,
 )
 from baserow.api.schemas import CLIENT_SESSION_ID_SCHEMA_PARAMETER, get_error_schema
 from baserow.api.utils import (
@@ -177,6 +178,58 @@ class IntegrationsView(APIView):
             integration, IntegrationSerializer
         )
         return Response(serializer.data)
+
+
+class WorkspaceIntegrationsView(APIView):
+    permission_classes = (IsAuthenticated,)
+
+    @extend_schema(
+        parameters=[
+            OpenApiParameter(
+                name="application_id",
+                location=OpenApiParameter.PATH,
+                type=OpenApiTypes.INT,
+                description="The application the workspace integrations are used from.",
+            )
+        ],
+        tags=["Integrations"],
+        operation_id="list_application_workspace_integrations",
+        description=(
+            "Lists the workspace integrations that the application can use, with "
+            "the hidden application of the workspace that owns them. Allowed to "
+            "anyone who may list the integrations of the application, including a "
+            "user with a role on that application only."
+        ),
+        responses={
+            200: WorkspaceIntegrationsSerializer,
+            404: get_error_schema(["ERROR_APPLICATION_DOES_NOT_EXIST"]),
+        },
+    )
+    @map_exceptions(
+        {
+            ApplicationDoesNotExist: ERROR_APPLICATION_DOES_NOT_EXIST,
+        }
+    )
+    def get(self, request, application_id: int):
+        """
+        Responds with the workspace integrations the application can use, and the
+        shared application that owns them.
+        """
+
+        application = CoreHandler().get_application(application_id)
+
+        shared_application, integrations = (
+            IntegrationService().get_workspace_integrations(request.user, application)
+        )
+
+        return Response(
+            WorkspaceIntegrationsSerializer(
+                {
+                    "shared_application": shared_application,
+                    "integrations": integrations,
+                }
+            ).data
+        )
 
 
 class IntegrationView(APIView):
