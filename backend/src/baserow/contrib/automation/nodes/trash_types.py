@@ -84,7 +84,7 @@ class AutomationNodeTrashableItemType(GraphPointTrashableItemType):
         node_id: int,
         next_output: str,
         branch_node_ids: list[int],
-        joined_layout: dict,
+        run_layout: dict,
     ):
         """
         Note on a trashed node's entry that, once restored, the nodes undo took off
@@ -94,8 +94,9 @@ class AutomationNodeTrashableItemType(GraphPointTrashableItemType):
         :param node_id: The ID of the trashed node.
         :param next_output: The output the nodes move back to.
         :param branch_node_ids: The nodes that were on `next_output`, which go back.
-        :param joined_layout: The layout of the default output once joined, which
-            must be the same on restore.
+        :param run_layout: The layout of those nodes at the start of the default
+            output once joined, see `get_run_layout`, which must be the same on
+            restore.
         """
 
         trash_entry = TrashHandler.get_trash_entry(cls.type, node_id)
@@ -103,35 +104,48 @@ class AutomationNodeTrashableItemType(GraphPointTrashableItemType):
             **trash_entry.additional_restoration_data,
             "next_output": next_output,
             "branch_node_ids": branch_node_ids,
-            "joined_layout": joined_layout,
+            "run_layout": run_layout,
         }
         trash_entry.save(update_fields=["additional_restoration_data"])
 
     def _split_outputs(self, node: AutomationNode, data: dict):
         """
-        Move the nodes undo took off the branch back to it. Only when the nodes
-        after the node are as undo left them: a node added, moved or removed since
-        would otherwise end up running for other rows than the editor chose.
+        Move the nodes undo took off the branch back to it. Only when they, the
+        nodes inside them and the node right after them are as undo left them: a
+        node added among them or right after them, or moved into or out of them
+        since, would
+        otherwise end up running for other rows than the editor chose. The nodes
+        further down stay on the default output.
 
-        :raises TrashItemRestorationDisallowed: When the nodes after the node
-            changed since the undo.
+        :raises TrashItemRestorationDisallowed: When those nodes changed since
+            the undo.
         """
 
+        branch_ids = data.get("branch_node_ids")
+        if not branch_ids:
+            return
         graph = node.workflow.get_graph()
-        layout = graph.get_branch_layout(node, "")
-        expected = data.get("joined_layout")
-        if layout != expected:
-            added = [i for i in layout["points"] if i not in expected["points"]]
+        expected = data["run_layout"]
+        layout = graph.get_run_layout(node, "", branch_ids)
+        if (
+            layout["run"] != expected["run"]
+            or layout["points"] != expected["points"]
+            or layout["after"] != expected["after"]
+        ):
+            added = [
+                i
+                for i in [*layout["points"], layout["after"]]
+                if i is not None
+                and i not in expected["points"]
+                and i != expected["after"]
+            ]
             detail = f" (node {added[0]} was added)" if added else ""
             raise TrashItemRestorationDisallowed(
-                "This automation node cannot be restored: the steps after it "
-                f"changed since it was removed{detail}, and would then run for "
-                "other rows. Add it again instead."
+                "This automation node cannot be restored: the steps that go back "
+                f"on its branch changed since it was removed{detail}, and would "
+                "then run for other rows. Add it again instead."
             )
-        if data.get("branch_node_ids"):
-            graph.split_next_points(
-                node, "", data["next_output"], data["branch_node_ids"]
-            )
+        graph.split_next_points(node, "", data["next_output"], branch_ids)
 
     def trash(
         self,

@@ -1983,3 +1983,72 @@ def test_restore_router_insert_refuses_when_a_step_was_added_after_undo(
     workflow.reload_graph()
     assert workflow.graph == before
     assert AutomationNode.objects_and_trash.get(id=router["id"]).trashed
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("restore", ["redo", "trash"])
+def test_restore_router_insert_refuses_when_a_step_was_appended_after_its_nodes(
+    automation_ctx, restore
+):
+    ctx, automation, table, _ = automation_ctx
+    workflow, trigger, email, router, scope, session = _insert_router_before_email(
+        ctx, automation, table
+    )
+    ActionHandler.undo(ctx.user, scope, session)
+    # Another session appends a step after the email, meant to run every time:
+    # on the default output it would run only when no branch matches.
+    workflow.reload_graph()
+    later = _email_node(ctx, workflow, AutomationNode.objects.get(id=email["id"]), "K")
+    workflow.reload_graph()
+    before = deepcopy(workflow.graph)
+
+    if restore == "redo":
+        (action,) = ActionHandler.redo(ctx.user, scope, session)
+        assert "TrashItemRestorationDisallowed" in action.error
+        assert f"node {later.id} was added" in action.error
+    else:
+        with pytest.raises(TrashItemRestorationDisallowed, match=f"node {later.id}"):
+            TrashHandler.restore_item(
+                ctx.user, AutomationNodeTrashableItemType.type, router["id"]
+            )
+
+    workflow.reload_graph()
+    assert workflow.graph == before
+    assert AutomationNode.objects_and_trash.get(id=router["id"]).trashed
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("restore", ["redo", "trash"])
+def test_restore_router_insert_leaves_a_change_past_the_step_after_its_nodes(
+    automation_ctx, restore
+):
+    ctx, automation, table, _ = automation_ctx
+    workflow, trigger, email, router, scope, session = _insert_router_before_email(
+        ctx, automation, table
+    )
+    workflow.reload_graph()
+    fallback = _email_node(
+        ctx, workflow, AutomationNode.objects.get(id=router["id"]), "Fallback"
+    )
+    ActionHandler.undo(ctx.user, scope, session)
+    # Another session appends a step after the fallback step, past the step
+    # right after the email.
+    workflow.reload_graph()
+    later = _email_node(ctx, workflow, fallback, "K")
+
+    if restore == "redo":
+        ActionHandler.redo(ctx.user, scope, session)
+    else:
+        TrashHandler.restore_item(
+            ctx.user, AutomationNodeTrashableItemType.type, router["id"]
+        )
+
+    (edge,) = AutomationNode.objects.get(id=router["id"]).service.specific.edges.all()
+    workflow.reload_graph()
+    assert workflow.graph[str(router["id"])]["next"] == {
+        str(edge.uid): [email["id"]],
+        "": [fallback.id],
+    }
+    assert not workflow.graph[str(email["id"])].get("next", {}).get("")
+    assert workflow.graph[str(fallback.id)]["next"] == {"": [later.id]}
+    assert not Action.objects.filter(error__isnull=False).exists()

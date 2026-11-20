@@ -108,7 +108,7 @@ class CreateAutomationNodeActionType(UndoableActionType):
             if graph.get_chain_ids(node, ""):
                 cls._check_chain_can_be_followed(node, params.next_output)
             graph.join_next_points(node, params.next_output, "")
-            joined_layout = graph.get_branch_layout(node, "")
+            run_layout = graph.get_run_layout(node, "", branch_ids)
         AutomationNodeService().delete_node(user, params.node_id)
         if params.next_output:
             # Redo and a restore from the trash both split the chain again, where
@@ -117,7 +117,7 @@ class CreateAutomationNodeActionType(UndoableActionType):
                 params.node_id,
                 params.next_output,
                 [int(node_id) for node_id in branch_ids],
-                joined_layout,
+                run_layout,
             )
 
     @classmethod
@@ -128,7 +128,8 @@ class CreateAutomationNodeActionType(UndoableActionType):
         added or put in place of a moved one by another session, runs only when
         the branch matches, and would run every time once the node is removed.
 
-        :raises AutomationNodeNotDeletable: When the chain holds another node.
+        :raises AutomationNodeNotDeletable: When the branch, or a container on it,
+            holds another node.
         """
 
         others = [

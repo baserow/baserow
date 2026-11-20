@@ -1202,25 +1202,80 @@ class BaseGraphHandler(ABC):
         """
 
         next_ids = self.get_next_point_ids(point, output)
+        first = str(next_ids[0]) if next_ids else None
         points: Dict[str, Any] = {}
-        stack = [str(next_ids[0])] if next_ids else []
+        self._collect_layout([first] if first else [], points)
+        return {"first": first, "points": points}
+
+    def get_run_layout(
+        self, point: GraphPoint, output: str, run_ids: Iterable[int | str]
+    ) -> Dict[str, Any]:
+        """
+        Like `get_branch_layout`, but only for the run of points at the start of
+        the chain on `output` that are in `run_ids`, with everything inside them:
+        their children and the points on their other outputs. The chain after
+        the run is left out, only the ID of the point right after it is kept.
+
+        :param point: The point the chain follows.
+        :param output: The output of the point the chain is on.
+        :param run_ids: The IDs of the points the run may hold.
+        :return: A dict with the run's point IDs in order, the layout of the
+            points in and inside it, and the ID of the point after it, or None.
+        """
+
+        allowed = {str(point_id) for point_id in run_ids}
+        next_ids = self.get_next_point_ids(point, output)
+        current = str(next_ids[0]) if next_ids else None
+        run: List[str] = []
+        while current is not None and current in allowed and current not in run:
+            run.append(current)
+            following = self.graph.get(current, {}).get("next", {}).get("", [])
+            current = str(following[0]) if following else None
+
+        points: Dict[str, Any] = {}
+        inside = []
+        for point_id in run:
+            entry = self._layout_entry(point_id)
+            # The run's order is kept in `run`, and the point after it in `after`.
+            entry.get("next", {}).pop("", None)
+            if not entry.get("next"):
+                entry.pop("next", None)
+            points[point_id] = entry
+            inside.extend(
+                i for edges in entry.values() for ids in edges.values() for i in ids
+            )
+        self._collect_layout(inside, points)
+        return {"run": run, "points": points, "after": current}
+
+    def _layout_entry(self, point_id: str) -> Dict[str, Any]:
+        info = self.graph.get(point_id, {})
+        entry = {}
+        for key, edges in (
+            ("next", info.get("next", {})),
+            ("children", self._get_children_dict_from_info(info)),
+        ):
+            edges = {edge: [str(i) for i in ids] for edge, ids in edges.items()}
+            edges = {edge: ids for edge, ids in edges.items() if ids}
+            if edges:
+                entry[key] = edges
+        return entry
+
+    def _collect_layout(self, stack: List[str], points: Dict[str, Any]) -> None:
+        """
+        Add the layout entry of the given points, and of every point reached from
+        them through `next` and `children`, to `points`. Points already in it are
+        not walked again.
+        """
+
         while stack:
             current = stack.pop()
             if current in points:
                 continue
-            info = self.graph.get(current, {})
-            entry = {}
-            for key, edges in (
-                ("next", info.get("next", {})),
-                ("children", self._get_children_dict_from_info(info)),
-            ):
-                edges = {edge: [str(i) for i in ids] for edge, ids in edges.items()}
-                edges = {edge: ids for edge, ids in edges.items() if ids}
-                if edges:
-                    entry[key] = edges
-                    stack.extend(i for ids in edges.values() for i in ids)
+            entry = self._layout_entry(current)
             points[current] = entry
-        return {"first": str(next_ids[0]) if next_ids else None, "points": points}
+            stack.extend(
+                i for edges in entry.values() for ids in edges.values() for i in ids
+            )
 
     def remove(
         self, point_to_delete: GraphPoint, keep_info: bool = False

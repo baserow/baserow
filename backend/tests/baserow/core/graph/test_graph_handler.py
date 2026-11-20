@@ -1573,3 +1573,41 @@ def test_get_branch_layout_differs_when_a_child_is_added():
     model.graph["3"] = {"next": {"": [4]}}
 
     assert graph.get_branch_layout(model.points[1], "") != before
+
+
+def test_get_run_layout_stops_at_the_first_point_outside_the_run():
+    model = make_graph_model(
+        {
+            "0": 1,
+            "1": {"next": {"": [2]}},
+            "2": {"next": {"": [3], "uid1": [5]}},
+            "3": {"children": {"": [6]}, "next": {"": [4]}},
+            "4": {"next": {"": [7]}},
+            "5": {},
+            "6": {"next": {"": [8]}},
+            "7": {},
+            "8": {},
+        }
+    )
+
+    assert model.get_graph().get_run_layout(model.points[1], "", [2, 3]) == {
+        "run": ["2", "3"],
+        "points": {
+            "2": {"next": {"uid1": ["5"]}},
+            "3": {"children": {"": ["6"]}},
+            "5": {},
+            "6": {"next": {"": ["8"]}},
+            "8": {},
+        },
+        "after": "4",
+    }
+
+
+def test_get_run_layout_of_an_empty_run():
+    model = make_graph_model({"0": 1, "1": {"next": {"": [2]}}, "2": {}})
+
+    assert model.get_graph().get_run_layout(model.points[1], "", [3]) == {
+        "run": [],
+        "points": {},
+        "after": "2",
+    }
