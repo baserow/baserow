@@ -248,7 +248,14 @@ describe('WorkspaceIntegrationsTable', () => {
           Context: contextStub,
           IntegrationCreateEditModal: {
             name: 'IntegrationCreateEditModal',
-            props: ['application', 'integrationType', 'integration', 'create'],
+            // `create` is a Boolean like on the real modal, so the bare
+            // attribute is cast to true instead of passed as ''.
+            props: {
+              application: Object,
+              integrationType: Object,
+              integration: Object,
+              create: Boolean,
+            },
             template: '<div />',
             methods: { show },
           },

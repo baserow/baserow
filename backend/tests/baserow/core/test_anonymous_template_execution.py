@@ -8,6 +8,7 @@ from baserow.contrib.database.table.actions import CreateTableActionType
 from baserow.contrib.database.table.handler import TableHandler
 from baserow.contrib.database.views.handler import ViewHandler
 from baserow.core.exceptions import PermissionException
+from baserow.core.models import SharedApplication
 from baserow.core.service import CoreService
 
 
@@ -34,7 +35,10 @@ def test_shared_read_layers_preserve_anonymous_template_boundaries(
         applications = CoreService().list_applications_in_workspace(
             anonymous, authorized_workspace
         )
-        assert {app.id for app in applications} == {database.id, automation.id}
+        # The listing creates the workspace's shared application when it has none.
+        assert {
+            app.id for app in applications if not isinstance(app, SharedApplication)
+        } == {database.id, automation.id}
         assert list(
             TableHandler()
             .list_workspace_tables(anonymous, authorized_workspace)
