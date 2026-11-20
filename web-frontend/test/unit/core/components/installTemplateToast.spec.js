@@ -137,6 +137,32 @@ describe('InstallTemplateToast', () => {
     )
   })
 
+  test('links to the first installed application that is not hidden', async () => {
+    vi.spyOn(
+      testApp.$registry.get('application', 'agent'),
+      'canBeCreated'
+    ).mockReturnValue(false)
+    const wrapper = await startInstall()
+
+    await updateJob(store, 10, {
+      state: 'finished',
+      installed_applications: [
+        {
+          id: 3,
+          name: 'Triage',
+          order: 1,
+          type: 'agent',
+          workspace: { id: 1 },
+        },
+        database,
+      ],
+    })
+
+    expect(wrapper.find('.install-template-toast__view').text()).toBe(
+      'applicationType.viewDatabase'
+    )
+  })
+
   test('dismisses the result', async () => {
     const wrapper = await startInstall()
     await updateJob(store, 10, {

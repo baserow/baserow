@@ -94,6 +94,58 @@ class AgentApplicationType(ApplicationType):
             return run_as
         return None, None
 
+    @staticmethod
+    def _enabled_models(workspace: Workspace) -> dict[str, list[str]]:
+        return generative_ai_model_type_registry.get_enabled_models_per_type(
+            workspace, feature_type=AI_PROVIDER_FEATURE_AI_AGENT
+        )
+
+    @staticmethod
+    def _default_model(
+        enabled_models: dict[str, list[str]],
+    ) -> tuple[str | None, str | None]:
+        """The first enabled model, like the AI Agent service defaults to."""
+
+        for provider_type, identifiers in enabled_models.items():
+            if identifiers:
+                return provider_type, identifiers[0]
+        return None, None
+
+    def _imported_model(
+        self,
+        workspace: Workspace | None,
+        serialized_values: dict,
+        import_export_config: ImportExportConfig,
+    ) -> tuple[str | None, str | None]:
+        """
+        The model an imported Agent replies with: the author's when it's enabled
+        in the destination, otherwise the first enabled one. Internal copies and
+        template content keep the author's, and so does an import into a workspace
+        where nothing is enabled, so its settings show what the author used.
+
+        :param workspace: The workspace the Agent is imported into.
+        :param serialized_values: The exported Agent.
+        :param import_export_config: How the Agent is imported.
+        :return: The provider type and model identifier to save.
+        """
+
+        author_model = (
+            serialized_values.get("provider_type") or None,
+            serialized_values.get("model_identifier") or None,
+        )
+        if (
+            workspace is None
+            or import_export_config.keeps_unmapped_references
+            or import_export_config.is_template_storage
+        ):
+            return author_model
+        enabled = self._enabled_models(workspace)
+        provider_type, model_identifier = author_model
+        if model_identifier in enabled.get(provider_type, []):
+            return author_model
+        default = self._default_model(enabled)
+        return default if default[0] else author_model
+
     def supports_integration_type(self, integration_type) -> bool:
         """MCP servers, and the integrations its action types' services use."""
 
@@ -159,14 +211,16 @@ class AgentApplicationType(ApplicationType):
         init_with_data: bool = False,
         **kwargs,
     ) -> AgentApplication:
-        models = generative_ai_model_type_registry.get_enabled_models_per_type(
-            workspace, feature_type=AI_PROVIDER_FEATURE_AI_AGENT
-        )
-        # Match AI Agent service defaults, only when creating a new application.
-        # Reading or importing an Agent must preserve deliberately blank settings.
-        if models and not {"provider_type", "model_identifier"}.intersection(kwargs):
-            provider_type, identifiers = next(iter(models.items()))
-            kwargs.update(provider_type=provider_type, model_identifier=identifiers[0])
+        # Match AI Agent service defaults when no model is given. An import picks
+        # its model in `_imported_model`, which also fills a blank one.
+        if not {"provider_type", "model_identifier"}.intersection(kwargs):
+            provider_type, model_identifier = self._default_model(
+                self._enabled_models(workspace)
+            )
+            if provider_type:
+                kwargs.update(
+                    provider_type=provider_type, model_identifier=model_identifier
+                )
         return super().create_application(
             user, workspace, init_with_data=init_with_data, **kwargs
         )
@@ -221,7 +275,7 @@ class AgentApplicationType(ApplicationType):
             provider_type=application.provider_type,
             model_identifier=application.model_identifier,
             reasoning_effort=application.reasoning_effort,
-            **AgentHandler().get_stored_tool_configuration(application),
+            **AgentHandler().get_exported_tool_configuration(application),
             integrations=[
                 IntegrationHandler().export_integration(
                     integration,
@@ -294,8 +348,9 @@ class AgentApplicationType(ApplicationType):
             progress_builder,
         )
         application.instructions = serialized_values.get("instructions", "")
-        application.provider_type = serialized_values.get("provider_type") or None
-        application.model_identifier = serialized_values.get("model_identifier") or None
+        application.provider_type, application.model_identifier = self._imported_model(
+            workspace, serialized_values, import_export_config
+        )
         reasoning_effort = serialized_values.get("reasoning_effort")
         application.reasoning_effort = (
             reasoning_effort if reasoning_effort in ReasoningEffort else None
@@ -315,25 +370,31 @@ class AgentApplicationType(ApplicationType):
             "web_fetch_enabled", False
         )
         application.save()
-        registered = agent_tool_type_registry.get_types()
-        allowed_tools = (
-            [
-                name
-                for name in serialized_values.get("allowed_tools", [])
-                if name in registered
-            ]
-            if application.run_as_subject_type and application.run_as_subject_id
-            else []
+        handler = AgentHandler()
+        tools = handler.filter_tool_choices(
+            serialized_values.get("allowed_tools") or [],
+            serialized_values.get("ask_first_tools") or [],
         )
-        AgentHandler().set_allowed_tools(
-            application,
-            allowed_tools,
-            [
-                name
-                for name in serialized_values.get("ask_first_tools", [])
-                if name in allowed_tools
-            ],
-        )
+        if application.run_as_subject_type and application.run_as_subject_id:
+            handler.set_allowed_tools(
+                application, tools["allowed_tools"], tools["ask_first_tools"]
+            )
+        elif tools["allowed_tools"]:
+            # Without an identity tools are off. They wait for the first one, and
+            # those that change data ask first: whoever picks the identity didn't
+            # choose to let them run unattended.
+            application.pending_tool_choices = handler.filter_tool_choices(
+                tools["allowed_tools"],
+                [
+                    *tools["ask_first_tools"],
+                    *(
+                        name
+                        for name in tools["allowed_tools"]
+                        if agent_tool_type_registry.get(name).changes_data
+                    ),
+                ],
+            )
+            application.save(update_fields=["pending_tool_choices"])
         for serialized_integration in serialized_integrations:
             IntegrationHandler().import_integration(
                 application,

@@ -1,6 +1,7 @@
 import json
 from datetime import datetime, timezone
 from io import BytesIO
+from unittest.mock import patch
 
 import pytest
 from freezegun import freeze_time
@@ -16,6 +17,7 @@ from baserow.contrib.agent.models import (
     AgentReplyTranscript,
     AgentTrigger,
 )
+from baserow.contrib.agent.operations import ReadAgentConfigurationOperationType
 from baserow.contrib.agent.triggers.handler import AgentTriggerHandler
 from baserow.contrib.database.fields.models import Field
 from baserow.contrib.integrations.core.constants import PERIODIC_INTERVAL_DAY
@@ -23,15 +25,17 @@ from baserow.contrib.integrations.core.models import CorePeriodicService
 from baserow.contrib.integrations.mcp.handler import MCPServerHandler
 from baserow.contrib.integrations.mcp.models import MCPServerIntegration, MCPServerTool
 from baserow.core.chat_runs.models import ChatRunStatus
+from baserow.core.exceptions import PermissionDenied
 from baserow.core.handler import CoreHandler
 from baserow.core.identities.handler import IdentityHandler
 from baserow.core.integrations.operations import ReadIntegrationOperationType
 from baserow.core.job_types import DuplicateApplicationJobType
 from baserow.core.jobs.handler import JobHandler
-from baserow.core.models import WorkspaceUser
+from baserow.core.models import Template, WorkspaceUser
 from baserow.core.registries import ImportExportConfig
 from baserow.core.services.registries import service_type_registry
 from baserow.core.snapshots.handler import SnapshotHandler
+from baserow.core.user_templates.handler import UserTemplateHandler
 from baserow.core.utils import Progress
 
 from ..integrations.mcp.utils import serve
@@ -935,3 +939,366 @@ def test_a_row_trigger_message_follows_its_fields_into_another_workspace(
     )
     assert copy.service.specific.table_id == imported_name.table_id
     assert copy.message["formula"] == f"get('trigger.rows.0.{imported_name.db_column}')"
+
+
+def export_for_template(applications) -> list[dict]:
+    config = ImportExportConfig(include_permission_data=False)
+    return json.loads(
+        json.dumps(
+            [
+                application.get_type().export_serialized(application, config)
+                for application in applications
+            ]
+        )
+    )
+
+
+TEMPLATE_INSTALL_CONFIG = ImportExportConfig(
+    include_permission_data=False, is_duplicate=True, is_template=True
+)
+
+
+@pytest.mark.django_db
+def test_template_install_keeps_agents_when_the_flag_is_off(
+    data_fixture, configured_agent, settings
+):
+    user = data_fixture.create_user()
+    agent = configured_agent(user=user, instructions="Triage new tickets.")
+    database = data_fixture.create_database_application(workspace=agent.workspace)
+    exported = export_for_template([database, agent])
+    settings.FEATURE_FLAGS = []
+    workspace = data_fixture.create_workspace(user=user)
+
+    applications, id_mapping = CoreHandler().import_applications_to_workspace(
+        workspace, exported, None, TEMPLATE_INSTALL_CONFIG
+    )
+
+    assert sorted(application.get_type().type for application in applications) == [
+        "agent",
+        "database",
+    ]
+    installed = AgentApplication.objects.get(id=id_mapping["applications"][agent.id])
+    assert installed.workspace_id == workspace.id
+    assert installed.instructions == "Triage new tickets."
+
+
+@pytest.mark.import_export_workspace
+@pytest.mark.django_db(transaction=True)
+def test_zip_import_keeps_agents_when_the_flag_is_off(
+    data_fixture, configured_agent, settings, use_tmp_media_root
+):
+    user = data_fixture.create_user()
+    agent = configured_agent(user=user, instructions="Triage new tickets.")
+    database = data_fixture.create_database_application(workspace=agent.workspace)
+    export_path = data_fixture.export_workspace_applications_file([database, agent])
+    settings.FEATURE_FLAGS = []
+
+    applications = data_fixture.import_workspace_applications_file(export_path)
+
+    imported = AgentApplication.objects.get(workspace=applications[0].workspace)
+    assert imported.instructions == "Triage new tickets."
+
+
+@pytest.mark.django_db
+def test_sync_template_keeps_an_open_agent_when_the_flag_is_off(
+    data_fixture, configured_agent, settings, tmp_path
+):
+    user = data_fixture.create_user()
+    agent = configured_agent(user=user)
+    database = data_fixture.create_database_application(workspace=agent.workspace)
+    exported = export_for_template([database, agent])
+    (tmp_path / "agent-check.json").write_text(
+        json.dumps(
+            {
+                "baserow_template_version": 1,
+                "name": "Agent check",
+                "icon": "iconoir-shop",
+                "keywords": [],
+                "categories": ["Agents"],
+                "export": exported,
+                "open_application": agent.id,
+            }
+        )
+    )
+    settings.APPLICATION_TEMPLATES_DIR = str(tmp_path)
+    settings.FEATURE_FLAGS = []
+
+    CoreHandler().sync_templates(pattern="agent-check")
+
+    template = Template.objects.get(slug="agent-check")
+    synced = AgentApplication.objects.get(workspace=template.workspace)
+    assert template.open_application == synced.id
+
+
+@pytest.mark.import_export_workspace
+@pytest.mark.django_db(transaction=True)
+def test_a_user_template_keeps_agents_when_the_flag_is_off(
+    data_fixture, configured_agent, settings
+):
+    owner = data_fixture.create_user()
+    agent = configured_agent(user=owner, instructions="Triage new tickets.")
+    target = data_fixture.create_workspace(user=owner)
+    settings.FEATURE_FLAGS = []
+
+    copy = UserTemplateHandler().copy_applications(owner, [agent], name="Copy")
+    revision = data_fixture.create_template(workspace=copy)
+    content = UserTemplateHandler().serialize_template_content(revision)
+    applications = UserTemplateHandler().install_template_content(
+        owner, target, revision, content
+    )
+
+    assert AgentApplication.objects.filter(workspace=copy).count() == 1
+    assert [application.get_type().type for application in applications] == ["agent"]
+    assert applications[0].specific.instructions == "Triage new tickets."
+
+
+def import_agent_with_models(data_fixture, agent, config, enabled, mocker):
+    """Imports the Agent into a new workspace where only `enabled` models exist."""
+
+    serialized = json.loads(
+        json.dumps(AgentApplicationType().export_serialized(agent, config))
+    )
+    mocker.patch(
+        "baserow.contrib.agent.application_types.generative_ai_model_type_registry"
+        ".get_enabled_models_per_type",
+        return_value=enabled,
+    )
+    workspace = data_fixture.create_workspace()
+    imported = AgentApplicationType().import_serialized(
+        workspace, serialized, config, {}
+    )
+    return imported.provider_type, imported.model_identifier
+
+
+@pytest.mark.django_db
+def test_template_install_falls_back_to_an_enabled_model(
+    data_fixture, configured_agent, mocker
+):
+    agent = configured_agent(provider_type="openai", model_identifier="gpt-x")
+
+    assert import_agent_with_models(
+        data_fixture,
+        agent,
+        TEMPLATE_INSTALL_CONFIG,
+        {"anthropic": ["claude-y", "claude-z"]},
+        mocker,
+    ) == ("anthropic", "claude-y")
+
+
+@pytest.mark.django_db
+def test_import_keeps_an_enabled_author_model(data_fixture, configured_agent, mocker):
+    agent = configured_agent(provider_type="openai", model_identifier="gpt-x")
+
+    assert import_agent_with_models(
+        data_fixture,
+        agent,
+        ImportExportConfig(include_permission_data=False),
+        {"anthropic": ["claude-y"], "openai": ["gpt-w", "gpt-x"]},
+        mocker,
+    ) == ("openai", "gpt-x")
+
+
+@pytest.mark.django_db
+def test_import_keeps_the_author_model_when_nothing_is_enabled(
+    data_fixture, configured_agent, mocker
+):
+    agent = configured_agent(provider_type="openai", model_identifier="gpt-x")
+
+    assert import_agent_with_models(
+        data_fixture,
+        agent,
+        ImportExportConfig(include_permission_data=False),
+        {},
+        mocker,
+    ) == ("openai", "gpt-x")
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "config_values",
+    [
+        INTERNAL_COPY,
+        {"is_template": True, "is_template_storage": True},
+        {"is_user_template": True, "is_template_storage": True},
+    ],
+)
+def test_duplicate_and_template_storage_keep_the_author_model(
+    data_fixture, configured_agent, mocker, config_values
+):
+    agent = configured_agent(provider_type="openai", model_identifier="gpt-x")
+    config = ImportExportConfig(include_permission_data=False, **config_values)
+
+    assert import_agent_with_models(
+        data_fixture, agent, config, {"anthropic": ["claude-y"]}, mocker
+    ) == ("openai", "gpt-x")
+
+
+def agent_with_tools(data_fixture, configured_agent, user):
+    agent = configured_agent(user=user)
+    identity = data_fixture.create_identity(workspace=agent.workspace, name="Investor")
+    agent.run_as_subject_type, agent.run_as_subject_id = "auth.User", identity.id
+    agent.save()
+    AgentHandler().set_allowed_tools(
+        agent, ["create_rows", "list_tables"], ask_first_names=["create_rows"]
+    )
+    return agent
+
+
+def install_as_template(data_fixture, agent, user, serialized=None):
+    if serialized is None:
+        serialized = export_for_template([agent])[0]
+    return AgentApplicationType().import_serialized(
+        data_fixture.create_workspace(user=user),
+        serialized,
+        TEMPLATE_INSTALL_CONFIG,
+        {},
+    )
+
+
+@pytest.mark.django_db
+def test_template_install_keeps_tool_choices_pending(data_fixture, configured_agent):
+    user = data_fixture.create_user()
+    agent = agent_with_tools(data_fixture, configured_agent, user)
+
+    installed = install_as_template(data_fixture, agent, user)
+
+    assert not installed.allowed_tools.exists()
+    assert installed.pending_tool_choices == {
+        "allowed_tools": ["list_tables", "create_rows"],
+        "ask_first_tools": ["create_rows"],
+    }
+
+
+@pytest.mark.django_db
+def test_pending_tool_choices_drop_unregistered_tools(data_fixture, configured_agent):
+    user = data_fixture.create_user()
+    agent = configured_agent(user=user)
+    serialized = export_for_template([agent])[0]
+    serialized["allowed_tools"] = ["gone_tool", "list_tables"]
+    serialized["ask_first_tools"] = ["gone_tool", "list_tables", "create_rows"]
+
+    installed = install_as_template(data_fixture, agent, user, serialized)
+
+    assert installed.pending_tool_choices == {
+        "allowed_tools": ["list_tables"],
+        "ask_first_tools": ["list_tables"],
+    }
+
+
+@pytest.mark.django_db
+def test_old_payload_without_tool_keys_has_no_pending_choices(
+    data_fixture, configured_agent
+):
+    user = data_fixture.create_user()
+    agent = configured_agent(user=user)
+    serialized = export_for_template([agent])[0]
+    serialized.pop("allowed_tools", None)
+    serialized.pop("ask_first_tools", None)
+
+    installed = install_as_template(data_fixture, agent, user, serialized)
+
+    assert installed.pending_tool_choices is None
+
+
+@pytest.mark.django_db
+def test_internal_copy_keeps_tools_without_pending_choices(
+    data_fixture, configured_agent
+):
+    user = data_fixture.create_user()
+    agent = agent_with_tools(data_fixture, configured_agent, user)
+
+    duplicate = CoreHandler().duplicate_application(user, agent).specific
+
+    assert duplicate.pending_tool_choices is None
+    assert duplicate.allowed_tools.count() == 2
+
+
+@pytest.mark.django_db
+def test_reexport_of_an_installed_agent_keeps_pending_choices(
+    data_fixture, configured_agent
+):
+    user = data_fixture.create_user()
+    agent = agent_with_tools(data_fixture, configured_agent, user)
+    installed = install_as_template(data_fixture, agent, user)
+
+    serialized = export_for_template([installed])[0]
+
+    assert serialized["allowed_tools"] == ["list_tables", "create_rows"]
+    assert serialized["ask_first_tools"] == ["create_rows"]
+
+
+@pytest.mark.import_export_workspace
+@pytest.mark.django_db(transaction=True)
+def test_user_template_requires_reading_the_agent_configuration(
+    data_fixture, configured_agent
+):
+    owner = data_fixture.create_user()
+    agent = configured_agent(user=owner)
+    check_permissions = CoreHandler.check_permissions
+
+    def deny_reading_the_configuration(self, actor, operation_name, *args, **kwargs):
+        if operation_name == ReadAgentConfigurationOperationType.type:
+            raise PermissionDenied()
+        return check_permissions(self, actor, operation_name, *args, **kwargs)
+
+    with (
+        patch.object(CoreHandler, "check_permissions", deny_reading_the_configuration),
+        pytest.raises(PermissionDenied),
+    ):
+        UserTemplateHandler().copy_applications(owner, [agent], name="Copy")
+
+    assert not AgentApplication.objects.exclude(id=agent.id).exists()
+
+
+@pytest.mark.django_db
+def test_installed_tools_that_change_data_ask_first(data_fixture, configured_agent):
+    user = data_fixture.create_user()
+    agent = agent_with_tools(data_fixture, configured_agent, user)
+    AgentHandler().set_allowed_tools(
+        agent, ["list_tables", "create_rows"], ask_first_names=[]
+    )
+
+    installed = install_as_template(data_fixture, agent, user)
+
+    assert installed.pending_tool_choices == {
+        "allowed_tools": ["list_tables", "create_rows"],
+        "ask_first_tools": ["create_rows"],
+    }
+
+
+@pytest.mark.django_db
+def test_import_fills_a_blank_author_model_with_an_enabled_one(
+    data_fixture, configured_agent, mocker
+):
+    agent = configured_agent(provider_type=None, model_identifier=None)
+
+    assert import_agent_with_models(
+        data_fixture,
+        agent,
+        TEMPLATE_INSTALL_CONFIG,
+        {"anthropic": ["claude-y"]},
+        mocker,
+    ) == ("anthropic", "claude-y")
+
+
+@pytest.mark.django_db
+def test_duplicate_without_its_identity_keeps_tools_pending(
+    data_fixture, configured_agent
+):
+    user = data_fixture.create_user()
+    agent = agent_with_tools(data_fixture, configured_agent, user)
+    AgentHandler().set_allowed_tools(
+        agent, ["list_tables", "create_rows"], ask_first_names=[]
+    )
+    # The identity is gone, so the duplicate can't act as it.
+    agent.run_as_subject_id = 999999
+    agent.save()
+
+    duplicate = CoreHandler().duplicate_application(user, agent).specific
+
+    assert (duplicate.run_as_subject_type, duplicate.run_as_subject_id) == (None, None)
+    assert not duplicate.allowed_tools.exists()
+    assert duplicate.pending_tool_choices == {
+        "allowed_tools": ["list_tables", "create_rows"],
+        "ask_first_tools": ["create_rows"],
+    }

@@ -167,6 +167,13 @@ class ImportExportConfig:
     every credential the snapshot holds.
     """
 
+    is_template_storage: bool = False
+    """
+    The import stores content for a template (a template workspace or a user
+    template copy), not for use. Settings that depend on the destination, like
+    an AI model, are resolved when the template is installed instead.
+    """
+
 
 class Plugin(APIUrlsInstanceMixin, Instance):
     """
