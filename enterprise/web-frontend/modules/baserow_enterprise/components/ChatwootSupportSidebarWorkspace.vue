@@ -1,30 +1,19 @@
 <template>
-  <li
-    class="tree__item"
-    :class="{
-      'tree__item--loading': loading,
-      'tree__action--deactivated': deactivated,
-    }"
-  >
-    <div class="tree__action">
-      <a
-        v-if="deactivated"
-        href="#"
-        class="tree__link"
-        @click.prevent="$refs.paidFeaturesModal.show()"
-      >
-        <i class="tree__icon iconoir-lock"></i>
-        <span class="tree__link-text">{{
-          $t('chatwootSupportSidebarWorkspace.directSupport')
-        }}</span>
-      </a>
-      <a v-else class="tree__link" @click="open">
-        <i class="tree__icon iconoir-chat-bubble-question"></i>
-        <span class="tree__link-text">{{
-          $t('chatwootSupportSidebarWorkspace.directSupport')
-        }}</span>
-      </a>
-    </div>
+  <li class="context__menu-item">
+    <button
+      type="button"
+      class="context__menu-item-link"
+      :class="{ 'context__menu-item-link--loading': loading }"
+      :disabled="loading"
+      @click="activate"
+    >
+      <i
+        class="context__menu-item-icon"
+        :class="deactivated ? 'iconoir-lock' : 'iconoir-chat-bubble-question'"
+        aria-hidden="true"
+      ></i>
+      {{ $t('chatwootSupportSidebarWorkspace.directSupport') }}
+    </button>
     <PaidFeaturesModal
       ref="paidFeaturesModal"
       :workspace="workspace"
@@ -50,6 +39,7 @@ export default {
       required: true,
     },
   },
+  emits: ['hide'],
   data() {
     return {
       ready: false,
@@ -71,6 +61,14 @@ export default {
     window.removeEventListener('chatwoot:ready', this.onReady)
   },
   methods: {
+    activate() {
+      if (this.deactivated) {
+        this.$refs.paidFeaturesModal.show()
+      } else {
+        this.open()
+      }
+      this.$emit('hide')
+    },
     load() {
       this.loading = true
       window.chatwootSettings = {

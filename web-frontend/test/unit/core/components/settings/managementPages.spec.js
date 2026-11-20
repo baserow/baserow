@@ -191,8 +191,9 @@ describe('Management pages', () => {
     ['settings-members', true],
     ['settings-teams', true],
     ['settings-identities', true],
+    ['workspace-audit-log', true],
     ['dashboard', false],
-  ])('Members sidebar selection on %s is %s', async (name, active) => {
+  ])('Settings sidebar selection on %s is %s', (name, active) => {
     const wrapper = mount(SidebarMenu, {
       props: { selectedWorkspace: workspace },
       global: {
@@ -211,13 +212,15 @@ describe('Management pages', () => {
           },
           SidebarSearch: true,
           NotificationPanel: true,
-          TrashModal: true,
-          WorkspaceMemberInviteModal: true,
+          WorkspaceContext: true,
         },
       },
     })
     expect(
-      wrapper.get('[data-highlight="members"]').classes().includes('active')
+      wrapper
+        .get('[data-highlight="workspace-settings"]')
+        .classes()
+        .includes('active')
     ).toBe(active)
     wrapper.unmount()
   })

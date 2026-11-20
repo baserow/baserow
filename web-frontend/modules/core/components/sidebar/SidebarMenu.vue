@@ -1,5 +1,9 @@
 <template>
-  <div class="sidebar__section" ph-autocapture="sidebar" data-highlight="menu">
+  <div
+    class="sidebar__section sidebar__section--workspace"
+    ph-autocapture="sidebar"
+    data-highlight="menu"
+  >
     <ul class="tree">
       <SidebarSearch
         :selected-workspace="selectedWorkspace"
@@ -26,16 +30,13 @@
             <a
               :href="href"
               class="tree__link"
+              :aria-current="isExactActive ? 'page' : undefined"
               @click="navigate"
               @pointerenter="shouldPrefetch('interaction') && prefetch()"
               @focus="shouldPrefetch('interaction') && prefetch()"
             >
-              <i class="tree__icon iconoir-clock"></i>
-              <span class="tree__link-text">
-                <span class="sidebar__item-name">{{
-                  $t('sidebar.recents')
-                }}</span>
-              </span>
+              <i class="tree__icon iconoir-home-simple" aria-hidden="true"></i>
+              <span class="tree__link-text">{{ $t('sidebar.overview') }}</span>
             </a>
           </div>
         </li>
@@ -63,76 +64,6 @@
         <NotificationPanel ref="notificationPanel" />
       </li>
 
-      <nuxt-link
-        v-if="
-          $hasPermission(
-            'workspace.list_workspace_users',
-            selectedWorkspace,
-            selectedWorkspace.id
-          )
-        "
-        v-slot="{ href, navigate, prefetch, shouldPrefetch }"
-        custom
-        prefetch-on="interaction"
-        :to="{
-          name: 'settings-members',
-          params: {
-            workspaceId: selectedWorkspace.id,
-          },
-        }"
-      >
-        <li
-          class="tree__item"
-          :class="{
-            active: isManagementPage,
-          }"
-          data-highlight="members"
-        >
-          <div class="tree__action sidebar__action">
-            <a
-              :href="href"
-              class="tree__link"
-              @click="navigate"
-              @pointerenter="shouldPrefetch('interaction') && prefetch()"
-              @focus="shouldPrefetch('interaction') && prefetch()"
-            >
-              <i class="tree__icon baserow-icon-team"></i>
-              <span class="tree__link-text">
-                <span class="sidebar__item-name">{{
-                  $t('sidebar.members')
-                }}</span>
-              </span>
-              <span v-if="membersCount" class="sidebar__item-count">
-                {{ membersCount }}</span
-              >
-            </a>
-          </div>
-        </li>
-      </nuxt-link>
-
-      <li
-        v-if="
-          $hasPermission(
-            'workspace.create_invitation',
-            selectedWorkspace,
-            selectedWorkspace.id
-          )
-        "
-        class="tree__item"
-      >
-        <div class="tree__action sidebar__action">
-          <a class="tree__link" @click="$refs.inviteModal.show()">
-            <i class="tree__icon iconoir-add-user"></i>
-            <span class="tree__link-text">
-              <span class="sidebar__item-name">{{
-                $t('sidebar.inviteOthers')
-              }}</span>
-            </span>
-          </a>
-        </div>
-
-        <InviteModal ref="inviteModal" :workspace="selectedWorkspace" />
-      </li>
       <component
         :is="component"
         v-for="(component, index) in sidebarWorkspaceComponents"
@@ -140,19 +71,118 @@
         :workspace="selectedWorkspace"
         :right-sidebar-open="rightSidebarOpen"
       ></component>
-      <li class="tree__item">
-        <div class="tree__action sidebar__action">
-          <a class="tree__link" @click="$refs.trashModal.show()">
-            <i class="tree__icon iconoir-bin"></i>
-            <span class="tree__link-text">
-              <span class="sidebar__item-name">{{ $t('sidebar.trash') }}</span>
-            </span>
-          </a>
-          <TrashModal
-            ref="trashModal"
-            :initial-workspace="selectedWorkspace"
-          ></TrashModal>
+      <li
+        class="tree__item"
+        :class="{ active: isSettingsPage || openMenu === 'settings' }"
+        data-highlight="workspace-settings"
+      >
+        <div class="tree__action sidebar__menu-action">
+          <button
+            ref="settingsTrigger"
+            type="button"
+            class="tree__link sidebar__menu-trigger"
+            :aria-expanded="openMenu === 'settings'"
+            @click="toggleMenu('settings', $event.currentTarget)"
+          >
+            <i class="tree__icon iconoir-settings" aria-hidden="true"></i>
+            <span class="tree__link-text">{{
+              $t('sidebar.workspaceSettings')
+            }}</span>
+            <i
+              class="sidebar__menu-chevron iconoir-nav-arrow-right"
+              aria-hidden="true"
+            ></i>
+          </button>
         </div>
+        <WorkspaceContext
+          ref="settings"
+          :workspace="selectedWorkspace"
+          sidebar
+          class="sidebar-workspace-menu"
+          tabindex="-1"
+          :horizontal-viewport-margin="8"
+          @shown="onMenuShown('settings')"
+          @hidden="onMenuHidden('settings')"
+          @keydown.esc.stop.prevent="closeMenu('settings')"
+        >
+          <template #before-trash="{ hide }">
+            <component
+              :is="component"
+              v-for="(component, index) in getMenuComponents('settings')"
+              :key="index"
+              :workspace="selectedWorkspace"
+              @hide="hide()"
+            />
+          </template>
+        </WorkspaceContext>
+      </li>
+      <li class="tree__item" :class="{ active: openMenu === 'help' }">
+        <div class="tree__action sidebar__menu-action">
+          <button
+            ref="helpTrigger"
+            type="button"
+            class="tree__link sidebar__menu-trigger"
+            :aria-expanded="openMenu === 'help'"
+            @click="toggleMenu('help', $event.currentTarget)"
+          >
+            <i class="tree__icon iconoir-lifebelt" aria-hidden="true"></i>
+            <span class="tree__link-text">{{ $t('sidebar.help') }}</span>
+            <i
+              class="sidebar__menu-chevron iconoir-nav-arrow-right"
+              aria-hidden="true"
+            ></i>
+          </button>
+        </div>
+        <Context
+          ref="help"
+          class="sidebar-workspace-menu"
+          tabindex="-1"
+          :horizontal-viewport-margin="8"
+          overflow-scroll
+          max-height-if-outside-viewport
+          @shown="onMenuShown('help')"
+          @hidden="onMenuHidden('help')"
+          @keydown.esc.stop.prevent="closeMenu('help')"
+        >
+          <ul class="context__menu">
+            <component
+              :is="component"
+              v-for="(component, index) in getMenuComponents('help')"
+              :key="index"
+              :workspace="selectedWorkspace"
+              @hide="closeMenu('help')"
+            />
+            <li class="context__menu-item">
+              <a
+                class="context__menu-item-link"
+                href="https://baserow.io/user-docs"
+                target="_blank"
+                rel="noopener"
+                @click="closeMenu('help')"
+              >
+                <i
+                  class="context__menu-item-icon iconoir-message-text"
+                  aria-hidden="true"
+                ></i>
+                {{ $t('sidebar.knowledgeBase') }}
+              </a>
+            </li>
+            <li class="context__menu-item">
+              <nuxt-link
+                class="context__menu-item-link"
+                :to="{ name: 'database-api-docs' }"
+                target="_blank"
+                @click="closeMenu('help')"
+              >
+                <i
+                  class="context__menu-item-icon iconoir-code"
+                  aria-hidden="true"
+                ></i>
+                {{ $t('sidebar.apiDocumentation') }}
+              </nuxt-link>
+            </li>
+          </ul>
+        </Context>
       </li>
     </ul>
   </div>
@@ -160,25 +190,18 @@
 
 <script>
 import { mapGetters } from 'vuex'
-import {
-  canListIdentities,
-  getWorkspaceMembersCount,
-} from '@baserow/modules/core/utils/workspace'
-
-import TrashModal from '@baserow/modules/core/components/trash/TrashModal'
 import NotificationPanel from '@baserow/modules/core/components/NotificationPanel'
-import InviteModal from '@baserow/modules/core/components/invitation/InviteModal'
 import BadgeCounter from '@baserow/modules/core/components/BadgeCounter'
 import SidebarSearch from '@baserow/modules/core/components/sidebar/SidebarSearch'
+import WorkspaceContext from '@baserow/modules/core/components/workspace/WorkspaceContext'
 
 export default {
   name: 'SidebarMenu',
   components: {
-    TrashModal,
     NotificationPanel,
-    InviteModal,
     BadgeCounter,
     SidebarSearch,
+    WorkspaceContext,
   },
   props: {
     selectedWorkspace: {
@@ -192,18 +215,16 @@ export default {
     },
   },
   emits: ['open-workspace-search'],
+  data() {
+    return { openMenu: null }
+  },
   computed: {
-    membersCount() {
-      return getWorkspaceMembersCount(
-        this.selectedWorkspace,
-        canListIdentities(this, this.selectedWorkspace)
-      )
-    },
-    isManagementPage() {
+    isSettingsPage() {
       return [
         'settings-members',
         'settings-teams',
         'settings-identities',
+        'workspace-audit-log',
       ].includes(this.$route.name)
     },
     sidebarWorkspaceComponents() {
@@ -218,6 +239,44 @@ export default {
     }),
   },
   methods: {
+    getMenuComponents(menu) {
+      return Object.values(this.$registry.getAll('plugin')).flatMap((plugin) =>
+        plugin.getSidebarWorkspaceMenuComponents(this.selectedWorkspace, menu)
+      )
+    },
+    toggleMenu(menu, trigger) {
+      if (this.openMenu && this.openMenu !== menu) {
+        this.$refs[this.openMenu].hide()
+      }
+      // Leave 4px after the sidebar's 8px inset and 1px border.
+      this.$refs[menu].toggle(
+        trigger,
+        'over-bottom',
+        'left',
+        0,
+        trigger.offsetWidth + 13
+      )
+    },
+    onMenuShown(menu) {
+      this.openMenu = menu
+      this.$nextTick(() => {
+        if (this.openMenu === menu) {
+          const context = this.$refs[menu]?.getTeleportedElement()
+          const target =
+            context?.querySelector('button:not(:disabled), a[href]') ?? context
+          target?.focus()
+        }
+      })
+    },
+    onMenuHidden(menu) {
+      if (this.openMenu === menu) {
+        this.openMenu = null
+      }
+    },
+    closeMenu(menu) {
+      this.$refs[menu].hide()
+      this.$refs[`${menu}Trigger`].focus()
+    },
     openWorkspaceSearch() {
       this.$emit('open-workspace-search')
     },

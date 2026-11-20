@@ -4,6 +4,7 @@ import { TestApp } from '@baserow/test/helpers/testApp'
 import Sidebar from '@baserow/modules/core/components/sidebar/Sidebar.vue'
 import SidebarAllWorkspaces from '@baserow/modules/core/components/sidebar/SidebarAllWorkspaces.vue'
 import SidebarFoot from '@baserow/modules/core/components/sidebar/SidebarFoot.vue'
+import SidebarMenu from '@baserow/modules/core/components/sidebar/SidebarMenu.vue'
 
 describe('Workspace sidebar', () => {
   let testApp
@@ -104,6 +105,66 @@ describe('Workspace sidebar', () => {
     expect(wrapper.findComponent({ name: 'SidebarUserContext' }).exists()).toBe(
       false
     )
+  })
+
+  test('opens workspace settings and help and restores focus', async () => {
+    await testApp.store.dispatch('workspace/forceCreate', {
+      id: 1,
+      name: 'Design',
+    })
+    const workspace = testApp.store.getters['workspace/get'](1)
+    testApp.mock.onGet('/workspaces/1/permissions/').reply(200, [])
+    testApp.mock.onGet('/workspaces/1/roles/').reply(200, [])
+    await testApp.store.dispatch('workspace/fetchPermissions', workspace)
+    await testApp.store.dispatch('workspace/fetchRoles', workspace)
+    const wrapper = await testApp.mount(SidebarMenu, {
+      props: { selectedWorkspace: workspace },
+      global: {
+        mocks: { $hasPermission: () => true },
+        stubs: {
+          Teleport: false,
+          NotificationPanel: true,
+          InviteModal: true,
+          WorkspaceSettingsModal: true,
+        },
+      },
+    })
+
+    const [settings, help] = wrapper.findAll('button[aria-expanded]')
+    expect(settings.text()).toBe('sidebar.workspaceSettings')
+    expect(help.text()).toBe('sidebar.help')
+
+    await settings.trigger('click')
+    await flushPromises()
+    const settingsMenu = testApp.body.get(
+      '.sidebar-workspace-menu:not(.visibility-hidden)'
+    )
+    expect(settings.attributes('aria-expanded')).toBe('true')
+    expect(document.activeElement.textContent.trim()).toBe(
+      'sidebar.inviteOthers'
+    )
+    expect(
+      settingsMenu.get('a[href="/workspace/1/settings/members"]').text()
+    ).toBe('workspaceContext.members')
+
+    await help.trigger('click')
+    await flushPromises()
+    expect(settings.attributes('aria-expanded')).toBe('false')
+    expect(help.attributes('aria-expanded')).toBe('true')
+    const helpMenu = testApp.body.get(
+      '.sidebar-workspace-menu:not(.visibility-hidden)'
+    )
+    const knowledgeBase = helpMenu.get('a[href="https://baserow.io/user-docs"]')
+    const firstHelpItem = helpMenu.get('.context__menu-item-link')
+    expect(document.activeElement).toBe(firstHelpItem.element)
+    expect(knowledgeBase.text()).toBe('sidebar.knowledgeBase')
+    expect(helpMenu.get('a[href="/api-docs"]').text()).toBe(
+      'sidebar.apiDocumentation'
+    )
+
+    await firstHelpItem.trigger('keydown', { key: 'Escape' })
+    expect(help.attributes('aria-expanded')).toBe('false')
+    expect(document.activeElement).toBe(help.element)
   })
 
   test('restores focus one level at a time when closing the admin submenu', async () => {

@@ -639,13 +639,8 @@
   }
 }
 
-.sidebar__item-count {
-  margin-left: auto;
-  color: $palette-neutral-700;
-}
-
 .sidebar__search {
-  margin-bottom: 8px;
+  margin-bottom: 10px;
   display: block;
   width: 100%;
   padding: 0;
@@ -662,17 +657,14 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  height: 36px;
-  line-height: 36px;
+  height: 32px;
   width: 100%;
-  padding: 0 48px 0 8px;
-  background-color: $white;
+  padding: 0 48px 0 6px;
+  background-color: $palette-neutral-0;
   border: 1px solid $palette-neutral-400;
   cursor: pointer;
-  transition: all 0.2s ease;
 
   @include rounded($rounded-md);
-  @include elevation($elevation-low);
 }
 
 .sidebar__search-icon {
