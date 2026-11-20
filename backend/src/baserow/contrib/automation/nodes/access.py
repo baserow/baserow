@@ -2,7 +2,9 @@
 Which nodes show a user the data of a table they may not see.
 
 A node shows the data of its own table: the table's fields in its schema and
-context data, and its rows in its test run data. It also shows the data of the
+context data, and its rows in its test run data. A node that starts a workflow
+shows the data of the tables of that workflow, as its result holds what that
+workflow answered. It also shows the data of the
 nodes its formulas read, resolved into its test run data, its run results and
 the schemas built from them. A user who may not see the node's table isn't
 shown any of it; a user who may see the node's table but not one the node
@@ -13,9 +15,9 @@ keeps the IDs of the tables of the node and of the nodes it read in
 `sample_data_table_ids`, and each node history keeps those of its dispatch in
 `read_table_ids`. A table that no longer exists counts as one nobody may see, as
 who was allowed to see it can't be told any more. The data stored before the IDs
-were kept gets them once, after the migrate that adds them, from what the
-formulas read then. The formulas of today only decide where they are still
-missing.
+were kept gets them from what the formulas read, by a periodic fill, or before a
+node of its workflow is edited, whichever comes first (see `backfill`). The
+formulas of today only decide where they are still missing.
 """
 
 import copy
@@ -24,6 +26,7 @@ from dataclasses import dataclass, field
 from typing import Any, Iterable, Optional
 
 from django.contrib.auth.models import AbstractUser
+from django.db.models import Q
 
 from baserow.contrib.automation.data_providers.registries import (
     automation_data_provider_type_registry,
@@ -202,6 +205,7 @@ class AutomationNodeAccess:
         self._node_of_service: dict[int, AutomationNode] = {}
         self._reads: dict[int, FormulaReads] = {}
         self._reads_hidden: dict[int, bool] = {}
+        self._table_ids: dict[int, set[int]] = {}
 
     def add_nodes(
         self, nodes: Iterable[AutomationNode], all_of_workflow: bool = False
@@ -255,7 +259,7 @@ class AutomationNodeAccess:
         dispatch, as its message and result are built from them.
         """
 
-        return node_table_ids(node) | self.read_table_ids(node)
+        return self.node_table_ids(node) | self.read_table_ids(node)
 
     def history_hidden(self, node_history, workflow=None) -> bool:
         """
@@ -307,8 +311,19 @@ class AutomationNodeAccess:
 
         table_ids = set()
         for other in self.read_nodes(node):
-            table_ids |= node_table_ids(other)
+            table_ids |= self.node_table_ids(other)
         return table_ids
+
+    def node_table_ids(self, node: AutomationNode) -> set[int]:
+        """
+        The tables whose data the node holds itself: those its service reads or
+        writes and, for a node that starts a workflow, those of the workflow it
+        starts, as its result holds what that workflow answered.
+        """
+
+        if node.id not in self._table_ids:
+            self._table_ids[node.id] = node_table_ids(node) | started_table_ids(node)
+        return self._table_ids[node.id]
 
     def node_of_service(self, workflow, service: Service) -> Optional[AutomationNode]:
         """The node of the workflow that has the service."""
@@ -329,9 +344,9 @@ class AutomationNodeAccess:
         test run data was built from.
         """
 
-        table_ids = node_table_ids(node)
+        table_ids = set(self.node_table_ids(node))
         for other in self.read_nodes(node):
-            table_ids |= node_table_ids(other)
+            table_ids |= self.node_table_ids(other)
             table_ids |= set(other.service.specific.sample_data_table_ids or ())
         return table_ids
 
@@ -345,7 +360,7 @@ class AutomationNodeAccess:
         stored = node.service.specific.sample_data_table_ids
         if stored is None:
             stored = self.read_table_ids(node)
-        return set(stored) | node_table_ids(node)
+        return set(stored) | self.node_table_ids(node)
 
     def _workflow_has_hidden_table(self, node: AutomationNode) -> bool:
         return self.workflow_has_hidden_data(node.workflow)
@@ -364,23 +379,22 @@ class AutomationNodeAccess:
         """Whether a node of the workflow shows data the user may not see."""
 
         return any(
-            not self.tables.allows(service)
-            or any(
-                not self.tables.allows_table(table_id)
-                for table_id in service.sample_data_table_ids or ()
+            not self._allows_tables(self.node_table_ids(other))
+            or not self._allows_tables(
+                other.service.specific.sample_data_table_ids or ()
             )
-            for service in (
-                other.service.specific
-                for other in self.nodes_of_workflow(workflow).values()
-            )
+            for other in self.nodes_of_workflow(workflow).values()
         )
+
+    def _allows_tables(self, table_ids: Iterable[int]) -> bool:
+        return all(self.tables.allows_table(table_id) for table_id in table_ids)
 
     def node_hidden(self, node: AutomationNode) -> bool:
         """Whether the node shows the user the data of a table they may not see."""
 
-        return not self.tables.allows(node.service.specific) or self.reads_hidden_table(
-            node
-        )
+        return not self._allows_tables(
+            self.node_table_ids(node)
+        ) or self.reads_hidden_table(node)
 
     def _node(self, service: Service) -> Optional[AutomationNode]:
         return self._node_of_service.get(service.id)
@@ -414,6 +428,34 @@ def node_table_ids(node: AutomationNode) -> set[int]:
 
     service = node.service.specific
     return service.get_type().get_table_ids(service)
+
+
+def started_table_ids(node: AutomationNode, _visited: set[int] = None) -> set[int]:
+    """
+    For a node that starts a workflow, the tables of the nodes of that workflow,
+    of its draft and its published version, and of the workflows they start in
+    turn. Its response can hold the data of any of them.
+    """
+
+    from baserow.contrib.automation.nodes.handler import AutomationNodeHandler
+    from baserow.contrib.automation.workflows.models import AutomationWorkflow
+    from baserow.contrib.integrations.core.models import CoreStartWorkflowService
+
+    service = node.service.specific
+    if not isinstance(service, CoreStartWorkflowService):
+        return set()
+    visited = set() if _visited is None else _visited
+    if service.workflow_id is None or service.workflow_id in visited:
+        return set()
+    visited.add(service.workflow_id)
+
+    table_ids = set()
+    for workflow in AutomationWorkflow.objects_and_trash.filter(
+        Q(id=service.workflow_id) | Q(automation__published_from_id=service.workflow_id)
+    ):
+        for other in AutomationNodeHandler().get_nodes(workflow, with_cache=False):
+            table_ids |= node_table_ids(other) | started_table_ids(other, visited)
+    return table_ids
 
 
 class FixedNodeAccess:

@@ -3,6 +3,9 @@ from typing import Any, Iterable, Optional
 from django.contrib.auth.models import AbstractUser
 
 from baserow.contrib.automation.models import AutomationWorkflow
+from baserow.contrib.automation.nodes.backfill import (
+    fill_workflow_table_ids_before_edit,
+)
 from baserow.contrib.automation.nodes.exceptions import (
     AutomationNodeDoesNotExist,
     AutomationNodeMissingOutput,
@@ -241,6 +244,7 @@ class AutomationNodeService:
         )
 
         node_type.raise_if_deactivated(node.workflow.automation.workspace)
+        fill_workflow_table_ids_before_edit(node.workflow)
 
         # Export the 'original' node values now, as `prepare_values`
         # will be changing the service first, and then `update_node`
@@ -291,6 +295,7 @@ class AutomationNodeService:
         automation = workflow.automation
 
         node.get_type().before_delete(node.specific)
+        fill_workflow_table_ids_before_edit(workflow)
 
         TrashHandler.trash(
             user if not ignore_user_for_signal else None,
@@ -410,6 +415,8 @@ class AutomationNodeService:
             node=new_node,
             user=user,
         )
+
+        fill_workflow_table_ids_before_edit(workflow)
 
         # When we use a replace operation type, we make sure no graph modification is
         # made so that we can do it here.

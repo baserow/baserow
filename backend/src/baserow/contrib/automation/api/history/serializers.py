@@ -48,8 +48,11 @@ class AutomationNodeHistorySerializer(serializers.ModelSerializer):
         if access is None or access.history_hidden(
             instance, self.context.get("run_workflow")
         ):
-            # An error can name the fields and values of the table it read.
+            # An error can name the fields and values of the table it read, and
+            # the edge label comes from the result: which branch a condition on
+            # that data took, or any value a node answered with in its place.
             data["message"] = ""
+            data["edge_label"] = ""
         return data
 
     @extend_schema_field(OpenApiTypes.STR)

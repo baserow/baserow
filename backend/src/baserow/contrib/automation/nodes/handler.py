@@ -1238,11 +1238,18 @@ class AutomationNodeHandler:
         the node's history entry, as its result holds what that run answered.
         """
 
+        from baserow.contrib.automation.nodes.access import AutomationNodeAccess
+
         child_table_ids = set()
-        for table_ids in AutomationNodeHistory.objects.filter(
+        access = AutomationNodeAccess(None, include_trashed=True)
+        for child_history in AutomationNodeHistory.objects.filter(
             workflow_history=deferred_history
-        ).values_list("read_table_ids", flat=True):
-            child_table_ids |= set(table_ids or ())
+        ).select_related("node__workflow"):
+            if child_history.read_table_ids is not None:
+                child_table_ids |= set(child_history.read_table_ids)
+            else:
+                # Written before the tables were kept: what the node reads now.
+                child_table_ids |= access.dispatch_table_ids(child_history.node)
         own_table_ids = (
             set(node_history.read_table_ids)
             if node_history.read_table_ids is not None

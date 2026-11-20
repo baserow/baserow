@@ -149,3 +149,7 @@ def setup_periodic_automation_tasks(sender, **kwargs):
         timedelta(minutes=settings.AUTOMATION_RUN_STALL_SWEEP_INTERVAL_MINUTES),
         automation_run_stall_check.s(),
     )
+
+    from baserow.contrib.automation.nodes.tasks import fill_missing_table_ids_task
+
+    sender.add_periodic_task(timedelta(minutes=10), fill_missing_table_ids_task.s())
