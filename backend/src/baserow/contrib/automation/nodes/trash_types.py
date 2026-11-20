@@ -83,50 +83,55 @@ class AutomationNodeTrashableItemType(GraphPointTrashableItemType):
         cls,
         node_id: int,
         next_output: str,
-        moved_node_ids: list[int],
-        joined_node_ids: list[int],
+        branch_node_ids: list[int],
+        joined_layout: dict,
     ):
         """
-        Note on a trashed node's entry that, once restored, the nodes an insert
-        moved to `next_output` go back there. Undoing the insert joined them onto
-        the default output, before `joined_node_ids`.
+        Note on a trashed node's entry that, once restored, the nodes undo took off
+        `next_output` go back there. Undoing the insert joined them onto the
+        default output, before the nodes that were on it.
 
         :param node_id: The ID of the trashed node.
         :param next_output: The output the nodes move back to.
-        :param moved_node_ids: The nodes the insert moved to `next_output`.
-        :param joined_node_ids: The nodes that were on the default output before
-            the join, which stay there.
+        :param branch_node_ids: The nodes that were on `next_output`, which go back.
+        :param joined_layout: The layout of the default output once joined, which
+            must be the same on restore.
         """
 
         trash_entry = TrashHandler.get_trash_entry(cls.type, node_id)
         trash_entry.additional_restoration_data = {
             **trash_entry.additional_restoration_data,
             "next_output": next_output,
-            "moved_node_ids": moved_node_ids,
-            "joined_node_ids": joined_node_ids,
+            "branch_node_ids": branch_node_ids,
+            "joined_layout": joined_layout,
         }
         trash_entry.save(update_fields=["additional_restoration_data"])
 
     def _split_outputs(self, node: AutomationNode, data: dict):
         """
-        Move the nodes the insert moved back to their output: the run of them at
-        the start of the default output, so a node added since stays where it is.
+        Move the nodes undo took off the branch back to it. Only when the nodes
+        after the node are as undo left them: a node added, moved or removed since
+        would otherwise end up running for other rows than the editor chose.
 
-        :raises TrashItemRestorationDisallowed: When the default output starts
-            with a node that is neither one of them nor one that was there.
+        :raises TrashItemRestorationDisallowed: When the nodes after the node
+            changed since the undo.
         """
 
-        moved_ids = data.get("moved_node_ids", [])
-        chain = node.workflow.get_graph().get_chain_ids(node, "")
-        if chain and int(chain[0]) not in {*moved_ids, *data["joined_node_ids"]}:
+        graph = node.workflow.get_graph()
+        layout = graph.get_branch_layout(node, "")
+        expected = data.get("joined_layout")
+        if layout != expected:
+            added = [i for i in layout["points"] if i not in expected["points"]]
+            detail = f" (node {added[0]} was added)" if added else ""
             raise TrashItemRestorationDisallowed(
-                f"This automation node cannot be restored: node {chain[0]} was put "
-                "before the nodes it had on its branch, and would then run only "
-                "when the branch matches."
+                "This automation node cannot be restored: the steps after it "
+                f"changed since it was removed{detail}, and would then run for "
+                "other rows. Add it again instead."
             )
-        node.workflow.get_graph().split_next_points(
-            node, "", data["next_output"], moved_ids
-        )
+        if data.get("branch_node_ids"):
+            graph.split_next_points(
+                node, "", data["next_output"], data["branch_node_ids"]
+            )
 
     def trash(
         self,

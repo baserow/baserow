@@ -43,8 +43,9 @@ class CreateAutomationNodeActionType(UndoableActionType):
         node_type: str
         # The output of the node that the nodes it was inserted before follow.
         next_output: str = ""
-        # The nodes that moved onto next_output, so undo can tell a node another
-        # session added there since.
+        # The nodes that moved onto next_output, the children of containers
+        # among them included, so undo can tell a node another session added
+        # there since.
         moved_node_ids: list[int] = field(default_factory=list)
 
     @classmethod
@@ -58,7 +59,9 @@ class CreateAutomationNodeActionType(UndoableActionType):
         node = AutomationNodeService().create_node(user, node_type, workflow, **data)
         next_output = data.get("next_output", "")
         moved_ids = (
-            node.workflow.get_graph().get_chain_ids(node, next_output)
+            list(
+                node.workflow.get_graph().get_branch_layout(node, next_output)["points"]
+            )
             if next_output
             else []
         )
@@ -91,7 +94,6 @@ class CreateAutomationNodeActionType(UndoableActionType):
         params: Params,
         action_to_undo: Action,
     ):
-        joined_ids = []
         if params.next_output:
             # Back on the default output, the nodes take the node's place when it
             # is deleted, as before it was inserted. Nodes added to the default
@@ -102,36 +104,38 @@ class CreateAutomationNodeActionType(UndoableActionType):
             AutomationNodeHandler().lock_graph(node.workflow)
             graph = node.workflow.get_graph()
             cls._check_branch_holds_only_moved_nodes(node, params)
-            joined_ids = graph.get_chain_ids(node, "")
-            if joined_ids:
+            branch_ids = graph.get_chain_ids(node, params.next_output)
+            if graph.get_chain_ids(node, ""):
                 cls._check_chain_can_be_followed(node, params.next_output)
             graph.join_next_points(node, params.next_output, "")
+            joined_layout = graph.get_branch_layout(node, "")
         AutomationNodeService().delete_node(user, params.node_id)
         if params.next_output:
-            # Redo and a restore from the trash both split the chain again.
+            # Redo and a restore from the trash both split the chain again, where
+            # the nodes on the branch end.
             AutomationNodeTrashableItemType.split_outputs_on_restore(
                 params.node_id,
                 params.next_output,
-                params.moved_node_ids,
-                [int(node_id) for node_id in joined_ids],
+                [int(node_id) for node_id in branch_ids],
+                joined_layout,
             )
 
     @classmethod
     def _check_branch_holds_only_moved_nodes(cls, node: AutomationNode, params: Params):
         """
-        Check the chain on next_output holds only the nodes the insert moved there.
-        Another node there, added or put in place of a moved one by another
-        session, runs only when the branch matches, and would run every time once
-        the node is removed.
+        Check the branch on next_output, the children of containers on it
+        included, holds only nodes the insert moved there. Another node there,
+        added or put in place of a moved one by another session, runs only when
+        the branch matches, and would run every time once the node is removed.
 
         :raises AutomationNodeNotDeletable: When the chain holds another node.
         """
 
         others = [
             node_id
-            for node_id in node.workflow.get_graph().get_chain_ids(
+            for node_id in node.workflow.get_graph().get_branch_layout(
                 node, params.next_output
-            )
+            )["points"]
             if int(node_id) not in params.moved_node_ids
         ]
         if others:

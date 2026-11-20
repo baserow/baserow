@@ -1188,6 +1188,40 @@ class BaseGraphHandler(ABC):
         next_ids = self.get_next_point_ids(point, output)
         return self._walk_chain_ids(next_ids[0], set()) if next_ids else []
 
+    def get_branch_layout(self, point: GraphPoint, output: str) -> Dict[str, Any]:
+        """
+        The layout of everything that follows a point on one of its outputs: the
+        first point, and for every point reached from it through `next` (all
+        outputs) and `children` (all edges), where its next points and children
+        are. Two layouts are equal only when the same points are in the same
+        places. It's JSON-serializable, to be stored and compared later.
+
+        :param point: The point the branch follows.
+        :param output: The output of the point the branch is on.
+        :return: A dict with the first point ID, or None, and the points.
+        """
+
+        next_ids = self.get_next_point_ids(point, output)
+        points: Dict[str, Any] = {}
+        stack = [str(next_ids[0])] if next_ids else []
+        while stack:
+            current = stack.pop()
+            if current in points:
+                continue
+            info = self.graph.get(current, {})
+            entry = {}
+            for key, edges in (
+                ("next", info.get("next", {})),
+                ("children", self._get_children_dict_from_info(info)),
+            ):
+                edges = {edge: [str(i) for i in ids] for edge, ids in edges.items()}
+                edges = {edge: ids for edge, ids in edges.items() if ids}
+                if edges:
+                    entry[key] = edges
+                    stack.extend(i for ids in edges.values() for i in ids)
+            points[current] = entry
+        return {"first": str(next_ids[0]) if next_ids else None, "points": points}
+
     def remove(
         self, point_to_delete: GraphPoint, keep_info: bool = False
     ) -> GraphPointRemoved:

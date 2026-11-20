@@ -391,7 +391,9 @@ def test_restore_router_insert_refuses_when_a_node_was_added_before_its_nodes(
 
 
 @pytest.mark.django_db
-def test_redo_router_insert_moves_only_the_nodes_it_moved(automation_ctx):
+def test_redo_router_insert_refuses_when_a_node_was_swapped_after_undo(
+    automation_ctx,
+):
     ctx, automation, table, _ = automation_ctx
     workflow, trigger, email, router, scope, session = _insert_router_before_email(
         ctx, automation, table
@@ -405,20 +407,21 @@ def test_redo_router_insert_moves_only_the_nodes_it_moved(automation_ctx):
     AutomationNodeService().delete_node(ctx.user, joined.id)
     workflow.reload_graph()
     later = _email_node(ctx, workflow, AutomationNode.objects.get(id=email["id"]), "K")
-
-    ActionHandler.redo(ctx.user, scope, session)
-
-    (edge,) = AutomationNode.objects.get(id=router["id"]).service.specific.edges.all()
     workflow.reload_graph()
-    assert workflow.graph[str(router["id"])]["next"] == {
-        str(edge.uid): [email["id"]],
-        "": [later.id],
-    }
-    assert not workflow.graph[str(email["id"])].get("next", {}).get("")
+    before = deepcopy(workflow.graph)
+
+    # K runs every time now: back on the default output it would run only when
+    # no branch matches.
+    (action,) = ActionHandler.redo(ctx.user, scope, session)
+
+    assert "TrashItemRestorationDisallowed" in action.error
+    assert f"node {later.id} was added" in action.error
+    workflow.reload_graph()
+    assert workflow.graph == before
 
 
 @pytest.mark.django_db
-def test_redo_router_insert_keeps_default_nodes_when_the_first_one_is_deleted(
+def test_redo_router_insert_refuses_when_a_default_node_was_deleted_after_undo(
     automation_ctx,
 ):
     ctx, automation, table, _ = automation_ctx
@@ -450,16 +453,15 @@ def test_redo_router_insert_keeps_default_nodes_when_the_first_one_is_deleted(
     ActionHandler.undo(ctx.user, scope, session)
     # Another session deletes the first node that was on the default output.
     AutomationNodeService().delete_node(ctx.user, first.id)
-
-    ActionHandler.redo(ctx.user, scope, session)
-
-    (edge,) = AutomationNode.objects.get(id=router["id"]).service.specific.edges.all()
     workflow.reload_graph()
-    assert workflow.graph[str(router["id"])]["next"] == {
-        str(edge.uid): [email["id"]],
-        "": [second.id],
-    }
-    assert not workflow.graph[str(email["id"])].get("next", {}).get("")
+    before = deepcopy(workflow.graph)
+
+    (action,) = ActionHandler.redo(ctx.user, scope, session)
+
+    assert "TrashItemRestorationDisallowed" in action.error
+    workflow.reload_graph()
+    assert workflow.graph == before
+    assert str(second.id) in workflow.graph
 
 
 @pytest.mark.django_db
@@ -1862,3 +1864,122 @@ def test_add_nodes_takes_exactly_one_position(position, error):
             body="Hello",
             **position,
         )
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("restore", ["redo", "trash"])
+def test_restore_router_insert_keeps_a_node_moved_off_the_branch(
+    automation_ctx, restore
+):
+    ctx, automation, table, _ = automation_ctx
+    workflow, trigger, email, router, scope, session = _insert_router_before_email(
+        ctx, automation, table
+    )
+    # Another session moves the email from the branch to the default output.
+    AutomationNodeService().move_node(ctx.user, email["id"], router["id"], "south", "")
+    ActionHandler.undo(ctx.user, scope, session)
+
+    if restore == "redo":
+        ActionHandler.redo(ctx.user, scope, session)
+    else:
+        TrashHandler.restore_item(
+            ctx.user, AutomationNodeTrashableItemType.type, router["id"]
+        )
+
+    workflow.reload_graph()
+    assert workflow.graph[str(router["id"])]["next"] == {"": [email["id"]]}
+    assert not Action.objects.filter(error__isnull=False).exists()
+
+
+def _insert_router_before_email_and_iterator(ctx, automation, table):
+    workflow, trigger = create_workflow(ctx.user, automation, "Flow", table)
+    (email,) = add_nodes(ctx, workflow.id, [_email(previous=str(trigger.id))])[
+        "created_nodes"
+    ]
+    iterator = create_node(
+        ctx.user, workflow, "iterator", reference_node_id=email["id"]
+    )
+    (router,) = add_nodes(
+        ctx,
+        workflow.id,
+        [
+            ActionNodeCreate(
+                ref="router",
+                type="router",
+                previous_node_ref=str(trigger.id),
+                edges=[{"label": "Match", "condition": "true"}],
+                shifted_node_edge_label="Match",
+            )
+        ],
+    )["created_nodes"]
+    scope = [WorkflowActionScopeType.value(workflow.id)]
+    session = get_untrusted_client_session_id(ctx.user)
+    return workflow, email, iterator, router, scope, session
+
+
+def _add_step(ctx, workflow, email, iterator, where):
+    workflow.reload_graph()
+    if where == "between":
+        return _email_node(
+            ctx, workflow, AutomationNode.objects.get(id=email["id"]), "K"
+        )
+    return create_node(
+        ctx.user,
+        workflow,
+        "smtp_email",
+        label="K",
+        reference_node_id=iterator.id,
+        position="child",
+    )
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("where", ["between", "child"])
+def test_undo_router_insert_refuses_when_a_step_was_added_on_the_branch(
+    automation_ctx, where
+):
+    ctx, automation, table, _ = automation_ctx
+    workflow, email, iterator, router, scope, session = (
+        _insert_router_before_email_and_iterator(ctx, automation, table)
+    )
+    # Another session adds a step on the branch, meant to run only on a match.
+    added = _add_step(ctx, workflow, email, iterator, where)
+    workflow.reload_graph()
+    before = deepcopy(workflow.graph)
+
+    (action,) = ActionHandler.undo(ctx.user, scope, session)
+
+    assert "AutomationNodeNotDeletable" in action.error
+    assert f"node {added.id}" in action.error
+    workflow.reload_graph()
+    assert workflow.graph == before
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("restore", ["redo", "trash"])
+@pytest.mark.parametrize("where", ["between", "child"])
+def test_restore_router_insert_refuses_when_a_step_was_added_after_undo(
+    automation_ctx, restore, where
+):
+    ctx, automation, table, _ = automation_ctx
+    workflow, email, iterator, router, scope, session = (
+        _insert_router_before_email_and_iterator(ctx, automation, table)
+    )
+    ActionHandler.undo(ctx.user, scope, session)
+    # Another session adds a step, meant to run every time.
+    _add_step(ctx, workflow, email, iterator, where)
+    workflow.reload_graph()
+    before = deepcopy(workflow.graph)
+
+    if restore == "redo":
+        (action,) = ActionHandler.redo(ctx.user, scope, session)
+        assert "TrashItemRestorationDisallowed" in action.error
+    else:
+        with pytest.raises(TrashItemRestorationDisallowed, match="changed"):
+            TrashHandler.restore_item(
+                ctx.user, AutomationNodeTrashableItemType.type, router["id"]
+            )
+
+    workflow.reload_graph()
+    assert workflow.graph == before
+    assert AutomationNode.objects_and_trash.get(id=router["id"]).trashed

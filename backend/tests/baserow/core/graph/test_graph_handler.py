@@ -1538,3 +1538,38 @@ def test_get_next_point_ids_returns_the_ids_on_one_output():
     assert graph.get_next_point_ids(1, "uid1") == [3]
     assert graph.get_next_point_ids(1, "uid2") == []
     assert graph.get_next_point_ids(3, "") == []
+
+
+def test_get_branch_layout_covers_next_points_and_children():
+    model = make_graph_model(
+        {
+            "0": 1,
+            "1": {"next": {"uid1": [2], "": [5]}},
+            "2": {"next": {"": [3]}},
+            "3": {"children": {"": [4]}},
+            "4": {},
+            "5": {},
+        }
+    )
+    graph = model.get_graph()
+
+    assert graph.get_branch_layout(model.points[1], "uid1") == {
+        "first": "2",
+        "points": {"2": {"next": {"": ["3"]}}, "3": {"children": {"": ["4"]}}, "4": {}},
+    }
+    assert graph.get_branch_layout(model.points[1], "uid2") == {
+        "first": None,
+        "points": {},
+    }
+
+
+def test_get_branch_layout_differs_when_a_child_is_added():
+    model = make_graph_model(
+        {"0": 1, "1": {"next": {"": [2]}}, "2": {"children": [3]}, "3": {}, "4": {}}
+    )
+    graph = model.get_graph()
+    before = graph.get_branch_layout(model.points[1], "")
+
+    model.graph["3"] = {"next": {"": [4]}}
+
+    assert graph.get_branch_layout(model.points[1], "") != before
