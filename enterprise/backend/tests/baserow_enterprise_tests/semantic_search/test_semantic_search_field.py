@@ -424,6 +424,13 @@ def test_index_files(data_fixture, semantic_search, tmpdir):
         "people.xls\n\nPeople\nName\tAge\nAda\t36\nBob\t40",
         "holiday.png",
     ]
+    [match] = SemanticSearchHandler().search(
+        [field], "revenue", table.get_model().objects.all(), 1
+    )
+    assert (match.source, match.text) == (
+        "report.pdf",
+        "report.pdf\n\nQuarterly revenue",
+    )
 
 
 @pytest.mark.django_db

@@ -145,11 +145,59 @@ def test_dispatch_data_source(api_client, data_fixture, searchable_table):
     ]
     assert set(result["results"][0]["row"]) == {"id", "Document", "score"}
     assert {item["matched_field"] for item in result["results"]} == {"Document"}
+    assert [item["matched_text"] for item in result["results"]] == [
+        "How to reset your password",
+        "Password policy for employees",
+    ]
+    assert {item["matched_source"] for item in result["results"]} == {None}
     first_score, second_score = [item["score"] for item in result["results"]]
     assert 0 < second_score < first_score <= 1
     assert all(0 < item["similarity"] <= 1 for item in result["results"])
     # The maximum number of results is the end of the results.
     assert result["has_next_page"] is False
+
+
+HANDBOOK = (
+    "How to reset your password in the account settings page.\n\n"
+    "Monthly budget meeting notes from the finance team.\n\n"
+    "Recipe for a rich chocolate cake with dark cocoa."
+)
+
+
+@pytest.mark.django_db
+@override_settings(
+    BASEROW_SEMANTIC_SEARCH_CHUNK_SIZE=60, BASEROW_SEMANTIC_SEARCH_CHUNK_OVERLAP=0
+)
+def test_results_quote_the_matching_part_of_a_returned_field(
+    api_client, data_fixture, semantic_search
+):
+    user, token = data_fixture.create_user_and_token()
+    table, fields, rows = data_fixture.build_table(
+        user=user,
+        columns=[("Document", "long_text"), ("Category", "text")],
+        rows=[[HANDBOOK, "public"]],
+    )
+    FieldHandler().update_field(user, fields[0], semantic_search_enabled=True)
+    index(table)
+    returned = create_data_source(
+        data_fixture, user, table, search_query="'chocolate cake'"
+    )
+    hidden = create_data_source(
+        data_fixture,
+        user,
+        table,
+        search_query="'chocolate cake'",
+        include_all_fields=False,
+    )
+    hidden.service.specific.included_fields.set([fields[1]])
+
+    [quoted] = dispatch_data_source(api_client, token, returned)["results"]
+    [unquoted] = dispatch_data_source(api_client, token, hidden)["results"]
+
+    assert quoted["matched_text"] == (
+        "Recipe for a rich chocolate cake with dark cocoa."
+    )
+    assert (unquoted["matched_field"], unquoted["matched_text"]) == ("Document", None)
 
 
 def create_published_page_using_fields(
@@ -221,7 +269,7 @@ def test_published_page_receives_the_used_result_properties(
 ):
     user, token, table, fields, rows = searchable_table
     page, data_source = create_published_page_using_fields(
-        data_fixture, user, table, [], ["score", "matched_field"]
+        data_fixture, user, table, [], ["score", "matched_field", "matched_text"]
     )
 
     response = dispatch_published_page(api_client, page)
@@ -229,10 +277,11 @@ def test_published_page_receives_the_used_result_properties(
     assert response.status_code == HTTP_200_OK
     results = response.json()[str(data_source.id)]["results"]
     assert [set(item) for item in results] == [
-        {"id", "row", "score", "matched_field"}
+        {"id", "row", "score", "matched_field", "matched_text"}
     ] * 2
     assert all(0 < item["score"] <= 1 for item in results)
     assert results[0]["matched_field"] == fields[0].name
+    assert results[0]["matched_text"] == "How to reset your password"
     assert results[0]["row"] == {}
 
 
@@ -912,6 +961,8 @@ def test_schema_nests_the_row(enterprise_data_fixture, searchable_table):
         "score",
         "similarity",
         "matched_field",
+        "matched_text",
+        "matched_source",
     }
     assert set(schema["items"]["properties"]["row"]["properties"]) == {
         "id",

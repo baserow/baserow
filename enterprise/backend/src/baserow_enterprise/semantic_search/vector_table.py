@@ -1,6 +1,6 @@
 from contextlib import contextmanager
 from functools import lru_cache
-from typing import Type
+from typing import NamedTuple, Type
 
 from django.db import IntegrityError, ProgrammingError, connection, router, transaction
 from django.db.models import Exists, Model, OuterRef, QuerySet, UniqueConstraint
@@ -25,6 +25,13 @@ EXACT_SEARCH_MAX_ROWS = 2000
 # more candidates than requested to still find enough chunks of the searched
 # field after filtering on it.
 MAX_INDEX_CANDIDATES = 1000
+
+
+class ChunkMatch(NamedTuple):
+    row_id: int
+    field_id: int
+    similarity: float
+    chunk_id: int
 
 
 def get_vector_table_name(workspace_id: int) -> str:
@@ -318,8 +325,10 @@ class SemanticSearchVectorTable:
                 sql.SQL(
                     """
                     INSERT INTO {target}
-                        (field_id, row_id, chunk_index, content_hash, embedding)
-                    SELECT %s, row_id, chunk_index, content_hash, embedding
+                        (field_id, row_id, chunk_index, content_hash, embedding,
+                         content, source)
+                    SELECT %s, row_id, chunk_index, content_hash, embedding,
+                        content, source
                     FROM {source} WHERE field_id = %s
                     ON CONFLICT DO NOTHING
                     """
@@ -336,11 +345,11 @@ class SemanticSearchVectorTable:
         query_embedding: list[float],
         row_ids: list[int],
         limit: int,
-    ) -> list[tuple[int, int, float]]:
+    ) -> list[ChunkMatch]:
         """
-        Returns `(row_id, field_id, similarity)` of the most similar rows within the
-        provided rows, using the chunk of the fields that matches best. Nothing is
-        returned if the table doesn't exist.
+        Returns the most similar rows within the provided rows, using the chunk of
+        the fields that matches best. Nothing is returned if the table doesn't
+        exist.
         """
 
         distance = CosineDistance("embedding", query_embedding)
@@ -351,12 +360,13 @@ class SemanticSearchVectorTable:
             .values("id")
         )
         with _ignore_missing_table():
-            return list(
-                self.model.objects.filter(id__in=best_chunks)
+            return [
+                ChunkMatch(*chunk)
+                for chunk in self.model.objects.filter(id__in=best_chunks)
                 .annotate(similarity=1 - distance)
                 .order_by("-similarity")
-                .values_list("row_id", "field_id", "similarity")[:limit]
-            )
+                .values_list("row_id", "field_id", "similarity", "id")[:limit]
+            ]
         return []
 
     def get_nearest_chunks(
@@ -365,11 +375,11 @@ class SemanticSearchVectorTable:
         query_embedding: list[float],
         limit: int,
         rows: QuerySet,
-    ) -> list[tuple[int, int, float]]:
+    ) -> list[ChunkMatch]:
         """
-        Returns `(row_id, field_id, similarity)` of the nearest chunks of the fields
-        using the approximate vector index. A row can occur multiple times. Nothing
-        is returned if the table doesn't exist.
+        Returns the nearest chunks of the fields using the approximate vector
+        index. A row can occur multiple times. Nothing is returned if the table
+        doesn't exist.
 
         :param rows: Only chunks of these rows are returned, like the ones that match
             the filters and permissions.
@@ -388,16 +398,35 @@ class SemanticSearchVectorTable:
                     # Keeps scanning the index until enough chunks of the fields are
                     # found, instead of filtering a fixed number of candidates.
                     cursor.execute("SET LOCAL hnsw.iterative_scan = relaxed_order")
-            return list(
+            return [
+                ChunkMatch(*chunk)
                 # A subquery per chunk instead of `IN`, so that Postgres scans the
                 # vector index in order of distance and checks each chunk's row,
                 # instead of computing the distance of every chunk of the rows.
-                self.model.objects.filter(
+                for chunk in self.model.objects.filter(
                     Exists(rows.filter(id=OuterRef("row_id"))),
                     field_id__in=field_ids,
                 )
                 .annotate(similarity=1 - distance)
                 .order_by(distance)
-                .values_list("row_id", "field_id", "similarity")[:limit]
-            )
+                .values_list("row_id", "field_id", "similarity", "id")[:limit]
+            ]
         return []
+
+    def get_chunk_texts(
+        self, chunk_ids: list[int]
+    ) -> dict[int, tuple[str | None, str | None]]:
+        """
+        :param chunk_ids: The chunks of which the text is read.
+        :return: The `(content, source)` by chunk, without the chunks deleted
+            since. Both are None for a chunk indexed before its text was stored.
+        """
+
+        with _ignore_missing_table():
+            return {
+                chunk_id: (content, source)
+                for chunk_id, content, source in self.model.objects.filter(
+                    id__in=chunk_ids
+                ).values_list("id", "content", "source")
+            }
+        return {}

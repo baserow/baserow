@@ -26,10 +26,15 @@ from baserow_enterprise.features import SEMANTIC_SEARCH
 from baserow_premium.license.handler import LicenseHandler
 
 from .models import SemanticSearchField, SemanticSearchPendingUpdate
-from .registries import SemanticSearchFieldType, semantic_search_field_type_registry
+from .registries import (
+    SemanticSearchFieldType,
+    SemanticSearchText,
+    semantic_search_field_type_registry,
+)
 from .vector_table import (
     EXACT_SEARCH_MAX_ROWS,
     MAX_INDEX_CANDIDATES,
+    ChunkMatch,
     SemanticSearchVectorTable,
 )
 
@@ -50,6 +55,8 @@ SEMANTIC_RELEVANCE_WEIGHT = 0.75
 MAX_FAILED_ATTEMPTS_BEFORE_ERROR = 3
 MAX_RETRY_DELAY_SECONDS = 60 * 15
 EMBEDDINGS_REQUEST_TIMEOUT_SECONDS = 60
+# Bump it to index every cell again, when what is stored of a chunk changes.
+CHUNK_FORMAT_VERSION = 2
 
 
 class SemanticSearchMatch(NamedTuple):
@@ -60,6 +67,10 @@ class SemanticSearchMatch(NamedTuple):
     similarity: float | None
     # Between 0 and 1, combines the similarity and the words the row contains.
     relevance: float
+    # The text of the chunk that matches best by meaning, None if it isn't stored.
+    text: str | None = None
+    # The part of the value the text comes from, if the field type names it.
+    source: str | None = None
 
 
 class SemanticSearchStatus:
@@ -486,8 +497,8 @@ class SemanticSearchHandler:
         missing_row_ids = [r for r in full_text_matches if r not in best_chunks]
         if missing_row_ids:
             best_chunks.update(
-                (row_id, (field_id, similarity))
-                for row_id, field_id, similarity in vector_table.get_similarities(
+                (chunk.row_id, chunk)
+                for chunk in vector_table.get_similarities(
                     field_ids, query_embedding, missing_row_ids, limit
                 )
             )
@@ -499,7 +510,8 @@ class SemanticSearchHandler:
         matches = []
         for row_id in best_chunks.keys() | full_text_matches.keys():
             if row_id in best_chunks:
-                field_id, similarity = best_chunks[row_id]
+                field_id = best_chunks[row_id].field_id
+                similarity = best_chunks[row_id].similarity
             else:
                 # Rows that aren't indexed yet only match by their words.
                 field_id, similarity = full_text_matches[row_id][0], None
@@ -515,7 +527,31 @@ class SemanticSearchHandler:
             ]
         # The row id makes the order of equally relevant rows the same every time.
         matches.sort(key=lambda match: (-match.relevance, match.row_id))
-        return matches[:limit]
+        return self._with_matched_texts(vector_table, matches[:limit], best_chunks)
+
+    def _with_matched_texts(
+        self,
+        vector_table: SemanticSearchVectorTable,
+        matches: list[SemanticSearchMatch],
+        best_chunks: dict[int, ChunkMatch],
+    ) -> list[SemanticSearchMatch]:
+        """
+        :param matches: The matches that are returned.
+        :param best_chunks: The chunk that matches best by meaning, by row.
+        :return: The matches with the text and source of their best chunk.
+        """
+
+        chunk_ids = {
+            match.row_id: best_chunks[match.row_id].chunk_id
+            for match in matches
+            if match.row_id in best_chunks
+        }
+        texts = vector_table.get_chunk_texts(list(chunk_ids.values()))
+        with_texts = []
+        for match in matches:
+            text, source = texts.get(chunk_ids.get(match.row_id), (None, None))
+            with_texts.append(match._replace(text=text, source=source))
+        return with_texts
 
     def _get_semantic_matches(
         self,
@@ -524,10 +560,9 @@ class SemanticSearchHandler:
         query_embedding: list[float],
         queryset: QuerySet,
         limit: int,
-    ) -> dict[int, tuple[int, float]]:
+    ) -> dict[int, ChunkMatch]:
         """
-        :return: The `(field_id, similarity)` of the best chunk per row, ordered by
-            similarity.
+        :return: The best chunk per row, ordered by similarity.
         """
 
         candidate_row_ids = list(
@@ -535,8 +570,8 @@ class SemanticSearchHandler:
         )
         if len(candidate_row_ids) <= EXACT_SEARCH_MAX_ROWS:
             return {
-                row_id: (field_id, similarity)
-                for row_id, field_id, similarity in vector_table.get_similarities(
+                chunk.row_id: chunk
+                for chunk in vector_table.get_similarities(
                     field_ids, query_embedding, candidate_row_ids, limit
                 )
             }
@@ -550,11 +585,14 @@ class SemanticSearchHandler:
                 field_ids, query_embedding, chunk_limit, queryset
             )
             best_chunks = {}
-            for row_id, field_id, similarity in chunks:
-                if similarity > best_chunks.get(row_id, (None, -1))[1]:
-                    best_chunks[row_id] = (field_id, similarity)
+            for chunk in chunks:
+                best = best_chunks.get(chunk.row_id)
+                if best is None or chunk.similarity > best.similarity:
+                    best_chunks[chunk.row_id] = chunk
             matches = sorted(
-                best_chunks.items(), key=lambda match: match[1][1], reverse=True
+                best_chunks.items(),
+                key=lambda match: match[1].similarity,
+                reverse=True,
             )
             if (
                 len(matches) >= limit
@@ -635,6 +673,7 @@ class _FieldIndexer:
                 settings.BASEROW_SEMANTIC_SEARCH_CHUNK_OVERLAP,
                 settings.BASEROW_SEMANTIC_SEARCH_MAX_CHUNKS_PER_CELL,
                 semantic_search_field_type.get_index_settings(),
+                CHUNK_FORMAT_VERSION,
             ]
         )
 
@@ -769,17 +808,22 @@ class _FieldIndexer:
         batch.save()
         return len(values)
 
-    def _split(self, texts: list[str]) -> list[str]:
+    def _split(self, texts: list[SemanticSearchText]) -> list[SemanticSearchText]:
+        """
+        :param texts: The texts of a cell.
+        :return: The chunks of the cell, each with the source of its text.
+        """
+
         chunks = []
         for text in texts:
             for _, _, content in split_text(
-                text,
+                text.content,
                 settings.BASEROW_SEMANTIC_SEARCH_CHUNK_SIZE,
                 settings.BASEROW_SEMANTIC_SEARCH_CHUNK_OVERLAP,
             ):
                 if len(chunks) >= settings.BASEROW_SEMANTIC_SEARCH_MAX_CHUNKS_PER_CELL:
                     return chunks
-                chunks.append(content)
+                chunks.append(SemanticSearchText(content, text.source))
         return chunks
 
 
@@ -795,11 +839,13 @@ class _ChunkBatch:
         self.row_ids = []
         self.chunks = []
 
-    def add(self, row_id: int, content_hash: str | None, contents: list[str]):
+    def add(
+        self, row_id: int, content_hash: str | None, chunks: list[SemanticSearchText]
+    ):
         self.row_ids.append(row_id)
         self.chunks.extend(
-            (row_id, chunk_index, content_hash, content)
-            for chunk_index, content in enumerate(contents)
+            (row_id, chunk_index, content_hash, chunk)
+            for chunk_index, chunk in enumerate(chunks)
         )
         # Otherwise more texts per request wouldn't have any effect.
         if len(self.chunks) >= max(
@@ -811,7 +857,7 @@ class _ChunkBatch:
         if not self.row_ids:
             return
         embeddings = get_embedder(timeout=EMBEDDINGS_REQUEST_TIMEOUT_SECONDS)(
-            [content for *_, content in self.chunks]
+            [chunk.content for *_, chunk in self.chunks]
         )
         with transaction.atomic():
             # Disabling semantic search while the chunks are embedded deletes the
@@ -833,10 +879,15 @@ class _ChunkBatch:
                             chunk_index=chunk_index,
                             content_hash=content_hash,
                             embedding=embedding,
+                            content=chunk.content,
+                            source=chunk.source,
                         )
-                        for (row_id, chunk_index, content_hash, _), embedding in zip(
-                            self.chunks, embeddings
-                        )
+                        for (
+                            row_id,
+                            chunk_index,
+                            content_hash,
+                            chunk,
+                        ), embedding in zip(self.chunks, embeddings)
                     ],
                 )
         self.row_ids = []

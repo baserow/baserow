@@ -1,9 +1,12 @@
 import json
 import os
 import shutil
+from importlib import import_module
 from io import BytesIO
 from pathlib import Path
+from types import SimpleNamespace
 
+from django.apps import apps
 from django.core.files.storage import FileSystemStorage
 from django.db import connection, transaction
 from django.test.utils import CaptureQueriesContext
@@ -30,7 +33,12 @@ from baserow_enterprise.semantic_search.models import (
 )
 from baserow_enterprise.semantic_search.vector_table import SemanticSearchVectorTable
 
-from .utils import enable_search_data_updates, get_chunk_counts, index
+from .utils import (
+    enable_search_data_updates,
+    get_chunk_counts,
+    get_chunk_texts,
+    index,
+)
 
 pytestmark = enable_search_data_updates
 
@@ -78,7 +86,38 @@ def test_duplicate_field_reuses_vectors(data_fixture, semantic_search):
 
     assert SemanticSearchField.objects.get(field=new_field).status == "ready"
     assert get_chunk_counts(new_field) == {row.id: 1 for row in rows}
+    assert get_chunk_texts(new_field) == {("first", None), ("second", None)}
     assert semantic_search.embedded_texts == []
+
+
+@pytest.mark.django_db
+def test_migration_adds_the_text_to_chunks_indexed_before_it(
+    data_fixture, semantic_search
+):
+    user = data_fixture.create_user()
+    table, field, rows = create_indexed_field(data_fixture, user)
+    vector_table = SemanticSearchVectorTable(table.database.workspace_id)
+    with connection.cursor() as cursor:
+        cursor.execute(
+            f'ALTER TABLE "{vector_table.name}" DROP COLUMN content, DROP COLUMN source'
+        )
+        cursor.execute(
+            f'UPDATE "{vector_table.name}" SET content_hash = %s', ["older-format"]
+        )
+    semantic_search.embedded_texts.clear()
+    migration = import_module(
+        "baserow_enterprise.migrations.0072_semantic_search_chunk_text"
+    )
+
+    for _ in range(2):
+        migration.forward(apps, SimpleNamespace(connection=connection))
+
+    assert SemanticSearchField.objects.get(field=field).status == "indexing"
+    assert SemanticSearchPendingUpdate.objects.filter(field_id=field.id).count() == 1
+    index(table)
+    assert get_chunk_texts(field) == {("first", None), ("second", None)}
+    assert semantic_search.embedded_texts == ["first", "second"]
+    assert SemanticSearchField.objects.get(field=field).status == "ready"
 
 
 @pytest.mark.django_db

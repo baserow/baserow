@@ -12,7 +12,11 @@ from baserow.contrib.database.fields.registries import field_type_registry
 from baserow.core.user_files.handler import UserFileHandler
 from baserow.core.user_files.registries import file_text_extractor_registry
 
-from .registries import SemanticSearchFieldType, SemanticSearchTexts
+from .registries import (
+    SemanticSearchFieldType,
+    SemanticSearchText,
+    SemanticSearchTexts,
+)
 
 TEXT_FORMULA_TYPES = {"text", "char", "url"}
 FILE_EXTRACTION_SECONDS_PER_CELL = 30
@@ -38,7 +42,9 @@ class TextSemanticSearchFieldTypeMixin:
 
     def get_texts(self, field: Field, value: Any) -> SemanticSearchTexts:
         return SemanticSearchTexts(
-            [value[: get_max_characters_per_cell()]] if value else []
+            [SemanticSearchText(value[: get_max_characters_per_cell()])]
+            if value
+            else []
         )
 
 
@@ -158,7 +164,7 @@ class FileSemanticSearchFieldType(SemanticSearchFieldType):
                     )
                     complete = False
             text = f"{visible_name}\n\n{content}" if content else visible_name
-            texts.append(text)
+            texts.append(SemanticSearchText(text, source=visible_name))
             remaining_characters -= len(text)
         return SemanticSearchTexts(texts, complete)
 
