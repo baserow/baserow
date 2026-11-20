@@ -8,6 +8,7 @@ import {
   CoreXLSFileReaderServiceType,
 } from '@baserow_enterprise/integrations/core/serviceTypes'
 import { LocalBaserowSemanticSearchServiceType } from '@baserow_enterprise/integrations/localBaserow/serviceTypes'
+import { MicrosoftTeamsWriteMessageServiceType } from '@baserow_enterprise/integrations/microsoftTeams/serviceTypes'
 
 export class CoreCodeActionNodeType extends ActionNodeTypeMixin(NodeType) {
   static getType() {
@@ -90,6 +91,38 @@ export class LocalBaserowSemanticSearchActionNodeType extends ActionNodeTypeMixi
     return this.app.$registry.get(
       'service',
       LocalBaserowSemanticSearchServiceType.getType()
+    )
+  }
+}
+
+export class MicrosoftTeamsWriteMessageActionNodeType extends ActionNodeTypeMixin(
+  NodeType
+) {
+  static getType() {
+    return 'microsoft_teams_write_message'
+  }
+
+  getOrder() {
+    return 91
+  }
+
+  get name() {
+    return this.app.$i18n.t('nodeType.microsoftTeamsWriteMessageName')
+  }
+
+  getDefaultLabel({ node }) {
+    const label = node?.service?.destination_label
+    return label
+      ? this.app.$i18n.t('nodeType.microsoftTeamsWriteMessageLabel', {
+          destination: label,
+        })
+      : this.name
+  }
+
+  get serviceType() {
+    return this.app.$registry.get(
+      'service',
+      MicrosoftTeamsWriteMessageServiceType.getType()
     )
   }
 }

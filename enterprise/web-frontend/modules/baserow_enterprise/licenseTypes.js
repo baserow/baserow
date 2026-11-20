@@ -21,6 +21,7 @@ const commonAdvancedFeatures = [
   EnterpriseFeaturesObject.BUILDER_CUSTOM_CODE,
   EnterpriseFeaturesObject.CODE_RUNNER,
   EnterpriseFeaturesObject.XLS_FILE_READER,
+  EnterpriseFeaturesObject.MICROSOFT_TEAMS,
   EnterpriseFeaturesObject.BUILDER_GROUPED_AGGREGATE_ROWS,
   EnterpriseFeaturesObject.BUILDER_GRAPH_ELEMENT,
   // Only self-hosted

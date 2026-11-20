@@ -53,7 +53,14 @@
     "errorSearchQueryMissing": "Missing search query property",
     "localBaserowSemanticSearch": "Semantic search",
     "localBaserowSemanticSearchDescription": "Finds the rows that best match the meaning of a search query.",
-    "semanticSearchUnavailable": "Semantic search isn't configured on this instance"
+    "semanticSearchUnavailable": "Semantic search isn't configured on this instance",
+    "microsoftTeamsWriteMessage": "Send Teams message",
+    "microsoftTeamsWriteMessageDescription": "Send a message to a Microsoft Teams channel or chat as a connected Microsoft account.",
+    "microsoftTeamsMissingIntegration": "Choose a Microsoft account to send the message as.",
+    "microsoftTeamsMissingTeam": "Choose the team to send the message to.",
+    "microsoftTeamsMissingChannel": "Choose the channel to send the message to.",
+    "microsoftTeamsMissingChat": "Choose the chat to send the message to.",
+    "microsoftTeamsMissingMessage": "Write the message to send."
   },
   "coreCodeServiceForm": {
     "codeLabel": "Code",
@@ -80,7 +87,9 @@
   "nodeType": {
     "codeLabel": "Execute code",
     "xlsFileReaderLabel": "Read an XLS file",
-    "localBaserowSemanticSearchLabel": "Semantic search in {tableName}"
+    "localBaserowSemanticSearchLabel": "Semantic search in {tableName}",
+    "microsoftTeamsWriteMessageName": "Send Teams message",
+    "microsoftTeamsWriteMessageLabel": "Send Teams message to {destination}"
   },
   "semanticSearchFieldSetting": {
     "label": "Semantic search",
@@ -587,7 +596,9 @@
     "dataScanner": "Data scanner",
     "dataScannerContent": "Scan all data in your Baserow instance for sensitive patterns like IBAN numbers or medical IDs, or match against known value lists. Configure automatic scanning schedules and view detailed results.",
     "semanticSearch": "Semantic search",
-    "semanticSearchContent": "Find rows by the meaning of their text instead of exact words, and use the results in automations and applications."
+    "semanticSearchContent": "Find rows by the meaning of their text instead of exact words, and use the results in automations and applications.",
+    "microsoftTeams": "Microsoft Teams",
+    "microsoftTeamsContent": "Send messages to Microsoft Teams channels and chats from applications and automations, as a connected Microsoft account."
   },
   "assistantSidebarItem": {
     "title": "Kuma AI"
@@ -1089,5 +1100,36 @@
   },
   "madeWithBaserow": {
     "reportAbuse": "Report abuse"
+  },
+  "microsoftTeamsForm": {
+    "alertMessage": "Sign in with Microsoft to send messages as your work or school account.",
+    "integrationLabel": "Microsoft account",
+    "sentAs": "Sent as {name} ({email}).",
+    "personalAccount": "Teams messages can only be sent from a work or school Microsoft account. Choose or connect another account.",
+    "grantAccessTitle": "Allow Baserow to send Teams messages",
+    "grantAccessDescription": "This account hasn't allowed Baserow to send Teams messages, or to list its teams, channels and chats, yet.",
+    "grantAccess": "Grant access",
+    "reconnectTitle": "Reconnect this account",
+    "reconnectDescription": "Microsoft stopped accepting this account's sign-in. Sign in again to keep sending messages.",
+    "reconnect": "Reconnect",
+    "destinationLabel": "Send to",
+    "channel": "Channel",
+    "chat": "Chat",
+    "teamLabel": "Team",
+    "teamPlaceholder": "Choose a team",
+    "teamIdPlaceholder": "Team ID or formula",
+    "channelLabel": "Channel",
+    "channelPlaceholder": "Choose a channel",
+    "channelIdPlaceholder": "Channel ID or formula",
+    "chatLabel": "Chat",
+    "chatPlaceholder": "Choose a chat",
+    "chatIdPlaceholder": "Chat ID or formula",
+    "unnamedChat": "Unnamed chat",
+    "unknownItem": "Selected",
+    "useFormula": "Use an ID or formula",
+    "pickFromList": "Pick from a list",
+    "loadFailed": "Couldn't load the list from Microsoft.",
+    "messageLabel": "Message",
+    "messagePlaceholder": "Enter the message"
   }
 }

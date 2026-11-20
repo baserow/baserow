@@ -1,0 +1,9 @@
+{
+    "type": "feature",
+    "message": "Send Microsoft Teams messages to channels and chats from Application Builder buttons and automations, as a connected Microsoft account.",
+    "issue_origin": "github",
+    "issue_number": 6588,
+    "domain": "integration",
+    "bullet_points": [],
+    "created_at": "2026-11-20"
+}
