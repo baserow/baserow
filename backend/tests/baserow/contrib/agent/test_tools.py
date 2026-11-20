@@ -21,6 +21,8 @@ from baserow.contrib.agent.registries import AgentToolType, agent_tool_type_regi
 from baserow.contrib.database.views.models import FormView
 from baserow.core.chat_runs.steps import ToolCallInputEvent
 from baserow.core.chat_runs.tool_input import MAX_INPUT_PREVIEW_SIZE
+from baserow.core.exceptions import PermissionDenied
+from baserow.core.handler import CoreHandler
 from baserow.core.identities.handler import IdentityHandler
 from baserow.core.notifications.models import NotificationRecipient
 from baserow.core.tools import ToolContext
@@ -28,6 +30,8 @@ from baserow.core.tools.errors import (
     ToolErrorCode,
     ToolInputError,
 )
+
+from .utils import agent_url
 
 # Whether each tool changes data, and arguments it succeeds with on workspace_data.
 TOOLS = {
@@ -1091,3 +1095,54 @@ def test_a_stop_waits_for_the_running_tool(workspace_data):
         return still_running
 
     assert async_to_sync(stop_during_the_call)()
+
+
+@pytest.mark.django_db
+def test_workspace_tools_endpoint_lists_the_registered_tools(
+    configured_agent, data_fixture, api_client, api_user, mocker
+):
+    agent = configured_agent(user=api_user)
+    mocker.patch.object(
+        type(agent_tool_type_registry.get("list_views")),
+        "is_deactivated",
+        return_value=True,
+    )
+
+    def tools_url(workspace_id: int) -> str:
+        return reverse("api:agent:tools", kwargs={"workspace_id": workspace_id})
+
+    response = api_client.get(tools_url(agent.workspace.id))
+
+    assert response.status_code == 200
+    assert response.json() == [
+        {
+            "name": tool.type,
+            "group": tool.group,
+            "changes_data": tool.changes_data,
+            "deactivated": tool.is_deactivated(agent.workspace),
+        }
+        for tool in agent_tool_type_registry.get_all()
+    ]
+    assert {
+        "name": "list_views",
+        "group": "database",
+        "changes_data": False,
+        "deactivated": True,
+    } in response.json()
+    configuration = api_client.get(agent_url(agent, "configuration")).json()
+    assert response.json() == configuration["available_tools"]
+
+    response = api_client.get(tools_url(data_fixture.create_workspace().id))
+    assert response.status_code == 400
+    assert response.json()["error"] == "ERROR_USER_NOT_IN_GROUP"
+
+    response = api_client.get(tools_url(0))
+    assert response.status_code == 404
+    assert response.json()["error"] == "ERROR_GROUP_DOES_NOT_EXIST"
+
+    mocker.patch.object(
+        CoreHandler, "check_permissions", side_effect=PermissionDenied()
+    )
+    response = api_client.get(tools_url(agent.workspace.id))
+    assert response.status_code == 401
+    assert response.json()["error"] == "PERMISSION_DENIED"

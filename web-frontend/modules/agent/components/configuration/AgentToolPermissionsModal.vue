@@ -98,10 +98,15 @@
         </div>
       </div>
       <div class="agent-tool-permissions__actions">
-        <Button type="secondary" @click="modal.hide()">
+        <Button type="secondary" button-type="button" @click="modal.hide()">
           {{ $t('action.cancel') }}
         </Button>
-        <Button type="primary" :disabled="!editable" @click="done">
+        <Button
+          type="primary"
+          button-type="button"
+          :disabled="!editable"
+          @click="done"
+        >
           {{ $t('agent.toolsDone') }}
         </Button>
       </div>

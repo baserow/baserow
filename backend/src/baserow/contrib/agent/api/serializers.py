@@ -187,15 +187,7 @@ class AgentConfigurationSerializer(serializers.Serializer):
             Agent's workspace can't use it.
         """
 
-        return [
-            {
-                "name": tool_type.type,
-                "group": tool_type.group,
-                "changes_data": tool_type.changes_data,
-                "deactivated": tool_type.type in configuration.deactivated_tools,
-            }
-            for tool_type in agent_tool_type_registry.get_all()
-        ]
+        return AgentHandler().get_available_tools(configuration.deactivated_tools)
 
     @extend_schema_field(AgentRunAsSerializer(allow_null=True))
     def get_run_as(self, configuration: AgentConfiguration) -> dict | None:
