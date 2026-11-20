@@ -2,13 +2,13 @@
   <Context
     ref="context"
     max-height-if-outside-viewport
+    :overflow-scroll="mode === 'account'"
     :class="{
-      select: mode === 'account',
       'sidebar-workspace-picker': mode === 'workspace',
       'sidebar-account-menu': mode === 'account',
     }"
     @shown="onShow"
-    @hidden="$emit('hidden')"
+    @hidden="onHidden"
     @keydown.esc="onEscape"
   >
     <template v-if="mode === 'workspace'">
@@ -56,52 +56,19 @@
       ></CreateWorkspaceModal>
     </template>
     <div v-else ref="accountMenu" class="sidebar__user">
-      <div class="sidebar__user-info">
-        <span class="sidebar__user-email">
-          {{ email }}
-        </span>
+      <div class="sidebar__user-email">{{ email }}</div>
 
-        <component
-          :is="component"
-          v-for="(component, index) in highestLicenceTypeBadge"
-          :key="index"
-          class="sidebar__user-license"
-        ></component>
-      </div>
-
-      <ul class="context__menu margin-bottom-0">
-        <li v-if="isStaff" class="context__menu-item">
-          <button
-            type="button"
-            class="context__menu-item-link sidebar-account-menu__action"
-            @click="admin"
-          >
-            <i class="context__menu-item-icon iconoir-settings"></i>
-            {{ $t('sidebar.adminTools') }}
-          </button>
-        </li>
-
+      <ul class="context__menu">
         <li class="context__menu-item">
           <button
             type="button"
-            class="context__menu-item-link sidebar-account-menu__action"
+            class="context__menu-item-link"
             @click="$refs.settingsModal.show()"
           >
             <i class="context__menu-item-icon iconoir-user-circle"></i>
             {{ $t('sidebar.settings') }}
           </button>
           <SettingsModal ref="settingsModal"></SettingsModal>
-        </li>
-
-        <li v-if="anyGuidedTourActive" class="context__menu-item">
-          <button
-            type="button"
-            class="context__menu-item-link sidebar-account-menu__action"
-            @click="replayGuidedTour()"
-          >
-            <i class="context__menu-item-icon iconoir-help-circle"></i>
-            {{ $t('sidebar.replayGuidedTour') }}
-          </button>
         </li>
 
         <component
@@ -111,12 +78,38 @@
           @hide="hide()"
         ></component>
 
-        <li
-          class="context__menu-item context__menu-item--with-separator margin-bottom-0"
-        >
+        <li v-if="isStaff" class="context__menu-item">
+          <button
+            ref="adminTrigger"
+            type="button"
+            class="context__menu-item-link"
+            :aria-expanded="adminMenuOpen"
+            @click="toggleAdminMenu"
+          >
+            <i class="context__menu-item-icon iconoir-settings"></i>
+            {{ $t('sidebar.adminTools') }}
+            <i
+              class="sidebar-account-menu__chevron iconoir-nav-arrow-right"
+              aria-hidden="true"
+            ></i>
+          </button>
+        </li>
+
+        <li v-if="anyGuidedTourActive" class="context__menu-item">
           <button
             type="button"
-            class="context__menu-item-link sidebar-account-menu__action"
+            class="context__menu-item-link"
+            @click="replayGuidedTour()"
+          >
+            <i class="context__menu-item-icon iconoir-help-circle"></i>
+            {{ $t('sidebar.replayGuidedTour') }}
+          </button>
+        </li>
+
+        <li class="context__menu-item context__menu-item--with-separator">
+          <button
+            type="button"
+            class="context__menu-item-link"
             :class="{ 'context__menu-item-link--loading': logoffLoading }"
             @click="logoff()"
           >
@@ -125,6 +118,19 @@
           </button>
         </li>
       </ul>
+      <Context
+        v-if="isStaff"
+        ref="adminContext"
+        class="sidebar-admin-menu"
+        :horizontal-viewport-margin="8"
+        max-height-if-outside-viewport
+        overflow-scroll
+        @shown="onAdminMenuShown"
+        @hidden="adminMenuOpen = false"
+        @keydown.esc.stop.prevent="closeAdminMenu"
+      >
+        <SidebarAdmin show-section-separators />
+      </Context>
     </div>
   </Context>
 </template>
@@ -135,6 +141,7 @@ import { mapGetters } from 'vuex'
 import { logoutAndRedirectToLogin } from '@baserow/modules/core/utils/auth'
 import context from '@baserow/modules/core/mixins/context'
 import SelectSearch from '@baserow/modules/core/components/SelectSearch.vue'
+import SidebarAdmin from '@baserow/modules/core/components/sidebar/SidebarAdmin.vue'
 import SidebarWorkspacePickerRow from '@baserow/modules/core/components/sidebar/SidebarWorkspacePickerRow.vue'
 import SettingsModal from '@baserow/modules/core/components/settings/SettingsModal'
 import CreateWorkspaceModal from '@baserow/modules/core/components/workspace/CreateWorkspaceModal'
@@ -146,6 +153,7 @@ export default {
   name: 'SidebarUserContext',
   components: {
     SelectSearch,
+    SidebarAdmin,
     SettingsModal,
     CreateWorkspaceModal,
     SidebarWorkspacePickerRow,
@@ -173,25 +181,12 @@ export default {
   },
   data() {
     return {
+      adminMenuOpen: false,
       logoffLoading: false,
       query: '',
     }
   },
   computed: {
-    highestLicenceTypeBadge() {
-      return Object.values(this.$registry.getAll('plugin'))
-        .map((plugin) => plugin.getHighestLicenseTypeBadge())
-        .filter((component) => component !== null)
-    },
-    adminTypes() {
-      return this.$registry.getAll('admin')
-    },
-    sortedAdminTypes() {
-      return Object.values(this.adminTypes)
-        .filter((adminType) => adminType.isVisible())
-        .slice()
-        .sort((a, b) => a.getOrder() - b.getOrder())
-    },
     sidebarUserContextComponents() {
       return Object.values(this.$registry.getAll('plugin'))
         .flatMap((plugin) =>
@@ -224,6 +219,19 @@ export default {
       isStaff: 'auth/isStaff',
       email: 'auth/getUsername',
     }),
+  },
+  watch: {
+    '$route.name'(name) {
+      if (
+        this.adminMenuOpen &&
+        Object.values(this.$registry.getAll('admin')).some(
+          (adminType) => adminType.routeName === name
+        )
+      ) {
+        this.hide()
+        this.$emit('toggle-admin', true)
+      }
+    },
   },
   methods: {
     getWorkspaceOptions() {
@@ -265,6 +273,13 @@ export default {
         this.$refs.addWorkspace?.focus()
       }
     },
+    onHidden() {
+      const adminContext = this.$refs.adminContext
+      if (adminContext?.isOpen()) {
+        adminContext.hide()
+      }
+      this.$emit('hidden')
+    },
     onShow() {
       this.query = ''
       this.$emit('shown')
@@ -302,19 +317,32 @@ export default {
         true
       )
     },
-    async admin() {
-      this.hide()
-      await this.$nextTick()
-
-      this.$emit('toggle-admin', true)
-      const activatedAdminTypes = this.sortedAdminTypes.filter(
-        (adminType) => !adminType.isDeactivated()
+    toggleAdminMenu(event) {
+      const trigger = event.currentTarget
+      this.$refs.adminContext.toggle(
+        trigger,
+        'over-top',
+        'left',
+        0,
+        trigger.offsetWidth + 12
       )
-      try {
-        await this.$router.push({ name: activatedAdminTypes[0].routeName })
-        await pageFinished(this.nuxtApp)
-        await nextTick()
-      } catch {}
+    },
+    async onAdminMenuShown() {
+      if (!this.$refs.context?.isOpen() || !this.$refs.adminContext?.isOpen()) {
+        return
+      }
+      this.adminMenuOpen = true
+      await this.$nextTick()
+      if (this.adminMenuOpen) {
+        this.$refs.adminContext
+          ?.getTeleportedElement()
+          ?.querySelector('a[href]')
+          ?.focus()
+      }
+    },
+    closeAdminMenu() {
+      this.$refs.adminContext.hide()
+      this.$refs.adminTrigger.focus()
     },
     async replayGuidedTour() {
       this.hide()

@@ -7,7 +7,15 @@
             v-for="(category, index) in groupedSortedAdminTypes"
             :key="category.name"
           >
-            <li class="tree__heading" :class="{ 'margin-top-2': index > 0 }">
+            <li
+              v-if="showSectionSeparators && index > 0"
+              class="tree__separator"
+              aria-hidden="true"
+            ></li>
+            <li
+              class="tree__heading"
+              :class="{ 'margin-top-2': index > 0 && !showSectionSeparators }"
+            >
               {{ category.name }}
             </li>
             <SidebarAdminItem
@@ -28,6 +36,12 @@ import SidebarAdminItem from '@baserow/modules/core/components/sidebar/SidebarAd
 export default {
   name: 'SidebarAdmin',
   components: { SidebarAdminItem },
+  props: {
+    showSectionSeparators: {
+      type: Boolean,
+      default: false,
+    },
+  },
   computed: {
     adminTypes() {
       return this.$registry.getAll('admin')

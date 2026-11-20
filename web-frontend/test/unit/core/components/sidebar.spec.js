@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, test } from 'vitest'
 import { TestApp } from '@baserow/test/helpers/testApp'
 import Sidebar from '@baserow/modules/core/components/sidebar/Sidebar.vue'
 import SidebarAllWorkspaces from '@baserow/modules/core/components/sidebar/SidebarAllWorkspaces.vue'
+import SidebarFoot from '@baserow/modules/core/components/sidebar/SidebarFoot.vue'
 
 describe('Workspace sidebar', () => {
   let testApp
@@ -103,5 +104,50 @@ describe('Workspace sidebar', () => {
     expect(wrapper.findComponent({ name: 'SidebarUserContext' }).exists()).toBe(
       false
     )
+  })
+
+  test('restores focus one level at a time when closing the admin submenu', async () => {
+    testApp.authenticate({
+      id: 1,
+      first_name: 'Ada Lovelace',
+      username: 'ada@example.com',
+      is_staff: true,
+    })
+    const wrapper = await testApp.mount(SidebarFoot, {
+      props: { selectedWorkspace: {}, width: 240 },
+      global: {
+        stubs: {
+          Teleport: false,
+          SettingsModal: true,
+          SidebarAdmin: {
+            template: '<a href="/admin/dashboard">Dashboard</a>',
+          },
+        },
+      },
+    })
+
+    const account = wrapper.get('button[aria-label="Ada Lovelace"]')
+    await account.trigger('click')
+    await flushPromises()
+    expect(account.attributes('aria-expanded')).toBe('true')
+    expect(document.activeElement?.textContent.trim()).toBe('sidebar.settings')
+
+    const admin = testApp.body.get(
+      '.sidebar-account-menu button[aria-expanded]'
+    )
+    await admin.trigger('click')
+    await flushPromises()
+    const dashboard = testApp.body.get('.sidebar-admin-menu a')
+    expect(admin.attributes('aria-expanded')).toBe('true')
+    expect(document.activeElement).toBe(dashboard.element)
+
+    await dashboard.trigger('keydown', { key: 'Escape' })
+    expect(admin.attributes('aria-expanded')).toBe('false')
+    expect(account.attributes('aria-expanded')).toBe('true')
+    expect(document.activeElement).toBe(admin.element)
+
+    await admin.trigger('keydown', { key: 'Escape' })
+    expect(account.attributes('aria-expanded')).toBe('false')
+    expect(document.activeElement).toBe(account.element)
   })
 })

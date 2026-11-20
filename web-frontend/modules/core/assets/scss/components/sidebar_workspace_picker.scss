@@ -56,7 +56,6 @@
 .sidebar-workspace-picker__item,
 .sidebar-workspace-picker__actions,
 .sidebar-workspace-picker__add,
-.sidebar-account-menu__action,
 .workspace-context__action {
   border: 0;
   background: transparent;
@@ -88,7 +87,6 @@
 button.sidebar-workspace-picker__item,
 .sidebar-workspace-picker__actions,
 .sidebar-workspace-picker__add,
-.sidebar-account-menu__action,
 .workspace-context__action {
   cursor: pointer;
 }
@@ -168,26 +166,12 @@ button.sidebar-workspace-picker__item,
   color: $palette-neutral-700;
 }
 
-.sidebar-account-menu {
-  width: 224px;
-  max-width: calc(100vw - 16px);
-
-  .sidebar__user {
-    border-top: 0;
-    background: $white;
-
-    @include rounded($rounded-md);
-  }
-}
-
-.sidebar-account-menu__action,
 .workspace-context__action {
   width: 100%;
 }
 
 .sidebar-workspace-picker__actions:focus-visible,
 .sidebar-workspace-picker__add:focus-visible,
-.sidebar-account-menu__action:focus-visible,
 .workspace-context__action:focus-visible {
   outline: 2px solid $palette-blue-500;
   outline-offset: -2px;
