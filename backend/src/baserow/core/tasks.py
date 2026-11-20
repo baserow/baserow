@@ -1,4 +1,5 @@
 from datetime import timedelta
+from time import monotonic
 
 from django.conf import settings
 
@@ -56,6 +57,19 @@ def sync_templates_task(self):
 
 
 CREATE_MISSING_SHARED_APPLICATIONS_INTERVAL_SECONDS = 60 * 60
+# A run stops starting batches after this many seconds and leaves the rest to the
+# next run, so that it doesn't hold an export worker for long. Locked workspaces
+# are skipped, so a run doesn't wait on row locks. The Celery limits below are a
+# safety net for a run that still can't reach its own check, e.g. a slow query: the
+# soft limit is only raised once that query returns, the hard limit kills the
+# worker process.
+CREATE_MISSING_SHARED_APPLICATIONS_TIME_LIMIT = 5 * 60
+CREATE_MISSING_SHARED_APPLICATIONS_SOFT_TIME_LIMIT = (
+    CREATE_MISSING_SHARED_APPLICATIONS_TIME_LIMIT + 60
+)
+CREATE_MISSING_SHARED_APPLICATIONS_HARD_TIME_LIMIT = (
+    CREATE_MISSING_SHARED_APPLICATIONS_SOFT_TIME_LIMIT + 60
+)
 
 
 @app.task(
@@ -63,16 +77,17 @@ CREATE_MISSING_SHARED_APPLICATIONS_INTERVAL_SECONDS = 60 * 60
     raise_on_duplicate=False,
     bind=True,
     queue="export",
-    time_limit=CREATE_MISSING_SHARED_APPLICATIONS_INTERVAL_SECONDS,
-    lock_expiry=CREATE_MISSING_SHARED_APPLICATIONS_INTERVAL_SECONDS,
+    soft_time_limit=CREATE_MISSING_SHARED_APPLICATIONS_SOFT_TIME_LIMIT,
+    time_limit=CREATE_MISSING_SHARED_APPLICATIONS_HARD_TIME_LIMIT,
+    lock_expiry=CREATE_MISSING_SHARED_APPLICATIONS_HARD_TIME_LIMIT,
 )
 def create_missing_shared_applications_task(self):
     """
     Creates the shared application of the workspaces created before shared
     applications existed. Periodic instead of submitted after the migration, so
     that a run lost to a worker of the previous release during the deployment, or
-    cut short by the time limit, is picked up by the next one. Once every workspace
-    has one, a run is a single query.
+    one that stopped at its time limit, is picked up by the next one. Once every
+    workspace has one, a run is a single query.
 
     TODO ZDM: removed with the lazy creation in the application listing once a
     data migration has created the shared application of every workspace:
@@ -81,7 +96,9 @@ def create_missing_shared_applications_task(self):
 
     from baserow.core.handler import CoreHandler
 
-    CoreHandler().create_all_missing_shared_applications()
+    CoreHandler().create_all_missing_shared_applications(
+        deadline=monotonic() + CREATE_MISSING_SHARED_APPLICATIONS_TIME_LIMIT
+    )
 
 
 # TODO ZDM: remove with https://github.com/baserow/baserow/issues/6758
