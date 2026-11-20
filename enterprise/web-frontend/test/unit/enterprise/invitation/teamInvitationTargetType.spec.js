@@ -219,3 +219,46 @@ describe('TeamMembersInvitationRouteType', () => {
     expect(unlicensed.isEnabled(workspace, team)).toBe(false)
   })
 })
+
+describe('TeamInvitationTargetType in the invitation links settings', () => {
+  test('turns links to a team into targets named after the team', () => {
+    const targetType = new TeamInvitationTargetType({ app: createApp() })
+    const team = { id: 3, name: 'Ops', default_role: 'EDITOR' }
+
+    const target = targetType.getTargetFromInvitationLink(workspace, {
+      scope_type: 'team',
+      scope: team,
+    })
+
+    expect(target).toEqual({ type: 'team', team })
+    expect(targetType.getInvitationLinkTargetName(workspace, target)).toBe(
+      'teamInvitationTarget.targetName:{"name":"Ops"}'
+    )
+    expect(targetType.getInvitationLinkRole(workspace, target)).toEqual({
+      uid: 'EDITOR',
+      name: 'Editor',
+    })
+    expect(
+      targetType.getTargetFromInvitationLink(workspace, {
+        scope_type: 'database_table',
+      })
+    ).toBeNull()
+  })
+
+  test.each([
+    [true, true, true],
+    [false, true, false],
+    [true, false, false],
+  ])(
+    'with teams %s and the link permissions %s can manage links: %s',
+    (hasTeams, hasPermission, expected) => {
+      const app = {
+        ...createApp(hasTeams),
+        $hasPermission: vi.fn().mockReturnValue(hasPermission),
+      }
+      const targetType = new TeamInvitationTargetType({ app })
+
+      expect(targetType.canManageInvitationLinks(workspace)).toBe(expected)
+    }
+  )
+})

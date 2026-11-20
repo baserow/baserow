@@ -47,6 +47,7 @@ from .serializers import (
     CreateWorkspaceInvitationLinkSerializer,
     InvitationLinkAuthRequestSerializer,
     InvitationLinkAuthResponseSerializer,
+    ManageableWorkspaceInvitationLinkSerializer,
     PublicWorkspaceInvitationLinkSerializer,
     UpdateWorkspaceInvitationLinkSerializer,
     WorkspaceInvitationLinkSerializer,
@@ -170,6 +171,58 @@ class WorkspaceInvitationLinksView(APIView):
         ).do(request.user, workspace, data["permissions"], data.get("name", ""))
 
         return Response(WorkspaceInvitationLinkSerializer(invitation_link).data)
+
+
+class ManageableWorkspaceInvitationLinksView(APIView):
+    permission_classes = (IsAuthenticated,)
+
+    @extend_schema(
+        parameters=[
+            OpenApiParameter(
+                name="workspace_id",
+                location=OpenApiParameter.PATH,
+                type=OpenApiTypes.INT,
+                description="Returns the invitation links of the workspace related "
+                "to the provided value.",
+            )
+        ],
+        tags=["Workspace invitation links"],
+        operation_id="list_manageable_workspace_invitation_links",
+        description=(
+            "Lists every invitation link of the workspace that the authorized user "
+            "can manage: links to the workspace itself and links to an object of "
+            "the workspace, like a table or a team. Workspace admins get all of "
+            "them, someone who manages one object or team gets just its links."
+        ),
+        responses={
+            200: ManageableWorkspaceInvitationLinkSerializer(many=True),
+            400: get_error_schema(["ERROR_USER_NOT_IN_GROUP"]),
+            403: get_error_schema(["ERROR_FEATURE_DISABLED"]),
+            404: get_error_schema(["ERROR_GROUP_DOES_NOT_EXIST"]),
+        },
+    )
+    @map_exceptions(
+        {
+            WorkspaceDoesNotExist: ERROR_GROUP_DOES_NOT_EXIST,
+            UserNotInWorkspace: ERROR_USER_NOT_IN_GROUP,
+        }
+    )
+    def get(self, request, workspace_id):
+        """Lists the invitation links of the workspace the user can manage."""
+
+        handler = CoreHandler()
+        workspace = handler.get_workspace(workspace_id)
+        invitation_links = handler.list_manageable_workspace_invitation_links(
+            request.user, workspace
+        )
+        serializer = ManageableWorkspaceInvitationLinkSerializer(
+            invitation_links,
+            many=True,
+            context={
+                "scope_data": handler.get_invitation_links_scope_data(invitation_links)
+            },
+        )
+        return Response(serializer.data)
 
 
 class WorkspaceInvitationLinkView(APIView):

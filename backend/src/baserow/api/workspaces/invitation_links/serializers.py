@@ -60,6 +60,66 @@ class WorkspaceInvitationLinkSerializer(serializers.ModelSerializer):
         )
 
 
+class ManageableWorkspaceInvitationLinkSerializer(serializers.ModelSerializer):
+    """
+    Serializer of any invitation link of a workspace, to the workspace itself or to
+    an object of it, for listing them all in one place. The `scope_data` context
+    holds the data of the object of each link by link id.
+    """
+
+    permissions = serializers.SerializerMethodField(
+        help_text="The role people get when they join through the link: on the "
+        "workspace, or on the object of the link if it has one."
+    )
+    has_password = serializers.BooleanField(
+        read_only=True,
+        help_text="Whether people must enter a password before they can use the link.",
+    )
+    scope_type = serializers.SerializerMethodField(
+        help_text="The type of the object of the workspace the link gives access "
+        "to, or null if the link is for the workspace itself."
+    )
+    scope = serializers.SerializerMethodField(
+        help_text="The object the link gives access to, with at least its `id` and "
+        "`name`, or null if the link is for the workspace itself."
+    )
+
+    class Meta:
+        model = WorkspaceInvitationLink
+        fields = (
+            "id",
+            "workspace",
+            "name",
+            "slug",
+            "permissions",
+            "has_password",
+            "scope_type",
+            "scope",
+            "created_on",
+        )
+        read_only_fields = fields
+
+    @extend_schema_field(OpenApiTypes.STR)
+    def get_permissions(self, object):
+        if object.scope_type_id is not None:
+            return object.permissions
+        return CoreHandler().get_workspace_role_uid(
+            object.permissions, object.workspace
+        )
+
+    @extend_schema_field(OpenApiTypes.STR)
+    def get_scope_type(self, object):
+        if object.scope_type_id is None:
+            return None
+        return object_scope_type_registry.get_by_model(
+            object.scope_type.model_class()
+        ).type
+
+    @extend_schema_field(OpenApiTypes.OBJECT)
+    def get_scope(self, object):
+        return self.context.get("scope_data", {}).get(object.id)
+
+
 class CreateWorkspaceInvitationLinkSerializer(serializers.ModelSerializer):
     class Meta:
         model = WorkspaceInvitationLink
