@@ -102,9 +102,9 @@ describe('Workspace sidebar', () => {
     const brand = wrapper.get('a.sidebar__brand')
     expect(brand.attributes('href')).toBe('/all-workspaces')
     expect(brand.get('img').isVisible()).toBe(true)
-    expect(wrapper.findComponent({ name: 'SidebarUserContext' }).exists()).toBe(
-      false
-    )
+    expect(
+      wrapper.findComponent({ name: 'SidebarWorkspacePicker' }).exists()
+    ).toBe(false)
   })
 
   test('opens workspace settings and help and restores focus', async () => {
@@ -165,6 +165,67 @@ describe('Workspace sidebar', () => {
     await firstHelpItem.trigger('keydown', { key: 'Escape' })
     expect(help.attributes('aria-expanded')).toBe('false')
     expect(document.activeElement).toBe(help.element)
+  })
+
+  test('discards workspace actions when the selected workspace changes', async () => {
+    const { store, mock } = testApp
+    for (const [id, name] of [
+      [1, 'Design'],
+      [2, 'Engineering'],
+    ]) {
+      await store.dispatch('workspace/forceCreate', { id, name })
+      const workspace = store.getters['workspace/get'](id)
+      mock.onGet(`/workspaces/${id}/permissions/`).reply(200, [])
+      mock.onGet(`/workspaces/${id}/roles/`).reply(200, [])
+      await store.dispatch('workspace/fetchPermissions', workspace)
+      await store.dispatch('workspace/fetchRoles', workspace)
+    }
+    const design = store.getters['workspace/get'](1)
+    const engineering = store.getters['workspace/get'](2)
+    const wrapper = await testApp.mount(SidebarMenu, {
+      props: { selectedWorkspace: design },
+      global: {
+        mocks: { $hasPermission: () => true },
+        stubs: {
+          Teleport: false,
+          NotificationPanel: true,
+          InviteModal: true,
+          WorkspaceSettingsModal: true,
+        },
+      },
+    })
+    const settings = wrapper.get('[data-highlight="workspace-settings"] button')
+    const visibleMenu = '.sidebar-workspace-menu:not(.visibility-hidden)'
+
+    await settings.trigger('click')
+    await flushPromises()
+    expect(
+      testApp.body
+        .get(visibleMenu)
+        .get('a[href="/workspace/1/settings/members"]')
+        .exists()
+    ).toBe(true)
+
+    await wrapper.setProps({ selectedWorkspace: engineering })
+    expect(settings.attributes('aria-expanded')).toBe('false')
+    expect(testApp.body.find(visibleMenu).exists()).toBe(false)
+
+    await settings.trigger('click')
+    await flushPromises()
+    const menu = testApp.body.get(visibleMenu)
+    expect(menu.get('a[href="/workspace/2/settings/members"]').exists()).toBe(
+      true
+    )
+    const rename = menu
+      .findAll('button')
+      .find((button) => button.text() === 'workspaceContext.renameWorkspace')
+    await rename.trigger('click')
+    await flushPromises()
+    const modal = testApp.body.get('.modal__wrapper')
+    expect(modal.get('input').element.value).toBe('Engineering')
+
+    await wrapper.setProps({ selectedWorkspace: design })
+    expect(testApp.body.find('.modal__wrapper').exists()).toBe(false)
   })
 
   test('restores focus one level at a time when closing the admin submenu', async () => {

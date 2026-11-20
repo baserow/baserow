@@ -95,9 +95,10 @@
           </button>
         </div>
         <WorkspaceContext
+          :key="selectedWorkspace.id"
           ref="settings"
           :workspace="selectedWorkspace"
-          sidebar
+          :show-title="false"
           class="sidebar-workspace-menu"
           tabindex="-1"
           :horizontal-viewport-margin="8"
@@ -105,12 +106,11 @@
           @hidden="onMenuHidden('settings')"
           @keydown.esc.stop.prevent="closeMenu('settings')"
         >
-          <template #before-trash="{ hide }">
-            <component
-              :is="component"
-              v-for="(component, index) in getMenuComponents('settings')"
-              :key="index"
+          <template #default="{ actions, hide }">
+            <SidebarWorkspaceSettingsItems
+              :actions="actions"
               :workspace="selectedWorkspace"
+              :extensions="getMenuComponents('settings')"
               @hide="hide()"
             />
           </template>
@@ -134,6 +134,7 @@
           </button>
         </div>
         <Context
+          :key="selectedWorkspace.id"
           ref="help"
           class="sidebar-workspace-menu"
           tabindex="-1"
@@ -193,6 +194,7 @@ import { mapGetters } from 'vuex'
 import NotificationPanel from '@baserow/modules/core/components/NotificationPanel'
 import BadgeCounter from '@baserow/modules/core/components/BadgeCounter'
 import SidebarSearch from '@baserow/modules/core/components/sidebar/SidebarSearch'
+import SidebarWorkspaceSettingsItems from '@baserow/modules/core/components/sidebar/SidebarWorkspaceSettingsItems.vue'
 import WorkspaceContext from '@baserow/modules/core/components/workspace/WorkspaceContext'
 
 export default {
@@ -201,6 +203,7 @@ export default {
     NotificationPanel,
     BadgeCounter,
     SidebarSearch,
+    SidebarWorkspaceSettingsItems,
     WorkspaceContext,
   },
   props: {
@@ -237,6 +240,11 @@ export default {
     ...mapGetters({
       unreadNotificationCount: 'notification/getUnreadCount',
     }),
+  },
+  watch: {
+    'selectedWorkspace.id'() {
+      this.openMenu = null
+    },
   },
   methods: {
     getMenuComponents(menu) {

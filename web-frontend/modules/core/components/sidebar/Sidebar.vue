@@ -136,13 +136,13 @@
           ></i>
         </button>
       </div>
-      <SidebarUserContext
+      <SidebarWorkspacePicker
         ref="workspacesContext"
         :workspaces="workspaces"
         :selected-workspace="selectedWorkspace"
         @shown="workspaceContextOpen = true"
         @hidden="workspaceContextOpen = false"
-      ></SidebarUserContext>
+      ></SidebarWorkspacePicker>
 
       <SidebarMenu
         v-show="!collapsed"
@@ -178,7 +178,7 @@
 <script>
 import { mapGetters } from 'vuex'
 
-import SidebarUserContext from '@baserow/modules/core/components/sidebar/SidebarUserContext'
+import SidebarWorkspacePicker from '@baserow/modules/core/components/sidebar/SidebarWorkspacePicker.vue'
 import SidebarWithWorkspace from '@baserow/modules/core/components/sidebar/SidebarWithWorkspace'
 import SidebarWithoutWorkspace from '@baserow/modules/core/components/sidebar/SidebarWithoutWorkspace'
 import SidebarAdmin from '@baserow/modules/core/components/sidebar/SidebarAdmin'
@@ -192,7 +192,7 @@ export default {
     SidebarAdmin,
     SidebarWithoutWorkspace,
     SidebarWithWorkspace,
-    SidebarUserContext,
+    SidebarWorkspacePicker,
     SidebarMenu,
     SidebarFoot,
   },

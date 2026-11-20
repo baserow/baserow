@@ -102,14 +102,18 @@ export default {
       this.$nextTick(() => {
         if (this.actionsOpen) {
           const menu = this.$refs.context?.getTeleportedElement()
-          const target =
-            menu?.querySelector('button.context__menu-item-link') ?? menu
+          const target = menu?.querySelector('.context__menu-item-link') ?? menu
           target?.focus()
         }
       })
     },
+    hideActions() {
+      if (this.$refs.context.getRootContext().isOpen()) {
+        this.$refs.context.hide()
+      }
+    },
     closeActions() {
-      this.$refs.context.hide()
+      this.hideActions()
       this.$refs.actions.focus()
     },
     cancelRename() {

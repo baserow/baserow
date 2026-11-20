@@ -31,14 +31,13 @@
               class="sidebar__unread-notifications-icon"
             ></span>
           </button>
-          <SidebarUserContext
+          <SidebarAccountMenu
             ref="accountContext"
-            mode="account"
             :selected-workspace="selectedWorkspace"
             @toggle-admin="$emit('toggle-admin', $event)"
             @shown="accountContextOpen = true"
             @hidden="accountContextOpen = false"
-          ></SidebarUserContext>
+          ></SidebarAccountMenu>
         </template>
         <div v-else class="sidebar__logo">
           <ExternalLinkBaserowLogo />
@@ -84,11 +83,11 @@
 import { mapGetters } from 'vuex'
 import undoRedo from '@baserow/modules/core/mixins/undoRedo'
 import ExternalLinkBaserowLogo from '@baserow/modules/core/components/ExternalLinkBaserowLogo'
-import SidebarUserContext from '@baserow/modules/core/components/sidebar/SidebarUserContext'
+import SidebarAccountMenu from '@baserow/modules/core/components/sidebar/SidebarAccountMenu.vue'
 
 export default {
   name: 'SidebarFoot',
-  components: { ExternalLinkBaserowLogo, SidebarUserContext },
+  components: { ExternalLinkBaserowLogo, SidebarAccountMenu },
   mixins: [undoRedo],
   props: {
     selectedWorkspace: {

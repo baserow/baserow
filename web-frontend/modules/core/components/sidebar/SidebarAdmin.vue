@@ -22,6 +22,7 @@
               v-for="adminType in category.items"
               :key="adminType.type"
               :admin-type="adminType"
+              @activate="$emit('activate')"
             />
           </template>
         </ul>
@@ -42,6 +43,7 @@ export default {
       default: false,
     },
   },
+  emits: ['activate'],
   computed: {
     adminTypes() {
       return this.$registry.getAll('admin')
