@@ -270,7 +270,8 @@ const canCreateIdentities = computed(() => {
     .map((application) => $registry.get('application', application.type))
   return (
     types.some((type) => type.createsIdentityOnInstall()) &&
-    types.some((type) => type.grantsInstallIdentityAccess()) &&
+    // The identity gets access to the other applications only.
+    types.some((type) => !type.createsIdentityOnInstall()) &&
     Object.values($registry.getAll('plugin')).some((plugin) =>
       plugin.canCreateScopedIdentities(workspace)
     )

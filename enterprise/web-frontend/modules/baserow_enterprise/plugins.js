@@ -112,9 +112,8 @@ export class EnterprisePlugin extends BaserowPlugin {
     // Without roles, an identity could only access the whole workspace.
     return (
       this.app.$hasFeature(EnterpriseFeatures.RBAC, workspace.id) &&
-      ['identity.create', 'identity.update', 'workspace.assign_role'].every(
-        (operation) =>
-          this.app.$hasPermission(operation, workspace, workspace.id)
+      ['identity.create_scoped', 'identity.bind'].every((operation) =>
+        this.app.$hasPermission(operation, workspace, workspace.id)
       )
     )
   }

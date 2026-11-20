@@ -30,11 +30,7 @@ describe('Test enterprise Baserow plugin', () => {
 
   describe('canCreateScopedIdentities', () => {
     const workspace = { id: 7 }
-    const OPERATIONS = [
-      'identity.create',
-      'identity.update',
-      'workspace.assign_role',
-    ]
+    const OPERATIONS = ['identity.create_scoped', 'identity.bind']
 
     const pluginWith = ({ rbac = true, denied = null } = {}) =>
       new EnterprisePlugin({
@@ -46,7 +42,7 @@ describe('Test enterprise Baserow plugin', () => {
         },
       })
 
-    test('needs roles and the permissions to create and scope identities', () => {
+    test('needs roles and the permissions to create and bind scoped identities', () => {
       expect(pluginWith().canCreateScopedIdentities(workspace)).toBe(true)
       expect(
         pluginWith({ rbac: false }).canCreateScopedIdentities(workspace)

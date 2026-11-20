@@ -649,6 +649,7 @@ describe('TemplateInstall', () => {
   describe('identities for Agents', () => {
     const agent = { id: 3, type: 'agent', name: 'Helper' }
     const database = { id: 4, type: 'database', name: 'CRM' }
+    const site = { id: 5, type: 'builder', name: 'Site' }
 
     class ScopedIdentitiesPlugin extends BaserowPlugin {
       static getType() {
@@ -696,7 +697,7 @@ describe('TemplateInstall', () => {
       expect(option(wrapper).exists()).toBe(false)
     })
 
-    test('is hidden for a template without databases', async () => {
+    test('is hidden for a template with only Agents', async () => {
       signIn()
       registerPlugin()
       const wrapper = await testApp.mount(TemplateInstall, {
@@ -704,6 +705,16 @@ describe('TemplateInstall', () => {
       })
 
       expect(option(wrapper).exists()).toBe(false)
+    })
+
+    test('is shown for a template with an Agent and any other application', async () => {
+      signIn()
+      registerPlugin()
+      const wrapper = await testApp.mount(TemplateInstall, {
+        props: { template, applications: [site, agent] },
+      })
+
+      expect(option(wrapper).exists()).toBe(true)
     })
 
     test('is hidden for a workspace the user cannot scope identities in', async () => {
