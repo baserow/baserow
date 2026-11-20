@@ -32,9 +32,9 @@
         >
           {{ $t('updateUserTemplateModal.detailsDescription') }}
         </p>
-        <Alert v-if="reviewNotice" type="info-neutral" class="margin-bottom-2">
-          <template #title>{{ $t(reviewNotice.title) }}</template>
-          <p>{{ $t(reviewNotice.text) }}</p>
+        <Alert v-if="notice" type="info-neutral" class="margin-bottom-2">
+          <template #title>{{ $t(notice.title) }}</template>
+          <p>{{ $t(notice.text) }}</p>
         </Alert>
         <UserTemplateDetailsForm
           v-if="activeMode === 'details'"
@@ -131,7 +131,10 @@ import UserTemplateContentForm from '@baserow/modules/core/components/template/U
 import UserTemplateDetailsForm from '@baserow/modules/core/components/template/UserTemplateDetailsForm'
 import UserTemplateVisibilityForm from '@baserow/modules/core/components/template/UserTemplateVisibilityForm'
 import TemplateService from '@baserow/modules/core/services/template'
-import { canChangeVisibilityInDetails } from '@baserow/modules/core/utils/userTemplate'
+import {
+  canChangeVisibilityInDetails,
+  getPublicAgainKey,
+} from '@baserow/modules/core/utils/userTemplate'
 
 // The notifications of the jobs that ended, by job of the store. The same template
 // can be updated from more than one mounted modal, which all follow the same job,
@@ -165,7 +168,8 @@ export default {
       required: true,
       validator: (value) => ['details', 'content'].includes(value),
     },
-    // The categories an author can pick from, each with an `id` and a `name`.
+    // The categories, each with an `id`, a `name` and whether authors can pick it
+    // as `user_selectable`.
     categories: {
       type: Array,
       required: true,
@@ -250,11 +254,24 @@ export default {
         sorted(this.values.categoryIds) !== sorted(initial.categoryIds)
       )
     },
-    reviewNotice() {
+    notice() {
       if (this.template.state === 'blocked') {
         return {
           title: 'updateUserTemplateModal.blockedTitle',
           text: 'updateUserTemplateModal.blockedText',
+        }
+      }
+      if (
+        this.showVisibility &&
+        this.template.listed &&
+        !this.values.makePublic
+      ) {
+        return {
+          title: 'updateUserTemplateModal.privateTitle',
+          text: getPublicAgainKey(
+            this.template,
+            this.$store.getters['settings/get'].user_templates_require_approval
+          ),
         }
       }
       if (
@@ -311,7 +328,9 @@ export default {
         icon: this.template.icon || DEFAULT_TEMPLATE_ICON,
         name: this.template.name,
         description: this.template.description || '',
-        categoryIds: this.template.categories.map((category) => category.id),
+        categoryIds: this.template.categories
+          .filter((category) => category.user_selectable !== false)
+          .map((category) => category.id),
       }
     },
     getDefaultValues() {
@@ -442,7 +461,8 @@ export default {
     async onJobFinished() {
       await this.handleUpdated(
         'toast/success',
-        'updateUserTemplateModal.updated'
+        'updateUserTemplateModal.updated',
+        'updateUserTemplateModal.updatedMessage'
       )
     },
     // The details are kept by a content update, so the author can only fix them
@@ -468,12 +488,16 @@ export default {
       }
       return notifiedJobs.get(key)
     },
-    async handleUpdated(toast, title) {
+    async handleUpdated(toast, title, message) {
       const finishedJob = this.job
+      const name = finishedJob.name || this.template.name
       this.hide()
       this.reset()
       await this.notify(finishedJob, async () => {
-        this.$store.dispatch(toast, { title: this.$t(title) })
+        this.$store.dispatch(toast, {
+          title: this.$t(title),
+          message: this.$t(message, { name }),
+        })
         // The workspace of the new revision can only be previewed once the
         // `workspace_template_ids` of the permissions are refreshed.
         await this.$store.dispatch('auth/refresh').catch(() => {})
@@ -484,14 +508,13 @@ export default {
       if (this.job.revision) {
         // It failed after the revision was committed, which is kept. Then
         // making it public is what failed, if that was asked.
-        this.handleUpdated(
-          'toast/warning',
+        const key =
           this.job.error_code === 'TemplateBlocked'
             ? 'updateUserTemplateModal.blockedAfterUpdated'
             : this.job.make_public
               ? 'updateUserTemplateModal.failedPublicAfterUpdated'
               : 'updateUserTemplateModal.failedAfterUpdated'
-        )
+        this.handleUpdated('toast/warning', `${key}Title`, `${key}Message`)
         return
       }
       const title = this.$t('clientHandler.notCompletedTitle')

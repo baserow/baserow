@@ -12,6 +12,7 @@ class CustomCodeBuilderApplicationTypeMixin:
         return super().serializer_field_names + [
             "scripts",
             "custom_code",
+            "head_html",
         ]
 
     @property
@@ -19,6 +20,7 @@ class CustomCodeBuilderApplicationTypeMixin:
         return super().public_serializer_field_names + [
             "scripts",
             "custom_code",
+            "has_head_html",
         ]
 
     @property
@@ -26,6 +28,7 @@ class CustomCodeBuilderApplicationTypeMixin:
         return super().request_serializer_field_names + [
             "scripts",
             "custom_code",
+            "head_html",
         ]
 
     @property
@@ -61,6 +64,8 @@ class CustomCodeBuilderApplicationTypeMixin:
 
     @property
     def request_serializer_field_overrides(self):
+        from rest_framework import serializers
+
         from baserow_enterprise.api.builder.custom_code.serializers import (
             CustomCodeSerializer,
             CustomScriptSerializer,
@@ -75,6 +80,12 @@ class CustomCodeBuilderApplicationTypeMixin:
             ),
             "custom_code": CustomCodeSerializer(
                 help_text="Custom CSS/JS code for this builder", required=False
+            ),
+            "head_html": serializers.CharField(
+                required=False,
+                allow_blank=True,
+                trim_whitespace=False,
+                help_text="Custom HTML for the document head.",
             ),
         }
 
@@ -104,9 +115,15 @@ class CustomCodeBuilderApplicationTypeMixin:
             self._create_scripts_in_bulk(instance, values["scripts"])
 
         if "custom_code" in values:
-            instance.custom_code.css = values["custom_code"].get("css", "")
-            instance.custom_code.js = values["custom_code"].get("js", "")
-            instance.custom_code.save()
+            code = instance.custom_code
+            code.css = values["custom_code"].get("css", "")
+            code.js = values["custom_code"].get("js", "")
+            code.save(update_fields=["css", "js"])
+
+        if "head_html" in values:
+            code = instance.custom_code
+            code.html = values["head_html"]
+            code.save(update_fields=["html"])
 
     def after_update(self, instance, values):
         """
@@ -169,7 +186,11 @@ class CustomCodeBuilderApplicationTypeMixin:
         return BuilderCustomCodeDict(
             **builder_dict,
             scripts=scripts,
-            custom_code={"css": builder.custom_code.css, "js": builder.custom_code.js},
+            custom_code={
+                "css": builder.custom_code.css,
+                "js": builder.custom_code.js,
+                "html": builder.custom_code.html,
+            },
         )
 
     @deferred_callback_context()
@@ -189,9 +210,10 @@ class CustomCodeBuilderApplicationTypeMixin:
         """
 
         serialized_scripts = serialized_values.pop("scripts", [])
-        serialized_custom_code = serialized_values.pop(
-            "custom_code", {"css": "", "js": ""}
-        )
+        serialized_custom_code = serialized_values.pop("custom_code", {})
+        html = serialized_custom_code.get("html", "")
+        if not isinstance(html, str):
+            raise ValueError("Custom HTML must be a string.")
 
         if cache is None:
             cache = {}
@@ -206,14 +228,16 @@ class CustomCodeBuilderApplicationTypeMixin:
             cache=cache,
         )
 
-        instance.custom_code.css = serialized_custom_code["css"]
-        instance.custom_code.js = serialized_custom_code["js"]
-        instance.custom_code.save()
+        code = instance.custom_code
+        code.css = serialized_custom_code.get("css", "")
+        code.js = serialized_custom_code.get("js", "")
+        code.html = html
+        code.save(update_fields=["css", "js", "html"])
 
         self._create_scripts_in_bulk(instance, serialized_scripts)
 
         report = cache.setdefault("import_report", [])
-        for code_type in ("css", "js"):
+        for code_type in ("css", "js", "html"):
             if serialized_custom_code.get(code_type):
                 report.append({"type": f"custom_{code_type}"})
         for script in instance.scripts.all():

@@ -1,3 +1,4 @@
+import { toolActivity } from '@baserow/modules/core/toolPresentationTypes'
 import {
   RUN_ERROR_CODE,
   RUN_STATUS,
@@ -80,4 +81,37 @@ export function pendingApprovals(reply) {
         (approval) => approval?.status === APPROVAL_STATUS.PENDING
       )
     : []
+}
+
+export function approvalItem(step, approval, registry, t) {
+  const {
+    title,
+    input,
+    failureHint,
+    status,
+    changesData,
+    partial,
+    links: activityLinks,
+    itemErrors,
+  } = toolActivity(step, registry, t)
+  return {
+    id: approval.id,
+    status: approval.status,
+    stepStatus: status,
+    changesData,
+    links: activityLinks,
+    tool: approval.tool,
+    toolLabel:
+      step.input?.server && step.input?.tool
+        ? t('agent.toolMCPNamed', {
+            server: step.input.server,
+            tool: step.input.tool,
+          })
+        : null,
+    title,
+    input,
+    failureHint,
+    partial,
+    itemErrors,
+  }
 }

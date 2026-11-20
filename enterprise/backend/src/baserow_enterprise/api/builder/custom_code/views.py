@@ -1,12 +1,15 @@
-from django.http import HttpResponse
+from django.conf import settings
+from django.http import Http404, HttpResponse
 
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import OpenApiParameter, extend_schema
 from rest_framework.permissions import AllowAny
+from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from baserow.api.applications.errors import ERROR_APPLICATION_DOES_NOT_EXIST
 from baserow.api.decorators import map_exceptions
+from baserow.api.openapi import AutoSchema
 from baserow.api.schemas import get_error_schema
 from baserow.contrib.builder.preview.authentication import (
     BuilderPreviewAuthentication,
@@ -17,12 +20,29 @@ from baserow_enterprise.features import BUILDER_CUSTOM_CODE
 from baserow_premium.license.handler import LicenseHandler
 
 
+class CustomCodeSchema(AutoSchema):
+    def get_response_serializers(self):
+        return {
+            200: self.view.serializer_class,
+            404: get_error_schema(["ERROR_APPLICATION_DOES_NOT_EXIST"]),
+        }
+
+    def get_operation_id(self):
+        return self.view.operation_id
+
+
 class PublicCustomCodeView(APIView):
     """
-    This view is meant to return custom CSS and JS file for a builder application.
+    Returns custom CSS, JS, or head HTML for a builder application.
     """
 
     permission_classes = (AllowAny,)
+    serializer_class = OpenApiTypes.STR
+    operation_id = "get_public_builder_custom_code"
+    schema = CustomCodeSchema()
+
+    def can_render_html(self, builder):
+        return builder.is_published
 
     @extend_schema(
         parameters=[
@@ -36,22 +56,13 @@ class PublicCustomCodeView(APIView):
                 name="type",
                 location=OpenApiParameter.PATH,
                 type=OpenApiTypes.STR,
-                description="Type of code to return: 'css' or 'js'",
-                enum=["css", "js"],
+                description="Type of custom code to return.",
+                enum=["css", "js", "html"],
                 default="css",
             ),
         ],
         tags=["Builder public"],
-        operation_id="get_public_builder_custom_code",
-        description=("Returns the css/js for the given builder."),
-        responses={
-            200: str,
-            404: get_error_schema(
-                [
-                    "ERROR_APPLICATION_DOES_NOT_EXIST",
-                ]
-            ),
-        },
+        description="Returns the custom code for the given builder.",
     )
     @map_exceptions(
         {
@@ -60,7 +71,7 @@ class PublicCustomCodeView(APIView):
     )
     def get(self, request, builder_id, code_type):
         """
-        Return the CSS/JS for the given builder
+        Return custom code for the given builder.
         """
 
         builder = BuilderService().get_builder(request.user, builder_id)
@@ -68,7 +79,17 @@ class PublicCustomCodeView(APIView):
         if builder.untrusted_content or not LicenseHandler.workspace_has_feature(
             BUILDER_CUSTOM_CODE, builder.get_workspace()
         ):
+            if code_type == "html":
+                raise Http404
             return HttpResponse("Not found", status=404)
+
+        if code_type == "html":
+            if not self.can_render_html(builder):
+                raise Http404
+            return Response(
+                {"html": builder.custom_code.html},
+                headers={"Cache-Control": "no-store"},
+            )
 
         # Get the appropriate content and content-type
         if code_type == "css":
@@ -83,3 +104,13 @@ class PublicCustomCodeView(APIView):
 # This version is for authorized users only while in preview
 class CustomCodeView(PublicCustomCodeView):
     authentication_classes = (BuilderPreviewAuthentication,)
+
+    def can_render_html(self, builder):
+        # Editor and preview cookies share a hostname even across different ports.
+        return (
+            not builder.is_published
+            and settings.BUILDER_PREVIEW_HOSTNAME is not None
+            and settings.PUBLIC_WEB_FRONTEND_HOSTNAME is not None
+            and settings.BUILDER_PREVIEW_HOSTNAME
+            != settings.PUBLIC_WEB_FRONTEND_HOSTNAME
+        )

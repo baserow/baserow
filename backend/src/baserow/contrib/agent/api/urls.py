@@ -8,6 +8,7 @@ from .views import (
     AgentConversationsView,
     AgentConversationView,
     AgentMessagesView,
+    AgentPendingApprovalsView,
     AgentRunAsIdentitiesView,
     AgentToolApprovalsView,
 )
@@ -45,6 +46,11 @@ urlpatterns = [
         "<int:agent_id>/conversations/<uuid:conversation_uuid>/approvals/",
         AgentToolApprovalsView.as_view(),
         name="approvals",
+    ),
+    path(
+        "<int:agent_id>/pending-approvals/",
+        AgentPendingApprovalsView.as_view(),
+        name="pending_approvals",
     ),
     path("", include(triggers_urls, namespace="triggers")),
     path("", include(action_tools_urls, namespace="actions")),

@@ -312,10 +312,12 @@ export default {
         // It failed after the template was created, which is kept. It's handled
         // as created, so that the author doesn't create it again. Then making it
         // public is what failed, if that was asked.
+        const key = this.job.make_public
+          ? 'createUserTemplateModal.failedPublicAfterCreated'
+          : 'createUserTemplateModal.failedAfterCreated'
         this.$store.dispatch('toast/warning', {
-          title: this.job.make_public
-            ? this.$t('createUserTemplateModal.failedPublicAfterCreated')
-            : this.$t('createUserTemplateModal.failedAfterCreated'),
+          title: this.$t(`${key}Title`),
+          message: this.$t(`${key}Message`),
         })
         this.onJobFinished()
         return

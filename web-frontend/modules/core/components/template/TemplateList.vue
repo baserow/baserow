@@ -36,7 +36,7 @@
               >{{ $t('templateCategories.allTemplates') }}</a
             >
           </li>
-          <li v-for="category in categories" :key="category.id">
+          <li v-for="category in sortedCategories" :key="category.id">
             <a
               class="template-list__category-link"
               :class="{
@@ -48,7 +48,7 @@
               @click="selectedCategoryId = category.id"
               @keydown.enter.prevent="selectedCategoryId = category.id"
               @keydown.space.prevent="selectedCategoryId = category.id"
-              >{{ category.name }}</a
+              >{{ categoryName(category) }}</a
             >
           </li>
         </ul>
@@ -74,7 +74,7 @@
                   : 'iconoir-nav-arrow-down'
               "
             ></i>
-            {{ category.name }}
+            {{ categoryName(category) }}
           </a>
           <div
             v-if="!collapsed.includes(category.id)"
@@ -118,6 +118,10 @@ import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useNuxtApp } from '#app'
 
 import { escapeRegExp } from '@baserow/modules/core/utils/string'
+import {
+  getCategoryName,
+  sortCategories,
+} from '@baserow/modules/core/utils/templateCategory'
 
 const props = defineProps({
   categories: {
@@ -131,16 +135,27 @@ const props = defineProps({
     required: false,
     default: true,
   },
+  initialCategoryId: {
+    type: Number,
+    required: false,
+    default: null,
+  },
 })
 
 const emit = defineEmits(['selected'])
 
-const { $priorityBus } = useNuxtApp()
+const { $i18n, $priorityBus } = useNuxtApp()
 
 const searchInput = ref(null)
 const search = ref('')
-const selectedCategoryId = ref(null)
+const selectedCategoryId = ref(props.initialCategoryId)
 const collapsed = ref([])
+
+const sortedCategories = computed(() => sortCategories(props.categories, $i18n))
+
+function categoryName(category) {
+  return getCategoryName(category, $i18n)
+}
 
 function matchesSearch(template, regex) {
   return [template.name, ...template.keywords.split(',')].some((value) =>
@@ -153,7 +168,7 @@ function matchesSearch(template, regex) {
  * the search query. Categories without matching templates are left out.
  */
 const visibleCategories = computed(() => {
-  const categories = props.categories.filter(
+  const categories = sortedCategories.value.filter(
     (category) =>
       selectedCategoryId.value === null ||
       category.id === selectedCategoryId.value

@@ -356,6 +356,11 @@ export class TestApp {
         return response
       },
       (error) => {
+        // Vitest copies every property of an error that fails a test, and the
+        // handler reaches the whole app: it runs out of memory printing it.
+        if (error.isCouldNotFindMockError) {
+          error.toJSON = () => ({ message: error.message })
+        }
         if (this.failTestOnErrorResponse) {
           //fail(error)
           throw error

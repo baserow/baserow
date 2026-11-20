@@ -593,16 +593,17 @@ describe('Agent tool presentations', () => {
   })
 
   test.each([
-    ['running', 'Searching the web: baserow'],
-    ['done', 'Searched the web: baserow'],
-    ['failed', 'Search the web: baserow'],
-    ['stopped', 'Search the web: baserow'],
+    ['running', 'Searching the web'],
+    ['done', 'Searched the web'],
+    ['failed', 'Search the web'],
+    ['stopped', 'Search the web'],
   ])('shows a %s web search with its query', (status, title) => {
     const activity = toolActivity(
       step('web_search', status, { input: { queries: [' baserow '] } }),
       registry,
       t
     )
+    expect(activity.description).toBe('baserow')
     expect(activity.title).toBe(title)
     expect(activity.group).toBeNull()
   })
@@ -625,7 +626,7 @@ describe('Agent tool presentations', () => {
       registry,
       t
     )
-    expect(activity.title).toBe('Searched the web: a, b')
+    expect(activity.description).toBe('a, b')
   })
 
   test('shows that a reply could not search', () => {
@@ -637,32 +638,19 @@ describe('Agent tool presentations', () => {
     expect(activity.title).toBe('Web search was unavailable for this reply')
   })
 
-  test.each([
-    ['running', 'Opening a web page: https://x.test'],
-    ['done', 'Opened a web page: https://x.test'],
-    ['failed', 'Open a web page: https://x.test'],
-  ])('shows a %s page the provider opened', (status, title) => {
-    const activity = toolActivity(
-      step('web_search', status, { input: { url: 'https://x.test' } }),
-      registry,
-      t
-    )
-    expect(activity.title).toBe(title)
-  })
-
-  test.each([
-    ['running', 'Opening a web page: https://x.test'],
-    ['done', 'Opened a web page: https://x.test'],
-    ['failed', 'Open a web page: https://x.test'],
-  ])(
-    'shows a %s page Baserow opened like one the provider opened',
-    (status, title) => {
+  test.each(['web_search', 'web_fetch'])('shows a page %s opened', (type) => {
+    for (const [status, title] of [
+      ['running', 'Opening a web page'],
+      ['done', 'Opened a web page'],
+      ['failed', 'Open a web page'],
+    ]) {
       const activity = toolActivity(
-        step('web_fetch', status, { input: { url: 'https://x.test' } }),
+        step(type, status, { input: { url: 'https://x.test' } }),
         registry,
         t
       )
       expect(activity.title).toBe(title)
+      expect(activity.description).toBe('https://x.test')
     }
-  )
+  })
 })

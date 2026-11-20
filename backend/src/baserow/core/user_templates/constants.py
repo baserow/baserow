@@ -12,6 +12,8 @@ USER_TEMPLATE_DESCRIPTION_MAX_LENGTH = 80
 USER_TEMPLATE_ICON_MAX_LENGTH = 32
 USER_TEMPLATE_ICON_REGEX = re.compile(r"iconoir-[a-z0-9]+(-[a-z0-9]+)*")
 
+USER_TEMPLATE_RESERVED_CATEGORY_NAMES = frozenset({"🔥 Most Popular", "Baserow"})
+
 # How long a deleted user template is kept before it's removed permanently. It must
 # be longer than a job can run, `BASEROW_JOB_SOFT_TIME_LIMIT` + 30 seconds, so that
 # an install or an update that started before the deletion finishes first.
@@ -34,4 +36,5 @@ USER_TEMPLATE_ADMIN_STATES = (
     UserTemplateState.PUBLIC,
     UserTemplateState.REJECTED,
     UserTemplateState.BLOCKED,
+    UserTemplateState.PRIVATE,
 )

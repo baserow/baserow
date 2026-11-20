@@ -75,6 +75,7 @@ from .serializers import (
     AgentMessageCreateSerializer,
     AgentMessagePagination,
     AgentMessageSerializer,
+    AgentPendingReplySerializer,
     AgentRunAsIdentitiesQueryParamsSerializer,
     AgentRunAsOptionSerializer,
     AgentToolDecisionsSerializer,
@@ -551,6 +552,42 @@ class AgentMessagesView(RealtimeRecoveryPrimaryReadMixin, APIView):
             AgentMessageCreatedSerializer(
                 result, context=_accepted_context(result)
             ).data
+        )
+
+
+class AgentPendingApprovalsView(RealtimeRecoveryPrimaryReadMixin, APIView):
+    @extend_schema(
+        tags=["Agent applications"],
+        operation_id="list_agent_pending_approvals",
+        description="List pending tool approvals grouped by reply in conversations visible to the current user.",
+        parameters=[
+            AGENT_ID_PATH_PARAMETER,
+            OpenApiParameter("page", OpenApiTypes.INT, default=1),
+            OpenApiParameter(
+                "size",
+                OpenApiTypes.INT,
+                default=100,
+                description="Number of replies per page, up to 100.",
+            ),
+        ],
+        responses={
+            200: get_example_pagination_serializer_class(AgentPendingReplySerializer),
+            **READ_ERRORS,
+        },
+    )
+    @map_exceptions(AGENT_EXCEPTIONS)
+    def get(self, request: Request, agent_id: int) -> Response:
+        paginator = PageNumberPagination(limit_page_size=100)
+        page = paginator.paginate_queryset(
+            AgentService().list_pending_replies(request.user, agent_id), request, self
+        )
+        context = {
+            "conversation_pending_approvals": {
+                reply.conversation_id: len(reply.pending_approvals) for reply in page
+            }
+        }
+        return paginator.get_paginated_response(
+            AgentPendingReplySerializer(page, many=True, context=context).data
         )
 
 

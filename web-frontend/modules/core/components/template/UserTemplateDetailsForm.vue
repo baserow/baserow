@@ -55,7 +55,7 @@
     </FormGroup>
 
     <FormGroup
-      v-if="categories.length > 0"
+      v-if="selectableCategories.length > 0"
       :label="$t('userTemplateDetailsForm.categories')"
       small-label
       required
@@ -63,7 +63,7 @@
     >
       <div class="user-template-form__categories">
         <Chips
-          v-for="category in categories"
+          v-for="category in selectableCategories"
           :key="category.id"
           type="button"
           size="small"
@@ -71,7 +71,7 @@
           :disabled="disabled"
           @click="toggleCategory(category.id)"
         >
-          {{ category.name }}
+          {{ getCategoryName(category, $i18n) }}
         </Chips>
       </div>
     </FormGroup>
@@ -82,6 +82,10 @@
 import { computed, ref } from 'vue'
 import { useNuxtApp } from '#app'
 
+import {
+  getCategoryName,
+  sortCategories,
+} from '@baserow/modules/core/utils/templateCategory'
 import TemplateIconSelectContext from '@baserow/modules/core/components/template/TemplateIconSelectContext'
 
 // Mirrors the limits of the job request.
@@ -94,8 +98,9 @@ const props = defineProps({
     type: Object,
     required: true,
   },
-  // The categories an author can pick from, each with an `id` and a `name`. An
-  // instance that never synced the templates has none, and then none is needed.
+  // The categories, each with an `id`, a `name` and whether authors can pick it as
+  // `user_selectable`. An instance that never synced the templates has none, and
+  // then none is needed.
   categories: {
     type: Array,
     required: true,
@@ -120,13 +125,21 @@ const { $i18n } = useNuxtApp()
 const iconButton = ref(null)
 const iconContext = ref(null)
 
+const selectableCategories = computed(() =>
+  sortCategories(
+    props.categories.filter((category) => category.user_selectable !== false),
+    $i18n
+  )
+)
+
 function isNameValid() {
   return props.modelValue.name.trim() !== ''
 }
 
 function isCategoriesValid() {
   return (
-    props.categories.length === 0 || props.modelValue.categoryIds.length > 0
+    selectableCategories.value.length === 0 ||
+    props.modelValue.categoryIds.length > 0
   )
 }
 

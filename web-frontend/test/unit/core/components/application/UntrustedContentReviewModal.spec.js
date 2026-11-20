@@ -67,3 +67,14 @@ test('explains when no import report is available', async () => {
   expect(wrapper.text()).toContain('untrustedContentReviewModal.empty')
   wrapper.unmount()
 })
+
+test('identifies imported HTML that runs in the page head', async () => {
+  const wrapper = await mountModal({ report: [{ type: 'custom_html' }] })
+  expect(wrapper.get('.untrusted-content-report').text()).toContain(
+    'untrustedContentReviewModal.typeHeadHtml'
+  )
+  expect(wrapper.get('.untrusted-content-report').text()).toContain(
+    'untrustedContentReviewModal.riskHeadHtml'
+  )
+  wrapper.unmount()
+})

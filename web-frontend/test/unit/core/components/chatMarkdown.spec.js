@@ -6,7 +6,7 @@ import ChatMarkdown from '@baserow/modules/core/components/chat/ChatMarkdown'
 const { origin, pathname } = window.location
 const appPaths = ['/database/', `${pathname}#`]
 
-function render(content) {
+function render(content, props = {}) {
   const router = {
     resolve: (path) => ({
       matched: appPaths.some((prefix) => path.startsWith(prefix)) ? [{}] : [],
@@ -15,7 +15,7 @@ function render(content) {
   }
   const open = vi.spyOn(window, 'open').mockImplementation(() => null)
   const wrapper = mount(ChatMarkdown, {
-    props: { content },
+    props: { content, ...props },
     global: { provide: { [routerKey]: router } },
   })
   return { wrapper, link: wrapper.find('a'), router, open }
@@ -23,6 +23,20 @@ function render(content) {
 
 describe('ChatMarkdown', () => {
   afterEach(() => vi.restoreAllMocks())
+
+  test('agent web links carry attribution and rel while email and app paths are preserved', () => {
+    const { wrapper } = render(
+      '[Web](http://example.com/a?x=1&utm_source=old#section) [Mail](mailto:test@example.com) [Table](/database/1/table/2)',
+      { agentLinks: true }
+    )
+    const [web, mail, table] = wrapper.findAll('a')
+    expect(web.attributes('href')).toBe(
+      'http://example.com/a?x=1&utm_source=baserow.io#section'
+    )
+    expect(web.attributes('rel')).toBe('noopener noreferrer')
+    expect(mail.attributes('href')).toBe('mailto:test@example.com')
+    expect(table.attributes('href')).toBe('/database/1/table/2')
+  })
 
   test('renders markdown without raw HTML or images', () => {
     const { wrapper } = render(

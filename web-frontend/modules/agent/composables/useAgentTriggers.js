@@ -1,4 +1,4 @@
-import { onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { useNuxtApp } from '#app'
 import { useI18n } from 'vue-i18n'
 import cloneDeep from 'lodash/cloneDeep'
@@ -65,6 +65,7 @@ export function useAgentTriggers(agent, getRunAs = () => null) {
   const loadError = ref(false)
   const typesLoadError = ref(false)
   const savingIds = reactive(new Set())
+  const deletingIds = reactive(new Set())
   const serviceErrors = reactive({})
   // Per trigger id: how often a failed save reverted its service values.
   const serviceReverts = reactive({})
@@ -488,23 +489,24 @@ export function useAgentTriggers(agent, getRunAs = () => null) {
    * @param {object} trigger The trigger to delete.
    */
   async function deleteTrigger(trigger) {
-    const currentScope = scope
-    const index = triggers.value.indexOf(trigger)
-    if (index === -1) return
     const entry = saved.get(trigger.id)
+    if (!entry || deletingIds.has(trigger.id)) return
+    deletingIds.add(trigger.id)
     scheduledSaves.get(trigger.id)?.cancel()
-    triggers.value.splice(index, 1)
     try {
-      await service.delete(entry?.agentId ?? agentId(), trigger.id)
+      await service.delete(entry.agentId, trigger.id)
+      if (saved.get(trigger.id) === entry) removeTrigger(trigger)
     } catch (error) {
-      if (!scopeIsCurrent(currentScope)) return
-      if (errorCode(error) !== API_ERROR_CODE.AGENT_TRIGGER_DOES_NOT_EXIST) {
-        triggers.value.splice(index, 0, trigger)
+      if (saved.get(trigger.id) !== entry) return
+      if (errorCode(error) === API_ERROR_CODE.AGENT_TRIGGER_DOES_NOT_EXIST) {
+        removeTrigger(trigger)
+      } else {
         notifyIf(error, 'trigger')
-        return
+        if (typedFields.has(trigger.id)) scheduledSaves.get(trigger.id)()
       }
+    } finally {
+      deletingIds.delete(trigger.id)
     }
-    forget(trigger.id)
   }
 
   function flushScheduledSaves() {
@@ -545,7 +547,10 @@ export function useAgentTriggers(agent, getRunAs = () => null) {
   onBeforeUnmount(flushScheduledSaves)
 
   return {
-    triggers,
+    triggers: computed(() =>
+      triggers.value.filter(({ id }) => !deletingIds.has(id))
+    ),
+    allTriggers: triggers,
     triggerTypes,
     typesVersion,
     loading,

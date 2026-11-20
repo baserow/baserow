@@ -123,11 +123,13 @@ describe('McpOAuthConnections', () => {
     expect(docs.attributes('target')).toBe('_blank')
     const tabs = wrapper.findAll('.tabs__link').map((tab) => tab.text())
     expect(tabs).toEqual([
+      'ChatGPT',
       'Claude Code',
       'Cursor',
       'VS Code',
       'mcpOAuthConnections.otherApps',
     ])
+    await wrapper.findAll('.tabs__link')[1].trigger('click')
     expect(
       wrapper.find('[data-test="mcp-oauth-claude-code-plugin"]').text()
     ).toContain('/plugin install baserow@baserow')
@@ -135,6 +137,15 @@ describe('McpOAuthConnections', () => {
       `claude mcp add --transport http baserow ${mcpUrl}`
     )
     expect(wrapper.find('[data-test="mcp-oauth-empty"]').exists()).toBe(true)
+  })
+
+  test('opens on the ChatGPT setup steps', async () => {
+    const wrapper = await mount({
+      oauth_enabled: true,
+      mcp_url: mcpUrl,
+      connections: [],
+    })
+    expect(wrapper.find('[data-test="mcp-oauth-chatgpt"]').exists()).toBe(true)
   })
 
   test('builds the Cursor and VS Code install links from the instance URL', async () => {
@@ -145,7 +156,7 @@ describe('McpOAuthConnections', () => {
     })
     const tabLinks = wrapper.findAll('.tabs__link')
 
-    await tabLinks[1].trigger('click')
+    await tabLinks[2].trigger('click')
     const cursor = new URL(
       wrapper.find('[data-test="mcp-oauth-cursor-install"]').attributes('href')
     )
@@ -157,7 +168,7 @@ describe('McpOAuthConnections', () => {
       url: mcpUrl,
     })
 
-    await tabLinks[2].trigger('click')
+    await tabLinks[3].trigger('click')
     const vsCode = new URL(
       wrapper.find('[data-test="mcp-oauth-vscode-install"]').attributes('href')
     )
@@ -179,7 +190,7 @@ describe('McpOAuthConnections', () => {
     })
     const tabLinks = wrapper.findAll('.tabs__link')
 
-    await tabLinks[1].trigger('click')
+    await tabLinks[2].trigger('click')
     const cursor = new URL(
       wrapper.find('[data-test="mcp-oauth-cursor-install"]').attributes('href')
     )
@@ -188,7 +199,7 @@ describe('McpOAuthConnections', () => {
     })
     expect(wrapper.text()).toContain(`"url": "${unicodeUrl}"`)
 
-    await tabLinks[2].trigger('click')
+    await tabLinks[3].trigger('click')
     const vsCode = new URL(
       wrapper.find('[data-test="mcp-oauth-vscode-install"]').attributes('href')
     )

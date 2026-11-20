@@ -41,7 +41,11 @@ from tqdm import tqdm
 from baserow.core.cache import get_cached_settings, set_cached_settings
 from baserow.core.db import specific_queryset
 from baserow.core.deferred_callbacks import deferred_callback_context
-from baserow.core.feature_flags import FF_RBAC_IMPROVEMENTS, feature_flag_is_enabled
+from baserow.core.feature_flags import (
+    FF_RBAC_IMPROVEMENTS,
+    FF_USER_TEMPLATES,
+    feature_flag_is_enabled,
+)
 from baserow.core.import_export.id_mapping import seed_id_mappings
 from baserow.core.registries import plugin_registry
 from baserow.core.user.identity import (
@@ -2816,10 +2820,12 @@ class CoreHandler:
         """
 
         templates = Template.objects.openable(actor)
-        if template_type == Template.Type.OFFICIAL:
+        # Without the feature, user templates are only opened through their link.
+        lists_user_templates = feature_flag_is_enabled(FF_USER_TEMPLATES, user=actor)
+        if template_type == Template.Type.USER:
+            templates = templates.user() if lists_user_templates else templates.none()
+        elif template_type == Template.Type.OFFICIAL or not lists_user_templates:
             templates = templates.official()
-        elif template_type == Template.Type.USER:
-            templates = templates.user()
         if owned:
             templates = (
                 templates.filter_by_root(owner_id=actor.id)
@@ -2872,6 +2878,8 @@ class CoreHandler:
         :return: The categories holding at least one listed revision.
         """
 
+        if not feature_flag_is_enabled(FF_USER_TEMPLATES, user=actor):
+            return TemplateCategory.objects.none()
         listed = Template.objects.openable(actor).user().public_revisions()
         return TemplateCategory.objects.filter(
             Exists(listed.filter(categories=OuterRef("pk")))

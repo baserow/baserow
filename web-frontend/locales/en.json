@@ -97,7 +97,7 @@
     "viewAutomation": "View automation",
     "agent": "Agent",
     "agents": "Agents",
-    "agentDesc": "Create an agent in your workspace.",
+    "agentDesc": "Build custom AI agents that use your data and tools to get work done.",
     "viewAgent": "View agent",
     "cantSelectTableTitle": "Couldn't select the database.",
     "cantSelectTableDescription": "The database couldn't be selected because it doesn't have any tables. Use the sidebar to create one.",

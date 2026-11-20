@@ -67,10 +67,10 @@
           </div>
           <div v-if="categories.length" class="template-details__categories">
             <span
-              v-for="category in categories"
+              v-for="category in sortedCategories"
               :key="category.id"
               class="template-details__category"
-              >{{ category.name }}</span
+              >{{ getCategoryName(category, $i18n) }}</span
             >
           </div>
         </div>
@@ -95,8 +95,7 @@
             <TemplateInstall
               :template="template"
               :workspace="workspace"
-              :show-copy-link="!ownerActions && !isPrivateLink && !isBlocked"
-              :copy-link-url="ownerActions ? privateLinkUrl : null"
+              :copy-link-kind="copyLinkKind"
               :latest="ownerActions || isOwner"
               @installed="emit('installed')"
               @outdated="emit('outdated')"
@@ -209,18 +208,22 @@
 
 <script setup>
 import { computed, inject, nextTick, ref } from 'vue'
-import { useNuxtApp, useRoute, useRuntimeConfig } from '#app'
+import { useNuxtApp, useRoute } from '#app'
 import { useStore } from 'vuex'
 
 import {
   canMakePrivate,
   canMakePublic,
-  getPrivateLinkUrl,
+  getCopyLinkKind,
   isOwnTemplate,
   makePublicResubmits,
 } from '@baserow/modules/core/utils/userTemplate'
 import { isPrivateLinkPage } from '@baserow/modules/core/utils/templatePrivateLink'
 import { notifyIf } from '@baserow/modules/core/utils/error'
+import {
+  getCategoryName,
+  sortCategories,
+} from '@baserow/modules/core/utils/templateCategory'
 import { getState } from '@baserow/modules/core/components/template/userTemplateStates'
 import { TEMPLATE_MODERATION } from '@baserow/modules/core/composables/useTemplateModeration'
 import RejectTemplateModal from '@baserow/modules/core/components/admin/templates/RejectTemplateModal'
@@ -272,13 +275,12 @@ const emit = defineEmits([
   'make-private',
 ])
 
-const { $registry, $router, $i18n } = useNuxtApp()
+const { $registry, $i18n } = useNuxtApp()
 const store = useStore()
-const config = useRuntimeConfig()
 
 const isPrivateLink = isPrivateLinkPage(useRoute())
-const privateLinkUrl = computed(() =>
-  getPrivateLinkUrl(props.template, $router, config.public.publicWebFrontendUrl)
+const copyLinkKind = computed(() =>
+  getCopyLinkKind(props.template, { isPrivateLinkPage: isPrivateLink })
 )
 
 function edit(mode, hideMenu) {
@@ -287,6 +289,8 @@ function edit(mode, hideMenu) {
 }
 
 const isOwner = computed(() => isOwnTemplate(props.template))
+
+const sortedCategories = computed(() => sortCategories(props.categories, $i18n))
 
 const REASON_TOOLTIP_OPTIONS = {
   contentClasses: ['tooltip__content--expandable', 'template-details__reason'],
@@ -322,6 +326,7 @@ async function block(template, reason) {
       state === 'blocked'
         ? {
             title: $i18n.t('templateDetails.blockReasonChangedTitle', { name }),
+            message: $i18n.t('templateDetails.blockReasonChangedDescription'),
           }
         : {
             title: $i18n.t('templateDetails.blockedTitle', { name }),

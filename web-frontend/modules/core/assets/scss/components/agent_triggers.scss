@@ -63,6 +63,10 @@
 
   @include elevation($elevation-low);
   @include rounded($rounded-md);
+
+  &:has(.agent-trigger-card__name:focus:not(:read-only)) {
+    border-color: $palette-blue-500;
+  }
 }
 
 .agent-trigger-card__type {
@@ -74,6 +78,9 @@
   padding: 0 8px 0 12px;
   border: 0;
   border-right: 1px solid $palette-neutral-200;
+  border-radius: inherit;
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
   background: transparent;
   cursor: pointer;
 
@@ -102,26 +109,15 @@
 }
 
 .agent-trigger-card__name {
-  @extend %ellipsis;
-
+  border: 0;
+  padding: 0;
+  background: transparent;
+  text-overflow: ellipsis;
   flex: 1;
   min-width: 0;
   font-size: 13px;
   line-height: 20px;
   color: $palette-neutral-1200;
-}
-
-.agent-trigger-card__rename {
-  flex-shrink: 0;
-  padding: 0;
-  border: 0;
-  background: transparent;
-  color: $palette-neutral-600;
-  cursor: pointer;
-
-  &:hover {
-    color: $palette-neutral-900;
-  }
 }
 
 .agent-trigger-card__status {
@@ -300,6 +296,10 @@
   border-top: 1px solid $palette-neutral-200;
 }
 
+.chat-message--trigger {
+  margin: 4px 0;
+}
+
 .agent-trigger-start {
   width: 100%;
   overflow: hidden;
@@ -353,16 +353,14 @@
 }
 
 .agent-trigger-start__text {
-  @extend %ellipsis;
-
   padding: 10px 16px;
-  color: $palette-neutral-900;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
 }
 
-.agent-trigger-start--expanded .agent-trigger-start__text {
-  overflow: visible;
-  overflow-wrap: anywhere;
-  text-overflow: clip;
-  white-space: pre-wrap;
-  color: $palette-neutral-1200;
+.agent-trigger-start--collapsed .agent-trigger-start__text {
+  height: 0;
+  padding-block: 0;
+  overflow: hidden;
+  visibility: hidden;
 }

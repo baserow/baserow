@@ -38,6 +38,11 @@
 .alert__message {
   margin-top: 4px;
 
+  &:first-child {
+    margin-top: 1px;
+    line-height: 18px;
+  }
+
   a {
     text-decoration: underline;
   }

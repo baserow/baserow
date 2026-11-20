@@ -466,6 +466,23 @@ class AgentToolApprovalSerializer(serializers.ModelSerializer):
         fields = ("id", "step_id", "pause", "tool", "status", "reason")
 
 
+class AgentPendingReplySerializer(serializers.ModelSerializer):
+    conversation = AgentConversationSerializer(read_only=True)
+    approvals = AgentToolApprovalSerializer(source="pending_approvals", many=True)
+    steps = serializers.SerializerMethodField()
+
+    class Meta:
+        model = AgentMessage
+        fields = ("uuid", "conversation", "approvals", "steps")
+
+    @extend_schema_field(AgentMessageStepSerializer(many=True))
+    def get_steps(self, reply):
+        pending = {item.step_id for item in reply.pending_approvals}
+        return AgentMessageStepSerializer(
+            [step for step in reply.steps or [] if step["id"] in pending], many=True
+        ).data
+
+
 class AgentMessageSerializer(serializers.ModelSerializer):
     steps = AgentMessageStepSerializer(many=True, allow_null=True, read_only=True)
     approvals = AgentToolApprovalSerializer(

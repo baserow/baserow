@@ -40,24 +40,15 @@
             aria-hidden="true"
           />
         </button>
-        <div class="agent-trigger-card__name" @click="startRename">
-          <Editable
-            ref="nameEditable"
-            class="agent-trigger-card__name-text"
-            :value="shownName"
-            @editing="renaming = $event"
-            @change="rename"
-          />
-        </div>
-        <button
-          v-if="editable && !renaming"
-          type="button"
-          class="agent-trigger-card__rename"
+        <input
+          class="agent-trigger-card__name"
+          :value="shownName"
+          :readonly="!editable"
           :aria-label="$t('agent.renameTrigger')"
-          @click="startRename"
-        >
-          <i class="iconoir-edit-pencil" aria-hidden="true" />
-        </button>
+          @change="rename($event.target)"
+          @keydown.enter.prevent="$event.target.blur()"
+          @keydown.esc.prevent="cancelRename($event.target)"
+        />
         <Icon
           v-if="configurationError"
           v-tooltip="configurationError"
@@ -271,7 +262,6 @@
 import {
   computed,
   inject,
-  nextTick,
   provide,
   reactive,
   ref,
@@ -283,7 +273,6 @@ import { useNuxtApp } from '#app'
 import { useI18n } from 'vue-i18n'
 import Icon from '@baserow/modules/core/components/Icon'
 import ButtonText from '@baserow/modules/core/components/ButtonText'
-import Editable from '@baserow/modules/core/components/Editable'
 import FormulaInputField from '@baserow/modules/core/components/formula/FormulaInputField'
 import AgentTriggerMessageInput from '@baserow/modules/agent/components/configuration/AgentTriggerMessageInput'
 import AgentTriggerPicker from '@baserow/modules/agent/components/configuration/AgentTriggerPicker'
@@ -333,8 +322,6 @@ const { t } = useI18n()
 const agent = inject('agentApplication')
 const form = ref(null)
 const typePicker = ref(null)
-const nameEditable = ref(null)
-const renaming = ref(false)
 const overlapId = useId()
 const serviceType = computed(() => serviceTypeOf($registry, props.trigger.type))
 // Hosted service forms inject these like in Automation's node side panel.
@@ -489,23 +476,19 @@ function onBatchSizeBlur() {
   }
 }
 
-function startRename() {
-  if (props.editable && !renaming.value) nameEditable.value.edit()
+function cancelRename(input) {
+  input.value = shownName.value
+  input.blur()
 }
 
-/**
- * Saves the typed name; a blank one, or the default, clears the name so the
- * default follows the trigger's settings.
- *
- * @param {object} event The Editable's change, with the typed `value`.
- */
-function rename({ value }) {
-  const typed = Array.from(value.trim())
+/** A blank or default name follows the trigger settings again. */
+function rename(input) {
+  const typed = Array.from(input.value.trim())
     .slice(0, TRIGGER_NAME_MAX_LENGTH)
     .join('')
-  emit('update', { name: typed === defaultName.value ? '' : typed })
-  // An unchanged shown name, like a cleared default, doesn't reset the edited text.
-  nextTick(() => nameEditable.value?.set())
+  const name = typed === defaultName.value ? '' : typed
+  input.value = name || defaultName.value
+  if (name !== props.trigger.name) emit('update', { name })
 }
 
 const enabledTooltip = computed(() => {

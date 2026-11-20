@@ -83,6 +83,7 @@ const typeLabels = {
   automation_code_node: 'untrustedContentReviewModal.typeCodeNode',
   custom_css: 'untrustedContentReviewModal.typeCss',
   custom_js: 'untrustedContentReviewModal.typeJs',
+  custom_html: 'untrustedContentReviewModal.typeHeadHtml',
   external_script: 'untrustedContentReviewModal.typeScript',
   external_stylesheet: 'untrustedContentReviewModal.typeStylesheet',
 }
@@ -111,6 +112,10 @@ const typeDetails = {
   custom_js: {
     icon: 'iconoir-code',
     risk: 'untrustedContentReviewModal.riskScript',
+  },
+  custom_html: {
+    icon: 'iconoir-code-brackets',
+    risk: 'untrustedContentReviewModal.riskHeadHtml',
   },
   external_script: {
     icon: 'iconoir-code',

@@ -27,6 +27,8 @@ describe('McpEndpointSettings', () => {
 
   const oauth = (wrapper) => wrapper.find('.mcp-oauth-connections')
   const endpoints = (wrapper) => wrapper.find('[data-test="mcp-endpoint-list"]')
+  const configOnly = (wrapper) =>
+    wrapper.find('[data-test="mcp-endpoint-config-only"]')
   const tabs = (wrapper) =>
     wrapper.findAll(
       '.mcp-endpoint-settings__tabs > .tabs__header > .tabs__item'
@@ -38,6 +40,18 @@ describe('McpEndpointSettings', () => {
     expect(wrapper.find('.mcp-endpoint-settings__tabs').exists()).toBe(false)
     expect(oauth(wrapper).exists()).toBe(false)
     expect(endpoints(wrapper).isVisible()).toBe(true)
+    expect(configOnly(wrapper).exists()).toBe(false)
+  })
+
+  test('warns that endpoints only work in config files when OAuth is on', async () => {
+    const wrapper = await mount(true)
+
+    await tabs(wrapper)[1].trigger('click')
+
+    expect(configOnly(wrapper).isVisible()).toBe(true)
+    expect(configOnly(wrapper).text()).toContain(
+      'mcpEndpointSettings.configOnlyMessage'
+    )
   })
 
   test('switches between the OAuth and endpoint tabs', async () => {

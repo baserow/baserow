@@ -47,6 +47,11 @@
   margin: 0 0 8px;
   padding-left: 16px;
   list-style: disc;
+  line-height: 16px;
+}
+
+.user-template-form__notice-list li + li {
+  margin-top: 4px;
 }
 
 .user-template-form__consent {

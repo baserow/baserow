@@ -240,6 +240,7 @@ const error = ref(null)
 // Bumped each time the modal opens, so a request that finishes after the
 // editor moved on to another server or opening is ignored.
 let opening = 0
+let firstConnection = false
 let signIn = null
 const values = reactive({
   name: '',
@@ -354,6 +355,7 @@ function ownClientId(existing) {
 }
 
 function show(existing = null) {
+  firstConnection = existing === null
   opening++
   cancelSignIn()
   saving.value = false
@@ -418,6 +420,7 @@ function cancelSignIn() {
 }
 
 function hidden() {
+  opening++
   confirmingRemove.value = false
   cancelSignIn()
 }
@@ -436,11 +439,10 @@ async function submit() {
   if (signingIn) signIn = controller
   saving.value = true
   error.value = null
+  let saved
   try {
-    let saved = await props.save(server.value, changedValues())
+    saved = await props.save(server.value, changedValues())
     if (stale()) return popup?.close()
-    // A failed sign-in keeps the modal open on the server that now exists.
-    server.value = saved
     if (signingIn && !popup) {
       throw new MCPSignInError(t('agent.connectedAppPopupBlocked'))
     } else if (signingIn) {
@@ -453,9 +455,11 @@ async function submit() {
     if (listing) saved = await props.refresh(saved)
     if (stale()) return
     modal.value.hide()
-    if (signingIn || listing) emit('created', saved)
+    if (signingIn || listing) emit('created', saved, { firstConnection })
   } catch (e) {
     popup?.close()
+    // Retry against the saved connection if authentication or discovery failed.
+    if (!stale() && saved) server.value = saved
     if (e instanceof MCPSignInCancelled) return
     const message = mcpErrorMessage(t, e)
     if (!stale()) error.value = message
