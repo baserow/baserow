@@ -81,3 +81,25 @@ def test_admin_dashboard(api_client, data_fixture):
             "new_users_per_day": [{"date": "2019-12-31", "count": 2}],
             "active_users_per_day": [{"date": "2019-12-31", "count": 1}],
         }
+
+
+@pytest.mark.django_db
+@override_settings(DEBUG=True)
+def test_admin_dashboard_does_not_count_the_shared_applications(
+    api_client, data_fixture
+):
+    staff_user, staff_token = data_fixture.create_user_and_token(is_staff=True)
+    workspace = data_fixture.create_workspace()
+    data_fixture.create_shared_application(workspace=workspace)
+    data_fixture.create_database_application(workspace=workspace)
+    data_fixture.create_shared_application()
+
+    response = api_client.get(
+        reverse("api:admin:dashboard:dashboard"),
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {staff_token}",
+    )
+
+    assert response.status_code == HTTP_200_OK
+    assert response.json()["total_workspaces"] == 2
+    assert response.json()["total_applications"] == 1
