@@ -267,13 +267,12 @@ const canCreateIdentities = computed(() => {
   if (!isAuthenticated.value || workspace === null) {
     return false
   }
-  const hasAgent = props.applications.some(
-    (application) =>
-      $registry.exists('application', application.type) &&
-      $registry.get('application', application.type).createsIdentityOnInstall()
-  )
+  const types = props.applications
+    .filter((application) => $registry.exists('application', application.type))
+    .map((application) => $registry.get('application', application.type))
   return (
-    hasAgent &&
+    types.some((type) => type.createsIdentityOnInstall()) &&
+    types.some((type) => type.grantsInstallIdentityAccess()) &&
     Object.values($registry.getAll('plugin')).some((plugin) =>
       plugin.canCreateScopedIdentities(workspace)
     )

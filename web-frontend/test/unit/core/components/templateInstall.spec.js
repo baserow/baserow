@@ -691,6 +691,16 @@ describe('TemplateInstall', () => {
       expect(option(wrapper).exists()).toBe(false)
     })
 
+    test('is hidden for a template without databases', async () => {
+      signIn()
+      registerPlugin()
+      const wrapper = await testApp.mount(TemplateInstall, {
+        props: { template, applications: [agent] },
+      })
+
+      expect(option(wrapper).exists()).toBe(false)
+    })
+
     test('is hidden for a workspace the user cannot scope identities in', async () => {
       signIn()
       registerPlugin()

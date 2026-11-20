@@ -14,6 +14,10 @@ export class DatabaseApplicationType extends ApplicationType {
     return 'database'
   }
 
+  grantsInstallIdentityAccess() {
+    return true
+  }
+
   /**
    * @return The component to use as the button the user clicks to expand and view the
    *    row edit modal for a particular row. Takes a single row prop and should emit a
