@@ -64,7 +64,6 @@ from baserow_enterprise.assistant.tools.shared import (
     permission_denied_result,
     raise_if_permission_denied,
     require_payload,
-    stopped_after,
 )
 from baserow_enterprise.assistant.tools.toolset import AssistantFunctionToolset
 from baserow_enterprise.assistant.types import BuilderPageNavigationType
@@ -274,11 +273,10 @@ def create_pages(
         new_pages,
         BuilderWriteOptions(item_error=_input_item_error),
     )
-    stopped = created.pop("stopped_after", None)
     created_pages = created["created_pages"]
     errors = created.get("errors", [])
 
-    if created_pages and not tool_helpers.is_cancelled:
+    if created_pages:
         last = created_pages[-1]
         tool_helpers.navigate_to(
             BuilderPageNavigationType(
@@ -290,8 +288,6 @@ def create_pages(
         )
 
     result: dict[str, Any] = {"created_pages": created_pages}
-    if stopped is not None:
-        result["stopped"] = stopped_after(stopped, len(new_pages))
     if skipped_pages:
         result["existing_pages"] = [p.model_dump() for p in skipped_pages]
     if errors:

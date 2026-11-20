@@ -1,4 +1,3 @@
-import asyncio
 from typing import Callable
 
 from django.contrib.auth.models import AbstractUser
@@ -185,6 +184,7 @@ def apply_repaired_formula_updates(
     formula_fixer: FormulaFixer,
     field_updates: list[FieldItemUpdate],
     formula_errors: list[dict],
+    raise_if_cancelled: Callable[[], None],
 ) -> tuple[list[FieldItem], bool, list[dict]]:
     """
     Ask the formula fixer to repair each invalid formula the shared update step
@@ -195,6 +195,7 @@ def apply_repaired_formula_updates(
     :param formula_fixer: Callback ``(table, name, formula) -> fixed formula``.
     :param field_updates: The updates the shared step received.
     :param formula_errors: The invalid formulas from the shared update step.
+    :param raise_if_cancelled: Raises when the user cancelled the request.
     :returns: The updated fields, whether any changed, and the formula errors that
         remain.
     """
@@ -214,16 +215,14 @@ def apply_repaired_formula_updates(
         elif not has_formula(error):
             errors.append(error)
             continue
-        if tool_context.is_cancelled():
-            break
+        raise_if_cancelled()
         try:
             if "formula" in values:
                 table = filter_tables(tool_context.user, tool_context.workspace).get(
                     id=error["table_id"]
                 )
                 formula = formula_fixer(table, error["field_name"], error["formula"])
-                if tool_context.is_cancelled():
-                    break
+                raise_if_cancelled()
                 if not formula:
                     raise InvalidFormulaFieldError(
                         error["field_name"], error["formula"], table, error["message"]
@@ -236,10 +235,6 @@ def apply_repaired_formula_updates(
                 )
             updated.append(field_item)
             changed = changed or field_changed
-        except asyncio.CancelledError:
-            if not tool_context.is_cancelled():
-                raise
-            break
         except Exception as exc:
             shared_fields.forget_cached_table_models()
             raise_if_permission_denied(exc)

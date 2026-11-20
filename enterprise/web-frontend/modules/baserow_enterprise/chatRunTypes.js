@@ -128,6 +128,7 @@ export class AssistantChatRunType extends ChatRunType {
   onEvent(follower, event, live) {
     const store = this.app.$store
     const { chatId } = follower
+    const chat = store.getters['assistant/currentChat']
     switch (event.kind) {
       case RUN_CREATED:
         store.dispatch('assistant/forceAddRunMessage', {
@@ -141,9 +142,17 @@ export class AssistantChatRunType extends ChatRunType {
           title: event.data.title,
         })
         break
+      case RUN_CANCEL_REQUESTED:
+        if (chat?.chatId === chatId) {
+          store.dispatch('assistant/forceNavigate', null)
+        }
+        break
       case NAVIGATION:
         if (
           live &&
+          !follower.stopRequested &&
+          !follower.view.cancelRequested &&
+          !(chat?.chatId === chatId && chat.cancelling) &&
           event.data.origin_tab_id === getTabId() &&
           store.getters['assistant/isPanelOpen']
         ) {
@@ -184,6 +193,14 @@ export class AssistantChatRunType extends ChatRunType {
   }
 
   openOnboardingTable(follower) {
+    if (
+      follower.stopRequested ||
+      follower.view.cancelRequested ||
+      follower.view.status === RUN_STATUS.CANCELLED
+    ) {
+      storeOnboardingRunId(null)
+      return
+    }
     const message = follower.view.message
     const table =
       message?.onboarding_target ||
