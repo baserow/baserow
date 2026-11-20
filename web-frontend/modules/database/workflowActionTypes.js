@@ -112,6 +112,36 @@ function writesToTrashedField(workflowAction) {
 }
 
 /**
+ * The integration an action sends through, among the ones the database can
+ * use: its own, then the workspace ones. `fromWorkspace` says which, because
+ * only workspace admins can change a workspace integration, in the workspace
+ * settings, so a warning about one can't tell the reader to fix it from the
+ * button.
+ *
+ * Null until both lists are loaded, which `fetchIntegrationsOnce` marks on the
+ * database, since an empty list is what a load still running looks like. Also
+ * null when it isn't in either list: the endpoints filter what the reader may
+ * list, so absence means deleted or hidden and there is no telling which.
+ *
+ * @returns {{integration: Object, fromWorkspace: boolean}|null}
+ */
+function usableIntegration(app, applicationContext, integrationId) {
+  const database = applicationContext?.database
+  if (!integrationId || !database?._integrationsLoadedOnce) {
+    return null
+  }
+  const getters = app.$store.getters
+  const byId = ({ id }) => id === integrationId
+  const own = getters['integration/getIntegrations'](database).find(byId)
+  if (own) {
+    return { integration: own, fromWorkspace: false }
+  }
+  const shared =
+    getters['integration/getWorkspaceIntegrations'](database).find(byId)
+  return shared ? { integration: shared, fromWorkspace: true } : null
+}
+
+/**
  * Whether fetching the target table's fields found no table. Its fields then
  * all report trashed, but only restoring the table heals the action.
  */
@@ -728,7 +758,8 @@ export class CoreSMTPEmailWorkflowActionType extends DatabaseExternalWorkflowAct
    *   no integration picked yet;
    * - set to an integration whose host is blank, which is what a workspace
    *   import leaves, so the reader fills it in rather than looking in the
-   *   trash.
+   *   trash. A workspace integration gets there by promoting one an import
+   *   left blank, and its message says a workspace admin fills it in.
    *
    * Where the instance cannot deliver, an integration is what sends, so the
    * service's own checks (integration, sender) run as for one.
@@ -743,9 +774,16 @@ export class CoreSMTPEmailWorkflowActionType extends DatabaseExternalWorkflowAct
         ? this.app.$i18n.t('databaseWorkflowActionType.instanceSmtpTurnedOff')
         : this.app.$i18n.t('databaseWorkflowActionType.noInstanceSmtp')
     }
-    if (this.hasIntegrationWithoutHost(service, applicationContext)) {
+    const found = usableIntegration(
+      this.app,
+      applicationContext,
+      service?.integration_id
+    )
+    if (found && !found.integration.host) {
       return this.app.$i18n.t(
-        'databaseWorkflowActionType.smtpIntegrationIncomplete'
+        found.fromWorkspace
+          ? 'databaseWorkflowActionType.smtpWorkspaceIntegrationIncomplete'
+          : 'databaseWorkflowActionType.smtpIntegrationIncomplete'
       )
     }
     return super.getErrorMessage(
@@ -757,23 +795,6 @@ export class CoreSMTPEmailWorkflowActionType extends DatabaseExternalWorkflowAct
         : workflowAction,
       applicationContext
     )
-  }
-
-  /**
-   * Quiet until the database's integrations are loaded, and when the one
-   * picked is not in the list: the endpoint filters what the reader may
-   * list, so absence says nothing.
-   */
-  hasIntegrationWithoutHost(service, applicationContext) {
-    const integrationId = service?.integration_id
-    const database = applicationContext?.database
-    if (!integrationId || !database?._integrationsLoadedOnce) {
-      return false
-    }
-    const integration = (database.integrations || []).find(
-      ({ id }) => id === integrationId
-    )
-    return Boolean(integration) && !integration.host
   }
 }
 
@@ -813,33 +834,31 @@ export class SlackWriteMessageWorkflowActionType extends DatabaseExternalWorkflo
 
   /**
    * An export strips the token, so an imported bot keeps its name and looks
-   * configured. Said here rather than after a doomed click.
+   * configured, also once it's promoted to the workspace. Said here rather
+   * than after a doomed click.
    */
   getErrorMessage(workflowAction, applicationContext) {
     const inherited = super.getErrorMessage(workflowAction, applicationContext)
     if (inherited) {
       return inherited
     }
-    const integrationId = workflowAction.service?.integration_id
-    const database = applicationContext?.database
-    // Quiet until the list has been fetched: the dropdown is empty then too,
-    // and an empty list is what a load still running looks like.
-    if (!integrationId || !database?._integrationsLoadedOnce) {
-      return null
-    }
-    const bot = (database.integrations || []).find(
-      ({ id }) => id === integrationId
+    const found = usableIntegration(
+      this.app,
+      applicationContext,
+      workflowAction.service?.integration_id
     )
-    // Quiet when it is not in the list. The endpoint filters what the caller
-    // may list, so absence means deleted or hidden and there is no telling
-    // which. Saying it is gone would send someone to replace a bot that
-    // works.
-    if (!bot) {
+    // Quiet when it is not found. Saying it is gone would send someone to
+    // replace a bot that works.
+    if (!found) {
       return null
     }
     // The token is write-only: the list only says whether one is set.
-    if (!bot.has_token) {
-      return this.app.$i18n.t('databaseWorkflowActionType.slackTokenMissing')
+    if (!found.integration.has_token) {
+      return this.app.$i18n.t(
+        found.fromWorkspace
+          ? 'databaseWorkflowActionType.slackWorkspaceTokenMissing'
+          : 'databaseWorkflowActionType.slackTokenMissing'
+      )
     }
     return null
   }
