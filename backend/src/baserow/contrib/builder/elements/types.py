@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any, Dict, List, NewType, TypedDict, TypeVar, Union
 
 from baserow.contrib.builder.types import ElementDict
@@ -33,3 +33,4 @@ class UpdatedElement:
     element: Element
     original_values: Dict[str, Any]
     new_values: Dict[str, Any]
+    trashed_workflow_action_ids: List[int] = field(default_factory=list)

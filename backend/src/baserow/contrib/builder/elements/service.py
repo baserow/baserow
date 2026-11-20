@@ -1,6 +1,7 @@
-from typing import TYPE_CHECKING, List
+from typing import TYPE_CHECKING, Any, Dict, List
 
 from django.contrib.auth.models import AbstractUser
+from django.db.models import Q
 from django.utils import translation
 
 from rest_framework.exceptions import ValidationError
@@ -34,6 +35,10 @@ from baserow.contrib.builder.elements.types import (
 )
 from baserow.contrib.builder.pages.exceptions import PageNotInBuilder
 from baserow.contrib.builder.pages.models import Page
+from baserow.contrib.builder.workflow_actions.models import BuilderWorkflowAction
+from baserow.contrib.builder.workflow_actions.trash_types import (
+    BuilderWorkflowActionTrashableItemType,
+)
 from baserow.core.graph.exceptions import (
     GraphPointNotFoundInGraph,
     GraphPointReferencePointInvalid,
@@ -242,21 +247,29 @@ class ElementService:
         )
 
         element_type = element.get_type()
+        keys = set(kwargs)
 
         # Snapshot only the fields actually being changed so undo/redo never tries to
         # re-apply unrelated relation fields (which don't round-trip from an id).
         original_values = {
             key: value
-            for key, value in element_type.export_prepared_values(element).items()
-            if key in kwargs
+            for key, value in element_type.export_prepared_values(element, keys).items()
+            if key in keys
         }
 
+        trashed_workflow_action_ids = self._trash_workflow_actions_of_removed_items(
+            user, element, kwargs
+        )
         element = self.handler.update_element(element, **kwargs)
 
+        # `after_update` replaces related rows, so don't read them from a prefetch.
+        element.refresh_from_db(
+            fields=list(getattr(element, "_prefetched_objects_cache", {}))
+        )
         new_values = {
             key: value
-            for key, value in element_type.export_prepared_values(element).items()
-            if key in kwargs
+            for key, value in element_type.export_prepared_values(element, keys).items()
+            if key in keys
         }
 
         element_updated.send(self, element=element, user=user)
@@ -265,7 +278,43 @@ class ElementService:
             element=element,
             original_values=original_values,
             new_values=new_values,
+            trashed_workflow_action_ids=trashed_workflow_action_ids,
         )
+
+    def _trash_workflow_actions_of_removed_items(
+        self, user: AbstractUser, element: Element, values: Dict[str, Any]
+    ) -> List[int]:
+        """
+        Trash the click actions of the table columns or menu items an update
+        removes, so that undoing it can restore them, and the editor hears that
+        they're gone.
+
+        :param user: The user updating the element.
+        :param element: The element before the update.
+        :param values: The values it's updated with.
+        :return: The ids of the trashed workflow actions.
+        """
+
+        uids = element.get_type().get_uids_removed_by_update(element, values)
+        if not uids:
+            return []
+        query = Q()
+        for uid in uids:
+            query |= Q(event__startswith=uid)
+        builder = element.page.builder
+        trashed = []
+        for workflow_action in BuilderWorkflowAction.objects.filter(
+            query, element=element
+        ):
+            # The editor that sent the update doesn't know the action goes with it.
+            setattr(
+                workflow_action,
+                BuilderWorkflowActionTrashableItemType.NOTIFY_REQUESTER_ATTR,
+                True,
+            )
+            TrashHandler.trash(user, builder.workspace, builder, workflow_action)
+            trashed.append(workflow_action.id)
+        return trashed
 
     def delete_element(self, user: AbstractUser, element: ElementForUpdate):
         """

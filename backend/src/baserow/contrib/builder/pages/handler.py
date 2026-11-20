@@ -1,5 +1,6 @@
 from collections import defaultdict
-from typing import Any, Dict, List, Optional
+from copy import deepcopy
+from typing import Any, Dict, List, Optional, Set, Tuple
 from zipfile import ZipFile
 
 from django.core.exceptions import ValidationError as DjangoValidationError
@@ -461,6 +462,56 @@ class PageHandler:
             [page_path], existing_paths, max_length=255, suffix="/{0}"
         )
 
+    def _page_links(
+        self, values: Any, include_unused: bool = False
+    ) -> List[Tuple[Dict[str, Any], int]]:
+        """
+        Find every link to a page in the values of an element or workflow action,
+        nested ones such as menu items and table columns included.
+
+        :param values: The values to look through.
+        :param include_unused: Also return the page id a link to a custom URL
+            keeps but doesn't use.
+        :return: Each dict holding a `navigate_to_page_id`, with that id as an int.
+        :raises ValidationError: When a `navigate_to_page_id` isn't a page id.
+        """
+
+        links = []
+
+        def collect(value: Any) -> None:
+            if isinstance(value, dict):
+                page_id = value.get("navigate_to_page_id")
+                # A link to a custom URL keeps a page id it doesn't use.
+                if page_id not in (None, "") and (
+                    include_unused or value.get("navigation_type") != "custom"
+                ):
+                    try:
+                        links.append((value, int(page_id)))
+                    except (TypeError, ValueError):
+                        raise DRFValidationError(
+                            f"{page_id!r} is not a page id.", code="invalid_page_id"
+                        )
+                for item in value.values():
+                    collect(item)
+            elif isinstance(value, (list, tuple)):
+                for item in value:
+                    collect(item)
+
+        collect(values)
+        return links
+
+    def _linkable_page_ids(self, builder: Builder, page_ids: Set[int]) -> Set[int]:
+        """
+        :return: The ids among `page_ids` of the builder's pages a link can open,
+            trashed ones included. The shared page isn't one.
+        """
+
+        return set(
+            Page.objects_and_trash.filter(
+                builder=builder, id__in=page_ids, shared=False
+            ).values_list("id", flat=True)
+        )
+
     def raise_if_page_links_outside_builder(
         self, builder: Builder, values: Any, instance: Any = None
     ):
@@ -487,46 +538,39 @@ class PageHandler:
                 **values,
             }
 
-        page_ids = set()
-
-        def add(page_id: Any) -> None:
-            try:
-                page_ids.add(int(page_id))
-            except (TypeError, ValueError):
-                raise DRFValidationError(
-                    f"{page_id!r} is not a page id.", code="invalid_page_id"
-                )
-
-        def collect(value: Any) -> None:
-            if isinstance(value, dict):
-                page_id = value.get("navigate_to_page_id")
-                # A link to a custom URL keeps a page id it doesn't use.
-                if page_id not in (None, "") and value.get("navigation_type") != (
-                    "custom"
-                ):
-                    add(page_id)
-                for item in value.values():
-                    collect(item)
-            elif isinstance(value, (list, tuple)):
-                for item in value:
-                    collect(item)
-
-        collect(values)
+        page_ids = {page_id for _, page_id in self._page_links(values)}
         if not page_ids:
             return
-        # The editor sends links to a trashed page back. The shared page isn't a
-        # page a link can open.
-        found = set(
-            Page.objects_and_trash.filter(
-                builder=builder, id__in=page_ids, shared=False
-            ).values_list("id", flat=True)
-        )
-        missing = page_ids - found
+        # The editor sends links to a trashed page back.
+        missing = page_ids - self._linkable_page_ids(builder, page_ids)
         if missing:
             raise DRFValidationError(
                 f"The page with id {min(missing)} doesn't exist.",
                 code="invalid_page_id",
             )
+
+    def without_links_to_deleted_pages(self, builder: Builder, values: Any) -> Any:
+        """
+        Clear every `navigate_to_page_id`, nested ones included, that names a page
+        that no longer exists. A trashed page's links are kept, so they work again
+        when it's restored. Used to replay values saved before the page was
+        deleted, such as an undo snapshot. The page id a link to a custom URL keeps
+        is cleared too, since saving it still needs the page.
+
+        :param builder: The builder the values belong to.
+        :param values: The values to replay.
+        :return: A copy of the values without the links to deleted pages.
+        """
+
+        values = deepcopy(values)
+        links = self._page_links(values, include_unused=True)
+        if not links:
+            return values
+        found = self._linkable_page_ids(builder, {page_id for _, page_id in links})
+        for link, page_id in links:
+            if page_id not in found:
+                link["navigate_to_page_id"] = None
+        return values
 
     def get_path_param_names(self, path: str) -> List[str]:
         """

@@ -5,7 +5,11 @@ from django.core.validators import MinValueValidator
 from rest_framework import serializers
 
 from baserow.contrib.builder.elements.element_types import NavigationElementManager
-from baserow.contrib.builder.elements.models import CollectionField, LinkElement
+from baserow.contrib.builder.elements.models import (
+    CollectionField,
+    Element,
+    LinkElement,
+)
 from baserow.contrib.builder.elements.registries import CollectionFieldType
 from baserow.contrib.builder.workflow_actions.models import (
     BuilderWorkflowAction,
@@ -315,12 +319,15 @@ class ButtonCollectionFieldType(CollectionFieldType):
             ),
         }
 
-    def before_delete(self, instance: CollectionField):
+    def before_delete(self, instance: CollectionField, element: Element):
         # We delete the related workflow actions. This can run while the owning
         # element is trashed (permanent deletion), so we use the manager that still
-        # includes actions of trashed elements.
+        # includes actions of trashed elements. Actions in the trash themselves are
+        # kept: an undo or redo can restore them, and the element's deletion
+        # cascades to them. Column uids aren't unique across elements, so only this
+        # element's actions are matched.
         BuilderWorkflowAction.objects_including_trashed_elements.filter(
-            event__startswith=instance.uid
+            element=element, event__startswith=instance.uid, trashed=False
         ).delete()
 
 

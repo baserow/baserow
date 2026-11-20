@@ -4,10 +4,13 @@ from contextlib import contextmanager
 from typing import (
     Any,
     Callable,
+    Collection,
+    Container,
     Dict,
     Generator,
     List,
     Optional,
+    Set,
     Tuple,
     Type,
     TypedDict,
@@ -117,27 +120,38 @@ class ElementType(
 
         return values
 
-    def export_prepared_values(self, instance: Element) -> Dict[str, Any]:
+    def export_prepared_values(
+        self, instance: Element, field_names: Optional[Collection[str]] = None
+    ) -> Dict[str, Any]:
         """
-        Returns a JSON-serializable dict of the element's `allowed_fields`, used by
-        the undo/redo `ActionHandler` to snapshot values so they can be restored
-        later. Relation fields are exported as their id so the result stays
-        JSON-serializable.
+        Returns a JSON-serializable dict of the values `update_element` accepts, the
+        element's `allowed_fields` and the ones every element has such as styles
+        and visibility, used by the undo/redo `ActionHandler` to snapshot values so
+        they can be restored later. Relation fields are exported as their id so the
+        result stays JSON-serializable.
 
         Note: re-applying a stored relation id through `update_element` only
         round-trips for element types whose update path accepts that id (e.g. those
         exposing an `<field>_id` allowed field). Update undo/redo therefore only
         snapshots the fields actually changed by an update (see the update action),
-        keeping scalar/JSON field changes fully reversible.
+        keeping scalar/JSON field changes fully reversible. Element types that save
+        related objects in `after_update` (e.g. table fields or menu items) add them
+        here in the shape `update_element` accepts.
 
         :param instance: The element instance to export values for.
+        :param field_names: Only export these, e.g. the values of an update. All
+            of them when omitted.
         :return: A dict of prepared values keyed by field name.
         """
 
         from django.core.exceptions import FieldDoesNotExist
 
+        from baserow.contrib.builder.elements.handler import ElementHandler
+
         values: Dict[str, Any] = {}
-        for field_name in self.allowed_fields:
+        for field_name in ElementHandler.allowed_fields_update + self.allowed_fields:
+            if not self.exports(field_name, field_names) or field_name in values:
+                continue
             try:
                 model_field = instance._meta.get_field(field_name)
             except FieldDoesNotExist:
@@ -145,6 +159,10 @@ class ElementType(
                 continue
 
             if model_field.is_relation:
+                if field_name not in self.allowed_fields:
+                    # Like the background file: the update takes the object, so
+                    # its id can't be replayed.
+                    continue
                 # Use the relation's attname (e.g. "data_source_id") to read the id,
                 # which keeps the value JSON-serializable. allowed_fields may already
                 # use the attname form, so we never construct "<name>_id" ourselves.
@@ -153,6 +171,29 @@ class ElementType(
                 values[field_name] = getattr(instance, field_name)
 
         return values
+
+    @staticmethod
+    def exports(field_name: str, field_names: Optional[Container[str]]) -> bool:
+        """
+        :return: Whether `export_prepared_values` called with `field_names` exports
+            `field_name`.
+        """
+
+        return field_names is None or field_name in field_names
+
+    def get_uids_removed_by_update(
+        self, instance: Element, values: Dict[str, Any]
+    ) -> Set[str]:
+        """
+        The uids of the items, like table columns or menu items, that an update
+        with `values` removes. Their click actions go with them.
+
+        :param instance: The element before the update.
+        :param values: The values it's updated with.
+        :return: The removed uids.
+        """
+
+        return set()
 
     def validate_position_as_child(
         self, place_in_container: str, instance: ElementSubClass
@@ -313,13 +354,15 @@ class ElementType(
             # the action would otherwise be left behind on the source page, so move it
             # along with the element. This runs for every element in a moved subtree
             # because each one passes through its type's wrap_move (which chains here).
+            # Trashed actions move too, so an undo restores them on the element's
+            # page.
             from baserow.contrib.builder.workflow_actions.models import (
                 BuilderWorkflowAction,
             )
 
-            BuilderWorkflowAction.objects.filter(element=element).update(
-                page_id=target_page.id
-            )
+            BuilderWorkflowAction.objects_including_trashed_elements.filter(
+                element=element
+            ).update(page_id=target_page.id)
 
     def import_context_addition(self, instance: ElementSubClass) -> Dict[str, Any]:
         """
@@ -707,10 +750,13 @@ class CollectionFieldType(
 
         return serializer_class(model_instance_or_instances, context=context, **kwargs)
 
-    def before_delete(self, instance: CollectionField):
+    def before_delete(self, instance: CollectionField, element: Element):
         """
         This hooks is called before we delete a collection field and gives the
         opportunity to clean up things.
+
+        :param instance: The collection field about to be deleted.
+        :param element: The element the field belongs to.
         """
 
     def formula_generator(

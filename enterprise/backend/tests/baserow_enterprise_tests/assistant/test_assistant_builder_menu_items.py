@@ -347,7 +347,7 @@ def test_removing_a_button_deletes_its_click_actions_and_reports_them(
             "uid": site.uids["Help"],
             "name": "Help",
             "type": "button",
-            "deleted_click_actions": 1,
+            "trashed_click_actions": 1,
         }
     ]
 

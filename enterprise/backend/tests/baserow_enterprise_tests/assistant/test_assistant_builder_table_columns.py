@@ -550,7 +550,7 @@ def test_removing_a_button_column_deletes_its_click_actions(
     assert _columns(seeded.table) == [column for column in before if column[0] != go]
     assert not _action_exists(seeded.go_action)
     assert result["removed_table_columns"] == [
-        {"uid": go, "name": "Go", "type": "button", "deleted_click_actions": 1}
+        {"uid": go, "name": "Go", "type": "button", "trashed_click_actions": 1}
     ]
 
 
@@ -564,7 +564,7 @@ def test_removing_a_button_column_without_click_actions_reports_none(
     result = _update(seeded, remove_table_columns=[go])
 
     assert result["removed_table_columns"] == [
-        {"uid": go, "name": "Go", "type": "button", "deleted_click_actions": 0}
+        {"uid": go, "name": "Go", "type": "button", "trashed_click_actions": 0}
     ]
 
 
@@ -587,7 +587,7 @@ def test_a_column_removed_and_added_again_with_another_type_is_allowed(
     assert added[1:] == ("Go", "text", {"value": _advanced("'x'")}, {})
     assert not _action_exists(seeded.go_action)
     assert result["removed_table_columns"] == [
-        {"uid": go, "name": "Go", "type": "button", "deleted_click_actions": 1}
+        {"uid": go, "name": "Go", "type": "button", "trashed_click_actions": 1}
     ]
 
 

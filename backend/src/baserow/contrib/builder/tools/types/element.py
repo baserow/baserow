@@ -1802,7 +1802,7 @@ class ElementUpdate(BaseModel):
     remove_table_columns: list[str] | None = Field(
         max_length=MAX_NESTED_ITEMS,
         default=None,
-        description="(table) Uids of columns to delete, from list_elements. Only remove columns the user asked to remove. Undo doesn't restore them or their click actions.",
+        description="(table) Uids of columns to delete, from list_elements. Only remove columns the user asked to remove. Their click actions go to the trash; undo restores both.",
     )
     orientation: Literal["vertical", "horizontal"] | None = Field(
         default=None, description="(repeat) Orientation."
@@ -1836,7 +1836,7 @@ class ElementUpdate(BaseModel):
     remove_menu_items: list[str] | None = Field(
         max_length=MAX_NESTED_ITEMS,
         default=None,
-        description="(menu, header, footer) Uids of items to delete, from list_elements. A removed item's sub-links go with it. Only remove items the user asked to remove. Undo doesn't restore them or their click actions.",
+        description="(menu, header, footer) Uids of items to delete, from list_elements. A removed item's sub-links go with it. Only remove items the user asked to remove. Their click actions go to the trash; undo restores both.",
     )
 
     # -- Dispatch -------------------------------------------------------------

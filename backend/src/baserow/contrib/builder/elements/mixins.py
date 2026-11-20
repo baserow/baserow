@@ -4,11 +4,13 @@ from functools import cache
 from typing import (
     Any,
     Callable,
+    Collection,
     Dict,
     FrozenSet,
     Generator,
     List,
     Optional,
+    Set,
     Tuple,
     Type,
 )
@@ -277,6 +279,31 @@ class CollectionElementTypeMixin:
 
     def enhance_queryset(self, queryset):
         return super().enhance_queryset(queryset).prefetch_related("property_options")
+
+    def export_prepared_values(
+        self,
+        instance: CollectionElementSubClass,
+        field_names: Optional[Collection[str]] = None,
+    ):
+        """
+        Adds the property options, which are saved by `after_update`, so that undo
+        and redo can restore them.
+        """
+
+        values = super().export_prepared_values(instance, field_names)
+        if self.exports("property_options", field_names):
+            values["property_options"] = [
+                {
+                    "schema_property": option.schema_property,
+                    "searchable": option.searchable,
+                    "filterable": option.filterable,
+                    "sortable": option.sortable,
+                }
+                for option in sorted(
+                    instance.property_options.all(), key=lambda option: option.id
+                )
+            ]
+        return values
 
     def after_update(
         self, instance: CollectionElementSubClass, values, changes: Dict[str, Tuple]
@@ -754,6 +781,29 @@ class CollectionElementWithFieldsTypeMixin(CollectionElementTypeMixin):
     class SerializedDict(CollectionElementTypeMixin.SerializedDict):
         fields: List[Dict]
 
+    def export_prepared_values(
+        self,
+        instance: CollectionElementSubClass,
+        field_names: Optional[Collection[str]] = None,
+    ):
+        """
+        Adds the fields, which are saved by `after_update`, so that undo and redo
+        can restore them. The Kuma tools change columns in this shape too.
+        """
+
+        values = super().export_prepared_values(instance, field_names)
+        if self.exports("fields", field_names):
+            values["fields"] = self.get_field_values(instance)
+        return values
+
+    def get_uids_removed_by_update(
+        self, instance: CollectionElementSubClass, values: Dict[str, Any]
+    ) -> Set[str]:
+        if "fields" not in values:
+            return super().get_uids_removed_by_update(instance, values)
+        kept = {str(field.get("uid")) for field in values["fields"]}
+        return {str(field.uid) for field in instance.fields.all()} - kept
+
     def get_event_names(self, instance: CollectionElementSubClass) -> List[str]:
         """
         The events of an element with fields are the events of its collection
@@ -866,7 +916,7 @@ class CollectionElementWithFieldsTypeMixin(CollectionElementTypeMixin):
 
             # Call before delete hook of removed fields
             for field in instance.fields.exclude(query):
-                field.get_type().before_delete(field)
+                field.get_type().before_delete(field, instance)
 
             # Remove previous fields
             instance.fields.all().delete()
@@ -884,7 +934,7 @@ class CollectionElementWithFieldsTypeMixin(CollectionElementTypeMixin):
     def before_delete(self, instance: CollectionElementSubClass):
         # Call the before_delete hook of all fields
         for field in instance.fields.all():
-            field.get_type().before_delete(field)
+            field.get_type().before_delete(field, instance)
 
         instance.fields.all().delete()
 

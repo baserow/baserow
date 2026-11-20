@@ -448,9 +448,9 @@ def delete_element_items(
     ] = None,
 ) -> dict[str, Any]:
     """
-    Delete table columns or menu items of an element, with the click actions of a
-    deleted button. Only delete what the user asked to delete. Undo doesn't restore
-    them or their click actions. Columns and items you don't list stay as they are.
+    Delete table columns or menu items of an element. A deleted button's click
+    actions go to the trash, and undo restores both. Only delete what the user asked
+    to delete. Columns and items you don't list stay as they are.
     """
 
     if not table_columns and not menu_items:

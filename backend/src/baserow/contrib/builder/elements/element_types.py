@@ -1,10 +1,12 @@
 import abc
 import uuid
+from collections import defaultdict
 from datetime import datetime
 from decimal import Decimal, InvalidOperation
 from typing import (
     Any,
     Callable,
+    Collection,
     Dict,
     Generator,
     List,
@@ -1101,7 +1103,10 @@ class NavigationElementManager:
 
         if len(page_params) != 0 and navigate_to_page_id is not None:
             page = (
-                PageHandler().get_page(navigate_to_page_id)
+                # A link can name a trashed page, as the editor or an undo sends it.
+                PageHandler().get_page(
+                    navigate_to_page_id, base_queryset=Page.objects_and_trash
+                )
                 if navigate_to_page_id is not None
                 else instance.navigate_to_page
             )
@@ -2010,6 +2015,24 @@ class ChoiceElementType(FormElementTypeMixin, ElementType):
             "options": ChoiceOptionSerializer(many=True, required=False),
         }
 
+    def export_prepared_values(
+        self, instance: ChoiceElement, field_names: Optional[Collection[str]] = None
+    ) -> Dict[str, Any]:
+        """
+        Adds the options, which are saved by `after_update`, so that undo and redo
+        can restore them.
+        """
+
+        values = super().export_prepared_values(instance, field_names)
+        if self.exports("options", field_names):
+            values["options"] = [
+                {"value": option.value, "name": option.name}
+                for option in sorted(
+                    instance.choiceelementoption_set.all(), key=lambda option: option.id
+                )
+            ]
+        return values
+
     def serialize_property(
         self,
         element: ChoiceElement,
@@ -2554,6 +2577,60 @@ class MenuElementType(ElementType):
     ) -> QuerySet[MenuItemElement]:
         return queryset.prefetch_related("menu_items")
 
+    def export_prepared_values(
+        self, instance: MenuElement, field_names: Optional[Collection[str]] = None
+    ) -> Dict[str, Any]:
+        """
+        Adds the menu items, which are saved by `after_update`, so that undo and
+        redo can restore them. Sub-links are nested as the `children` of their
+        parent item, the shape `after_update` expects.
+        """
+
+        values = super().export_prepared_values(instance, field_names)
+        if not self.exports("menu_items", field_names):
+            return values
+
+        items = sorted(
+            instance.menu_items.all(), key=lambda item: (item.menu_item_order, item.id)
+        )
+        children: Dict[int, List[Dict[str, Any]]] = defaultdict(list)
+        for item in items:
+            if item.parent_menu_item_id is not None:
+                children[item.parent_menu_item_id].append(
+                    self.get_menu_item_values(item)
+                )
+
+        values["menu_items"] = [
+            {**self.get_menu_item_values(item), "children": children[item.id]}
+            for item in items
+            if item.parent_menu_item_id is None
+        ]
+        return values
+
+    @staticmethod
+    def get_menu_item_uids(menu_items: List[Dict[str, Any]]) -> Set[str]:
+        """
+        The uids of the menu items an update keeps, sub-links included. Both the
+        trash and the delete of click actions during an update read them from here.
+
+        :param menu_items: The `menu_items` value of the update.
+        :return: The uids, as strings.
+        """
+
+        return {
+            str(item.get("uid"))
+            for parent in menu_items
+            for item in (parent, *parent.get("children", []))
+        }
+
+    def get_uids_removed_by_update(
+        self, instance: MenuElement, values: Dict[str, Any]
+    ) -> Set[str]:
+        if "menu_items" not in values:
+            return super().get_uids_removed_by_update(instance, values)
+        kept = self.get_menu_item_uids(values["menu_items"])
+        return {str(item.uid) for item in instance.menu_items.all()} - kept
+
     def before_delete(self, instance: MenuElement) -> None:
         """
         Handle any clean-up needed before the MenuElement is deleted.
@@ -2596,10 +2673,12 @@ class MenuElementType(ElementType):
 
         # Get all workflow actions associated with this menu element. This runs
         # during permanent deletion, when the element is already trashed, so we use
-        # the manager that still includes actions of trashed elements.
+        # the manager that still includes actions of trashed elements. Actions in
+        # the trash themselves are kept: an undo or redo can restore them, and the
+        # element's deletion cascades to them.
         all_workflow_actions = (
             BuilderWorkflowAction.objects_including_trashed_elements.filter(
-                element=instance
+                element=instance, trashed=False
             )
         )
 
@@ -2639,7 +2718,8 @@ class MenuElementType(ElementType):
         if "menu_items" in values:
             instance.menu_items.all().delete()
 
-            menu_item_uids_to_keep = [item["uid"] for item in values["menu_items"]]
+            # Read before the loop below pops the children.
+            menu_item_uids_to_keep = list(self.get_menu_item_uids(values["menu_items"]))
             self.delete_workflow_actions(instance, menu_item_uids_to_keep)
 
             items_to_create = []
