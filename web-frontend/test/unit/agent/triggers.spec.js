@@ -1334,6 +1334,29 @@ describe('Agent triggers', () => {
     expect(patches(testApp)).toEqual([])
   })
 
+  test('refreshes trigger forms when the current run identity is renamed', async () => {
+    const wrapper = await mountSection(
+      [rowsTrigger()],
+      ['local_baserow_rows_created'],
+      true,
+      10,
+      activeRunAs
+    )
+    const typeRequests = () =>
+      testApp.mock.history.get.filter(
+        ({ url }) => url === '/agent/10/trigger-types/'
+      ).length
+    const original = typeRequests()
+    await wrapper.setProps({
+      configuration: {
+        ...wrapper.props('configuration'),
+        run_as: { ...activeRunAs.run_as, name: 'Renamed reviewer' },
+      },
+    })
+    await flushPromises()
+    expect(typeRequests()).toBe(original + 1)
+  })
+
   test('marks a trigger that reads the workspace as one that won’t run until the agent has access', async () => {
     testApp.mock.onGet('/agent/10/trigger-types/').replyOnce(200, [
       triggerTypeOf('periodic'),

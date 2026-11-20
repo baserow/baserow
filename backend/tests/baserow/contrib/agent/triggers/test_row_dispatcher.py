@@ -18,6 +18,7 @@ from baserow.contrib.agent.models import (
 )
 from baserow.contrib.agent.triggers.dispatcher import agent_trigger_dispatcher
 from baserow.contrib.agent.triggers.handler import AgentTriggerHandler
+from baserow.contrib.agent.triggers.service import AgentTriggerService
 from baserow.contrib.agent.triggers.tasks import start_trigger_conversations
 from baserow.contrib.agent.triggers.trash_types import AgentTriggerTrashableItemType
 from baserow.contrib.agent.types import AgentMessageCreated
@@ -267,6 +268,37 @@ def test_rows_of_a_table_the_identity_cannot_read_never_start_after_a_table_swit
     trigger.refresh_from_db()
     assert not AgentConversation.objects.exists()
     assert trigger.last_skipped_reason == "no_access"
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("selection", ["same table", "another table", "no table"])
+def test_a_pending_table_event_keeps_its_source_table(
+    data_fixture, orders, mocker, selection
+):
+    trigger = row_trigger(data_fixture, orders)
+    queued = mocker.patch.object(start_trigger_conversations, "delay")
+    create_orders(orders, 1)
+
+    if selection != "same table":
+        table = (
+            data_fixture.create_database_table(database=orders.table.database)
+            if selection == "another table"
+            else None
+        )
+        AgentTriggerService().update_trigger(
+            orders.user,
+            orders.agent.id,
+            trigger.id,
+            service_values={"table_id": table.id if table else None},
+        )
+    start_trigger_conversations(*queued.call_args.args)
+
+    trigger.refresh_from_db()
+    if selection == "same table":
+        assert opening_messages() == ["1"]
+    else:
+        assert not opening_messages()
+        assert trigger.last_skipped_reason == "no_access"
 
 
 @pytest.mark.django_db

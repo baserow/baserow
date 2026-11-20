@@ -11,8 +11,17 @@
       :search-placeholder="searchPlaceholder"
       :empty-text="emptyText"
       @select="select"
+      @disabled-click="showLockedModal"
       @close="context.hide()"
     />
+    <template v-for="serviceType in lockedTypes" :key="serviceType.getType()">
+      <component
+        :is="lockedModalOf(serviceType)[0]"
+        :ref="(modal) => (lockedModals[serviceType.getType()] = modal)"
+        :workspace="workspace"
+        v-bind="lockedModalOf(serviceType)[1]"
+      />
+    </template>
   </Context>
 </template>
 
@@ -42,6 +51,13 @@ const serviceTypes = computed(() =>
       props.availableTypes.includes(serviceType.getType())
     )
 )
+/** @returns {Array|null} The upgrade modal of a type the license locks. */
+const lockedModalOf = (serviceType) =>
+  serviceType.getDeactivatedClickModal({ workspace: props.workspace })
+const lockedTypes = computed(() =>
+  serviceTypes.value.filter((serviceType) => lockedModalOf(serviceType))
+)
+const lockedModals = {}
 const groups = computed(() => {
   const byGroup = new Map()
   for (const serviceType of serviceTypes.value) {
@@ -59,6 +75,7 @@ const groups = computed(() => {
       disabledReason: serviceType.isDeactivatedReason({
         workspace: props.workspace,
       }),
+      locked: Boolean(lockedModalOf(serviceType)),
     })
   }
   return [...byGroup.values()]
@@ -67,6 +84,11 @@ const groups = computed(() => {
 async function focusMenu() {
   await nextTick()
   menu.value?.focus()
+}
+
+function showLockedModal(item) {
+  context.value.hide()
+  lockedModals[item.value]?.show()
 }
 
 function select(item) {

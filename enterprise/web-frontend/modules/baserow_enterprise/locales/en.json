@@ -1,4 +1,14 @@
 {
+  "rowCommentTrigger": {
+    "name": "Row comment is posted",
+    "description": "When someone posts a comment on a row in the selected table.",
+    "inTable": "Row comment is posted in {tableName}",
+    "onlyWhenMentioned": "Only trigger when {name} is mentioned",
+    "commentAccessRequired": "The integration needs permission to read row comments on this table.",
+    "upgradeDescription": "Start an automation or agent when someone posts a row comment. Choose a table and optionally require a mention of the connected user or agent identity.",
+    "noMentionTarget": "Only trigger when mentioned",
+    "message": "{author} commented on row {row} in table {table}: {text}"
+  },
   "rowCommentTools": {
     "listRowComments": "Read row comments",
     "listRowCommentsDescription": "Read the comments of a row",

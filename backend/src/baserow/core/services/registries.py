@@ -1014,6 +1014,21 @@ class TriggerServiceTypeMixin(ABC):
 
         return None
 
+    def get_event_source_id(self, service: Service) -> int | None:
+        """
+        :param service: The specific trigger service.
+        :return: The id of what the service watches, so a queued event can tell
+            whether its service still watches the same source, or None.
+        """
+
+        return None
+
+    def matches_event(
+        self, service: Service, subject: Subject | None, payload: dict
+    ) -> bool:
+        """Whether the event matches the trigger's settings for its acting subject."""
+        return True
+
     def split_event_payload(
         self, service: Service, event_payload: dict[str, Any], size: int
     ) -> list[dict[str, Any]]:

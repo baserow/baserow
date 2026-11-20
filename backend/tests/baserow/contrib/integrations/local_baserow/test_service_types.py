@@ -69,6 +69,7 @@ def test_local_baserow_service_type_dispatch_types():
         LocalBaserowRowsUpdatedTriggerServiceType.type: [DispatchTypes.EVENT],
         LocalBaserowRowsDeletedTriggerServiceType.type: [DispatchTypes.EVENT],
         LocalBaserowFieldsUpdatedTriggerServiceType.type: [DispatchTypes.EVENT],
+        "local_baserow_row_comment_posted": [DispatchTypes.EVENT],
         "local_baserow_grouped_aggregate_rows": [DispatchTypes.DATA],
         "local_baserow_semantic_search": [DispatchTypes.DATA, DispatchTypes.ACTION],
     }

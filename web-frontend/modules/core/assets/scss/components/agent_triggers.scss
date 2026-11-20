@@ -125,6 +125,20 @@
   margin-left: auto;
 }
 
+.agent-trigger-card__lock {
+  flex-shrink: 0;
+  margin-left: auto;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: $palette-neutral-700;
+  cursor: pointer;
+
+  &:hover {
+    color: $palette-neutral-1200;
+  }
+}
+
 .agent-trigger-card__saving-slot {
   display: flex;
   flex: 0 0 14px;
@@ -363,4 +377,12 @@
   padding-block: 0;
   overflow: hidden;
   visibility: hidden;
+}
+
+.agent-trigger-card__body--locked {
+  cursor: pointer;
+
+  .agent-trigger-card__section {
+    opacity: 0.6;
+  }
 }

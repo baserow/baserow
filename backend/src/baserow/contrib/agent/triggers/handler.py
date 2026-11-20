@@ -101,13 +101,13 @@ class AgentTriggerHandler:
                 trigger.service = services_by_id[trigger.service_id]
         return triggers
 
-    def available_trigger_types(self, agent: AgentApplication) -> list[str]:
+    def available_trigger_types(self) -> list[str]:
         """
-        List the trigger types a trigger of this Agent can have, in registry order.
+        List the trigger types an Agent's trigger can have on this instance, in
+        registry order, including the ones a workspace's license locks.
 
-        :param agent: The Agent the triggers would belong to.
         :return: The names of the registered trigger service types the picker
-            allows, minus the ones deactivated in the Agent's workspace.
+            offers.
         """
 
         return [
@@ -115,18 +115,29 @@ class AgentTriggerHandler:
             for service_type in service_type_registry.get_all()
             if isinstance(service_type, TriggerServiceTypeMixin)
             and service_type.type in AGENT_TRIGGER_TYPES_ENABLED
-            and not service_type.is_deactivated(agent.workspace)
         ]
 
-    def check_type_available(self, agent: AgentApplication, type_name: str) -> None:
+    def is_type_usable(self, agent: AgentApplication, type_name: str) -> bool:
         """
         :param agent: The Agent the trigger belongs to.
         :param type_name: The service type of the trigger.
-        :raises AgentTriggerTypeNotAvailable: When the Agent's configuration doesn't
-            offer the type, so no trigger of it may be created, armed or fired.
+        :return: Whether the type is offered and its Agent's workspace may use it.
         """
 
-        if type_name not in self.available_trigger_types(agent):
+        return type_name in self.available_trigger_types() and not (
+            service_type_registry.get(type_name).is_deactivated(agent.workspace)
+        )
+
+    def check_type_usable(self, agent: AgentApplication, type_name: str) -> None:
+        """
+        :param agent: The Agent the trigger belongs to.
+        :param type_name: The service type of the trigger.
+        :raises AgentTriggerTypeNotAvailable: When the type isn't offered or the
+            workspace's license locks it, so no trigger of it may be created,
+            edited, armed or fired.
+        """
+
+        if not self.is_type_usable(agent, type_name):
             raise AgentTriggerTypeNotAvailable(type_name)
 
     def prepare_service_values(
@@ -378,7 +389,7 @@ class AgentTriggerHandler:
 
         service = trigger.service.specific
         service_type = service.get_type()
-        self.check_type_available(trigger.agent, service_type.type)
+        self.check_type_usable(trigger.agent, service_type.type)
         service_type.arm(service)
 
     def message_without_text(
@@ -456,7 +467,7 @@ class AgentTriggerHandler:
         """
 
         options = []
-        for type_name in self.available_trigger_types(agent):
+        for type_name in self.available_trigger_types():
             service_type = service_type_registry.get(type_name)
             options.append(
                 AgentTriggerTypeOptions(

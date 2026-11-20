@@ -139,9 +139,7 @@ class AgentTriggerDispatcher:
             reason = "it is disabled"
         elif not self._agent_is_live(agent):
             reason = "its agent is trashed or is a snapshot"
-        elif service_type.type not in AgentTriggerHandler().available_trigger_types(
-            agent
-        ):
+        elif not AgentTriggerHandler().is_type_usable(agent, service_type.type):
             reason = "its type isn't available"
         elif (
             AgentHandler().get_configuration_readiness(agent)[0]
@@ -197,7 +195,10 @@ class AgentTriggerDispatcher:
         """
 
         service = trigger.service.specific
-        can_read = self._can_read(trigger)
+        identity = AgentHandler().get_run_identity(trigger.agent)
+        if not service.get_type().matches_event(service, identity, payload):
+            return
+        can_read = AgentTriggerHandler().can_identity_read(trigger, identity)
         firings, dropped_batches = [], 0
         if can_read:
             batches = service.get_type().split_event_payload(
@@ -206,10 +207,11 @@ class AgentTriggerDispatcher:
             kept = batches[: settings.AGENT_TRIGGER_MAX_BATCHES_PER_EVENT]
             firings = [self._resolve_firing(trigger, batch, fired_at) for batch in kept]
             dropped_batches = len(batches) - len(kept)
+        source_id = service.get_type().get_event_source_id(service)
         # A broker error for one trigger mustn't drop the starts queued after it.
         transaction.on_commit(
             lambda: start_trigger_conversations.delay(
-                trigger.id, service.id, firings, dropped_batches, can_read
+                trigger.id, service.id, firings, dropped_batches, can_read, source_id
             ),
             robust=True,
         )
@@ -249,6 +251,7 @@ class AgentTriggerDispatcher:
         firings: Sequence[Sequence[str | None]],
         dropped_batches: int = 0,
         can_read: bool = True,
+        source_id: int | None = None,
     ) -> None:
         """
         Apply the rules of a trigger to each firing of one event, in order, if the
@@ -268,6 +271,7 @@ class AgentTriggerDispatcher:
         :param dropped_batches: How many batches of the event were left out.
         :param can_read: Whether the run identity could read the event's data
             when the event happened.
+        :param source_id: What the service watched when the event fired, if any.
         """
 
         try:
@@ -279,7 +283,7 @@ class AgentTriggerDispatcher:
                     or not self._is_runnable(trigger)
                 ):
                     return
-                if not can_read or not self._can_read(trigger):
+                if not can_read or not self._can_read_event(trigger, source_id):
                     self._record_skip(trigger, AgentTrigger.SkipReason.NO_ACCESS)
                     return
                 for content, failure in firings:
@@ -309,6 +313,19 @@ class AgentTriggerDispatcher:
             service_id,
         )
         return False
+
+    def _can_read_event(self, trigger: AgentTrigger, source_id: int | None) -> bool:
+        """
+        :param trigger: The locked trigger, with its agent, workspace and service.
+        :param source_id: What the service watched when the event fired, if any.
+        :return: Whether the service still watches the event's source and the
+            agent's run identity may now read it.
+        """
+
+        service = trigger.service.specific
+        if service.get_type().get_event_source_id(service) != source_id:
+            return False
+        return self._can_read(trigger)
 
     def _can_read(self, trigger: AgentTrigger) -> bool:
         """

@@ -45,6 +45,7 @@ AGENT_TRIGGER_TYPES_ENABLED = (
     "local_baserow_rows_created",
     "local_baserow_rows_updated",
     "local_baserow_rows_deleted",
+    "local_baserow_row_comment_posted",
 )
 AGENT_TRIGGER_DEFAULT_BATCH_SIZE = 20
 AGENT_TRIGGER_MAX_BATCH_SIZE = 100

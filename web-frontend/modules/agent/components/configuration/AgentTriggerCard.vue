@@ -49,8 +49,18 @@
           @keydown.enter.prevent="$event.target.blur()"
           @keydown.esc.prevent="cancelRename($event.target)"
         />
+        <button
+          v-if="locked"
+          v-tooltip="lockedReason"
+          type="button"
+          class="agent-trigger-card__lock"
+          :aria-label="lockedReason"
+          @click="showLockedModal"
+        >
+          <i class="iconoir-lock" aria-hidden="true" />
+        </button>
         <Icon
-          v-if="configurationError"
+          v-else-if="configurationError"
           v-tooltip="configurationError"
           class="agent-trigger-card__status"
           icon="iconoir-warning-circle"
@@ -75,17 +85,23 @@
         role="switch"
         :tabindex="editable ? 0 : -1"
         :aria-label="$t('agent.triggerEnabled')"
-        :aria-checked="trigger.enabled"
+        :aria-checked="trigger.enabled && !locked"
         :aria-disabled="!editable"
-        :model-value="trigger.enabled"
+        :model-value="trigger.enabled && !locked"
         :disabled="!editable"
-        @update:model-value="$emit('update', { enabled: $event })"
+        @update:model-value="setEnabled"
         @keydown.enter.prevent="toggleEnabled"
         @keydown.space.prevent="toggleEnabled"
       />
     </header>
-    <div v-if="serviceType" v-show="expanded" class="agent-trigger-card__body">
-      <div class="agent-trigger-card__section">
+    <div
+      v-if="serviceType"
+      v-show="expanded"
+      class="agent-trigger-card__body"
+      :class="{ 'agent-trigger-card__body--locked': locked }"
+      @click="locked && showLockedModal()"
+    >
+      <div class="agent-trigger-card__section" :inert="locked || null">
         <component
           :is="serviceType.formComponent"
           v-if="typeOptions"
@@ -117,13 +133,13 @@
             :max="TRIGGER_MAX_BATCH_SIZE"
             :model-value="batchSizeText"
             :error="Boolean(batchSizeError)"
-            :disabled="!editable"
+            :disabled="!canEdit"
             @update:model-value="onBatchSizeInput"
             @blur="onBatchSizeBlur"
           />
         </FormGroup>
       </div>
-      <div class="agent-trigger-card__section">
+      <div class="agent-trigger-card__section" :inert="locked || null">
         <FormGroup
           class="agent-trigger-card__message"
           :label="$t('agent.triggerMessage')"
@@ -132,7 +148,7 @@
         >
           <AgentTriggerMessageInput
             :model-value="trigger.message"
-            :disabled="!editable"
+            :disabled="!canEdit"
             :placeholder="$t('agent.triggerMessagePlaceholder')"
             @update:model-value="$emit('update', { message: $event })"
           />
@@ -181,7 +197,10 @@
           </ul>
         </Expandable>
       </div>
-      <div class="agent-trigger-card__section agent-trigger-card__overlap">
+      <div
+        class="agent-trigger-card__section agent-trigger-card__overlap"
+        :inert="locked || null"
+      >
         <div
           :id="`${overlapId}-title`"
           class="agent-trigger-card__overlap-title"
@@ -207,7 +226,7 @@
             :name="overlapId"
             :value="option.value"
             :model-value="trigger.on_overlap"
-            :disabled="!editable"
+            :disabled="!canEdit"
             @update:model-value="$emit('update', { on_overlap: $event })"
           >
             <div class="agent-trigger-card__overlap-option-text">
@@ -254,6 +273,13 @@
       :available-types="availableTypes"
       :workspace="workspace"
       @select="$emit('change-type', $event)"
+    />
+    <component
+      :is="lockedModal[0]"
+      v-if="lockedModal"
+      ref="lockedModalRef"
+      :workspace="workspace"
+      v-bind="lockedModal[1]"
     />
   </article>
 </template>
@@ -324,6 +350,19 @@ const form = ref(null)
 const typePicker = ref(null)
 const overlapId = useId()
 const serviceType = computed(() => serviceTypeOf($registry, props.trigger.type))
+/** The reason the workspace's license locks the type, or ''. */
+const lockedReason = computed(
+  () =>
+    serviceType.value?.isDeactivatedReason({ workspace: props.workspace }) || ''
+)
+const locked = computed(() => Boolean(lockedReason.value))
+const lockedModal = computed(() =>
+  locked.value
+    ? serviceType.value.getDeactivatedClickModal({ workspace: props.workspace })
+    : null
+)
+const lockedModalRef = ref(null)
+const canEdit = computed(() => props.editable && !locked.value)
 // Hosted service forms inject these like in Automation's node side panel.
 provide('formulaComponent', FormulaInputField)
 provide('dataProvidersAllowed', [])
@@ -448,7 +487,7 @@ watch(
 )
 
 function onServiceValuesChanged(values) {
-  if (!props.editable) return
+  if (!canEdit.value) return
   if (form.value?.isFormValid && !form.value.isFormValid()) return
   emit('update', { service: values })
 }
@@ -492,6 +531,7 @@ function rename(input) {
 }
 
 const enabledTooltip = computed(() => {
+  if (locked.value) return lockedReason.value
   if (!props.editable) return null
   return t(
     props.trigger.enabled
@@ -500,7 +540,16 @@ const enabledTooltip = computed(() => {
   )
 })
 
+function showLockedModal() {
+  lockedModalRef.value?.show()
+}
+
+function setEnabled(enabled) {
+  if (locked.value) showLockedModal()
+  else emit('update', { enabled })
+}
+
 function toggleEnabled() {
-  if (props.editable) emit('update', { enabled: !props.trigger.enabled })
+  if (props.editable) setEnabled(!props.trigger.enabled)
 }
 </script>
