@@ -2,7 +2,7 @@ import { AGENT_APPLICATION_TYPE } from '@baserow/modules/agent/constants'
 import { DEVELOPMENT_STAGES } from '@baserow/modules/core/constants'
 import { ApplicationType } from '@baserow/modules/core/applicationTypes'
 import AgentApplicationContext from '@baserow/modules/agent/components/AgentApplicationContext'
-import AgentApplicationForm from '@baserow/modules/agent/components/AgentApplicationForm'
+import AgentCreateModal from '@baserow/modules/agent/components/AgentCreateModal'
 import AgentApplicationSidebar from '@baserow/modules/agent/components/AgentApplicationSidebar'
 import AgentTemplate from '@baserow/modules/agent/components/AgentTemplate'
 import AgentTemplateSidebar from '@baserow/modules/agent/components/AgentTemplateSidebar'
@@ -45,8 +45,8 @@ export class AgentApplicationType extends ApplicationType {
     return AgentApplicationContext
   }
 
-  getApplicationFormComponent() {
-    return AgentApplicationForm
+  getCreateModalComponent() {
+    return AgentCreateModal
   }
 
   getSidebarComponent() {

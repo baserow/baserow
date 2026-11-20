@@ -11,11 +11,17 @@ from .views import (
     AgentPendingApprovalsView,
     AgentRunAsIdentitiesView,
     AgentToolApprovalsView,
+    AgentToolsView,
 )
 
 app_name = "baserow.contrib.agent"
 
 urlpatterns = [
+    path(
+        "tools/workspace/<int:workspace_id>/",
+        AgentToolsView.as_view(),
+        name="tools",
+    ),
     path("<int:agent_id>/", AgentApplicationView.as_view(), name="item"),
     path(
         "<int:agent_id>/configuration/",

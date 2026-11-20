@@ -12,12 +12,14 @@
     @focusout="focusout($event)"
   >
     <a v-if="showInput" class="dropdown__selected" @click="show()">
-      <template v-if="displayName !== null">
-        <span class="dropdown__selected-text">{{ displayName }}</span>
-      </template>
-      <template v-else>{{
-        notSelectedText === null ? $t('action.makeChoice') : notSelectedText
-      }}</template>
+      <slot name="selectedValue">
+        <template v-if="displayName !== null">
+          <span class="dropdown__selected-text">{{ displayName }}</span>
+        </template>
+        <template v-else>{{
+          notSelectedText === null ? $t('action.makeChoice') : notSelectedText
+        }}</template>
+      </slot>
       <i class="dropdown__toggle-icon iconoir-nav-arrow-down"></i>
     </a>
     <div
