@@ -329,6 +329,41 @@ def test_a_promotion_can_be_undone_and_redone(data_fixture):
 
 @pytest.mark.django_db
 @pytest.mark.undo_redo
+def test_undoing_a_promotion_keeps_the_admin_as_the_authorized_subject(
+    data_fixture,
+):
+    session_id = str(uuid.uuid4())
+    admin = data_fixture.create_user(session_id=session_id)
+    member = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=admin, members=[member])
+    shared_application = data_fixture.create_shared_application(workspace=workspace)
+    builder = data_fixture.create_builder_application(workspace=workspace)
+    integration = data_fixture.create_local_baserow_integration(
+        application=builder, authorized_user=member
+    )
+
+    UpdateIntegrationActionType.do(
+        admin,
+        IntegrationHandler().get_integration_for_update(integration.id),
+        application_id=shared_application.id,
+    )
+    (undone,) = ActionHandler.undo(
+        admin, [WorkspaceActionScopeType.value(workspace.id)], session_id
+    )
+
+    assert undone.error is None
+    integration = Integration.objects.get(id=integration.id).specific
+    assert integration.application_id == builder.id
+    # Only the member can authorize it as themselves again. The promotion modal
+    # says that undoing won't make it run as them.
+    assert (
+        integration.authorized_subject_type,
+        integration.authorized_subject_id,
+    ) == ("auth.User", admin.id)
+
+
+@pytest.mark.django_db
+@pytest.mark.undo_redo
 @pytest.mark.parametrize("start_using", [_use_in_a_data_source, _use_in_a_user_source])
 def test_a_promotion_cannot_be_undone_once_something_else_uses_the_integration(
     data_fixture, start_using
