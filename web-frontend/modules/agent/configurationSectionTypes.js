@@ -28,7 +28,8 @@ const WhenItRunsSection = markRaw(AgentWhenItRunsSection)
  * Components can expose `focusField(field)` to focus a field selected from the
  * configuration warning. The fields map identifies which section owns a field
  * and provides its label and optional unavailable error message. Section errors
- * also receive the configuration for optional settings that don't block replies.
+ * also receive the configuration for optional settings that don't block replies,
+ * and the sidebar's context: the Agent, its workspace and its triggers.
  */
 export class AgentConfigurationSectionType extends Registerable {
   get name() {
@@ -51,6 +52,15 @@ export class AgentConfigurationSectionType extends Registerable {
     return {}
   }
 
+  /**
+   * Runs once in the sidebar's setup, so a section can load and watch what its
+   * error message needs while it is closed.
+   *
+   * @param {object} context The reactive `agent`, `workspace` and `triggers`,
+   *   the latter as `useAgentTriggers` returns them.
+   */
+  setup(context) {}
+
   getFieldErrorMessage(field, error) {
     if (!error) return ''
     return this.$t(
@@ -61,7 +71,13 @@ export class AgentConfigurationSectionType extends Registerable {
     )
   }
 
-  getErrorMessage(errors) {
+  /**
+   * @param {object} errors The configuration's errors by field.
+   * @param {object} configuration The Agent's configuration.
+   * @param {object} context What `setup` received.
+   * @returns {string} Why the section needs attention, or an empty string.
+   */
+  getErrorMessage(errors, configuration, context) {
     return Object.entries(this.fields)
       .filter(([field]) => errors[field])
       .map(([field, { label }]) =>

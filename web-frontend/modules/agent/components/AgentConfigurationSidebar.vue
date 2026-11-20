@@ -126,7 +126,9 @@
 </template>
 
 <script setup>
-import { computed, nextTick, ref } from 'vue'
+import { computed, inject, nextTick, reactive, ref } from 'vue'
+import { useStore } from 'vuex'
+import { provideAgentTriggers } from '@baserow/modules/agent/composables/useAgentTriggers'
 import ReadOnlyForm from '@baserow/modules/core/components/ReadOnlyForm'
 import MenuList from '@baserow/modules/core/components/MenuList'
 import Icon from '@baserow/modules/core/components/Icon'
@@ -146,10 +148,29 @@ const props = defineProps({
 })
 defineEmits(['close', 'update:name', 'rename', 'change', 'flush', 'reload'])
 const { $registry } = useNuxtApp()
+const store = useStore()
+const agent = inject('agentApplication')
 const section = ref(null)
 const sectionComponent = ref(null)
 const registeredSections = computed(() =>
   $registry.getOrderedList('agentConfigurationSection')
+)
+// Loaded here so a closed section can still tell what is wrong with it.
+const sectionContext = reactive({
+  agent,
+  workspace: computed(() =>
+    agent.value
+      ? store.getters['workspace/get'](agent.value.workspace.id)
+      : null
+  ),
+  triggers: provideAgentTriggers(
+    agent,
+    () => props.configuration.run_as,
+    () => !props.loading
+  ),
+})
+registeredSections.value.forEach((registered) =>
+  registered.setup(sectionContext)
 )
 const selectedSection = computed(() =>
   registeredSections.value.find(
@@ -162,7 +183,11 @@ const sectionItems = computed(() =>
     label: registered.name,
     description: registered.description,
     icon: registered.icon,
-    error: registered.getErrorMessage(props.errors, props.configuration),
+    error: registered.getErrorMessage(
+      props.errors,
+      props.configuration,
+      sectionContext
+    ),
   }))
 )
 

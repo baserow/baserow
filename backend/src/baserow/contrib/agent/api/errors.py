@@ -33,8 +33,3 @@ ERROR_AGENT_TOOL_APPROVAL_NOT_PENDING = (
     409,
     "These steps are not waiting for a decision any more.",
 )
-ERROR_AGENT_CONVERSATION_READ_ONLY = (
-    "ERROR_AGENT_CONVERSATION_READ_ONLY",
-    409,
-    "This conversation was started by a trigger and is read-only.",
-)

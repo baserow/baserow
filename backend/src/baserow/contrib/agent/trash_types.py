@@ -12,9 +12,8 @@ from .signals import agent_conversation_activity
 
 class AgentConversationTrashableItemType(TrashableItemType):
     """
-    A conversation only its owner sees and restores in the trash; a shared one has
-    no owner, so every reader sees it there but, as for trashing it, only a user
-    who may update the Agent restores it.
+    Only the author can restore a private conversation. Restoring shared history
+    requires permission to manage the agent.
     """
 
     type = "agent_conversation"
@@ -33,7 +32,7 @@ class AgentConversationTrashableItemType(TrashableItemType):
             which every trash reader sees.
         """
 
-        return trashed_item.owner_user
+        return None if trashed_item.shared else trashed_item.owner_user
 
     def permanently_delete_item(
         self,

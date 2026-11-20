@@ -1,14 +1,15 @@
 <template>
   <div class="field-permission-subjects margin-top-2">
     <Alert type="info-neutral" class="margin-bottom-2">
-      <p>{{ $t('fieldPermissionSubjectsSelector.accessNote') }}</p>
+      <p>{{ $t(copyPrefix + '.accessNote') }}</p>
     </Alert>
 
     <section class="field-permission-subjects__section">
-      <h3>{{ $t('fieldPermissionSubjectsSelector.addPeopleOrTeams') }}</h3>
+      <h3>{{ $t(copyPrefix + '.addPeopleOrTeams') }}</h3>
       <PaginatedDropdown
         ref="subjectDropdown"
         :value="null"
+        :disabled="disabled"
         :fetch-page="fetchSubjectOptions"
         :value-name="getOptionDisplayName"
         :result-item-component="fieldPermissionSubjectDropdownItem"
@@ -18,9 +19,7 @@
         :fetch-on-open="true"
         :add-empty-item="false"
         :include-display-name-in-selected-event="true"
-        :not-selected-text="
-          $t('fieldPermissionSubjectsSelector.searchPlaceholder')
-        "
+        :not-selected-text="$t(copyPrefix + '.searchPlaceholder')"
         :search-text="$t('fieldPermissionSubjectsSelector.searchHint')"
         @input="addSubjectFromDropdown"
       />
@@ -28,7 +27,7 @@
 
     <section class="field-permission-subjects__section margin-top-3">
       <div class="field-permission-subjects__section-heading">
-        <h3>{{ $t('fieldPermissionSubjectsSelector.canEdit') }}</h3>
+        <h3>{{ $t(copyPrefix + '.canEdit') }}</h3>
         <span class="field-permission-subjects__count">
           {{ selectedSubjects.length }}
         </span>
@@ -38,7 +37,7 @@
         v-if="selectedSubjects.length === 0"
         class="field-permission-subjects__empty"
       >
-        {{ $t('fieldPermissionSubjectsSelector.noSelectedSubjects') }}
+        {{ $t(copyPrefix + '.noSelectedSubjects') }}
       </div>
       <ul v-else class="field-permission-subjects__list">
         <li
@@ -72,6 +71,7 @@
           <ButtonIcon
             size="small"
             icon="iconoir-cancel"
+            :disabled="disabled || selectedSubjects.length <= minimumSelection"
             :aria-label="
               $t('fieldPermissionSubjectsSelector.remove', {
                 subject: subject.label,
@@ -101,14 +101,18 @@ export default {
   props: {
     fieldId: {
       type: Number,
-      required: true,
+      default: null,
     },
+    disabled: Boolean,
+    minimumSelection: { type: Number, default: 0 },
+    fetchOptions: { type: Function, default: null },
+    copyPrefix: { type: String, default: 'fieldPermissionSubjectsSelector' },
     subjects: {
       type: Array,
       default: () => [],
     },
   },
-  emits: ['selection-change'],
+  emits: ['selection-change', 'edit'],
   data() {
     return {
       pageSize: 20,
@@ -201,15 +205,19 @@ export default {
     },
     async fetchSubjectOptions(page, search) {
       const normalizedSearch = (search || '').trim()
-      const response = await FieldPermissionService(
-        this.$client
-      ).fetchSubjectOptions(this.fieldId, {
+      const params = {
         page,
         size: this.pageSize,
         search: normalizedSearch,
         exclude_user_ids: this.selectedUserIds.join(','),
         exclude_team_ids: this.selectedTeamIds.join(','),
-      })
+      }
+      const response = this.fetchOptions
+        ? await this.fetchOptions(params)
+        : await FieldPermissionService(this.$client).fetchSubjectOptions(
+            this.fieldId,
+            params
+          )
       return {
         ...response,
         data: {
@@ -225,16 +233,23 @@ export default {
       this.resetSubjectDropdown()
     },
     addSubject(subject) {
-      if (!this.selectedKeys.has(subject.key)) {
+      if (!this.disabled && !this.selectedKeys.has(subject.key)) {
         this.selectedSubjects.push(subject)
         this.emitSelectionChange()
+        this.$emit('edit', this.getSelectedSubjects())
       }
     },
     removeSubject(subject) {
+      if (
+        this.disabled ||
+        this.selectedSubjects.length <= this.minimumSelection
+      )
+        return
       this.selectedSubjects = this.selectedSubjects.filter(
         ({ key }) => key !== subject.key
       )
       this.emitSelectionChange()
+      this.$emit('edit', this.getSelectedSubjects())
       this.resetSubjectDropdown()
     },
     emitSelectionChange() {

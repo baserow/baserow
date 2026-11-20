@@ -1160,8 +1160,8 @@ def test_a_reply_rechecks_the_configuration_and_access(
         pytest.param("leave", False, id="owner-removed-from-the-workspace"),
         pytest.param(
             "deny_reading",
-            True,
-            id="owner-without-read-permission-still-follows-by-membership-only",
+            False,
+            id="owner-without-read-permission",
         ),
         pytest.param("trash", False, id="trashed-agent"),
     ],

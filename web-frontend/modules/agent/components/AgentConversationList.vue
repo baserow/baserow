@@ -103,41 +103,81 @@
               :aria-current="item.uuid === selected ? 'true' : undefined"
               @click="$emit('select', item)"
             >
-              <Icon
-                :icon="conversationIcon(item)"
-                type="secondary"
-                aria-hidden="true"
-              />
-              <span class="agent-conversations__item-name">{{
-                item.title || $t('agent.newConversation')
-              }}</span>
-              <span
-                v-if="!item.shared"
-                class="agent-conversations__private"
-                role="img"
-                :aria-label="$t('agent.privateConversation')"
-                :title="$t('agent.privateConversation')"
-                ><i class="iconoir-lock" aria-hidden="true"></i
-              ></span>
-              <span v-if="item.local" class="agent-conversations__draft">{{
-                $t('agent.draft')
-              }}</span>
-              <span
-                v-if="item.pending_approval_count > 0"
-                class="agent-conversations__status-label"
-                >{{
-                  $t(
-                    item.shared
-                      ? 'agent.waitingForApprovalShared'
-                      : 'agent.waitingForApproval'
-                  )
-                }}</span
-              >
-              <span
-                class="agent-conversations__status"
-                :class="statusClass(item)"
-                aria-hidden="true"
-              />
+              <span class="agent-conversations__origin">
+                <Icon
+                  :icon="conversationIcon(item)"
+                  type="secondary"
+                  aria-hidden="true"
+                />
+                <span
+                  v-if="item.run_id || item.pending_approval_count > 0"
+                  class="agent-conversations__status"
+                  :class="statusClass(item)"
+                  :title="$t(statusLabel(item))"
+                >
+                  <span class="agent-conversations__status-label">{{
+                    $t(statusLabel(item))
+                  }}</span>
+                </span>
+              </span>
+              <span class="agent-conversations__text">
+                <span
+                  class="agent-conversations__item-name"
+                  :title="item.title"
+                  >{{ item.title || $t('agent.newConversation') }}</span
+                >
+                <span class="agent-conversations__meta">
+                  <span class="agent-conversations__audience">
+                    <i
+                      :class="
+                        item.shared ? 'iconoir-community' : 'iconoir-lock'
+                      "
+                      aria-hidden="true"
+                    ></i>
+                    {{
+                      $t(
+                        item.shared ? 'agent.sharedLabel' : 'agent.privateLabel'
+                      )
+                    }}
+                  </span>
+                  <span
+                    v-if="!item.shared && item.participants?.length > 1"
+                    class="agent-conversations__detail"
+                    :title="
+                      item.participants.map((person) => person.name).join(', ')
+                    "
+                    >{{
+                      $t('agent.participantCount', {
+                        count: item.participants.length,
+                      })
+                    }}</span
+                  >
+                  <span
+                    v-else-if="item.local"
+                    class="agent-conversations__draft"
+                  >
+                    {{ $t('agent.draft') }}
+                  </span>
+                  <span
+                    v-else-if="
+                      item.started_by_trigger ||
+                      item.trigger_type ||
+                      item.trigger_name
+                    "
+                    class="agent-conversations__detail"
+                    :title="triggerLabel(item)"
+                    >{{ triggerLabel(item) }}</span
+                  >
+                  <time
+                    v-else-if="item.updated_on"
+                    class="agent-conversations__detail"
+                    :datetime="item.updated_on"
+                    >{{
+                      getHumanAgoLabel(t, item.updated_on, now ?? undefined)
+                    }}</time
+                  >
+                </span>
+              </span>
             </button>
             <button
               v-if="hasOptions(item) && item.uuid !== renamingUuid"
@@ -188,6 +228,15 @@
     </div>
     <Context ref="menu" @hidden="menuItem = null">
       <ul v-if="menuItem" class="context__menu">
+        <li
+          v-if="isAuthor(menuItem) && !menuItem.shared"
+          class="context__menu-item"
+        >
+          <a class="context__menu-item-link" @click="share"
+            ><i class="context__menu-item-icon iconoir-community"></i
+            >{{ $t('agent.share') }}</a
+          >
+        </li>
         <li v-if="canUpdateItem(menuItem)" class="context__menu-item">
           <a class="context__menu-item-link" @click="togglePin">
             <i class="context__menu-item-icon iconoir-pin"></i>
@@ -221,11 +270,15 @@
 </template>
 
 <script setup>
+import { useStore } from 'vuex'
+import { useI18n } from 'vue-i18n'
 import { nextTick, ref, watch } from 'vue'
 import Icon from '@baserow/modules/core/components/Icon'
 import Context from '@baserow/modules/core/components/Context'
 import InfiniteScroll from '@baserow/modules/core/components/helpers/InfiniteScroll'
 import { useNuxtApp } from '#app'
+import { getHumanAgoLabel } from '@baserow/modules/core/utils/date'
+import { injectNow } from '@baserow/modules/core/composables/useNow'
 import { serviceTypeOf } from '@baserow/modules/agent/utils/triggers'
 
 const props = defineProps({
@@ -250,9 +303,12 @@ const emit = defineEmits([
   'create',
   'update',
   'delete',
+  'share',
 ])
 
 const { $registry } = useNuxtApp()
+const { t } = useI18n()
+const now = injectNow()
 
 const scroll = ref(null)
 const menu = ref(null)
@@ -266,17 +322,32 @@ const itemButtons = {}
 let renameOriginal = ''
 
 function conversationIcon(item) {
+  if (!item.started_by_trigger && !item.trigger_type && !item.trigger_name)
+    return 'iconoir-chat-bubble'
+  return serviceTypeOf($registry, item.trigger_type)?.icon || 'iconoir-flash'
+}
+
+function triggerLabel(item) {
   return (
-    serviceTypeOf($registry, item.trigger_type)?.icon || 'iconoir-chat-bubble'
+    item.trigger_name ||
+    serviceTypeOf($registry, item.trigger_type)?.name ||
+    t('agent.startedByTrigger')
   )
 }
-const canUpdateItem = (item) =>
-  props.canUpdate && (!item.shared || props.canUpdateAgent)
-const canDeleteItem = (item) =>
-  props.canDelete && (!item.shared || props.canUpdateAgent)
+const store = useStore()
+const isAuthor = (item) =>
+  item.owner_user_id === store.getters['auth/getUserId'] &&
+  item.owner_user_id != null
+const managesItem = (item) =>
+  item.shared ? props.canUpdateAgent : isAuthor(item)
+const canUpdateItem = (item) => props.canUpdate && managesItem(item)
+const canDeleteItem = (item) => props.canDelete && managesItem(item)
 // A draft exists only in this tab until its first message is sent.
 const hasOptions = (item) =>
-  !item.local && (canUpdateItem(item) || canDeleteItem(item))
+  !item.local &&
+  (canUpdateItem(item) ||
+    canDeleteItem(item) ||
+    (!item.shared && isAuthor(item)))
 const isListed = (uuid) => props.items.some((item) => item.uuid === uuid)
 
 watch([() => props.items, renamingUuid], ([items, renaming]) => {
@@ -312,9 +383,14 @@ function statusClass(item) {
   if (item.pending_approval_count > 0) {
     return 'agent-conversations__status--waiting'
   }
-  return item.run_id
-    ? 'agent-conversations__status--replying'
-    : 'agent-conversations__status--idle'
+  return 'agent-conversations__status--replying'
+}
+
+function statusLabel(item) {
+  if (!item.pending_approval_count) return 'agent.replying'
+  return item.shared
+    ? 'agent.waitingForApprovalShared'
+    : 'agent.waitingForApproval'
 }
 
 function toggleMenu(target, item) {
@@ -360,6 +436,12 @@ function togglePin() {
   const item = menuItem.value
   menu.value.hide()
   emit('update', item, { pinned: !item.pinned })
+}
+
+function share() {
+  const item = menuItem.value
+  menu.value.hide()
+  emit('share', item)
 }
 
 function remove() {

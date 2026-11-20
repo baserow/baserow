@@ -2,6 +2,7 @@ from typing import TYPE_CHECKING, Any
 
 from django.contrib.contenttypes.models import ContentType
 
+from baserow.contrib.agent.models import AgentApplication
 from baserow.contrib.database.views.models import View
 from baserow.core.models import Application
 from baserow.core.registries import (
@@ -11,10 +12,15 @@ from baserow.core.registries import (
 )
 from baserow.core.types import SerializationProcessorScope
 from baserow.core.utils import atomic_if_not_already
+from baserow_enterprise.agent_permissions.models import (
+    AgentParticipationRule,
+    is_allowed_rule,
+)
 from baserow_enterprise.features import RBAC
 from baserow_enterprise.role.handler import RoleAssignmentHandler
 from baserow_enterprise.role.models import Role
 from baserow_enterprise.role.types import NewRoleAssignment
+from baserow_enterprise.teams.models import Team
 from baserow_premium.license.handler import LicenseHandler
 
 if TYPE_CHECKING:
@@ -132,3 +138,51 @@ class RoleAssignmentSerializationProcessorType(SerializationProcessorType):
             )
 
         return {"role_assignments": serialized_role_assignments}
+
+
+class AgentParticipationSerializationProcessorType(SerializationProcessorType):
+    type = "agent_participation_rules"
+
+    @classmethod
+    def export_serialized(cls, workspace, scope, import_export_config):
+        if (
+            not isinstance(scope, AgentApplication)
+            or not import_export_config.include_permission_data
+        ):
+            return None
+        rules = AgentParticipationRule.objects.filter(agent=scope).prefetch_related(
+            "users", "teams"
+        )
+        return {
+            cls.type: [
+                {
+                    "capability": rule.capability,
+                    "role": rule.role,
+                    "users": [u.pk for u in rule.users.all()],
+                    "teams": [t.pk for t in rule.teams.all()],
+                    "workspace_id": workspace.pk,
+                }
+                for rule in rules
+            ]
+        }
+
+    @classmethod
+    def import_serialized(
+        cls, workspace, scope, serialized_scope, import_export_config
+    ):
+        if (
+            not isinstance(scope, AgentApplication)
+            or not import_export_config.include_permission_data
+        ):
+            return
+        for values in serialized_scope.get(cls.type, []):
+            if not is_allowed_rule(values["capability"], values["role"]):
+                continue
+            rule = AgentParticipationRule.objects.create(
+                agent=scope, capability=values["capability"], role=values["role"]
+            )
+            if values["workspace_id"] == workspace.pk:
+                rule.users.set(workspace.users.filter(pk__in=values["users"]))
+                rule.teams.set(
+                    Team.objects.filter(workspace=workspace, pk__in=values["teams"])
+                )

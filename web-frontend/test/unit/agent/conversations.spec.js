@@ -664,6 +664,33 @@ describe('Agent conversations', () => {
     ])
   })
 
+  test('shares the full history only after the author confirms', async () => {
+    const chat = conversation('chat', 'Support')
+    mockConversations(testApp, conversationsPage([chat]))
+    mockMessages(testApp, chat.uuid, page([]))
+    testApp.mock
+      .onPost('/agent/10/conversations/chat/share/')
+      .reply(200, { ...chat, shared: true, participants: [] })
+    const wrapper = await mount()
+    await selectConversation(wrapper, chat.title)
+    await chooseFromMenu(wrapper, chat.title, 'agent.share')
+    const modal = () => document.body.querySelector('.modal__box')
+    expect(modal().textContent).toContain('agent.shareWarning')
+    modal().querySelector('button').click()
+    await vi.waitFor(() => expect(modal()).toBeNull())
+    expect(testApp.mock.history.post).toHaveLength(0)
+    await chooseFromMenu(wrapper, chat.title, 'agent.share')
+    Array.from(modal().querySelectorAll('button'))
+      .find((button) => button.textContent.trim() === 'agent.shareConversation')
+      .click()
+    await flushPromises()
+    expect(wrapper.get('.agent-audience').text()).toContain('agent.sharedLabel')
+    expect(wrapper.get('.agent-conversations__audience').text()).toBe(
+      'agent.sharedLabel'
+    )
+    expect(composerExists(wrapper)).toBe(true)
+  })
+
   test('renames inline, then deletes and offers a restore, selecting the next one', async () => {
     const renamed = conversation('conversation-a', 'Renamed')
     twoConversations()
@@ -689,6 +716,11 @@ describe('Agent conversations', () => {
     expect(conversationTitles(wrapper)).toEqual(['Renamed', 'Conversation B'])
 
     await chooseFromMenu(wrapper, 'Renamed', 'action.delete')
+    expect(testApp.mock.history.delete).toHaveLength(0)
+    Array.from(document.querySelectorAll('.modal__box button'))
+      .find((button) => button.textContent.trim() === 'agent.deleteForEveryone')
+      .click()
+    await flushPromises()
 
     expect(conversationTitles(wrapper)).toEqual(['Conversation B'])
     expect(selected(wrapper).text()).toContain('Conversation B')
@@ -719,6 +751,11 @@ describe('Agent conversations', () => {
     const wrapper = await mount()
 
     await chooseFromMenu(wrapper, 'Conversation A', 'action.delete')
+    expect(testApp.mock.history.delete).toHaveLength(0)
+    Array.from(document.querySelectorAll('.modal__box button'))
+      .find((button) => button.textContent.trim() === 'agent.deleteForEveryone')
+      .click()
+    await flushPromises()
     await wrapper.get('.agent-conversations__content').trigger('scroll')
     await flushPromises()
 
@@ -783,9 +820,7 @@ describe('Agent conversations', () => {
     await composer(wrapper).setValue('Unsent text')
     await wrapper.get('.agent-conversations__content').trigger('scroll')
     await filterConversations(wrapper, 'agent.waitingForApprovalFilter')
-    expect(conversationTitles(wrapper)).toEqual([
-      'Waitingagent.waitingForApproval',
-    ])
+    expect(conversationTitles(wrapper)).toEqual(['Waiting'])
     expect(composer(wrapper).element.value).toBe('Unsent text')
     expect(messages(wrapper)).toEqual(['Hello'])
     stale.resolve(
@@ -793,9 +828,7 @@ describe('Agent conversations', () => {
       conversationsPage([conversation('old', 'Old')], 'stale-cursor')
     )
     await flushPromises()
-    expect(conversationTitles(wrapper)).toEqual([
-      'Waitingagent.waitingForApproval',
-    ])
+    expect(conversationTitles(wrapper)).toEqual(['Waiting'])
     await filterConversations(wrapper, 'agent.pinned')
     expect(conversationTitles(wrapper)).toEqual(['B'])
     const reads = testApp.mock.history.get.filter(({ url }) =>
@@ -846,7 +879,9 @@ describe('Agent conversations', () => {
     await sendMessage(wrapper, 'Still there?')
 
     expect(conversationTitles(wrapper)).toEqual(['B'])
-    expect(selected(wrapper).text()).toBe('B')
+    expect(
+      selected(wrapper).get('.agent-conversations__item-name').text()
+    ).toBe('B')
   })
 
   test('pins through PATCH, restores a failed unpin, and preserves the open conversation', async () => {
@@ -874,11 +909,15 @@ describe('Agent conversations', () => {
     await chooseFromMenu(wrapper, 'B', 'agent.unpin')
     expect(conversationTitles(wrapper)).toEqual(['B', 'A'])
     expect(composer(wrapper).element.value).toBe('Draft')
-    expect(selected(wrapper).text()).toBe('B')
+    expect(
+      selected(wrapper).get('.agent-conversations__item-name').text()
+    ).toBe('B')
   })
 
-  test('shows a shared conversation without a composer, with its trigger start card', async () => {
-    allowed.value = withoutConfiguration
+  test('shows a triggered conversation without a composer to someone who can approve but not continue, with its trigger start card', async () => {
+    allowed.value = (op) =>
+      withoutConfiguration(op) &&
+      op !== 'agent_application.continue_triggered_conversation'
     mockConversations(
       testApp,
       conversationsPage([sharedConversation('digest', 'Daily digest')])

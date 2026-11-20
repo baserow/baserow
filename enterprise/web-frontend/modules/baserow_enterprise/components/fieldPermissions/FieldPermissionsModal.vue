@@ -18,21 +18,11 @@
       </div>
       <div v-if="loading" class="loading"></div>
       <template v-else>
-        <Dropdown
-          :value="role"
-          :show-search="false"
-          :fixed-items="true"
-          size="large"
-          @input="onRoleChanged"
-        >
-          <DropdownItem
-            v-for="r in roles"
-            :key="r.uid"
-            :name="r.title"
-            :value="r.uid"
-            :description="r.desc"
-          ></DropdownItem>
-        </Dropdown>
+        <PermissionRoleSelect
+          :model-value="role"
+          :options="roles"
+          @update:model-value="onRoleChanged"
+        />
         <FormGroup v-if="showAllowInForms" class="margin-bottom-2 margin-top-3">
           <SwitchInput small :value="allowInForms" @input="toggleAllowInForms">
             {{ $t('fieldPermissionModal.allowInForms') }}
@@ -70,6 +60,7 @@
 </template>
 
 <script>
+import PermissionRoleSelect from '@baserow_enterprise/components/fieldPermissions/PermissionRoleSelect'
 import modal from '@baserow/modules/core/mixins/modal'
 import { notifyIf } from '@baserow/modules/core/utils/error'
 import FieldPermissionSubjectsSelector from '@baserow_enterprise/components/fieldPermissions/FieldPermissionSubjectsSelector'
@@ -78,7 +69,7 @@ import { WriteFieldValuesPermissionManagerType } from '@baserow_enterprise/permi
 
 export default {
   name: 'FieldPermissionsModal',
-  components: { FieldPermissionSubjectsSelector },
+  components: { FieldPermissionSubjectsSelector, PermissionRoleSelect },
   mixins: [modal],
   props: {
     field: {

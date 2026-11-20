@@ -2,6 +2,7 @@ from django.conf import settings
 from django.core.exceptions import ImproperlyConfigured
 
 from baserow.contrib.agent.operations import (
+    ApproveAgentToolCallsOperationType,
     CreateAgentConversationOperationType,
     CreateAgentMessageOperationType,
     DeleteAgentConversationOperationType,
@@ -477,6 +478,7 @@ default_roles[EDITOR_ROLE_UID].extend(
     + [
         CreateAgentConversationOperationType,
         CreateAgentMessageOperationType,
+        ApproveAgentToolCallsOperationType,
         UpdateAgentConversationOperationType,
         CreateRowDatabaseTableOperationType,
         UpdateDatabaseRowOperationType,

@@ -57,6 +57,28 @@ export default (client) => ({
       values
     )
   },
+  shareConversation(agentId, uuid) {
+    return client.post(
+      '/agent/' + agentId + '/conversations/' + uuid + '/share/'
+    )
+  },
+  leaveConversation(agentId, uuid) {
+    return client.post(
+      '/agent/' + agentId + '/conversations/' + uuid + '/leave/'
+    )
+  },
+  getApprovalRecipients(agentId, uuid, page, search) {
+    return client.get(
+      '/agent/' + agentId + '/conversations/' + uuid + '/approval-recipients/',
+      { params: { page, search } }
+    )
+  },
+  requestApproval(agentId, uuid, replyUuid, userIds) {
+    return client.post(
+      '/agent/' + agentId + '/conversations/' + uuid + '/approval-recipients/',
+      { reply_uuid: replyUuid, user_ids: userIds }
+    )
+  },
   deleteConversation(agentId, conversationUuid) {
     return client.delete(`/agent/${agentId}/conversations/${conversationUuid}/`)
   },

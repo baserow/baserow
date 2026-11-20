@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 import { flushPromises } from '@vue/test-utils'
-import { reactive, ref } from 'vue'
+import { defineComponent, h, inject, reactive, ref } from 'vue'
 import { TestApp } from '@baserow/test/helpers/testApp'
 import { clone } from '@baserow/modules/core/utils/object'
 import moment from '@baserow/modules/core/moment'
@@ -8,6 +8,7 @@ import FormulaInputField from '@baserow/modules/core/components/formula/FormulaI
 import AgentWhenItRunsSection from '@baserow/modules/agent/components/configuration/AgentWhenItRunsSection'
 import AgentTriggerMessageInput from '@baserow/modules/agent/components/configuration/AgentTriggerMessageInput'
 import AgentTriggerPicker from '@baserow/modules/agent/components/configuration/AgentTriggerPicker'
+import { provideAgentTriggers } from '@baserow/modules/agent/composables/useAgentTriggers'
 import { defaultTriggerMessage } from '@baserow/modules/agent/utils/triggers'
 import { CorePeriodicTriggerServiceType } from '@baserow/modules/integrations/core/serviceTypes'
 import {
@@ -117,6 +118,28 @@ const httpTrigger = () =>
     },
   })
 
+// Stands in for the configuration sidebar, which loads the triggers for its sections.
+const TriggersHost = defineComponent({
+  inheritAttrs: false,
+  props: {
+    configuration: { type: Object, required: true },
+    editable: Boolean,
+    loading: Boolean,
+  },
+  setup(props) {
+    provideAgentTriggers(
+      inject('agentApplication'),
+      () => props.configuration.run_as,
+      () => !props.loading
+    )
+    return () =>
+      h(AgentWhenItRunsSection, {
+        configuration: props.configuration,
+        editable: props.editable,
+      })
+  },
+})
+
 describe('Agent triggers', () => {
   let testApp, agent
 
@@ -146,7 +169,7 @@ describe('Agent triggers', () => {
     testApp.mock
       .onGet('/agent/10/trigger-types/')
       .reply(200, availableTypes.map(triggerTypeOf))
-    return testApp.mount(AgentWhenItRunsSection, {
+    return testApp.mount(TriggersHost, {
       props: {
         configuration: completeConfiguration({
           available_trigger_types: availableTypes,
@@ -1426,6 +1449,35 @@ describe('Agent triggers', () => {
     expect(
       wrapper.findAll('.dropdown__selected-text').map((item) => item.text())
     ).toEqual(['Orders'])
+  })
+
+  test('loads the trigger types once, after the configuration with its run identity', async () => {
+    const configuration = (values) =>
+      completeConfiguration({
+        available_trigger_types: ['local_baserow_rows_created'],
+        ...values,
+      })
+    testApp.mock.onGet('/agent/10/triggers/').reply(200, [rowsTrigger()])
+    testApp.mock
+      .onGet('/agent/10/trigger-types/')
+      .reply(200, [triggerTypeOf('local_baserow_rows_created')])
+    const wrapper = await testApp.mount(TriggersHost, {
+      props: { configuration: configuration({ run_as: null }), loading: true },
+      global: { provide: { agentApplication: ref(agent) } },
+    })
+    await flushPromises()
+
+    await wrapper.setProps({
+      configuration: configuration(activeRunAs),
+      loading: false,
+    })
+    await flushPromises()
+
+    expect(
+      testApp.mock.history.get
+        .map(({ url }) => url)
+        .filter((url) => url.endsWith('/trigger-types/'))
+    ).toEqual(['/agent/10/trigger-types/'])
   })
 
   test('saves how many rows each conversation gets, for list triggers only', async () => {

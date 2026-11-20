@@ -40,6 +40,20 @@ function nextAnswer(body) {
   }
   const lastUser = messages.findLast((message) => message.role === "user");
   const prompt = lastUser ? textOf(lastUser) : "";
+  if (
+    prompt === "Create a support database." &&
+    tools.includes("create_database")
+  ) {
+    const result = messages.at(-1);
+    if (result?.role === "tool") {
+      return {
+        text: textOf(result).includes("created_database")
+          ? "The support database is ready."
+          : "I could not create the support database.",
+      };
+    }
+    return { toolCall: toolCall("create_database", { name: "Support" }) };
+  }
   const script = prompt.match(SCRIPT);
   if (tools.length === 0 || !script) {
     return { text: UNSCRIPTED_ANSWER };

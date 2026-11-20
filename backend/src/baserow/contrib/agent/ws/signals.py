@@ -25,6 +25,7 @@ from baserow.contrib.agent.signals import (
     agent_conversation_updated,
 )
 from baserow.contrib.agent.ws.tasks import broadcast_run_as_updates
+from baserow.core.handler import CoreHandler
 from baserow.core.identities.handler import IdentityHandler
 from baserow.core.identities.signals import (
     identity_created,
@@ -84,7 +85,7 @@ def _notify_readers(
 ) -> None:
     """
     Send an event to the sessions that see the conversation, except the acting one:
-    the owner's for a private conversation, every reader's of the Agent for a
+    the participants' for a private conversation, every agent reader's for a
     shared one.
 
     :param conversation: The conversation the event is about.
@@ -101,9 +102,20 @@ def _notify_readers(
     }
     web_socket_id = getattr(user, "web_socket_id", None)
     if not conversation.is_shared:
+        agent = conversation.agent
+        readers = CoreHandler().check_permission_for_multiple_actors(
+            list(
+                conversation.participants.filter(
+                    workspaceuser__workspace=agent.workspace
+                )
+            ),
+            ReadAgentConversationsOperationType.type,
+            agent.workspace,
+            context=agent,
+        )
         send = partial(
             broadcast_to_users.delay,
-            [conversation.owner_user_id],
+            [reader.pk for reader in readers],
             payload,
             ignore_web_socket_id=web_socket_id,
         )

@@ -93,7 +93,7 @@ import ButtonText from '@baserow/modules/core/components/ButtonText'
 import AgentCardListHeader from '@baserow/modules/agent/components/configuration/AgentCardListHeader'
 import AgentTriggerCard from '@baserow/modules/agent/components/configuration/AgentTriggerCard'
 import AgentTriggerPicker from '@baserow/modules/agent/components/configuration/AgentTriggerPicker'
-import { useAgentTriggers } from '@baserow/modules/agent/composables/useAgentTriggers'
+import { injectAgentTriggers } from '@baserow/modules/agent/composables/useAgentTriggers'
 import { RUN_AS_STATUS } from '@baserow/modules/agent/constants'
 import { getRunAsStatus } from '@baserow/modules/agent/utils/runAs'
 
@@ -122,6 +122,7 @@ const {
   triggerTypes,
   typesVersion,
   loading,
+  loaded,
   loadError,
   typesLoadError,
   savingIds,
@@ -132,7 +133,7 @@ const {
   updateTrigger,
   changeTriggerType,
   deleteTrigger,
-} = useAgentTriggers(agent, () => props.configuration.run_as)
+} = injectAgentTriggers()
 const { expandedIds, allExpanded, toggle, toggleAll, list, creating, addItem } =
   useAgentCardList(triggers, createTrigger, allTriggers)
 watch(
@@ -141,11 +142,15 @@ watch(
 )
 // Initialize once per successful opening, preserving later manual toggles.
 let initializedFor = null
-watch([loading, () => agent.value?.id], ([busy, id]) => {
-  if (busy || loadError.value || !id || initializedFor === id) return
-  initializedFor = id
-  if (triggers.value.length === 1) expandedIds.add(triggers.value[0].id)
-})
+watch(
+  [loaded, () => agent.value?.id],
+  ([isLoaded, id]) => {
+    if (!isLoaded || !id || initializedFor === id) return
+    initializedFor = id
+    if (triggers.value.length === 1) expandedIds.add(triggers.value[0].id)
+  },
+  { immediate: true }
+)
 // A trigger added before the list loaded would be dropped by the list reply.
 const canAddTriggers = computed(
   () =>

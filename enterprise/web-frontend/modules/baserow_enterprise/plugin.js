@@ -5,6 +5,7 @@ import {
 import { registerRealtimeEvents } from '@baserow_enterprise/realtime'
 import {
   RolePermissionManagerType,
+  AgentParticipationPermissionManagerType,
   WriteFieldValuesPermissionManagerType,
 } from '@baserow_enterprise/permissionManagerTypes'
 import {
@@ -14,6 +15,8 @@ import {
 } from '@baserow_enterprise/adminTypes'
 import authProviderAdminStore from '@baserow_enterprise/store/authProviderAdmin'
 import assistantStore from '@baserow_enterprise/store/assistant'
+import agentParticipationRulesStore from '@baserow_enterprise/store/agentParticipationRules'
+import { PermissionsAgentConfigurationSectionType } from '@baserow_enterprise/agentConfigurationSectionTypes'
 import { AssistantChatRunType } from '@baserow_enterprise/chatRunTypes'
 import {
   storeChatUuid,
@@ -162,7 +165,15 @@ export default defineNuxtPlugin({
 
     const context = { app: nuxtApp }
 
+    $registry.register(
+      'permissionManager',
+      new AgentParticipationPermissionManagerType(context)
+    )
     $registry.register('plugin', new EnterprisePlugin(context))
+    $registry.register(
+      'agentConfigurationSection',
+      new PermissionsAgentConfigurationSectionType(context)
+    )
     $registry.register(
       'aiProviderModelFeature',
       new KumaAIProviderModelFeatureType(context)
@@ -179,6 +190,10 @@ export default defineNuxtPlugin({
 
     $store.registerModuleNuxtSafe('authProviderAdmin', authProviderAdminStore)
     $store.registerModuleNuxtSafe('assistant', assistantStore)
+    $store.registerModuleNuxtSafe(
+      'agentParticipationRules',
+      agentParticipationRulesStore
+    )
     $registry.register('chatRunType', new AssistantChatRunType(context))
     if (import.meta.client) {
       $store.watch(

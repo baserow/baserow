@@ -73,6 +73,11 @@ def test_first_message_creates_a_private_conversation(
             "pending_approval_count": 0,
             "pinned": False,
             "shared": False,
+            "started_by_trigger": False,
+            "owner_user_id": api_user.pk,
+            "participants": [
+                {"id": api_user.pk, "name": api_user.first_name or api_user.username}
+            ],
             "trigger_id": None,
             "trigger_type": None,
             "trigger_name": None,
@@ -81,6 +86,10 @@ def test_first_message_creates_a_private_conversation(
             "id": message.id,
             "uuid": payload["message_uuid"],
             "role": "user",
+            "sender": {
+                "id": api_user.pk,
+                "name": api_user.first_name or api_user.username,
+            },
             "content": payload["content"],
             "created_on": ANY,
             "status": None,
@@ -93,6 +102,7 @@ def test_first_message_creates_a_private_conversation(
             "id": reply.id,
             "uuid": str(reply.uuid),
             "role": "assistant",
+            "sender": None,
             "content": "",
             "created_on": ANY,
             "status": "running",
@@ -881,25 +891,18 @@ def test_shared_conversations_are_listed_and_read_by_every_member(
 
 
 @pytest.mark.django_db
-def test_shared_conversations_accept_decisions_but_no_messages(
+def test_a_decision_in_a_triggered_conversation_resumes_the_reply_unattended(
     data_fixture, configured_agent, api_client, api_user
 ):
     agent = configured_agent(user=api_user)
     shared = data_fixture.create_shared_agent_conversation(agent=agent)
     approval = data_fixture.create_agent_tool_approval(conversation=shared)
 
-    sent = api_client.post(
-        agent_url(agent, "messages", conversation_uuid=shared.uuid),
-        {"uuid": str(uuid4()), "content": "Hello"},
-    )
     decided = api_client.post(
         agent_url(agent, "approvals", conversation_uuid=shared.uuid),
         {"decisions": [{"id": approval.id, "approved": True}]},
     )
 
-    assert sent.status_code == 409
-    assert sent.json()["error"] == "ERROR_AGENT_CONVERSATION_READ_ONLY"
-    assert not AgentMessage.objects.filter(role="user").exists()
     assert decided.status_code == 200
     approval.refresh_from_db()
     assert (approval.status, approval.decided_by_id) == ("approved", api_user.id)

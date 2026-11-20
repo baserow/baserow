@@ -67,7 +67,12 @@ class AgentApplicationFixtures:
         kwargs.setdefault("uuid", uuid4())
         kwargs.setdefault("title", "Conversation")
         kwargs.setdefault("owner_user", user)
-        return AgentConversation.objects.create(**kwargs)
+        kwargs.setdefault("shared", kwargs["owner_user"] is None)
+        kwargs.setdefault("started_by_trigger", kwargs["owner_user"] is None)
+        conversation = AgentConversation.objects.create(**kwargs)
+        if conversation.owner_user_id:
+            conversation.participants.add(conversation.owner_user)
+        return conversation
 
     def create_agent_message(
         self,
@@ -82,6 +87,8 @@ class AgentApplicationFixtures:
             )
         kwargs.setdefault("uuid", uuid4())
         kwargs.setdefault("content", "Hello")
+        kwargs.setdefault("sender", kwargs["conversation"].owner_user)
+        kwargs.setdefault("unattended", kwargs["conversation"].started_by_trigger)
         return AgentMessage.objects.create(**kwargs)
 
     def create_agent_tool_approval(
@@ -145,4 +152,6 @@ class AgentApplicationFixtures:
             kwargs["trigger"] = self.create_agent_trigger(agent=agent)
         kwargs.setdefault("uuid", uuid4())
         kwargs.setdefault("title", "Started by a trigger")
-        return AgentConversation.objects.create(agent=agent, owner_user=None, **kwargs)
+        return AgentConversation.objects.create(
+            agent=agent, shared=True, started_by_trigger=True, **kwargs
+        )

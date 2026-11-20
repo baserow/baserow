@@ -14,9 +14,9 @@ Agents only answered when a person wrote to them. We let an agent own triggers b
 on the trigger services Automation workflows already start from, and open a
 conversation whenever one fires. Three decisions carry this: trigger service types
 notify every registered listener and expose `arm()` so a service can go live without
-Automation's publish step; a trigger-started conversation is shared, modelled as a
-conversation with no owner; and an unattended run pauses on held calls until an
-editor decides them, like any other run.
+Automation's publish step; a trigger-started conversation is shared, modelled as an explicit
+conversation audience; and an unattended run pauses on held calls until an
+eligible participant decides them, like any other run.
 
 ## Context
 
@@ -42,15 +42,15 @@ mixed-version compatibility is needed for these changes.
 | Event payload        | The dict a service type produces per event; exposed to the trigger message as the `trigger` data provider.          |
 | Listener             | A callable a consumer registers to receive `(services, event_payload, user, isolate_failures)`.                     |
 | Armed                | A trigger service that receives real events now: periodic `next_run_at` set, HTTP/email `is_public`.                |
-| Shared conversation  | A conversation with `owner_user IS NULL`; readable by everyone with `read_conversations` on the agent.              |
-| Private conversation | A conversation started by a person; visible to that person only. Unchanged.                                         |
+| Shared conversation  | A conversation readable by everyone with `read_conversations` on the agent.              |
+| Private conversation | A conversation readable by its participants who retain agent access.                                         |
 | Run identity         | The subject the agent's tools act as. Never a conversation owner, never an author.                                  |
 | Ask-first tool       | An allowed tool whose calls pause the reply until a person approves them.                                           |
 
 In scope: how events reach consumers, how a service goes live, who owns and sees
 trigger-started conversations, and what an unattended run may do. Out of scope: which
 trigger types the picker offers (a constant, widened per release), rate limits and
-auto-disable, continuation of shared conversations, the agent-level pause and "Run
+auto-disable, the agent-level pause and "Run
 once".
 
 ## Decision
@@ -77,25 +77,25 @@ the periodic service type no longer imports an Automation exception at module le
 A consumer holds the foreign key to its service (`AgentTrigger.service`, as automation
 nodes, data sources and button actions do). `Service` knows no owner.
 
-### 2. A trigger-started conversation is shared: it has no owner
+### 2. Conversation origin, author and audience
 
-`AgentConversation.owner_user` becomes nullable and a `trigger` foreign key (set to
-null when the trigger is deleted) records what started it. Shared means exactly
-`owner_user IS NULL`. Shared conversations are visible to everyone with
-`read_conversations` on the agent; private ones stay visible to their owner only.
+Trigger-started conversations are shared from their first message. People start private
+conversations and can permanently share their history and future messages with all
+readers of the agent. Requesting approval adds the people chosen by the author to the
+private conversation. They retain access after the decision and after author deletion.
 
-Renaming, trashing, restoring and stopping a shared conversation additionally require
-`application.update`. Following its runs live requires `read_conversations`. Sending a
-message in one is refused in this release; continuation by editors is a later change.
-Its held calls are decided like a private one's, by anyone who may send the agent
-messages, so editors approve or reject a call and only builders, who may update the
-configuration, also always allow its tool. Realtime updates go to the users permitted
-to read the agent's conversations instead of one owner, and its pending count to
-everyone who may decide it.
+Three settings control participation: chatting in person-started conversations,
+approving tool calls, and continuing trigger-started conversations. With RBAC each
+takes a role threshold, named users or teams, or nobody. Chat and approve default to
+Editors and above, continue to nobody, workspace admins included. Approve can't be
+nobody, or no held run could resume. Without the RBAC feature every member can chat
+and approve, nobody can continue, and stored rules are kept but not applied.
+Always allowing a tool also requires configuration access. The run identity is the
+authority for tool execution.
 
-Viewers read conversations, and may trash and restore their own private ones, such as
-one left from an older role. Renaming needs the editor role, the lowest role that may
-create a conversation.
+The author can remove a private conversation from their list or delete it for all
+participants. Shared deletion, restoration, renaming and stopping require the existing
+management permissions. Realtime delivery checks conversation visibility.
 
 The opening message, with role `trigger`, holds the resolved trigger message, a runtime
 formula over the event payload. A message with no text opens with the trigger and when
@@ -175,14 +175,12 @@ core when another background feature needs it.
 - Plugins that overrode `start_listening` or `stop_listening` on a trigger service type
   must override `connect` and `disconnect` instead; the `on_event` class attribute is
   now a method.
-- `NULL` owner means shared, not missing. Every site that reads the owner (permission
-  subject, timezone, realtime recipient, pending counts, approvals) handles it, and new
-  code must too.
+- Private history can outlive its author. Its participant list determines the audience.
 - Readers of a shared conversation see what the run identity could read. Builders pick
   the identity knowing that.
 - The periodic beat tick only resolves trigger messages; conversations start in tasks
   after it commits. Rate limits and auto-disable follow before other types are offered.
-- Follow-ups: editors continuing shared conversations, in-app notifications for their
+- Follow-ups: in-app notifications for
   waiting approvals, the
   agent-level pause switch, "Run once" and "Last run", email triggers in the
   picker, per trigger rate limits and auto-disable, the setup wizard's "Run
