@@ -4,6 +4,7 @@ import time
 
 from django.contrib.auth import get_user_model
 from django.core.management.base import BaseCommand
+from django.db import transaction
 
 from loguru import logger
 
@@ -81,7 +82,11 @@ class Command(BaseCommand):
         tick = time.time()
         if concurrency == 1:
             for i in range(0, limit):
-                workspace = Workspace.objects.create(name=f"Auto generated {i}")
+                # Every workspace has a shared application, created in the same
+                # transaction like in `CoreHandler.create_workspace`.
+                with transaction.atomic():
+                    workspace = Workspace.objects.create(name=f"Auto generated {i}")
+                    CoreHandler().create_shared_application(workspace)
 
                 email = random_email()
                 user = User.objects.create_user(
