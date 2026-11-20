@@ -394,8 +394,9 @@ def test_undoing_a_promotion_keeps_the_admin_as_the_authorized_subject(
 @pytest.mark.django_db
 @pytest.mark.undo_redo
 @pytest.mark.parametrize("start_using", [_use_in_a_data_source, _use_in_a_user_source])
+@pytest.mark.parametrize("in_its_own_application", [False, True])
 def test_a_promotion_cannot_be_undone_once_something_else_uses_the_integration(
-    data_fixture, start_using
+    data_fixture, start_using, in_its_own_application
 ):
     session_id = str(uuid.uuid4())
     user = data_fixture.create_user(session_id=session_id)
@@ -412,12 +413,16 @@ def test_a_promotion_cannot_be_undone_once_something_else_uses_the_integration(
         IntegrationHandler().get_integration_for_update(integration.id),
         application_id=shared_application.id,
     )
-    start_using(data_fixture, other_builder, integration)
+    start_using(
+        data_fixture, builder if in_its_own_application else other_builder, integration
+    )
 
     (undone,) = ActionHandler.undo(
         user, [WorkspaceActionScopeType.value(workspace.id)], session_id
     )
 
-    # Moving it back would leave the other application without it.
+    # Moving it back would leave the other application without it. A new use in
+    # its own application blocks the undo too, on purpose: core can't tell which
+    # application a service belongs to.
     assert "IntegrationUsedSincePromotion" in undone.error
     assert _application_id(integration) == shared_application.id

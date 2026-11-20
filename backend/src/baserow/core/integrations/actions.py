@@ -143,8 +143,10 @@ class UpdateIntegrationActionType(IntegrationActionTypeMixin, UndoableActionType
 
     An update that promotes the integration also records the services and user
     sources using it. Undoing moves it back to its application, where any that
-    started using it since, maybe from other applications, couldn't use it any
-    more, so the undo fails then and the integration stays in the workspace.
+    started using it since from another application couldn't use it any more.
+    Core can't tell which application a service belongs to, so the undo fails as
+    soon as anything new uses it, even from its own application, and the
+    integration stays in the workspace.
     """
 
     type = "update_integration"
