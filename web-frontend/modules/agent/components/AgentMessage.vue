@@ -1,5 +1,8 @@
 <template>
-  <ChatMessage v-if="message.role === MESSAGE_ROLE.TRIGGER">
+  <ChatMessage
+    v-if="message.role === MESSAGE_ROLE.TRIGGER"
+    class="chat-message--trigger"
+  >
     <AgentTriggerStartCard
       :content="message.content"
       :trigger-type="triggerType"

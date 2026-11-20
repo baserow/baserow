@@ -296,6 +296,10 @@
   border-top: 1px solid $palette-neutral-200;
 }
 
+.chat-message--trigger {
+  margin: 4px 0;
+}
+
 .agent-trigger-start {
   width: 100%;
   overflow: hidden;
