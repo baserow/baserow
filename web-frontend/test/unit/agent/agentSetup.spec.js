@@ -7,6 +7,7 @@ import {
   SETUP_START,
   SETUP_SUGGESTIONS,
   applyAgentSetup,
+  createSetupIdentity,
   emptyAgentSetup,
   newIdentityRole,
   setupTools,
@@ -125,15 +126,15 @@ describe('emptyAgentSetup', () => {
 
 describe('newIdentityRole', () => {
   const role = (uid, extra = {}) => ({ uid, isVisible: true, ...extra })
-  const workspace = { _: { roles: [role('VIEWER'), role('EDITOR')] } }
+  const workspace = { _: { roles: [role('VIEWER'), role('BUILDER')] } }
 
   test.each([
     ['read', [], 'VIEWER'],
-    ['ask', [], 'EDITOR'],
-    ['change', [], 'EDITOR'],
+    ['ask', [], 'BUILDER'],
+    ['change', [], 'BUILDER'],
     ['custom', [], 'VIEWER'],
     ['custom', ['list_tables'], 'VIEWER'],
-    ['custom', ['create_rows'], 'EDITOR'],
+    ['custom', ['create_rows'], 'BUILDER'],
   ])('%s with tools %j uses %s', (permissions, allowed, expected) => {
     const setup = {
       permissions,
@@ -143,12 +144,12 @@ describe('newIdentityRole', () => {
   })
 
   test.each([
-    [[role('MEMBER'), role('EDITOR', { isDeactivated: true })], 'MEMBER'],
+    [[role('MEMBER'), role('BUILDER', { isDeactivated: true })], 'MEMBER'],
     [
-      [role('EDITOR', { allowedSubjectTypes: ['baserow_enterprise.Team'] })],
+      [role('BUILDER', { allowedSubjectTypes: ['baserow_enterprise.Team'] })],
       undefined,
     ],
-    [[role('MEMBER', { isVisible: false }), role('BUILDER')], undefined],
+    [[role('MEMBER', { isVisible: false }), role('VIEWER')], undefined],
     [[], undefined],
   ])('uses only an active, assignable role', (roles, expected) => {
     expect(
@@ -235,18 +236,22 @@ describe('applyAgentSetup', () => {
     reply('onPost', '/agent/10/actions/', 200, { id: 2 })
   }
 
-  const apply = (values, roleUid) =>
-    applyAgentSetup(
-      {
-        store: testApp.store,
-        client: testApp.nuxtApp.$client,
-        registry: testApp.getRegistry(),
-        t: (key) => key,
-      },
+  const context = () => ({
+    store: testApp.store,
+    client: testApp.nuxtApp.$client,
+    registry: testApp.getRegistry(),
+    t: (key) => key,
+  })
+
+  async function apply(values, roleUid) {
+    const withIdentity = await createSetupIdentity(
+      context(),
       workspace,
       values,
       roleUid
     )
+    return applyAgentSetup(context(), workspace, withIdentity)
+  }
 
   const emailName = () =>
     testApp.getRegistry().get('service', 'smtp_email').name
@@ -333,6 +338,28 @@ describe('applyAgentSetup', () => {
     ])
   })
 
+  test('acts as the identity it created, so a retry reuses it', async () => {
+    mockAll()
+
+    const created = await createSetupIdentity(
+      context(),
+      workspace,
+      full,
+      'BUILDER'
+    )
+
+    expect(created.actsAs).toEqual({
+      kind: SETUP_ACTS_AS.EXISTING,
+      id: 7,
+      name: 'Deal scout',
+      roleUid: 'BUILDER',
+    })
+    expect(
+      await createSetupIdentity(context(), workspace, created, 'BUILDER')
+    ).toBe(created)
+    expect(requests).toHaveLength(1)
+  })
+
   test('creates nothing when the identity is rejected', async () => {
     testApp.dontFailOnErrorResponses()
     mockAll({ identityStatus: 400 })
@@ -374,12 +401,12 @@ describe('applyAgentSetup', () => {
       savedConfiguration: { web_search_available: false },
     })
 
-    const { notApplied, webSearchUnsupported } = await apply(
+    const { notApplied, webSearchWarning } = await apply(
       setup({ webSearch: true, actionTypes: ['smtp_email'] })
     )
 
     expect(notApplied).toEqual([emailName()])
-    expect(webSearchUnsupported).toBe(true)
+    expect(webSearchWarning).toBe('agent.setupWebSearchUnsupported')
     expect(requests.map(([method, url]) => `${method} ${url}`)).toEqual([
       'POST /applications/workspace/1/',
       'GET /agent/10/configuration/',
@@ -389,22 +416,26 @@ describe('applyAgentSetup', () => {
   })
 
   test.each([
-    ['turns on', true, [{ web_search_enabled: true }]],
-    ['reports unsupported', false, []],
+    ['turns on', true, false, null, [{ web_search_enabled: true }]],
+    ['reports', false, false, 'agent.setupWebSearchUnsupported', []],
+    ['reports blocked', false, true, 'agent.webSearchBlockedByTools', []],
   ])(
     '%s web search from the read configuration when nothing else is saved',
-    async (_, available, saves) => {
+    async (_, available, blockedByTools, warning, saves) => {
       mockAll({
-        configurationData: configuration({ web_search_available: available }),
+        configurationData: configuration({
+          web_search_available: available,
+          web_search_blocked_by_tools: blockedByTools,
+        }),
         savedConfiguration: { web_search_available: !available },
       })
 
-      const { notApplied, webSearchUnsupported } = await apply(
+      const { notApplied, webSearchWarning } = await apply(
         setup({ instructions: '', webSearch: true })
       )
 
       expect(notApplied).toEqual([])
-      expect(webSearchUnsupported).toBe(!available)
+      expect(webSearchWarning).toBe(warning)
       expect(requests.slice(2).map(([, , body]) => body)).toEqual(saves)
     }
   )

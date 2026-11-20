@@ -93,6 +93,7 @@ import { notifyIf } from '@baserow/modules/core/utils/error'
 import { ResponseErrorMessage } from '@baserow/modules/core/plugins/clientHandler'
 import {
   applyAgentSetup,
+  createSetupIdentity,
   emptyAgentSetup,
   newIdentityRole,
 } from '@baserow/modules/agent/utils/agentSetup'
@@ -197,14 +198,16 @@ async function create() {
   if (loading.value || !canCreate.value) return
   loading.value = true
   error.visible = false
+  const context = { store, client: $client, registry: $registry, t }
   let created
   try {
-    created = await applyAgentSetup(
-      { store, client: $client, registry: $registry, t },
+    setup.value = await createSetupIdentity(
+      context,
       props.workspace,
       setup.value,
       suggestedRole.value?.uid
     )
+    created = await applyAgentSetup(context, props.workspace, setup.value)
   } catch (caught) {
     showError(caught)
     return
@@ -212,13 +215,13 @@ async function create() {
     loading.value = false
   }
   // The agent exists from here on, so nothing may offer to create it again.
-  const { application, notApplied, webSearchUnsupported } = created
+  const { application, notApplied, webSearchWarning } = created
   emit('created', application)
   hide()
-  if (webSearchUnsupported) {
+  if (webSearchWarning) {
     store.dispatch('toast/warning', {
       title: t('agent.setupPartialTitle'),
-      message: t('agent.setupWebSearchUnsupported'),
+      message: webSearchWarning,
     })
   }
   if (notApplied.length) {

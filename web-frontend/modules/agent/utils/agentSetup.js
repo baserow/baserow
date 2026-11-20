@@ -109,7 +109,7 @@ export const SETUP_SUGGESTIONS = Object.freeze([
  * Workspaces without role-based access control offer Member instead.
  */
 export function newIdentityRole(workspace, setup, availableTools) {
-  const needsEditor =
+  const changesData =
     setup.permissions === SETUP_PERMISSIONS.CUSTOM
       ? availableTools.some(
           (tool) =>
@@ -125,7 +125,7 @@ export function newIdentityRole(workspace, setup, availableTools) {
         role.allowedSubjectTypes.includes(UserSubjectType.getType()))
   )
   return (
-    roles.find((role) => role.uid === (needsEditor ? 'EDITOR' : 'VIEWER')) ??
+    roles.find((role) => role.uid === (changesData ? 'BUILDER' : 'VIEWER')) ??
     roles.find((role) => role.uid === 'MEMBER')
   )
 }
@@ -253,24 +253,41 @@ export function setupActionTypes(registry, workspace) {
 }
 
 /**
- * @param {object} context The store, client, registry and translate function.
+ * Creates the identity the wizard offered, so a retry reuses it.
+ *
+ * @param {{store: object}} context The store.
  * @param {object} workspace The workspace the identity is created in.
  * @param {AgentSetup} setup The wizard's choices.
- * @param {string|undefined} roleUid The suggested role for automatic creation.
- * @returns {Promise<{type: string, id: number}|null>} The identity to run as,
- *   or null when none was chosen.
+ * @param {string|undefined} roleUid The workspace role shown for the identity.
+ * @returns {Promise<AgentSetup>} The choices, acting as the created identity
+ *   when a new one was chosen.
  */
-async function resolveIdentity({ store }, workspace, setup, roleUid) {
-  const { actsAs } = setup
-  if (actsAs.kind === SETUP_ACTS_AS.EXISTING) {
-    return { type: UserSubjectType.getType(), id: actsAs.id }
-  }
-  if (actsAs.kind !== SETUP_ACTS_AS.NEW) return null
+export async function createSetupIdentity(
+  { store },
+  workspace,
+  setup,
+  roleUid
+) {
+  if (setup.actsAs.kind !== SETUP_ACTS_AS.NEW) return setup
   const identity = await store.dispatch('identity/create', {
     workspaceId: workspace.id,
     values: { name: setup.name, role_uid: roleUid },
   })
-  return { type: UserSubjectType.getType(), id: identity.id }
+  return {
+    ...setup,
+    actsAs: {
+      kind: SETUP_ACTS_AS.EXISTING,
+      id: identity.id,
+      name: identity.name,
+      roleUid,
+    },
+  }
+}
+
+function runAsOf({ actsAs }) {
+  return actsAs.kind === SETUP_ACTS_AS.EXISTING
+    ? { type: UserSubjectType.getType(), id: actsAs.id }
+    : null
 }
 
 /**
@@ -313,6 +330,13 @@ async function readConfiguration(agentService, agentId) {
   }
 }
 
+function webSearchWarningOf(setup, saved, t) {
+  if (!setup.webSearch || !saved || saved.web_search_available) return null
+  return saved.web_search_blocked_by_tools
+    ? t('agent.webSearchBlockedByTools')
+    : t('agent.setupWebSearchUnsupported')
+}
+
 /**
  * @param {object} agentService The agent application service.
  * @param {number} agentId The id of the new agent.
@@ -330,22 +354,21 @@ async function enableWebSearch(agentService, agentId) {
 }
 
 /**
- * Creates the new identity and the agent, then applies each choice through the
- * endpoints its Configuration uses. Only the identity and the agent must be
- * created; any other step that fails is reported and the rest still runs.
+ * Creates the agent, then applies each choice through the endpoints its
+ * Configuration uses. Only the agent itself must be created; any other step
+ * that fails is reported and the rest still runs. A new identity is created
+ * beforehand with `createSetupIdentity`.
  *
  * @param {{store: object, client: object, registry: object, t: Function}} context
  * @param {object} workspace The workspace the agent is created in.
  * @param {AgentSetup} setup The wizard's choices.
- * @param {string|undefined} roleUid The workspace role shown for a new identity.
  * @returns {Promise<{application: object, notApplied: string[],
- *   webSearchUnsupported: boolean}>} The created agent, the translated labels of
- *   what wasn't applied and whether the chosen model can't search the web.
+ *   webSearchWarning: string|null}>} The created agent, the translated labels of
+ *   what wasn't applied and why the chosen model can't search, if it can't.
  */
-export async function applyAgentSetup(context, workspace, setup, roleUid) {
+export async function applyAgentSetup(context, workspace, setup) {
   const { store, client, registry, t } = context
-  // First, so a name the identity rejects stops the wizard before anything exists.
-  const runAs = await resolveIdentity(context, workspace, setup, roleUid)
+  const runAs = runAsOf(setup)
   const application = await store.dispatch('application/create', {
     type: AGENT_APPLICATION_TYPE,
     workspace,
@@ -368,10 +391,8 @@ export async function applyAgentSetup(context, workspace, setup, roleUid) {
     }
   }
 
-  const webSearchUnsupported = Boolean(
-    setup.webSearch && saved && !saved.web_search_available
-  )
-  if (setup.webSearch && !webSearchUnsupported) {
+  const webSearchWarning = webSearchWarningOf(setup, saved, t)
+  if (setup.webSearch && !webSearchWarning) {
     if (!saved || !(await enableWebSearch(agentService, application.id))) {
       notApplied.push(t('agent.webSearch'))
     }
@@ -402,5 +423,5 @@ export async function applyAgentSetup(context, workspace, setup, roleUid) {
     }
   }
 
-  return { application, notApplied, webSearchUnsupported }
+  return { application, notApplied, webSearchWarning }
 }

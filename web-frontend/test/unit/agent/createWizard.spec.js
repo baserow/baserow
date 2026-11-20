@@ -272,7 +272,7 @@ describe('AgentCreateModal', () => {
   test('updates the automatic role after changing suggestions and saves the displayed role', async () => {
     testApp.store.commit('workspace/SET_ROLES', {
       workspaceId: workspace.id,
-      roles: ['EDITOR', 'VIEWER'].map((uid) => ({
+      roles: ['BUILDER', 'VIEWER'].map((uid) => ({
         uid,
         name: uid,
         isVisible: true,
@@ -287,7 +287,7 @@ describe('AgentCreateModal', () => {
     testApp.mock.onPost('/agent/10/triggers/').reply(200, {})
     const wrapper = await open({ identities: true })
     await next(wrapper)
-    expect(selected(wrapper, 'agent.setupActsAs')).toContain('EDITOR')
+    expect(selected(wrapper, 'agent.setupActsAs')).toContain('BUILDER')
     await back(wrapper)
     await wrapper.findAll('.agent-create__suggestion')[3].trigger('click')
     await next(wrapper)

@@ -184,6 +184,7 @@
   />
   <AgentToolPermissionsModal
     ref="toolPermissionsModal"
+    :workspace="workspace"
     :available-tools="availableTools"
     :allowed-tools="customToolsSeed.allowed_tools"
     :ask-first-tools="customToolsSeed.ask_first_tools"
