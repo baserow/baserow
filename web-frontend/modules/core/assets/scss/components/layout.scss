@@ -37,6 +37,13 @@
   inset: 0 0 0 240px;
 }
 
+.layout__sidebar-backdrop {
+  position: absolute;
+  inset: 0;
+  z-index: $z-index-layout-col-2;
+  background-color: rgba($palette-neutral-1300, 0.24);
+}
+
 .layout__col-2-scroll {
   @include absolute(0);
 

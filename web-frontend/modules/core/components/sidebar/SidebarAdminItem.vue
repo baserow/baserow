@@ -25,14 +25,24 @@
       </a>
       <nuxt-link
         v-else
-        :event="deactivated ? '' : 'click'"
+        v-slot="{ href, navigate, isExactActive, prefetch, shouldPrefetch }"
         :to="{ name: adminType.routeName }"
-        class="tree__link"
+        custom
+        prefetch-on="interaction"
       >
-        <i class="tree__icon" :class="adminType.iconClass"></i>
-        <span class="tree__link-text">
-          <span class="sidebar__item-name">{{ adminType.getName() }}</span>
-        </span>
+        <a
+          :href="href"
+          class="tree__link"
+          :aria-current="isExactActive ? 'page' : undefined"
+          @click="activate($event, navigate)"
+          @pointerenter="shouldPrefetch('interaction') && prefetch()"
+          @focus="shouldPrefetch('interaction') && prefetch()"
+        >
+          <i class="tree__icon" :class="adminType.iconClass"></i>
+          <span class="tree__link-text">
+            <span class="sidebar__item-name">{{ adminType.getName() }}</span>
+          </span>
+        </a>
       </nuxt-link>
       <BadgeCounter
         v-if="badgeCount > 0"
@@ -62,6 +72,7 @@ export default {
       type: Object,
     },
   },
+  emits: ['activate'],
   computed: {
     adminTypeObject() {
       return this.$registry.get('admin', this.adminType.type)
@@ -78,6 +89,26 @@ export default {
   },
   mounted() {
     this.adminTypeObject.loadBadgeCount()
+  },
+  methods: {
+    async activate(event, navigate) {
+      if (
+        event.defaultPrevented ||
+        event.button !== 0 ||
+        event.metaKey ||
+        event.ctrlKey ||
+        event.shiftKey ||
+        event.altKey
+      ) {
+        return
+      }
+
+      await navigate(event)
+      // A click can leave the route unchanged when the admin page is already open.
+      if (this.$router.currentRoute.value.name === this.adminType.routeName) {
+        this.$emit('activate')
+      }
+    },
   },
 }
 </script>

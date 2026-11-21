@@ -19,7 +19,8 @@
         :class="{ 'tree__link--empty': application.name === '' }"
         :title="application.name"
         :aria-label="application.name"
-        @click="$emit('selected', application)"
+        :aria-expanded="$slots.body ? bodyExpanded : undefined"
+        @click="onTitleClick"
       >
         <i class="tree__icon" :class="application._?.type?.iconClass"></i>
         <span class="tree__link-text">
@@ -67,7 +68,21 @@
       >
       </TrashModal>
     </div>
-    <slot name="body"></slot>
+    <Transition
+      name="tree-group"
+      @before-leave="(element) => (element.inert = true)"
+    >
+      <div
+        v-if="$slots.body && (bodyExpanded || isApplicationSelected)"
+        class="tree__group"
+        :class="{ 'tree__group--collapsed': !bodyExpanded }"
+        :inert="!bodyExpanded ? '' : null"
+      >
+        <div class="tree__group-content">
+          <slot name="body"></slot>
+        </div>
+      </div>
+    </Transition>
   </li>
 </template>
 
@@ -105,9 +120,13 @@ export default {
   data() {
     return {
       deleting: false,
+      bodyExpanded: false,
     }
   },
   computed: {
+    isApplicationSelected() {
+      return this.$store.getters['application/isSelected'](this.application)
+    },
     additionalContextComponents() {
       return Object.values(this.$registry.getAll('plugin'))
         .reduce((components, plugin) => {
@@ -128,6 +147,28 @@ export default {
     },
     isInError() {
       return Boolean(this.errorMessage)
+    },
+  },
+  watch: {
+    isApplicationSelected: {
+      immediate: true,
+      handler(selected) {
+        if (selected && this.$slots.body) {
+          this.bodyExpanded = true
+        }
+      },
+    },
+  },
+  methods: {
+    onTitleClick(event) {
+      if (event.target.isContentEditable) {
+        return
+      }
+      if (this.$slots.body) {
+        this.bodyExpanded = !this.bodyExpanded
+      } else {
+        this.$emit('selected', this.application)
+      }
     },
   },
 }

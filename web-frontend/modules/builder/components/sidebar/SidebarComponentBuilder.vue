@@ -3,9 +3,8 @@
     ref="sidebarApplication"
     :workspace="workspace"
     :application="application"
-    @selected="selected"
   >
-    <template v-if="isAppSelected(application)" #body>
+    <template #body>
       <ul class="tree__subs">
         <SidebarItemBuilder
           v-for="page in orderedPages"
@@ -82,7 +81,6 @@ export default {
   },
   computed: {
     ...mapGetters({
-      isAppSelected: 'application/isSelected',
       getVisiblePages: 'page/getVisiblePages',
     }),
     orderedPages() {
@@ -97,13 +95,6 @@ export default {
     },
   },
   methods: {
-    selected(application) {
-      try {
-        this.$store.dispatch('application/select', application)
-      } catch (error) {
-        notifyIf(error, 'workspace')
-      }
-    },
     orderPages(order, oldOrder) {
       try {
         this.$store.dispatch('page/order', {

@@ -168,6 +168,9 @@ export default {
     ) {
       const isElementOrigin = isDomElement(target)
       const updatePosition = () => {
+        if (!this.open) {
+          return
+        }
         const el = this.$refs.contextEl
         const css = isElementOrigin
           ? this.calculatePositionElement(
@@ -231,6 +234,9 @@ export default {
       // be available in DOM for accurate positioning.
       await this.$nextTick()
       updatePosition()
+      if (!this.open) {
+        return
+      }
 
       // Cancel any previous handlers before setting up new ones
       this._cleanupEventHandlers()

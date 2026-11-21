@@ -3,6 +3,7 @@
     ref="context"
     overflow-scroll
     max-height-if-outside-viewport
+    :horizontal-viewport-margin="8"
     class="create-application-context"
     @shown="fetchRolesAndPermissions"
   >

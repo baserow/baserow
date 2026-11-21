@@ -1,3 +1,5 @@
+$dashboard-header-height: 72px;
+
 .dashboard__container {
   padding: 24px;
   background: $white;
@@ -5,7 +7,7 @@
 }
 
 .dashboard__scroll-container {
-  height: calc(100vh - 74px);
+  height: calc(100vh - #{$dashboard-header-height});
   overflow-y: auto;
   padding: 24px;
   background: $white;
@@ -21,51 +23,25 @@
   align-items: center;
   background: $white;
   z-index: 1;
-  height: 74px;
+  height: $dashboard-header-height;
   width: 100%;
 }
 
-.dashboard__header-left {
-  display: flex;
-  align-items: center;
-  gap: 15px;
-  min-width: 0;
-}
-
-.dashboard__workspace-name {
+.dashboard__title {
+  color: $palette-neutral-1200;
   font-size: 18px;
+  line-height: 24px;
   font-weight: 600;
   margin: 0;
-  padding: 24px 0;
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  cursor: pointer;
-  min-width: 0;
-}
-
-.dashboard__workspace-name-text {
-  @extend %ellipsis;
-}
-
-.dashboard__workspace-name-icon {
-  color: $palette-neutral-600;
-  font-size: 16px;
-  flex: 0 0;
 }
 
 .dashboard__header-right {
+  align-self: stretch;
   flex: 0 0;
   margin-left: auto;
   display: flex;
   align-items: center;
   gap: 24px;
-}
-
-.dashboard__header-actions {
-  display: flex;
-  align-items: center;
-  gap: 8px;
 }
 
 .dashboard__wrapper {
