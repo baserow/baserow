@@ -483,6 +483,7 @@ $tree-group-ease: cubic-bezier(0.22, 1, 0.36, 1);
 
 .tree__group {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   grid-template-rows: 1fr;
   transition: grid-template-rows $tree-group-duration $tree-group-ease;
 
