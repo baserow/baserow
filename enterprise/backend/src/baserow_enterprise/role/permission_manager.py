@@ -129,6 +129,16 @@ class RolePermissionManagerType(PermissionManagerType):
         result = {}
         roles_per_scope_by_actor = {}
         for actor_subject_type, actors in actors_by_subject_type.items():
+            if len(actors) == 1 and actor_subject_type.type == UserSubjectType.type:
+                # Reads the request cache that `get_roles_per_scope_for_workspaces`
+                # primes, so a caller can resolve the roles of many workspaces at once.
+                (actor,) = actors
+                roles_per_scope_by_actor[actor] = (
+                    RoleAssignmentHandler().get_roles_per_scope(
+                        workspace, actor, include_trash=include_trash
+                    )
+                )
+                continue
             roles_per_scope_by_actor.update(
                 RoleAssignmentHandler().get_roles_per_scope_for_actors(
                     workspace, actor_subject_type, actors, include_trash=include_trash
