@@ -118,12 +118,19 @@ export default {
       // fetches that happen while it runs.
       loadingIntegrations: null,
       focusedIntegrationId: null,
-      createIntegrationType: null,
+      // Only the name: the registry's type object would be made reactive here,
+      // along with the form component it returns.
+      createIntegrationTypeName: null,
       integrationToDelete: null,
       deleting: false,
     }
   },
   computed: {
+    createIntegrationType() {
+      return this.createIntegrationTypeName
+        ? this.$registry.get('integration', this.createIntegrationTypeName)
+        : null
+    },
     sharedApplication() {
       return this.$store.getters['application/getSharedApplication'](
         this.workspace
@@ -310,7 +317,7 @@ export default {
       )
     },
     async showCreateModal(integrationType) {
-      this.createIntegrationType = integrationType
+      this.createIntegrationTypeName = integrationType.type
       await this.$nextTick()
       this.$refs.createModal.show()
     },
