@@ -242,6 +242,7 @@ class IdentityService:
             exported for the identity of a template.
         :raises PermissionDenied: If no extension can scope the identity for the
             user, or the user may not create it or change one of the applications.
+        :raises IdentityCannotBeScoped: If none of the roles can be given.
         :return: The newly created identity.
         """
 

@@ -79,6 +79,19 @@ class IdentityExtensionType(Instance):
 
         return None
 
+    def filter_readable_application_roles(self, roles: list, user, workspace) -> list:
+        """
+        Leaves out the application roles the user may not read, like the roles an
+        identity had, which an Agent waiting for one carries to its copies.
+
+        :param roles: (application id, role uid) pairs.
+        :param user: The user who would see them.
+        :param workspace: The workspace of the applications.
+        :return: The pairs the user may read.
+        """
+
+        return roles
+
     def annotate_serialized_identities(
         self, workspace, identities, serialized_identities, user
     ):
@@ -150,6 +163,14 @@ class IdentityExtensionTypeRegistry(Registry[IdentityExtensionType]):
             if roles is not None:
                 return roles
         return None
+
+    def filter_readable_application_roles(self, roles: list, user, workspace) -> list:
+        """:return: The (application id, role uid) pairs every extension lets the
+        user read."""
+
+        for extension in self.get_all():
+            roles = extension.filter_readable_application_roles(roles, user, workspace)
+        return roles
 
     def get_default_role_uid(self, workspace):
         for extension in self.get_all():

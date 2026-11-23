@@ -115,7 +115,18 @@ class AgentApplicationType(ApplicationType):
             # A copy waiting for an identity, like the Agent of a user template,
             # keeps the roles it was imported with, by its own application ids.
             pending = (application.pending_tool_choices or {}).get("identity_roles")
-            return None if pending is None else [list(role) for role in pending]
+            if pending is None:
+                return None
+            roles = [list(role) for role in pending]
+            user = import_export_config.exported_by
+            if user is None:
+                return roles
+            readable = (
+                identity_extension_type_registry.filter_readable_application_roles(
+                    roles, user, application.workspace
+                )
+            )
+            return None if roles and not readable else readable
         resolution = AgentHandler().resolve_run_as_subject(
             application.run_as_subject_type,
             application.run_as_subject_id,

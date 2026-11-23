@@ -222,29 +222,35 @@ class EnterpriseIdentityExtensionType(IdentityExtensionType):
             .values_list("scope_id", "role__uid")
         )
         if user is not None:
-            readable = CoreHandler().check_multiple_permissions(
-                [
-                    PermissionCheck(
-                        user, ReadRoleApplicationOperationType.type, scope.specific
-                    )
-                    for scope in Application.objects.filter(
-                        id__in=[scope_id for scope_id, _ in assignments]
-                    )
-                ],
-                workspace=workspace,
+            readable = self.filter_readable_application_roles(
+                assignments, user, workspace
             )
-            allowed = {
-                check.context.id for check, result in readable.items() if result is True
-            }
-            if assignments and not allowed:
+            if assignments and not readable:
                 return None
-            assignments = [
-                assignment for assignment in assignments if assignment[0] in allowed
-            ]
+            assignments = readable
         return [
             [scope_id, SCOPED_IDENTITY_ROLE_UIDS[role_uid]]
             for scope_id, role_uid in assignments
         ]
+
+    def filter_readable_application_roles(self, roles, user, workspace):
+        """Keeps the roles on applications of the workspace whose roles the user may read."""
+
+        readable = CoreHandler().check_multiple_permissions(
+            [
+                PermissionCheck(
+                    user, ReadRoleApplicationOperationType.type, scope.specific
+                )
+                for scope in Application.objects.filter(
+                    workspace=workspace, id__in=[role[0] for role in roles]
+                )
+            ],
+            workspace=workspace,
+        )
+        allowed = {
+            check.context.id for check, result in readable.items() if result is True
+        }
+        return [role for role in roles if role[0] in allowed]
 
     def annotate_serialized_identities(
         self, workspace, identities, serialized_identities, user

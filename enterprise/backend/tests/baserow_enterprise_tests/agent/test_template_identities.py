@@ -750,3 +750,30 @@ def test_assigning_roles_without_role_permissions_still_checks_the_scopes(
             check_role_permissions=False,
         )
     assert not RoleAssignment.objects.filter(subject_id=identity.id).exists()
+
+
+@pytest.mark.django_db(transaction=True)
+def test_the_roles_of_an_agent_waiting_for_an_identity_need_permission_to_read_them(
+    enterprise_data_fixture, admin
+):
+    builder = enterprise_data_fixture.create_user()
+    source = enterprise_data_fixture.create_workspace(
+        users=[admin], custom_permissions=[(builder, "BUILDER")]
+    )
+    database = enterprise_data_fixture.create_database_application(workspace=source)
+    agent = enterprise_data_fixture.create_agent_application(
+        workspace=source, name="Helper"
+    )
+    agent.pending_tool_choices = {
+        "allowed_tools": ["list_tables"],
+        "identity_roles": [[database.id, "VIEWER"]],
+    }
+    agent.save(update_fields=["pending_tool_choices"])
+
+    def export(user):
+        config = ImportExportConfig(include_permission_data=False, exported_by=user)
+        return agent.get_type().export_serialized(agent, config)
+
+    assert export(None)["run_as_identity_roles"] == [[database.id, "VIEWER"]]
+    assert export(admin)["run_as_identity_roles"] == [[database.id, "VIEWER"]]
+    assert "run_as_identity_roles" not in export(builder)

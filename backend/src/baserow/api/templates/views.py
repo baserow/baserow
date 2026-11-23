@@ -560,8 +560,9 @@ class AsyncInstallTemplateView(APIView):
                 description="Creates an identity for each installed application "
                 "that acts as one, like an Agent, with access to only the other "
                 "installed applications, and makes the application act as it. "
-                "Needs the `identity.create_scoped` and `identity.bind` permissions, "
-                "and roles in the workspace.",
+                "Needs the RBAC feature, the `identity.create_scoped` and "
+                "`identity.bind` permissions, and permission to update each "
+                "installed application.",
             ),
             TEMPLATE_PRIVATE_LINK_SCHEMA_PARAMETER,
             CLIENT_SESSION_ID_SCHEMA_PARAMETER,
