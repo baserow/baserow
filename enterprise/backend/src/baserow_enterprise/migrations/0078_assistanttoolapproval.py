@@ -5,7 +5,7 @@ from django.db import migrations, models
 
 class Migration(migrations.Migration):
     dependencies = [
-        ("baserow_enterprise", "0076_buildercustomcode_html"),
+        ("baserow_enterprise", "0077_row_comment_posted_trigger"),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 
