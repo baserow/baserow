@@ -504,9 +504,12 @@ class UserTemplateHandler:
         workspace = Workspace.objects.create(name=name)
         track_content(template_workspace=workspace)
 
+        # Exported on behalf of the owner, so that application types can refuse
+        # what the owner may not read, like an Agent's configuration, the same
+        # way an export to a file does.
         serialized = self.serialize_applications(
             applications,
-            config,
+            dataclasses.replace(config, exported_by=owner),
             files_zip=files,
             storage=storage,
             progress_builder=progress.create_child_builder(represents_progress=50),
@@ -515,7 +518,9 @@ class UserTemplateHandler:
             workspace,
             serialized,
             files,
-            dataclasses.replace(config, user_files_belong_to_workspace=True),
+            dataclasses.replace(
+                config, user_files_belong_to_workspace=True, is_template_storage=True
+            ),
             storage=storage,
             progress_builder=progress.create_child_builder(represents_progress=50),
             atomic_per_application=True,

@@ -529,7 +529,7 @@ def _removed_items(
             uid=column["uid"], name=column["name"], type=column["type"]
         )
         if column["type"] == "button":
-            item["deleted_click_actions"] = BuilderWorkflowAction.objects.filter(
+            item["trashed_click_actions"] = BuilderWorkflowAction.objects.filter(
                 element=element, event=f"{column['uid']}_click"
             ).count()
         items.append(item)

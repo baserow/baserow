@@ -7,6 +7,8 @@ const WORD_DELAY_MS = Number(process.env.WORD_DELAY_MS ?? 300);
 const MODEL = "kuma-e2e";
 // Creates the database <name> with a "Tasks" table, then answers "word1 ... word<n>".
 const SCRIPT = /kuma-e2e db=(\S+) words=(\d+)/;
+// Next to SCRIPT, asks for sample rows and answers them once a GET of <url> returns.
+const ROWS_HOLD = /rows-hold=(\S+)/;
 // Also the chat's title, which Kuma asks for without tools.
 const UNSCRIPTED_ANSWER = "E2E chat";
 const MODEL_CHECK_TOOL = "baserow_model_compatibility_test";
@@ -41,6 +43,11 @@ function nextAnswer(body) {
   const lastUser = messages.findLast((message) => message.role === "user");
   const prompt = lastUser ? textOf(lastUser) : "";
   const script = prompt.match(SCRIPT);
+  const rowsHold = prompt.match(ROWS_HOLD);
+  if (rowsHold && !script) {
+    // Only the sample rows' prompt carries the hold without the script.
+    return { text: "No sample rows.", holdUrl: rowsHold[1] };
+  }
   if (tools.length === 0 || !script) {
     return { text: UNSCRIPTED_ANSWER };
   }
@@ -63,7 +70,8 @@ function nextAnswer(body) {
       toolCall: toolCall("create_tables", {
         database_id: Number(builders.match(/"id":\s*(\d+)/)[1]),
         tables: [{ name: "Tasks", primary_field_name: "Name", fields: [] }],
-        add_sample_rows: false,
+        // Sample rows cost a sub-agent call, which only a held scenario needs.
+        add_sample_rows: rowsHold ? `kuma-e2e ${rowsHold[0]}` : false,
         thought: "Add the Tasks table",
       }),
     };
@@ -74,6 +82,15 @@ function nextAnswer(body) {
       (_, index) => `word${index + 1}`,
     ),
   };
+}
+
+/** Waits until the barrier releases the hold at `url`; a failed hold answers at once. */
+async function hold(url) {
+  try {
+    await fetch(url);
+  } catch (error) {
+    console.error(`kuma model stub: the hold at ${url} failed: ${error}`);
+  }
 }
 
 function chunk(delta, finishReason = null) {
@@ -160,6 +177,9 @@ const server = http.createServer(async (req, res) => {
     return;
   }
   const answer = nextAnswer(body);
+  if (answer.holdUrl) {
+    await hold(answer.holdUrl);
+  }
   if (body.stream) {
     await stream(res, answer);
   } else {

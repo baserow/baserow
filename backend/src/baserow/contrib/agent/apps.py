@@ -150,6 +150,20 @@ class AgentConfig(AppConfig):
             agent_tool_type_registry.register(tool_type())
         service_type_registry.add_trigger_listener(agent_trigger_dispatcher.on_event)
 
+        from baserow.core.registries import permission_manager_type_registry
+
+        from .permission_manager import AllowIfTemplatePermissionManagerType
+
+        prev_manager = permission_manager_type_registry.get(
+            AllowIfTemplatePermissionManagerType.type
+        )
+        permission_manager_type_registry.unregister(
+            AllowIfTemplatePermissionManagerType.type
+        )
+        permission_manager_type_registry.register(
+            AllowIfTemplatePermissionManagerType(prev_manager)
+        )
+
         import baserow.contrib.agent.action_tools.receivers  # noqa: F401
         import baserow.contrib.agent.receivers  # noqa: F401
         import baserow.contrib.agent.triggers.receivers  # noqa: F401

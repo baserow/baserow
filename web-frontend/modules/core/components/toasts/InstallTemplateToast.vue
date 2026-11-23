@@ -117,23 +117,26 @@ const title = computed(() => {
   return i18n.t('InstallTemplateJobType.installingTitle', { name })
 })
 
-// The first installed application, as it is in the application store if it was
-// added there.
+// The first installed application the user can open, as it is in the
+// application store if it was added there. Types the user can't use, like
+// Agents without their feature flag, are installed but hidden.
 const firstApplication = computed(() => {
-  const installed = job.value.installed_applications?.[0]
+  const installed = (job.value.installed_applications ?? []).find(
+    (application) =>
+      $registry.exists('application', application.type) &&
+      $registry.get('application', application.type).canBeCreated()
+  )
   if (!installed) {
     return null
   }
   return store.getters['application/get'](installed.id) ?? installed
 })
 
-const applicationType = computed(() => {
-  const application = firstApplication.value
-  if (!application || !$registry.exists('application', application.type)) {
-    return null
-  }
-  return $registry.get('application', application.type)
-})
+const applicationType = computed(() =>
+  firstApplication.value
+    ? $registry.get('application', firstApplication.value.type)
+    : null
+)
 
 const viewLabel = computed(() => applicationType.value?.getViewLabel() ?? null)
 

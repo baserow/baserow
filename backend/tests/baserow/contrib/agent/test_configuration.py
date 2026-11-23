@@ -1051,6 +1051,7 @@ def test_configuration_is_served_only_by_the_agent_endpoints(
         "run_as": None,
         "allowed_tools": [],
         "ask_first_tools": [],
+        "pending_tools": [],
         "available_tools": ANY,
         "web_search_enabled": False,
         "web_search_available": True,
@@ -1166,3 +1167,101 @@ def test_reasoning_effort_change_is_recorded(data_fixture, mocker):
         "agent_id": agent.id,
         "changed_fields": ["reasoning_effort"],
     }
+
+
+def agent_with_pending_tools(configured_agent, user):
+    agent = configured_agent(user=user)
+    agent.pending_tool_choices = {
+        "allowed_tools": ["list_tables", "create_rows", "gone_tool"],
+        "ask_first_tools": ["create_rows"],
+    }
+    agent.save()
+    identity = IdentityHandler().create_identity(
+        workspace=agent.workspace, name="Investor"
+    )
+    return agent, identity
+
+
+@pytest.mark.django_db
+def test_picking_an_identity_applies_pending_tools(
+    configured_agent, api_client, api_user
+):
+    agent, identity = agent_with_pending_tools(configured_agent, api_user)
+    url = agent_url(agent, "configuration")
+
+    response = api_client.patch(
+        url,
+        {"run_as_subject_type": "auth.User", "run_as_subject_id": identity.id},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["allowed_tools"] == ["list_tables", "create_rows"]
+    assert response.json()["ask_first_tools"] == ["create_rows"]
+    assert response.json()["pending_tools"] == []
+    agent.refresh_from_db()
+    assert agent.pending_tool_choices is None
+
+
+@pytest.mark.django_db
+def test_explicit_tools_with_an_identity_discard_pending(
+    configured_agent, api_client, api_user
+):
+    agent, identity = agent_with_pending_tools(configured_agent, api_user)
+
+    response = api_client.patch(
+        agent_url(agent, "configuration"),
+        {
+            "run_as_subject_type": "auth.User",
+            "run_as_subject_id": identity.id,
+            "allowed_tools": [],
+        },
+        format="json",
+    )
+
+    assert response.status_code == 200
+    assert response.json()["allowed_tools"] == []
+    agent.refresh_from_db()
+    assert agent.pending_tool_choices is None
+    assert not agent.allowed_tools.exists()
+
+
+@pytest.mark.django_db
+def test_other_updates_keep_pending_tools(configured_agent, api_client, api_user):
+    agent, _ = agent_with_pending_tools(configured_agent, api_user)
+
+    response = api_client.patch(
+        agent_url(agent, "configuration"), {"instructions": "Be brief."}
+    )
+
+    assert response.status_code == 200
+    assert response.json()["pending_tools"] == ["list_tables", "create_rows"]
+    agent.refresh_from_db()
+    assert agent.pending_tool_choices is not None
+
+
+@pytest.mark.django_db
+def test_configuration_exposes_pending_tools(configured_agent, api_client, api_user):
+    agent, _ = agent_with_pending_tools(configured_agent, api_user)
+
+    response = api_client.get(agent_url(agent, "configuration"))
+
+    assert response.json()["pending_tools"] == ["list_tables", "create_rows"]
+    assert response.json()["allowed_tools"] == []
+
+
+@pytest.mark.django_db
+def test_tools_sent_without_an_identity_keep_pending_tools(
+    configured_agent, api_client, api_user
+):
+    agent, _ = agent_with_pending_tools(configured_agent, api_user)
+
+    response = api_client.patch(
+        agent_url(agent, "configuration"),
+        {"allowed_tools": [], "ask_first_tools": []},
+        format="json",
+    )
+
+    assert response.status_code == 200
+    assert response.json()["pending_tools"] == ["list_tables", "create_rows"]
+    agent.refresh_from_db()
+    assert agent.pending_tool_choices is not None

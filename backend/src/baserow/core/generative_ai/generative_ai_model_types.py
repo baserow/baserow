@@ -6,10 +6,12 @@ from typing import TYPE_CHECKING, Any, Optional
 
 from django.conf import settings
 
+from pydantic_ai.exceptions import ModelHTTPError
+
 from baserow.core.ai_provider.resolution import ScopedAIProviderState
 from baserow.core.models import Workspace
 
-from .constants import WEB_SEARCH_MAX_PER_REPLY, ReasoningEffort
+from .constants import WEB_SEARCH_MAX_PER_REPLY, ProviderFailure, ReasoningEffort
 from .registries import (
     EmbedKindLimit,
     FileHandler,
@@ -93,6 +95,41 @@ _ZAI_DISCOVERY_EXCLUDED_MODELS = {
     "glm-5v-turbo",
     "glm-4-32b-0414-128k",
 }
+
+
+def _is_google_invalid_api_key(error: BaseException) -> bool:
+    """
+    Google answers an invalid API key with a 400 and names the reason in the body.
+
+    :param error: What the model raised.
+    :return: Whether Google refused the API key.
+    """
+
+    if not isinstance(error, ModelHTTPError) or error.status_code != 400:
+        return False
+    body = error.body if isinstance(error.body, dict) else {}
+    google_error = body.get("error")
+    details = google_error.get("details") if isinstance(google_error, dict) else None
+    return isinstance(details, list) and any(
+        isinstance(detail, dict) and detail.get("reason") == "API_KEY_INVALID"
+        for detail in details
+    )
+
+
+def _is_xai_invalid_api_key(error: BaseException) -> bool:
+    """
+    xAI answers an invalid API key with a 400 whose only sign is its message.
+
+    :param error: What the model raised.
+    :return: Whether xAI refused the API key.
+    """
+
+    return (
+        isinstance(error, ModelHTTPError)
+        and error.status_code == 400
+        and isinstance(error.body, str)
+        and error.body.startswith("Incorrect API key")
+    )
 
 
 def google_model_requires_default_sampling(model_name: str) -> bool:
@@ -651,6 +688,11 @@ class GoogleGenerativeAIModelType(GenerativeAIModelType):
     type = "google"
     supports_legacy_workspace_settings = False
 
+    def get_provider_failure(self, error: BaseException) -> ProviderFailure | None:
+        if _is_google_invalid_api_key(error):
+            return ProviderFailure.AUTH_FAILED
+        return super().get_provider_failure(error)
+
     def get_web_search_tool(
         self, model_name: str, with_function_tools: bool
     ) -> WebSearchTool | None:
@@ -822,6 +864,11 @@ class GroqGenerativeAIModelType(GenerativeAIModelType):
 class XaiGenerativeAIModelType(GenerativeAIModelType):
     type = "xai"
     supports_legacy_workspace_settings = False
+
+    def get_provider_failure(self, error: BaseException) -> ProviderFailure | None:
+        if _is_xai_invalid_api_key(error):
+            return ProviderFailure.AUTH_FAILED
+        return super().get_provider_failure(error)
 
     @cached_property
     def file_handler(self) -> XaiFileHandler:

@@ -29,7 +29,20 @@ const state = () => ({})
 
 const mutations = {
   ADD_ITEM(state, { page, workflowAction }) {
-    page.workflowActions.push(populateWorkflowAction(workflowAction))
+    // An undo restores a workflow action every tab hears about, the one that
+    // already has it included, so add it only once.
+    const index = page.workflowActions.findIndex(
+      ({ id }) => id === workflowAction.id
+    )
+    if (index > -1) {
+      page.workflowActions.splice(
+        index,
+        1,
+        populateWorkflowAction(workflowAction)
+      )
+    } else {
+      page.workflowActions.push(populateWorkflowAction(workflowAction))
+    }
   },
   SET_ITEMS(state, { page, workflowActions }) {
     page.workflowActions = workflowActions.map((workflowAction) =>

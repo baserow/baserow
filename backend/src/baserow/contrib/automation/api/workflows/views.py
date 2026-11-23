@@ -31,6 +31,7 @@ from baserow.contrib.automation.api.workflows.serializers import (
     CreateAutomationWorkflowSerializer,
     OrderAutomationWorkflowsSerializer,
     UpdateAutomationWorkflowSerializer,
+    workflow_history_context,
 )
 from baserow.contrib.automation.history.constants import HistoryStatusChoices
 from baserow.contrib.automation.history.service import AutomationHistoryService
@@ -287,7 +288,10 @@ class AutomationWorkflowHistoryView(APIView):
         serializer = AutomationWorkflowHistorySerializer(
             page,
             many=True,
-            context={"workflow_history_plugin_data": plugin_data},
+            context={
+                "workflow_history_plugin_data": plugin_data,
+                **workflow_history_context(request.user, page),
+            },
         )
 
         return paginator.get_paginated_response(

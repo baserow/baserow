@@ -100,7 +100,7 @@ class RemovedMenuItem(TypedDict):
     uid: str
     name: str
     type: str
-    deleted_click_actions: NotRequired[int]
+    trashed_click_actions: NotRequired[int]
 
 
 def new_menu_link(name: str, page_id: int) -> dict[str, Any]:

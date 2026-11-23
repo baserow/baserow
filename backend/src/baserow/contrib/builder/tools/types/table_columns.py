@@ -103,7 +103,7 @@ class RemovedTableColumn(TypedDict):
     uid: str
     name: str
     type: str
-    deleted_click_actions: NotRequired[int]
+    trashed_click_actions: NotRequired[int]
 
 
 def stored_formula_text(config: Any, key: str) -> str:

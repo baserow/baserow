@@ -601,7 +601,7 @@ def test_workspace_identity_context_is_refreshed_for_each_reply(
     [
         ("cancelled", "cancelled", ""),
         ("timeout", "failed", "timeout"),
-        (None, "failed", "failed"),
+        (None, "failed", "provider_rate_limited"),
     ],
 )
 def test_unfinished_replies_log_error_details_only_in_debug_mode(

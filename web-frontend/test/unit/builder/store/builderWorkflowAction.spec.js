@@ -49,4 +49,45 @@ describe('builderWorkflowAction store', () => {
       expect(orderById[1]).toBe(2)
     })
   })
+
+  describe('ADD_ITEM', () => {
+    test('adding an action the page already has keeps one copy', () => {
+      // Undoing a column removal restores its click action, and every tab hears
+      // about it, the one that removed the column included.
+      const page = { workflowActions: [] }
+      const action = { id: 1, element_id: 10, event: 'uid_click', order: 1 }
+
+      workflowActionStore.mutations.ADD_ITEM(
+        {},
+        { page, workflowAction: action }
+      )
+      workflowActionStore.mutations.DELETE_ITEM(
+        {},
+        { page, workflowActionId: 1 }
+      )
+      expect(page.workflowActions).toHaveLength(0)
+
+      workflowActionStore.mutations.ADD_ITEM(
+        {},
+        { page, workflowAction: action }
+      )
+      workflowActionStore.mutations.ADD_ITEM(
+        {},
+        { page, workflowAction: { ...action, order: 2 } }
+      )
+      expect(page.workflowActions.map(({ id }) => id)).toEqual([1])
+      expect(page.workflowActions[0].order).toBe(2)
+    })
+
+    test('adding a new action appends it', () => {
+      const page = { workflowActions: [{ id: 1, element_id: 10, order: 1 }] }
+
+      workflowActionStore.mutations.ADD_ITEM(
+        {},
+        { page, workflowAction: { id: 2, element_id: 10, order: 2 } }
+      )
+
+      expect(page.workflowActions.map(({ id }) => id)).toEqual([1, 2])
+    })
+  })
 })

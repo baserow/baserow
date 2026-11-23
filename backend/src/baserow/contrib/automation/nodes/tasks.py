@@ -149,3 +149,18 @@ def resume_pending_node_celery_task(self, node_history_id: int) -> Signature | N
         return self.replace(result)
 
     return None
+
+
+@app.task(bind=True)
+def fill_missing_table_ids_task(self):
+    """
+    Fills the missing table IDs of test run data and run history, for as long as
+    one run may take, until a pass finds nothing left.
+    """
+
+    from baserow.contrib.automation.nodes.backfill import (
+        BACKFILL_TIME_LIMIT_SECONDS,
+        fill_missing_table_ids,
+    )
+
+    fill_missing_table_ids(time_limit=BACKFILL_TIME_LIMIT_SECONDS)

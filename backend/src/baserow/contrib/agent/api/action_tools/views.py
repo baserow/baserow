@@ -6,6 +6,7 @@ from drf_spectacular.openapi import OpenApiParameter, OpenApiTypes
 from drf_spectacular.utils import extend_schema
 from rest_framework import status
 from rest_framework.exceptions import ValidationError
+from rest_framework.permissions import AllowAny
 from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -100,6 +101,13 @@ def pop_service_values(data: dict[str, Any]) -> dict[str, Any] | None:
 
 
 class AgentActionsView(RealtimeRecoveryPrimaryReadMixin, APIView):
+    def get_permissions(self):
+        # A template preview reads the setup, also for a signed out visitor. The
+        # permission check still only allows it on templates.
+        if self.request.method == "GET":
+            return [AllowAny()]
+        return super().get_permissions()
+
     @extend_schema(
         parameters=[AGENT_ID_PATH_PARAMETER],
         tags=["Agent applications"],

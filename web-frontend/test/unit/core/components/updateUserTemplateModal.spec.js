@@ -601,6 +601,48 @@ describe('UpdateUserTemplateModal', () => {
       expect(selectedApplicationIds(wrapper)).toStrictEqual([12])
     })
 
+    test('preselects applications whose permissions are not loaded yet', async () => {
+      await testApp.store.dispatch('application/forceCreate', {
+        id: 13,
+        name: 'Website',
+        type: 'builder',
+        pages: [],
+        workspace: { id: 1 },
+      })
+      // Before the workspace's permissions are loaded, a builder isn't visible.
+      vi.spyOn(
+        testApp.$registry.get('application', 'builder'),
+        'isVisible'
+      ).mockReturnValue(false)
+
+      const wrapper = await mountAndShow(
+        'content',
+        userTemplate({ source_application_ids: [11, 13] })
+      )
+
+      expect(selectedApplicationIds(wrapper)).toStrictEqual([11, 13])
+    })
+
+    test("doesn't preselect an application of a type the user can't use", async () => {
+      await testApp.store.dispatch('application/forceCreate', {
+        id: 14,
+        name: 'Ticket triage',
+        type: 'agent',
+        workspace: { id: 1 },
+      })
+      vi.spyOn(
+        testApp.$registry.get('application', 'agent'),
+        'canBeCreated'
+      ).mockReturnValue(false)
+
+      const wrapper = await mountAndShow(
+        'content',
+        userTemplate({ source_application_ids: [11, 14] })
+      )
+
+      expect(selectedApplicationIds(wrapper)).toStrictEqual([11])
+    })
+
     test('starts with the selected workspace without the source one', async () => {
       const wrapper = await mountAndShow(
         'content',

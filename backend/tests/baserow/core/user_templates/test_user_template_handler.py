@@ -871,3 +871,29 @@ def test_install_template_content_gives_the_copy_normal_files(
         )
         == template_rows
     )
+
+
+@pytest.mark.import_export_workspace
+@pytest.mark.django_db(transaction=True)
+def test_user_template_copy_stores_content_and_install_does_not(data_fixture):
+    owner = data_fixture.create_user()
+    database = data_fixture.create_database_application(user=owner)
+    target = data_fixture.create_workspace(user=owner)
+    configs = []
+    import_applications = CoreHandler.import_applications_to_workspace
+
+    def import_spy(self, workspace, serialized, files_buffer, config, *args, **kwargs):
+        configs.append(config)
+        return import_applications(
+            self, workspace, serialized, files_buffer, config, *args, **kwargs
+        )
+
+    handler = UserTemplateHandler()
+    with patch.object(CoreHandler, "import_applications_to_workspace", import_spy):
+        copy = handler.copy_applications(owner, [database], name="Copy")
+        revision = data_fixture.create_template(workspace=copy)
+        content = handler.serialize_template_content(revision)
+        with transaction.atomic():
+            handler.install_template_content(owner, target, revision, content)
+
+    assert [config.is_template_storage for config in configs] == [True, False]

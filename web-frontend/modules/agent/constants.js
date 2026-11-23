@@ -22,6 +22,7 @@ export const CONFIGURATION_FIELD = Object.freeze({
   RUN_AS: 'run_as',
   ALLOWED_TOOLS: 'allowed_tools',
   ASK_FIRST_TOOLS: 'ask_first_tools',
+  PENDING_TOOLS: 'pending_tools',
   AVAILABLE_TOOLS: 'available_tools',
   WEB_SEARCH_ENABLED: 'web_search_enabled',
   WEB_SEARCH_AVAILABLE: 'web_search_available',
@@ -133,6 +134,9 @@ export const AGENT_REPLY_ERROR_CODE = Object.freeze({
   RUN_LIMIT_REACHED: 'chat_run_limit_reached',
   TRIGGER_MESSAGE_FAILED: 'trigger_message_failed',
   TRIGGER_OFF: 'trigger_off',
+  PROVIDER_AUTH_FAILED: 'provider_auth_failed',
+  PROVIDER_RATE_LIMITED: 'provider_rate_limited',
+  PROVIDER_UNAVAILABLE: 'provider_unavailable',
 })
 
 export const RUN_AS_STATUS = Object.freeze({
