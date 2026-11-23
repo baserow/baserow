@@ -655,6 +655,76 @@ def _apply(user, workspace, agent, setup: AgentSetup, ask_first) -> Any:
     return agent
 
 
+def _undo(
+    previous: dict[str, Any] | None, after: dict[str, Any], setup: AgentSetup
+) -> dict[str, Any]:
+    """
+    :param previous: The Agent's setup before the change, or None for a new Agent.
+    :param after: The Agent's setup after the change.
+    :param setup: The change that was applied.
+    :return: The change that puts back what can be put back, in the form
+        apply_agent_setup takes, and in plain words what stays.
+    """
+
+    stays = []
+    if setup.new_identity:
+        stays.append(f'the identity "{setup.new_identity.name}" stays in the workspace')
+    if previous is None:
+        stays.append(
+            f'the Agent "{after["name"]}" itself: the user can delete it from the '
+            "sidebar"
+        )
+        triggers_off = [
+            {"trigger_id": t["trigger_id"], "enabled": False}
+            for t in after["triggers"]
+            if t["enabled"]
+        ]
+        return {"setup": {"update_triggers": triggers_off}, "cannot_undo": stays}
+
+    change: dict[str, Any] = {}
+    for field in (
+        "name",
+        "instructions",
+        "provider_type",
+        "model_identifier",
+        "web_search_enabled",
+        "web_fetch_enabled",
+    ):
+        if previous[field] != after[field]:
+            change[field] = "" if previous[field] is None else previous[field]
+    if (previous["allowed_tools"], previous["ask_first_tools"]) != (
+        after["allowed_tools"],
+        after["ask_first_tools"],
+    ):
+        change["allowed_tools"] = previous["allowed_tools"]
+        change["ask_first_tools"] = previous["ask_first_tools"]
+    if previous["run_as"] != after["run_as"]:
+        if previous["run_as"]:
+            change["run_as_identity_id"] = previous["run_as"]["identity_id"]
+        else:
+            stays.append(f'the Agent keeps running as "{after["run_as"]["name"]}"')
+    enabled_before = {t["trigger_id"]: t["enabled"] for t in previous["triggers"]}
+    update_triggers = []
+    for trigger in after["triggers"]:
+        before = enabled_before.get(trigger["trigger_id"])
+        if before is None:
+            stays.append(f'the trigger "{trigger["name"]}" stays, turned off')
+            before = False
+        if trigger["enabled"] != before:
+            update_triggers.append(
+                {"trigger_id": trigger["trigger_id"], "enabled": before}
+            )
+    if update_triggers:
+        change["update_triggers"] = update_triggers
+    action_ids = {action["action_id"] for action in previous["actions"]}
+    stays += [
+        f'the action "{action["name"]}" stays, turned off'
+        for action in after["actions"]
+        if action["action_id"] not in action_ids
+    ]
+    return {"setup": change, "cannot_undo": stays}
+
+
 def _tool_ctx(user, workspace) -> ToolContext:
     return ToolContext(user=user, workspace=workspace)
 
@@ -691,7 +761,7 @@ def get_agent(
     """\
     Read one Agent's full setup, in the form apply_agent_setup takes.
 
-    WHEN to use: Before editing or reverting an Agent. Keep the result: it is the setup to put back when the user asks to revert.
+    WHEN to use: Before editing an Agent. Its run_as, triggers and actions are read only: to change them use run_as_identity_id, add_triggers and update_triggers of apply_agent_setup.
     """
 
     return _read_setup(ctx.deps.user, _agent(ctx, agent_id))
@@ -736,8 +806,8 @@ def apply_agent_setup(
     WHEN to use: The user asks to build, change or revert an Agent. Put every part of the request in one call so the user approves it once.
     HOW: Read list_agent_tools first; for an edit read get_agent. Grant the read tools the Agent needs to find its data, such as list_tables and list_rows, next to any tool that changes it. Default to read-only tools, and make tools that change data ask first unless the user says otherwise. Turn a trigger on when the user says when the Agent runs, such as "when a row is created"; otherwise add it turned off. Never ask for API keys, passwords or SMTP credentials: actions are added turned off for the user to configure.
     APPROVAL: A change that creates an identity, grants a tool that changes data, turns off ask first, turns on web fetch or turns on a trigger waits for the user's approval in the chat. Do not ask for permission in text: call the tool, and the user sees an approval card.
-    REVERT: To revert, call this tool with the previous setup from the earlier get_agent or apply_agent_setup result.
-    RETURNS: The Agent's setup before and after the change.
+    REVERT: To undo a change, call this tool with the revert.setup of that change's result, and tell the user what its revert.cannot_undo lists: added triggers and actions are only turned off, and a created Agent or identity stays.
+    RETURNS: The Agent's setup before and after the change, and how to revert it.
     """
 
     user, workspace = ctx.deps.user, ctx.deps.workspace
@@ -802,6 +872,7 @@ def apply_agent_setup(
         "created": current is None,
         "previous_setup": current,
         "setup": after,
+        "revert": _undo(current, after, setup),
         "next_steps": next_steps,
     }
 

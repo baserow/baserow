@@ -513,3 +513,37 @@ def test_a_waiting_card_can_be_decided_after_its_prediction_is_deleted(
 
     human = chat.messages.get(role=AssistantChatMessage.Role.HUMAN)
     assert start.call_args.args[4]["human_message_id"] == human.id
+
+
+@pytest.mark.django_db
+def test_reverting_a_change_puts_back_what_it_can_and_says_what_stays(
+    data_fixture,
+):
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    ctx = _ctx(user, workspace)
+    agent_id = apply_agent_setup(
+        ctx, AgentSetup(name="Digest", instructions="Old"), thought="t"
+    )["setup"]["agent_id"]
+
+    change = apply_agent_setup(
+        ctx,
+        AgentSetup(
+            name="Weekly digest",
+            instructions="New",
+            add_triggers=[{"type": "periodic"}],
+        ),
+        thought="t",
+        agent_id=agent_id,
+    )
+    revert = change["revert"]
+    reverted = apply_agent_setup(
+        ctx, AgentSetup(**revert["setup"]), thought="t", agent_id=agent_id
+    )["setup"]
+
+    assert (reverted["name"], reverted["instructions"]) == ("Digest", "Old")
+    [trigger] = reverted["triggers"]
+    assert not trigger["enabled"]
+    assert revert["cannot_undo"] == [
+        f'the trigger "{trigger["name"]}" stays, turned off'
+    ]
