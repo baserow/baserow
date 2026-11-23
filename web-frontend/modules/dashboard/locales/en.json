@@ -171,7 +171,7 @@
   },
   "dashboardDataProviderType": {
     "widgetData": "Filter widgets",
-    "tableContext": "Table data"
+    "tableContext": "Table field options"
   },
   "dashboardServiceRefinementForms": {
     "dashboardFilters": "Dashboard filters"
