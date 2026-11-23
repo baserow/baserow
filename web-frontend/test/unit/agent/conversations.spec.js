@@ -782,10 +782,8 @@ describe('Agent conversations', () => {
     await selectConversation(wrapper, 'A')
     await composer(wrapper).setValue('Unsent text')
     await wrapper.get('.agent-conversations__content').trigger('scroll')
-    await filterConversations(wrapper, 'agent.waitingForApprovalFilter')
-    expect(conversationTitles(wrapper)).toEqual([
-      'Waitingagent.waitingForApproval',
-    ])
+    await filterConversations(wrapper, 'agent.waiting')
+    expect(conversationTitles(wrapper)).toEqual(['Waiting'])
     expect(composer(wrapper).element.value).toBe('Unsent text')
     expect(messages(wrapper)).toEqual(['Hello'])
     stale.resolve(
@@ -793,9 +791,7 @@ describe('Agent conversations', () => {
       conversationsPage([conversation('old', 'Old')], 'stale-cursor')
     )
     await flushPromises()
-    expect(conversationTitles(wrapper)).toEqual([
-      'Waitingagent.waitingForApproval',
-    ])
+    expect(conversationTitles(wrapper)).toEqual(['Waiting'])
     await filterConversations(wrapper, 'agent.pinned')
     expect(conversationTitles(wrapper)).toEqual(['B'])
     const reads = testApp.mock.history.get.filter(({ url }) =>
@@ -846,7 +842,9 @@ describe('Agent conversations', () => {
     await sendMessage(wrapper, 'Still there?')
 
     expect(conversationTitles(wrapper)).toEqual(['B'])
-    expect(selected(wrapper).text()).toBe('B')
+    expect(
+      selected(wrapper).get('.agent-conversations__item-name').text()
+    ).toBe('B')
   })
 
   test('pins through PATCH, restores a failed unpin, and preserves the open conversation', async () => {
@@ -874,28 +872,45 @@ describe('Agent conversations', () => {
     await chooseFromMenu(wrapper, 'B', 'agent.unpin')
     expect(conversationTitles(wrapper)).toEqual(['B', 'A'])
     expect(composer(wrapper).element.value).toBe('Draft')
-    expect(selected(wrapper).text()).toBe('B')
+    expect(
+      selected(wrapper).get('.agent-conversations__item-name').text()
+    ).toBe('B')
   })
 
   test.each([
-    ['agent.private', false],
-    ['agent.shared', true],
-  ])('filters %s conversations on the server', async (label, shared) => {
-    const both = conversationsPage([
-      conversation('mine', 'Mine'),
-      { ...conversation('team', 'Team'), shared: true },
-    ])
-    mockConversations(testApp, both, both)
-    const wrapper = await mount()
+    ['agent.private', { shared: false }, ['Mine']],
+    ['agent.shared', { shared: true }, ['Team', 'Ticket']],
+    ['agent.triggered', { started_by_trigger: true }, ['Ticket']],
+    ['agent.failed', { last_reply_failed: true }, ['Ticket']],
+  ])(
+    'filters %s conversations on the server',
+    async (label, params, titles) => {
+      const all = conversationsPage([
+        conversation('mine', 'Mine'),
+        { ...conversation('team', 'Team'), shared: true },
+        {
+          ...conversation('ticket', 'Ticket'),
+          shared: true,
+          started_by_trigger: true,
+          last_reply_failed: true,
+        },
+      ])
+      mockConversations(testApp, all, all)
+      const wrapper = await mount()
 
-    await filterConversations(wrapper, label)
+      await filterConversations(wrapper, label)
 
-    expect(conversationTitles(wrapper)).toEqual([shared ? 'Team' : 'Mine'])
-    const reads = testApp.mock.history.get.filter(({ url }) =>
-      url.endsWith('/conversations/')
-    )
-    expect(reads.at(-1).params).toEqual({ cursor: null, limit: 100, shared })
-  })
+      expect(conversationTitles(wrapper)).toEqual(titles)
+      const reads = testApp.mock.history.get.filter(({ url }) =>
+        url.endsWith('/conversations/')
+      )
+      expect(reads.at(-1).params).toEqual({
+        cursor: null,
+        limit: 100,
+        ...params,
+      })
+    }
+  )
 
   test('shares a private conversation only once its owner confirms', async () => {
     const chat = conversation('chat', 'Chat')

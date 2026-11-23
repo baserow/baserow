@@ -128,6 +128,9 @@ def _serialize_listed(
 
     context = {
         "conversation_runs": conversation_runs,
+        "failed_conversation_ids": AgentHandler().get_failed_conversation_ids(
+            [conversation.id]
+        ),
         "conversation_pending_approvals": (
             AgentHandler().get_conversation_pending_approval_counts([conversation.id])
         ),

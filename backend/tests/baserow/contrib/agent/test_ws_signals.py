@@ -61,6 +61,7 @@ def update_of(
     trigger_type: str | None = None,
     trigger_name: str | None = None,
 ) -> dict:
+    owner = conversation.owner_user
     return {
         "type": "agent_conversation_activity",
         "agent_id": conversation.agent_id,
@@ -72,10 +73,12 @@ def update_of(
             "created_on": DateTimeField().to_representation(conversation.created_on),
             "updated_on": DateTimeField().to_representation(conversation.updated_on),
             "run_id": str(run_id) if run_id else None,
+            "last_reply_failed": False,
             "pending_approval_count": pending_approval_count,
             "pinned": conversation.pinned,
             "shared": conversation.shared,
             "started_by_trigger": conversation.started_by_trigger,
+            "owner": owner and {"id": owner.id, "name": owner.first_name},
             "trigger_id": conversation.trigger_id,
             "trigger_type": trigger_type,
             "trigger_name": trigger_name,

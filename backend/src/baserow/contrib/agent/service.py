@@ -201,6 +201,8 @@ class AgentService:
         pinned: bool | None = None,
         has_pending_approvals: bool | None = None,
         shared: bool | None = None,
+        started_by_trigger: bool | None = None,
+        last_reply_failed: bool | None = None,
     ) -> QuerySet[AgentConversation]:
         """
         Return the user's own private conversations and the shared ones, never
@@ -214,6 +216,10 @@ class AgentService:
         :param pinned: Only pinned or unpinned conversations, or both when omitted.
         :param has_pending_approvals: Only conversations with or without pending calls.
         :param shared: Only shared or private conversations, or both when omitted.
+        :param started_by_trigger: Only conversations a trigger started or not, or
+            both when omitted.
+        :param last_reply_failed: Only conversations whose latest reply failed or
+            not, or both when omitted.
         :return: The conversations, pinned first, then most recently active.
         """
 
@@ -221,7 +227,14 @@ class AgentService:
             user, agent_id, ReadAgentConversationsOperationType.type
         )
         return self.handler.list_conversations(
-            agent, user, cursor, pinned, has_pending_approvals, shared
+            agent,
+            user,
+            cursor,
+            pinned,
+            has_pending_approvals,
+            shared,
+            started_by_trigger,
+            last_reply_failed,
         )
 
     def list_pending_replies(

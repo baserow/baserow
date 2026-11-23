@@ -22,7 +22,11 @@ from baserow.contrib.agent.exceptions import (
     AgentNotReady,
 )
 from baserow.contrib.agent.handler import AgentHandler
-from baserow.contrib.agent.models import AgentConversation, AgentMessage
+from baserow.contrib.agent.models import (
+    AgentConversation,
+    AgentMessage,
+    AgentReplyStatus,
+)
 from baserow.contrib.agent.service import AgentService
 from baserow.contrib.agent.signals import agent_conversation_activity
 from baserow.core.action.handler import ActionHandler
@@ -70,10 +74,12 @@ def test_first_message_creates_a_private_conversation(
             "created_on": ANY,
             "updated_on": ANY,
             "run_id": run_id,
+            "last_reply_failed": False,
             "pending_approval_count": 0,
             "pinned": False,
             "shared": False,
             "started_by_trigger": False,
+            "owner": {"id": api_user.id, "name": api_user.first_name},
             "trigger_id": None,
             "trigger_type": None,
             "trigger_name": None,
@@ -844,6 +850,32 @@ def test_conversation_filters_and_cursors_cover_the_pin_boundary(
 
 
 @pytest.mark.django_db
+def test_a_conversation_is_listed_as_failed_until_a_later_reply_succeeds(
+    data_fixture, configured_agent, api_client, api_user
+):
+    agent = configured_agent(workspace=data_fixture.create_workspace(user=api_user))
+    conversation = data_fixture.create_agent_conversation(user=api_user, agent=agent)
+
+    def listed_as_failed() -> bool:
+        results = api_client.get(agent_url(agent, "conversations")).json()["results"]
+        failed = api_client.get(
+            agent_url(agent, "conversations"), {"last_reply_failed": True}
+        ).json()["results"]
+        assert len(failed) == results[0]["last_reply_failed"]
+        return results[0]["last_reply_failed"]
+
+    for status, failed in [
+        (AgentReplyStatus.FAILED, True),
+        (AgentReplyStatus.COMPLETED, False),
+    ]:
+        data_fixture.create_agent_message(conversation=conversation)
+        data_fixture.create_agent_message(
+            conversation=conversation, role="assistant", status=status
+        )
+        assert listed_as_failed() is failed
+
+
+@pytest.mark.django_db
 def test_shared_conversations_are_listed_and_read_by_every_member(
     data_fixture, configured_agent, api_client, api_user
 ):
@@ -872,11 +904,19 @@ def test_shared_conversations_are_listed_and_read_by_every_member(
             item["trigger_id"],
             item["trigger_type"],
             item["trigger_name"],
+            item["owner"],
         )
         for item in listed
     ] == [
-        (str(shared.uuid), True, shared.trigger_id, "periodic", "Tick"),
-        (str(private.uuid), False, None, None, None),
+        (str(shared.uuid), True, shared.trigger_id, "periodic", "Tick", None),
+        (
+            str(private.uuid),
+            False,
+            None,
+            None,
+            None,
+            {"id": api_user.id, "name": api_user.first_name},
+        ),
     ]
     assert [(item["role"], item["content"]) for item in messages] == [
         ("trigger", "Tick")
@@ -884,10 +924,14 @@ def test_shared_conversations_are_listed_and_read_by_every_member(
     assert [item.uuid for item in service.list_conversations(member, agent.id)] == [
         shared.uuid
     ]
-    for shared_filter, expected in [(True, [shared]), (False, [private])]:
-        assert (
-            list(service.list_conversations(api_user, agent.id, shared=shared_filter))
-            == expected
+    for filters, expected in [
+        ({"shared": True}, [shared]),
+        ({"shared": False}, [private]),
+        ({"started_by_trigger": True}, [shared]),
+        ({"started_by_trigger": False}, [private]),
+    ]:
+        assert list(service.list_conversations(api_user, agent.id, **filters)) == (
+            expected
         )
     assert service.list_messages(member, agent.id, shared.uuid)[0] == shared
     with pytest.raises(PermissionException):

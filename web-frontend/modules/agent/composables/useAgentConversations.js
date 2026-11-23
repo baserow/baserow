@@ -91,9 +91,17 @@ const CONVERSATION_FILTERS = {
     params: { has_pending_approvals: true },
     matches: (conversation) => conversation.pending_approval_count > 0,
   },
+  failed: {
+    params: { last_reply_failed: true },
+    matches: ({ last_reply_failed: failed }) => failed,
+  },
   pinned: { params: { pinned: true }, matches: ({ pinned }) => pinned },
   private: { params: { shared: false }, matches: ({ shared }) => !shared },
   shared: { params: { shared: true }, matches: ({ shared }) => shared },
+  triggered: {
+    params: { started_by_trigger: true },
+    matches: ({ started_by_trigger: startedByTrigger }) => startedByTrigger,
+  },
 }
 
 /** Page-local conversations, private or shared, gated by the Agent configuration. */

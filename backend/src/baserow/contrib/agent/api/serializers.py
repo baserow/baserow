@@ -330,9 +330,17 @@ class AgentConfigurationUpdateSerializer(
         return values
 
 
+class AgentConversationUserSerializer(serializers.Serializer):
+    id = serializers.IntegerField(read_only=True)
+    name = serializers.CharField(source="first_name", read_only=True)
+
+
 class AgentConversationSerializer(serializers.ModelSerializer):
     run_id = serializers.SerializerMethodField(
         help_text="The run writing a reply in this conversation, or null."
+    )
+    last_reply_failed = serializers.SerializerMethodField(
+        help_text="Whether the latest reply in this conversation failed."
     )
     pending_approval_count = serializers.SerializerMethodField(
         help_text="The number of held tool calls in this conversation waiting for "
@@ -348,6 +356,13 @@ class AgentConversationSerializer(serializers.ModelSerializer):
         read_only=True,
         help_text="Whether a trigger started this shared conversation, so it "
         "accepts no messages.",
+    )
+    owner = AgentConversationUserSerializer(
+        source="owner_user",
+        read_only=True,
+        allow_null=True,
+        help_text="The person who started the conversation. Null when a trigger "
+        "started it or the person was deleted.",
     )
     trigger_id = serializers.IntegerField(
         read_only=True,
@@ -372,10 +387,12 @@ class AgentConversationSerializer(serializers.ModelSerializer):
             "created_on",
             "updated_on",
             "run_id",
+            "last_reply_failed",
             "pending_approval_count",
             "pinned",
             "shared",
             "started_by_trigger",
+            "owner",
             "trigger_id",
             "trigger_type",
             "trigger_name",
@@ -384,6 +401,10 @@ class AgentConversationSerializer(serializers.ModelSerializer):
     @extend_schema_field(serializers.UUIDField(allow_null=True))
     def get_run_id(self, conversation: AgentConversation) -> UUID | None:
         return self.context.get("conversation_runs", {}).get(conversation.id)
+
+    @extend_schema_field(serializers.BooleanField())
+    def get_last_reply_failed(self, conversation: AgentConversation) -> bool:
+        return conversation.id in self.context.get("failed_conversation_ids", ())
 
     @extend_schema_field(serializers.IntegerField())
     def get_pending_approval_count(self, conversation: AgentConversation) -> int:
@@ -470,11 +491,6 @@ class AgentPendingReplySerializer(serializers.ModelSerializer):
         return AgentMessageStepSerializer(
             [step for step in reply.steps or [] if step["id"] in pending], many=True
         ).data
-
-
-class AgentConversationUserSerializer(serializers.Serializer):
-    id = serializers.IntegerField(read_only=True)
-    name = serializers.CharField(source="first_name", read_only=True)
 
 
 class AgentMessageSerializer(serializers.ModelSerializer):
@@ -628,6 +644,8 @@ class AgentConversationsQuerySerializer(serializers.Serializer):
     pinned = serializers.BooleanField(required=False)
     has_pending_approvals = serializers.BooleanField(required=False)
     shared = serializers.BooleanField(required=False)
+    started_by_trigger = serializers.BooleanField(required=False)
+    last_reply_failed = serializers.BooleanField(required=False)
     limit = serializers.IntegerField(
         default=20,
         min_value=1,

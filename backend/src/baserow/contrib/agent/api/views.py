@@ -147,6 +147,9 @@ def _serialize_conversation(conversation: AgentConversation) -> dict:
     handler = AgentHandler()
     context = {
         "conversation_runs": handler.get_conversation_runs([conversation.id]),
+        "failed_conversation_ids": handler.get_failed_conversation_ids(
+            [conversation.id]
+        ),
         "conversation_pending_approvals": (
             handler.get_conversation_pending_approval_counts([conversation.id])
         ),
@@ -395,6 +398,18 @@ class AgentConversationsView(RealtimeRecoveryPrimaryReadMixin, APIView):
                 description="Only shared or private conversations. Omit for both.",
             ),
             OpenApiParameter(
+                "started_by_trigger",
+                OpenApiTypes.BOOL,
+                description="Only conversations a trigger started or not. Omit for "
+                "both.",
+            ),
+            OpenApiParameter(
+                "last_reply_failed",
+                OpenApiTypes.BOOL,
+                description="Only conversations whose latest reply failed or not. "
+                "Omit for both.",
+            ),
+            OpenApiParameter(
                 "limit",
                 OpenApiTypes.INT,
                 default=20,
@@ -429,6 +444,8 @@ class AgentConversationsView(RealtimeRecoveryPrimaryReadMixin, APIView):
                 pinned=query_params.get("pinned"),
                 has_pending_approvals=query_params.get("has_pending_approvals"),
                 shared=query_params.get("shared"),
+                started_by_trigger=query_params.get("started_by_trigger"),
+                last_reply_failed=query_params.get("last_reply_failed"),
             )[: limit + 1]
         )
         page = conversations[:limit]
@@ -440,6 +457,9 @@ class AgentConversationsView(RealtimeRecoveryPrimaryReadMixin, APIView):
         page_ids = [item.id for item in page]
         context = {
             "conversation_runs": AgentHandler().get_conversation_runs(page_ids),
+            "failed_conversation_ids": (
+                AgentHandler().get_failed_conversation_ids(page_ids)
+            ),
             "conversation_pending_approvals": (
                 AgentHandler().get_conversation_pending_approval_counts(page_ids)
             ),

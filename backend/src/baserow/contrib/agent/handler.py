@@ -16,6 +16,7 @@ from django.db.models import (
     Prefetch,
     Q,
     QuerySet,
+    Subquery,
     Value,
     When,
     prefetch_related_objects,
@@ -678,6 +679,8 @@ class AgentHandler:
         pinned: bool | None = None,
         has_pending_approvals: bool | None = None,
         shared: bool | None = None,
+        started_by_trigger: bool | None = None,
+        last_reply_failed: bool | None = None,
     ) -> QuerySet[AgentConversation]:
         """
         Return the conversations the user sees in the agent: their own private
@@ -689,17 +692,28 @@ class AgentHandler:
         :param pinned: Only pinned or unpinned conversations, or both when omitted.
         :param has_pending_approvals: Only conversations with or without pending calls.
         :param shared: Only shared or private conversations, or both when omitted.
+        :param started_by_trigger: Only conversations a trigger started or not, or
+            both when omitted.
+        :param last_reply_failed: Only conversations whose latest reply failed or
+            not, or both when omitted.
         :return: The conversations, pinned first, then most recently active, with
-            the trigger that started each one a trigger started.
+            their trigger and owner.
         """
 
         conversations = AgentConversation.objects.filter(
             self._visible_to(user), agent=agent
-        ).select_related("trigger__service")
+        ).select_related("trigger__service", "owner_user")
         if pinned is not None:
             conversations = conversations.filter(pinned=pinned)
         if shared is not None:
             conversations = conversations.filter(shared=shared)
+        if started_by_trigger is not None:
+            conversations = conversations.filter(started_by_trigger=started_by_trigger)
+        if last_reply_failed is not None:
+            failed = Q(latest_reply_status=AgentReplyStatus.FAILED)
+            conversations = conversations.annotate(
+                latest_reply_status=self._latest_reply_status()
+            ).filter(failed if last_reply_failed else ~failed)
         if has_pending_approvals is not None:
             pending = Exists(
                 self._pending_approvals().filter(reply__conversation_id=OuterRef("pk"))
@@ -1243,7 +1257,9 @@ class AgentHandler:
                 conversation__in=conversations,
             )
             .only("uuid", "steps", "conversation")
-            .select_related("conversation__trigger__service")
+            .select_related(
+                "conversation__trigger__service", "conversation__owner_user"
+            )
             .prefetch_related(
                 Prefetch("approvals", queryset=pending, to_attr="pending_approvals")
             )
@@ -1431,6 +1447,33 @@ class AgentHandler:
                 status__in=ACTIVE_CHAT_RUN_STATUSES,
             )
             .values_list("chat_id", "id")
+        )
+
+    @staticmethod
+    def _latest_reply_status() -> Subquery:
+        """
+        :return: The status of the latest reply in the outer conversation.
+        """
+
+        return Subquery(
+            AgentMessage.objects.filter(
+                conversation_id=OuterRef("pk"), role=AgentMessage.Role.ASSISTANT
+            )
+            .order_by("-id")
+            .values("status")[:1]
+        )
+
+    def get_failed_conversation_ids(self, conversation_ids: list[int]) -> set[int]:
+        """
+        :param conversation_ids: The ids of the conversations to look at.
+        :return: The ids of those whose latest reply failed.
+        """
+
+        return set(
+            AgentConversation.objects.filter(id__in=conversation_ids)
+            .annotate(latest_reply_status=self._latest_reply_status())
+            .filter(latest_reply_status=AgentReplyStatus.FAILED)
+            .values_list("id", flat=True)
         )
 
     def get_accessible_conversations(

@@ -99,9 +99,7 @@ describe('Agent conversation list', () => {
     })
     const row = wrapper.get('.agent-conversations__item')
     expect(row.get('.iconoir-chat-bubble').exists()).toBe(true)
-    expect(row.element.lastElementChild).toBe(
-      row.get('.agent-conversations__status').element
-    )
+    expect(row.find('.agent-conversations__status').exists()).toBe(false)
     expect(row.get('.agent-conversations__draft').text()).toBe('agent.draft')
     expect(wrapper.get('.agent-conversations__footer button').element).toBe(
       create.element
@@ -124,22 +122,22 @@ describe('Agent conversation list', () => {
     expect(wrapper.find('.agent-conversations__footer').exists()).toBe(false)
   })
 
-  test('marks a conversation waiting for approval with a labelled dot', async () => {
+  test('marks a waiting, replying or failed conversation with a dot and its state before its age', async () => {
     const wrapper = await testApp.mount(AgentConversationList, {
       props: {
         items: [
-          { uuid: 'waiting', title: 'Waiting', pending_approval_count: 2 },
-          { uuid: 'replying', title: 'Replying', run_id: 'run-1' },
           {
-            uuid: 'shared',
-            title: 'Shared',
-            shared: true,
-            pending_approval_count: 1,
+            uuid: 'waiting',
+            title: 'Waiting',
+            pending_approval_count: 2,
+            updated_on: new Date().toISOString(),
           },
+          { uuid: 'replying', title: 'Replying', run_id: 'run-1' },
+          { uuid: 'failed', title: 'Failed', last_reply_failed: true },
         ],
       },
     })
-    const [waiting, replying, shared] = wrapper.findAll(
+    const [waiting, replying, failed] = wrapper.findAll(
       '.agent-conversations__item'
     )
 
@@ -147,17 +145,25 @@ describe('Agent conversation list', () => {
       'agent-conversations__status--waiting'
     )
     expect(waiting.get('.agent-conversations__status-label').text()).toBe(
-      'agent.waitingForApproval'
+      'agent.waiting'
     )
     expect(replying.get('.agent-conversations__status').classes()).toContain(
       'agent-conversations__status--replying'
     )
-    expect(replying.find('.agent-conversations__status-label').exists()).toBe(
-      false
+    expect(replying.get('.agent-conversations__status-label').text()).toBe(
+      'agent.replying'
     )
-    expect(shared.get('.agent-conversations__status-label').text()).toBe(
-      'agent.waitingForApprovalShared'
+    expect(failed.get('.agent-conversations__status').classes()).toContain(
+      'agent-conversations__status--failed'
     )
+    expect(failed.get('.agent-conversations__status-label').text()).toBe(
+      'agent.failed'
+    )
+    expect(
+      waiting
+        .findAll('.agent-conversations__meta > *')
+        .map((part) => part.text())
+    ).toEqual(['agent.waiting', 'datetime.justNow'])
   })
 
   const mountList = (items) =>
@@ -263,7 +269,8 @@ describe('Agent conversation list', () => {
     }
   })
 
-  test('shows the trigger icon on trigger-started conversations and the chat icon otherwise', async () => {
+  test('shows the trigger icon on trigger-started conversations, the chat icon otherwise, and what started each', async () => {
+    testApp.authenticate({ id: 1 })
     const wrapper = await testApp.mount(AgentConversationList, {
       props: {
         items: [
@@ -271,15 +278,24 @@ describe('Agent conversation list', () => {
             uuid: 'periodic',
             title: 'Daily digest',
             shared: true,
+            started_by_trigger: true,
             trigger_type: 'periodic',
+            trigger_name: 'Every morning',
           },
           {
             uuid: 'removed',
             title: 'Old digest',
             shared: true,
+            started_by_trigger: true,
             trigger_type: 'removed_plugin_trigger',
           },
-          saved,
+          { ...saved, owner: { id: 1, name: 'Me' } },
+          {
+            uuid: 'other',
+            title: 'Other',
+            shared: true,
+            owner: { id: 2, name: 'Ada' },
+          },
         ],
       },
     })
@@ -291,7 +307,13 @@ describe('Agent conversation list', () => {
       'iconoir-timer',
       'iconoir-chat-bubble',
       'iconoir-chat-bubble',
+      'iconoir-chat-bubble',
     ])
+    expect(
+      wrapper
+        .findAll('.agent-conversations__detail')
+        .map((detail) => detail.text())
+    ).toEqual(['Every morning', 'agent.startedByTrigger', 'agent.you', 'Ada'])
     expect(wrapper.findAll('.agent-conversations__private')).toHaveLength(1)
   })
 

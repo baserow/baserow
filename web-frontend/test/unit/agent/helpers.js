@@ -364,7 +364,7 @@ export const messages = (wrapper) =>
     .map((item) => item.text())
 
 export const conversationTitles = (wrapper) =>
-  wrapper.findAll('.agent-conversations__item').map((item) => item.text())
+  wrapper.findAll('.agent-conversations__item-name').map((item) => item.text())
 
 /** Open a conversation's ⋮ menu and choose an action by its label. */
 export async function chooseFromMenu(wrapper, title, action) {

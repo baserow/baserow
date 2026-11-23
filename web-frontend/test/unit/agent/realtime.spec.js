@@ -464,7 +464,7 @@ describe('Agent conversation realtime updates', () => {
         .filter((item) =>
           item.find('.agent-conversations__status--replying').exists()
         )
-        .map((item) => item.text())
+        .map((item) => item.get('.agent-conversations__item-name').text())
     const reads = testApp.mock.history.get.length
     expect(replying()).toEqual(['Conversation B'])
 
@@ -700,7 +700,9 @@ describe('Agent conversation realtime updates', () => {
     expect(conversationTitles(wrapper)).toEqual(['B', 'A'])
     expect(testApp.mock.history.get).toHaveLength(reads)
     expect(composer(wrapper).element.value).toBe('Unsent')
-    expect(selected(wrapper).text()).toBe('A')
+    expect(
+      selected(wrapper).get('.agent-conversations__item-name').text()
+    ).toBe('A')
   })
 
   test('keeps an open conversation unpinned while offline, with its draft', async () => {
@@ -761,7 +763,7 @@ describe('Agent conversation realtime updates', () => {
     mockMessages(testApp, b.uuid, page([]))
     mockMessages(testApp, c.uuid, page([]))
     const wrapper = await mount()
-    await filterConversations(wrapper, 'agent.waitingForApprovalFilter')
+    await filterConversations(wrapper, 'agent.waiting')
     await selectConversation(wrapper, 'B')
     await update(b.uuid, { updatedOn: b.updated_on })
 
@@ -783,7 +785,7 @@ describe('Agent conversation realtime updates', () => {
     )
     mockMessages(testApp, first.uuid, page([message('m', 'Hello')]))
     const wrapper = await mount()
-    await filterConversations(wrapper, 'agent.waitingForApprovalFilter')
+    await filterConversations(wrapper, 'agent.waiting')
     await selectConversation(wrapper, first.title)
     await composer(wrapper).setValue('Draft')
     await update(first.uuid)
