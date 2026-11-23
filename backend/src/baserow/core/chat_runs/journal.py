@@ -143,13 +143,10 @@ class ChatRunJournal:
         self._stopped.set()
 
     async def raise_if_stopping(self) -> None:
-        """Check durable cancellation before admitting work between lease renewals."""
+        """Renew the lease now, so no work starts after Stop or a lost lease."""
 
-        cancelled = ChatRunHandler().runs.filter(
-            pk=self.run.id, cancel_requested_at__isnull=False
-        )
-        if self._stop_reason is None and await cancelled.aexists():
-            self.request_stop(ChatRunStopReason.CANCELLED)
+        if self._stop_reason is None:
+            await self._renew_and_observe()
         if self._stop_reason is not None:
             raise asyncio.CancelledError
 
@@ -207,22 +204,32 @@ class ChatRunJournal:
 
         while True:
             await asyncio.sleep(LEASE_RENEW_INTERVAL_SECONDS)
-            try:
-                renewal = await sync_to_async(
-                    self._renew_lease, thread_sensitive=False
-                )()
-            except Exception as exc:
-                logger.error(
-                    "Could not renew the lease of chat run {} ({})",
-                    self.run.id,
-                    type(exc).__name__,
-                )
-                continue
-            if not renewal.alive:
-                self.request_stop(ChatRunStopReason.LOST)
+            if not await self._renew_and_observe():
                 return
-            if renewal.cancel_requested:
-                self.request_stop(ChatRunStopReason.CANCELLED)
+
+    async def _renew_and_observe(self) -> bool:
+        """
+        Renews the lease on a connection of its own and requests the stop it reports.
+        A failed renewal is only logged: the next one retries it.
+
+        :return: False once the lease is lost.
+        """
+
+        try:
+            renewal = await sync_to_async(self._renew_lease, thread_sensitive=False)()
+        except Exception as exc:
+            logger.error(
+                "Could not renew the lease of chat run {} ({})",
+                self.run.id,
+                type(exc).__name__,
+            )
+            return True
+        if not renewal.alive:
+            self.request_stop(ChatRunStopReason.LOST)
+            return False
+        if renewal.cancel_requested:
+            self.request_stop(ChatRunStopReason.CANCELLED)
+        return True
 
     def _renew_lease(self):
         try:
