@@ -2,6 +2,7 @@
   <Context
     ref="context"
     class="sidebar-account-menu"
+    tabindex="-1"
     max-height-if-outside-viewport
     overflow-scroll
     @shown="onShow"
@@ -11,7 +12,7 @@
     <div class="sidebar__user">
       <div class="sidebar__user-email">{{ email }}</div>
 
-      <ul class="context__menu">
+      <ul v-sidebar-tab-order class="context__menu">
         <li class="context__menu-item">
           <button
             ref="settingsTrigger"
@@ -76,6 +77,7 @@
         v-if="isStaff"
         ref="adminContext"
         class="sidebar-admin-menu"
+        tabindex="-1"
         :horizontal-viewport-margin="8"
         max-height-if-outside-viewport
         overflow-scroll
@@ -83,7 +85,11 @@
         @hidden="adminMenuOpen = false"
         @keydown.esc.stop.prevent="closeAdminMenu"
       >
-        <SidebarAdmin show-section-separators @activate="onAdminActivate" />
+        <SidebarAdmin
+          v-sidebar-tab-order
+          show-section-separators
+          @activate="onAdminActivate"
+        />
       </Context>
     </div>
   </Context>
@@ -93,6 +99,7 @@
 import { computed, nextTick, ref } from 'vue'
 import { useStore } from 'vuex'
 import { useNuxtApp, useRoute, useRouter } from '#imports'
+import vSidebarTabOrder from '@baserow/modules/core/directives/sidebarTabOrder'
 
 import SidebarAdmin from '@baserow/modules/core/components/sidebar/SidebarAdmin.vue'
 import SettingsModal from '@baserow/modules/core/components/settings/SettingsModal.vue'

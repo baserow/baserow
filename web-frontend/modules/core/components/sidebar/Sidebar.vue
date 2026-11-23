@@ -1,5 +1,9 @@
 <template>
-  <div class="sidebar" :class="{ 'sidebar--collapsed': collapsed }">
+  <div
+    v-sidebar-tab-order
+    class="sidebar"
+    :class="{ 'sidebar--collapsed': collapsed }"
+  >
     <component
       :is="component"
       v-for="(component, index) in impersonateComponent"
@@ -46,6 +50,7 @@
         <button
           type="button"
           class="sidebar__workspace-trigger"
+          data-sidebar-tab-stop
           :aria-label="collapsed ? selectedWorkspace.name : undefined"
           :aria-expanded="workspaceContextOpen"
           @click="
@@ -110,6 +115,7 @@
         <button
           type="button"
           class="sidebar__workspaces-selector-link"
+          data-sidebar-tab-stop
           :aria-label="selectedWorkspace.name || name"
           :aria-expanded="workspaceContextOpen"
           @click="toggleWorkspaceContext"
@@ -177,6 +183,7 @@
 
 <script>
 import { mapGetters } from 'vuex'
+import sidebarTabOrder from '@baserow/modules/core/directives/sidebarTabOrder'
 
 import SidebarWorkspacePicker from '@baserow/modules/core/components/sidebar/SidebarWorkspacePicker.vue'
 import SidebarWithWorkspace from '@baserow/modules/core/components/sidebar/SidebarWithWorkspace'
@@ -188,6 +195,7 @@ import SidebarAdminItem from './SidebarAdminItem.vue'
 
 export default {
   name: 'Sidebar',
+  directives: { sidebarTabOrder },
   components: {
     SidebarAdmin,
     SidebarWithoutWorkspace,

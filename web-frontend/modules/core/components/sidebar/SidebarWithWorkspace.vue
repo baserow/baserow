@@ -2,7 +2,7 @@
   <div
     class="sidebar__section sidebar__section--scrollable sidebar__section--workspace"
   >
-    <div class="sidebar__section-scrollable">
+    <div class="sidebar__section-scrollable" tabindex="-1">
       <div
         class="sidebar__section-scrollable-inner"
         data-highlight="applications"
@@ -27,6 +27,7 @@
               <button
                 type="button"
                 class="tree__heading-name"
+                tabindex="-1"
                 :aria-expanded="!collapsedGroups[applicationGroup.key]"
                 :aria-controls="`${sidebarId}-${applicationGroup.type}`"
                 @click="toggleApplicationGroup(applicationGroup.key)"

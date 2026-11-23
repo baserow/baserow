@@ -1,6 +1,6 @@
 <template>
   <div class="sidebar__section sidebar__section--scrollable">
-    <div class="sidebar__section-scrollable">
+    <div class="sidebar__section-scrollable" tabindex="-1">
       <div class="sidebar__section-scrollable-inner">
         <ul class="tree">
           <template

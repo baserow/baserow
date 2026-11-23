@@ -145,7 +145,7 @@
           @hidden="onMenuHidden('help')"
           @keydown.esc.stop.prevent="closeMenu('help')"
         >
-          <ul class="context__menu">
+          <ul v-sidebar-tab-order class="context__menu">
             <component
               :is="component"
               v-for="(component, index) in getMenuComponents('help')"
@@ -191,6 +191,7 @@
 
 <script>
 import { mapGetters } from 'vuex'
+import sidebarTabOrder from '@baserow/modules/core/directives/sidebarTabOrder'
 import NotificationPanel from '@baserow/modules/core/components/NotificationPanel'
 import BadgeCounter from '@baserow/modules/core/components/BadgeCounter'
 import SidebarSearch from '@baserow/modules/core/components/sidebar/SidebarSearch'
@@ -199,6 +200,7 @@ import WorkspaceContext from '@baserow/modules/core/components/workspace/Workspa
 
 export default {
   name: 'SidebarMenu',
+  directives: { sidebarTabOrder },
   components: {
     NotificationPanel,
     BadgeCounter,

@@ -1,5 +1,5 @@
 <template>
-  <ul class="context__menu">
+  <ul v-sidebar-tab-order class="context__menu">
     <WorkspaceActionItem :action="inviteAction" />
     <li
       v-if="canInvite"
@@ -41,6 +41,7 @@
 <script setup>
 import { computed, ref } from 'vue'
 import { useNuxtApp } from '#imports'
+import vSidebarTabOrder from '@baserow/modules/core/directives/sidebarTabOrder'
 import { notifyIf } from '@baserow/modules/core/utils/error'
 import InviteModal from '@baserow/modules/core/components/invitation/InviteModal'
 import WorkspaceActionItem from '@baserow/modules/core/components/workspace/WorkspaceActionItem.vue'

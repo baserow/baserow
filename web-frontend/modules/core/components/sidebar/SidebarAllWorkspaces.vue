@@ -1,5 +1,9 @@
 <template>
-  <div class="sidebar" :class="{ 'sidebar--collapsed': collapsed }">
+  <div
+    v-sidebar-tab-order
+    class="sidebar"
+    :class="{ 'sidebar--collapsed': collapsed }"
+  >
     <component
       :is="component"
       v-for="(component, index) in impersonateComponent"
@@ -34,6 +38,7 @@
 
 <script>
 import { mapGetters } from 'vuex'
+import sidebarTabOrder from '@baserow/modules/core/directives/sidebarTabOrder'
 
 import Logo from '@baserow/modules/core/components/Logo'
 import SidebarAllWorkspacesMenu from '@baserow/modules/core/components/sidebar/SidebarAllWorkspacesMenu'
@@ -41,6 +46,7 @@ import SidebarFoot from '@baserow/modules/core/components/sidebar/SidebarFoot'
 
 export default {
   name: 'SidebarAllWorkspaces',
+  directives: { sidebarTabOrder },
   components: {
     Logo,
     SidebarAllWorkspacesMenu,
