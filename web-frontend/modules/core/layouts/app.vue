@@ -115,8 +115,9 @@ const store = useStore()
 const { $registry, $priorityBus, $realtime, $bus } = useNuxtApp()
 
 const collapsedSidebarWidth = 52
-const desktopSidebarWidth = ref(240)
-const narrowSidebarWidth = ref(collapsedSidebarWidth)
+const defaultSidebarWidth = 240
+const desktopSidebarWidth = ref(defaultSidebarWidth)
+const narrowSidebarWidth = ref(defaultSidebarWidth)
 const isNarrowViewport = ref(false)
 let narrowViewportQuery
 
@@ -137,13 +138,6 @@ const isCollapsed = computed(() => col1Width.value < 170)
 
 const route = useRoute()
 const router = useRouter()
-
-watch(
-  () => route.path,
-  () => {
-    narrowSidebarWidth.value = collapsedSidebarWidth
-  }
-)
 
 // Pages can render an alternative sidebar via
 // `definePageMeta({ sidebarType: SIDEBAR_TYPES.ALL_WORKSPACES })`.
@@ -218,7 +212,6 @@ function resizeCol1(width) {
 
 function updateNarrowViewport({ matches }) {
   isNarrowViewport.value = matches
-  narrowSidebarWidth.value = collapsedSidebarWidth
 }
 function resizeCol3(v) {
   col3Width.value = v
