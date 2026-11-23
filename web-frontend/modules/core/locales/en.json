@@ -219,6 +219,7 @@
   "sidebar": {
     "createWorkspace": "Create workspace",
     "addNewWorkspace": "Add new workspace",
+    "noWorkspacesFound": "No matching workspaces",
     "workspaceActions": "{workspace} actions",
     "inviteOthers": "Invite others",
     "integrations": "Integrations",

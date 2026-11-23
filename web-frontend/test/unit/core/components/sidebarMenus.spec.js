@@ -39,6 +39,26 @@ describe('Sidebar menu lifecycle', () => {
     })
   }
 
+  test('shows an empty state when the workspace search has no matches', async () => {
+    const sidebar = await mountSidebar()
+    await sidebar.get('.sidebar__workspace-trigger').trigger('click')
+    await flushPromises()
+
+    const picker = testApp.body.get('.sidebar-workspace-picker')
+    const search = picker.get('input')
+    await search.setValue('absent')
+    expect(picker.get('[role="status"]').text()).toBe(
+      'sidebar.noWorkspacesFound'
+    )
+    expect(picker.find('.sidebar-workspace-picker__item').exists()).toBe(false)
+
+    await search.setValue('des')
+    expect(picker.find('[role="status"]').exists()).toBe(false)
+    expect(picker.get('.sidebar-workspace-picker__item').text()).toContain(
+      'Design'
+    )
+  })
+
   test.each(['open', 'opening'])(
     'closing the workspace picker also closes %s row actions',
     async (state) => {

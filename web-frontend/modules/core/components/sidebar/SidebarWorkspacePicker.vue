@@ -27,6 +27,13 @@
         :has-unread-notifications="hasUnreadNotifications(workspace.id)"
         @select="selectWorkspace(workspace)"
       />
+      <li
+        v-if="query && filteredWorkspaces.length === 0"
+        class="select__items--empty"
+        role="status"
+      >
+        {{ $t('sidebar.noWorkspacesFound') }}
+      </li>
       <li v-if="$hasPermission('create_workspace')">
         <button
           ref="addWorkspace"
