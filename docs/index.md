@@ -68,6 +68,8 @@ Baserow by following one the guides below:
   and how instance and workspace settings combine.
 * [Setup AI-assistant](installation/ai-assistant.md): A quick guide on how to setup the
   AI-assistant.
+* [Google integration setup](installation/google-integrations.md): Create a Google
+  Cloud project and OAuth web client, connect an account, and test sending Gmail.
 
 ## Baserow Tutorials
 
