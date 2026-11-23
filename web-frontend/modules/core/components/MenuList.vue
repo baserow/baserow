@@ -52,6 +52,11 @@
               <span class="menu-list__item-label">
                 {{ item.label }}
               </span>
+              <i
+                v-if="item.locked"
+                class="deactivated-label iconoir-lock"
+                aria-hidden="true"
+              />
               <slot name="item-meta" :item="item" />
             </span>
             <template v-if="showDescriptions && item.description">

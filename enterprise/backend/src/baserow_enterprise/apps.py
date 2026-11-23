@@ -55,6 +55,27 @@ def register_xls_file_reader_features():
     automation_node_type_registry.register(CoreXLSFileReaderActionNodeType())
 
 
+def register_row_comment_trigger():
+    from baserow.contrib.agent.triggers.registries import agent_trigger_type_registry
+    from baserow.contrib.automation.nodes.registries import (
+        automation_node_type_registry,
+    )
+    from baserow.core.services.registries import service_type_registry
+    from baserow_enterprise.agent.trigger_types import RowCommentPostedAgentTriggerType
+    from baserow_enterprise.automation.nodes.node_types import (
+        LocalBaserowRowCommentPostedTriggerNodeType,
+    )
+    from baserow_enterprise.integrations.local_baserow.service_types import (
+        LocalBaserowRowCommentPostedTriggerServiceType,
+    )
+
+    service_type_registry.register(LocalBaserowRowCommentPostedTriggerServiceType())
+    automation_node_type_registry.register(
+        LocalBaserowRowCommentPostedTriggerNodeType()
+    )
+    agent_trigger_type_registry.register(RowCommentPostedAgentTriggerType())
+
+
 def register_semantic_search_features():
     from baserow.api.settings.registries import settings_data_registry
     from baserow.contrib.automation.nodes.registries import (
@@ -410,6 +431,7 @@ class BaserowEnterpriseConfig(AppConfig):
 
         register_code_runner_features()
         register_xls_file_reader_features()
+        register_row_comment_trigger()
         register_semantic_search_features()
 
         from baserow.contrib.builder.elements.registries import element_type_registry
