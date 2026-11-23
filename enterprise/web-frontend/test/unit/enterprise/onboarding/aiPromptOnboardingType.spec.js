@@ -3,8 +3,9 @@ import { afterEach, describe, expect, test, vi } from 'vitest'
 
 import { AIPromptOnboardingType } from '@baserow_enterprise/onboardingTypes'
 import {
-  getStoredOnboardingRunId,
+  getOnboardingRunId,
   getStoredPanelOpen,
+  setOnboardingRunId,
 } from '@baserow_enterprise/utils/assistantTabStorage'
 
 const workspace = { id: 3 }
@@ -32,6 +33,7 @@ const complete = (step) =>
 describe('AIPromptOnboardingType', () => {
   afterEach(() => {
     sessionStorage.clear()
+    setOnboardingRunId(null)
   })
 
   test('hands off to the workspace and opens the panel once Kuma accepted the message', async () => {
@@ -43,7 +45,7 @@ describe('AIPromptOnboardingType', () => {
 
     expect(response).toEqual({ workspace, runId: 'run-1' })
     expect(getStoredPanelOpen()).toBe(true)
-    expect(getStoredOnboardingRunId()).toBe('run-1')
+    expect(getOnboardingRunId()).toBe('run-1')
     expect(route).toEqual({ name: 'workspace', params: { workspaceId: 3 } })
     expect(app.$bus.$emit).toHaveBeenCalledWith('toggle-right-sidebar', true)
   })
@@ -54,6 +56,6 @@ describe('AIPromptOnboardingType', () => {
     })
 
     await expect(complete(step)).rejects.toThrow()
-    expect(getStoredOnboardingRunId()).toBe(null)
+    expect(getOnboardingRunId()).toBe(null)
   })
 })

@@ -1,19 +1,28 @@
 <template>
   <div class="sidebar__section sidebar__section--scrollable">
-    <div class="sidebar__section-scrollable">
+    <div class="sidebar__section-scrollable" tabindex="-1">
       <div class="sidebar__section-scrollable-inner">
         <ul class="tree">
           <template
             v-for="(category, index) in groupedSortedAdminTypes"
             :key="category.name"
           >
-            <li class="tree__heading" :class="{ 'margin-top-2': index > 0 }">
+            <li
+              v-if="showSectionSeparators && index > 0"
+              class="tree__separator"
+              aria-hidden="true"
+            ></li>
+            <li
+              class="tree__heading"
+              :class="{ 'margin-top-2': index > 0 && !showSectionSeparators }"
+            >
               {{ category.name }}
             </li>
             <SidebarAdminItem
               v-for="adminType in category.items"
               :key="adminType.type"
               :admin-type="adminType"
+              @activate="$emit('activate')"
             />
           </template>
         </ul>
@@ -28,6 +37,13 @@ import SidebarAdminItem from '@baserow/modules/core/components/sidebar/SidebarAd
 export default {
   name: 'SidebarAdmin',
   components: { SidebarAdminItem },
+  props: {
+    showSectionSeparators: {
+      type: Boolean,
+      default: false,
+    },
+  },
+  emits: ['activate'],
   computed: {
     adminTypes() {
       return this.$registry.getAll('admin')

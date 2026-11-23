@@ -31,6 +31,11 @@ export default {
       control: 'boolean',
       description: 'Display a more rounded badge if true',
     },
+    variant: {
+      control: 'select',
+      options: ['filled', 'outline'],
+      description: 'The visual style of the badge',
+    },
     bold: {
       control: 'boolean',
       description: 'Make the text of the badge bold if true',
@@ -41,6 +46,7 @@ export default {
     size: 'regular',
     indicator: false,
     rounded: false,
+    variant: 'filled',
     bold: false,
   },
   parameters: {
@@ -132,6 +138,29 @@ export const Rounded = {
       <div style="display: flex; gap: 8px;">
         <Badge :rounded="true" color="cyan">Rounded Cyan</Badge>
         <Badge :rounded="true" color="purple">Rounded Purple</Badge>
+      </div>
+    `,
+  }),
+}
+
+export const Outline = {
+  args: {
+    variant: 'outline',
+    size: 'small',
+    rounded: true,
+  },
+  argTypes: {
+    color: { control: false },
+  },
+  render: (args) => ({
+    components: { Badge },
+    setup() {
+      return { args }
+    },
+    template: `
+      <div style="display: flex; gap: 8px;">
+        <Badge v-bind="args" color="neutral">Free</Badge>
+        <Badge v-bind="args" color="cyan">Premium</Badge>
       </div>
     `,
   }),

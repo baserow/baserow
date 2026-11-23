@@ -1,7 +1,8 @@
 <template>
   <div class="select__search">
-    <i class="select__search-icon iconoir-search"></i>
+    <i class="select__search-icon iconoir-search" aria-hidden="true"></i>
     <input
+      ref="input"
       :value="currentValue"
       type="text"
       class="select__search-input"
@@ -15,6 +16,7 @@
 <script>
 export default {
   name: 'SelectSearch',
+  inheritAttrs: false,
   props: {
     value: {
       type: String,
@@ -37,6 +39,9 @@ export default {
     },
   },
   methods: {
+    focus() {
+      this.$refs.input.focus()
+    },
     emitChange(newValue) {
       this.$emit('input', newValue)
       this.$emit('update:modelValue', newValue)

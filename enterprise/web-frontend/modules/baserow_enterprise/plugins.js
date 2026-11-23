@@ -24,14 +24,18 @@ export class EnterprisePlugin extends BaserowPlugin {
     return 'enterprise'
   }
 
-  getSidebarWorkspaceComponents(workspace) {
-    const sidebarItems = []
-    sidebarItems.push(AssistantSidebarItem)
-    if (!this.app.$config.public.baserowDisableSupport) {
-      sidebarItems.push(ChatwootSupportSidebarWorkspace)
+  getSidebarWorkspaceComponents() {
+    return [AssistantSidebarItem]
+  }
+
+  getSidebarWorkspaceMenuComponents(workspace, menu) {
+    if (menu === 'settings') {
+      return [AuditLogSidebarWorkspace]
     }
-    sidebarItems.push(AuditLogSidebarWorkspace)
-    return sidebarItems
+    if (menu === 'help' && !this.app.$config.public.baserowDisableSupport) {
+      return [ChatwootSupportSidebarWorkspace]
+    }
+    return []
   }
 
   getAdditionalApplicationContextComponents(workspace, application) {

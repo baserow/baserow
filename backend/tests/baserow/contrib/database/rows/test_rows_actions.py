@@ -259,6 +259,7 @@ def test_can_undo_importing_rows(data_fixture):
         user,
         table,
         data={
+            "configuration": {"undo_in_application": False},
             "data": [
                 [
                     "Tesla",
@@ -275,7 +276,7 @@ def test_can_undo_importing_rows(data_fixture):
                     160,
                     8999.99,
                 ],
-            ]
+            ],
         },
     )
 

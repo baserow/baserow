@@ -6,152 +6,83 @@
     max-height-if-outside-viewport
     @shown="fetchRolesAndPermissions"
   >
-    <div class="context__menu-title">
+    <div v-if="showTitle" class="context__menu-title">
       {{ workspace.name }} ({{ workspace.id }})
     </div>
     <div
       v-if="workspace._.additionalLoading"
-      class="loading margin-left-2 margin-top-2 margin-bottom-2 margin-bottom-2"
+      class="loading margin-left-2 margin-top-2 margin-bottom-2"
     ></div>
-    <ul v-else class="context__menu">
-      <li
-        v-if="$hasPermission('workspace.export', workspace, workspace.id)"
-        class="context__menu-item"
-      >
-        <a class="context__menu-item-link" @click="openExportData">
-          <i class="context__menu-item-icon iconoir-share-ios"></i>
-          {{ $t('workspaceContext.exportWorkspace') }}
-        </a>
-      </li>
-      <li
-        v-if="$hasPermission('workspace.export', workspace, workspace.id)"
-        class="context__menu-item"
-      >
-        <a class="context__menu-item-link" @click="openImportData">
-          <i class="context__menu-item-icon iconoir-import"></i>
-          {{ $t('workspaceContext.importWorkspace') }}
-        </a>
-      </li>
-      <li
-        v-if="$hasPermission('workspace.update', workspace, workspace.id)"
-        class="context__menu-item"
-      >
-        <a class="context__menu-item-link" @click="$emit('rename')">
-          <i class="context__menu-item-icon iconoir-edit-pencil"></i>
-          {{ $t('workspaceContext.renameWorkspace') }}
-        </a>
-      </li>
-      <li
-        v-if="$hasPermission('workspace.update', workspace, workspace.id)"
-        class="context__menu-item"
-      >
-        <a
-          class="context__menu-item-link"
-          @click="($refs.workspaceSettingsModal.show(), hide())"
-        >
-          <i class="context__menu-item-icon iconoir-settings"></i>
-          {{ $t('workspaceContext.settings') }}
-        </a>
-      </li>
-      <li
-        v-if="$hasPermission('invitation.read', workspace, workspace.id)"
-        class="context__menu-item"
-      >
-        <a
-          class="context__menu-item-link"
-          @click="
-            ($router.push({
-              name: 'settings-members',
-              params: {
-                workspaceId: workspace.id,
-              },
-            }),
-            hide())
-          "
-        >
-          <i class="context__menu-item-icon baserow-icon-team"></i>
-          {{ $t('workspaceContext.members') }}
-        </a>
-      </li>
-      <li
-        v-if="$hasPermission('workspace.read_trash', workspace, workspace.id)"
-        class="context__menu-item"
-      >
-        <a class="context__menu-item-link" @click="showWorkspaceTrashModal">
-          <i class="context__menu-item-icon iconoir-refresh-double"></i>
-          {{ $t('workspaceContext.viewTrash') }}
-        </a>
-      </li>
-      <li class="context__menu-item">
-        <a
-          class="context__menu-item-link"
-          @click="$refs.leaveWorkspaceModal.show()"
-        >
-          <i class="context__menu-item-icon iconoir-log-out"></i>
-          {{ $t('workspaceContext.leaveWorkspace') }}
-        </a>
-      </li>
-      <li
-        v-if="$hasPermission('workspace.delete', workspace, workspace.id)"
-        class="context__menu-item context__menu-item--with-separator"
-      >
-        <a
-          class="context__menu-item-link context__menu-item-link--delete"
-          :class="{ 'context__menu-item-link--loading': loading }"
-          @click="deleteWorkspace"
-        >
-          <i class="context__menu-item-icon iconoir-bin"></i>
-          {{ $t('workspaceContext.deleteWorkspace') }}
-        </a>
-      </li>
-    </ul>
-    <TrashModal
-      v-if="$hasPermission('workspace.read_trash', workspace, workspace.id)"
-      ref="workspaceTrashModal"
-      :initial-workspace="workspace"
-    >
-    </TrashModal>
+    <slot v-else :actions="actions" :hide="hide">
+      <ul class="context__menu">
+        <WorkspaceActionItem :action="actions.exportData" />
+        <WorkspaceActionItem :action="actions.importData" />
+        <WorkspaceActionItem :action="actions.rename" />
+        <WorkspaceActionItem :action="actions.settings" />
+        <WorkspaceActionItem
+          v-if="hasWorkspacePermission('invitation.read')"
+          :action="actions.members"
+        />
+        <WorkspaceActionItem
+          v-if="hasWorkspacePermission('workspace.read_trash')"
+          :action="actions.trash"
+        />
+        <WorkspaceActionItem :action="actions.leave" />
+        <WorkspaceActionItem :action="actions.delete" separator />
+      </ul>
+    </slot>
+
+    <TrashModal ref="trashModal" :initial-workspace="workspace" />
     <ExportWorkspaceModal
-      v-if="$hasPermission('workspace.export', workspace, workspace.id)"
-      ref="exportWorkspaceModal"
+      v-if="canExport"
+      ref="exportModal"
       :workspace="workspace"
-    >
-    </ExportWorkspaceModal>
+    />
     <ImportWorkspaceModal
-      v-if="$hasPermission('workspace.export', workspace, workspace.id)"
-      ref="importWorkspaceModal"
+      v-if="canExport"
+      ref="importModal"
       :workspace="workspace"
-    ></ImportWorkspaceModal>
-    <LeaveWorkspaceModal
-      ref="leaveWorkspaceModal"
-      :workspace="workspace"
-    ></LeaveWorkspaceModal>
+    />
+    <LeaveWorkspaceModal ref="leaveModal" :workspace="workspace" />
+    <ConfirmModal
+      v-if="actions.delete"
+      ref="deleteModal"
+      :title="$t('deleteWorkspaceModal.title', workspace)"
+      :message="$t('deleteWorkspaceModal.confirmation', workspace)"
+      :confirm-label="$t('workspaceContext.deleteWorkspace')"
+      :loading="deleting"
+      danger
+      @confirm="deleteWorkspace"
+    />
     <WorkspaceSettingsModal
-      v-if="$hasPermission('workspace.update', workspace, workspace.id)"
-      ref="workspaceSettingsModal"
+      v-if="canUpdate"
+      ref="settingsModal"
       :workspace="workspace"
-    ></WorkspaceSettingsModal>
+    />
   </Context>
 </template>
 
 <script>
 import context from '@baserow/modules/core/mixins/context'
+import { getEnabledWorkspaceSettings } from '@baserow/modules/core/workspaceSettingsTypes'
 import { notifyIf } from '@baserow/modules/core/utils/error'
 import ExportWorkspaceModal from '@baserow/modules/core/components/export/ExportWorkspaceModal.vue'
 import ImportWorkspaceModal from '@baserow/modules/core/components/import/ImportWorkspaceModal.vue'
+import ConfirmModal from '@baserow/modules/core/components/modals/ConfirmModal'
 import TrashModal from '@baserow/modules/core/components/trash/TrashModal'
 import LeaveWorkspaceModal from '@baserow/modules/core/components/workspace/LeaveWorkspaceModal'
+import WorkspaceActionItem from '@baserow/modules/core/components/workspace/WorkspaceActionItem.vue'
 import WorkspaceSettingsModal from '@baserow/modules/core/components/workspace/WorkspaceSettingsModal'
-import { pageFinished } from '@baserow/modules/core/utils/routing'
-import { nextTick, useNuxtApp } from '#imports'
 
 export default {
   name: 'WorkspaceContext',
   components: {
+    ConfirmModal,
     ExportWorkspaceModal,
     ImportWorkspaceModal,
     LeaveWorkspaceModal,
     TrashModal,
+    WorkspaceActionItem,
     WorkspaceSettingsModal,
   },
   mixins: [context],
@@ -160,61 +91,128 @@ export default {
       type: Object,
       required: true,
     },
+    showTitle: {
+      type: Boolean,
+      default: true,
+    },
   },
   emits: ['rename'],
-  setup() {
-    const nuxtApp = useNuxtApp()
-    return { nuxtApp }
-  },
   data() {
-    return {
-      loading: false,
-    }
+    return { deleting: false }
+  },
+  computed: {
+    canExport() {
+      return this.hasWorkspacePermission('workspace.export')
+    },
+    canUpdate() {
+      return this.hasWorkspacePermission('workspace.update')
+    },
+    actions() {
+      return {
+        exportData: this.canExport
+          ? {
+              icon: 'iconoir-share-ios',
+              label: 'workspaceContext.exportWorkspace',
+              run: () => this.openModal('exportModal'),
+            }
+          : null,
+        importData: this.canExport
+          ? {
+              icon: 'iconoir-import',
+              label: 'workspaceContext.importWorkspace',
+              run: () => this.openModal('importModal'),
+            }
+          : null,
+        rename: this.canUpdate
+          ? {
+              icon: 'iconoir-edit-pencil',
+              label: 'workspaceContext.renameWorkspace',
+              run: () => this.$emit('rename'),
+            }
+          : null,
+        settings: this.canUpdate
+          ? {
+              icon: 'iconoir-settings',
+              label: 'workspaceContext.settings',
+              run: () => this.openModal('settingsModal'),
+            }
+          : null,
+        settingsTabs: this.canUpdate
+          ? getEnabledWorkspaceSettings(this.$registry, this.workspace).map(
+              (setting) => ({
+                type: setting.type,
+                name: setting.getName(),
+                icon: setting.iconClass,
+                run: () => this.openModal('settingsModal', setting.type),
+              })
+            )
+          : [],
+        members: {
+          icon: 'baserow-icon-team',
+          label: 'workspaceContext.members',
+          to: {
+            name: 'settings-members',
+            params: { workspaceId: this.workspace.id },
+          },
+          run: () => this.hide(),
+        },
+        trash: {
+          icon: 'iconoir-refresh-double',
+          label: 'workspaceContext.viewTrash',
+          run: () => this.openModal('trashModal'),
+        },
+        leave: {
+          icon: 'iconoir-log-out',
+          label: 'workspaceContext.leaveWorkspace',
+          run: () => this.$refs.leaveModal.show(),
+        },
+        delete: this.hasWorkspacePermission('workspace.delete')
+          ? {
+              icon: 'iconoir-bin',
+              label: 'workspaceContext.deleteWorkspace',
+              run: () => this.openModal('deleteModal'),
+              destructive: true,
+            }
+          : null,
+      }
+    },
   },
   methods: {
+    hasWorkspacePermission(permission) {
+      return this.$hasPermission(permission, this.workspace, this.workspace.id)
+    },
     async fetchRolesAndPermissions() {
+      const workspace = this.workspace
       try {
-        await this.$store.dispatch('workspace/fetchPermissions', this.workspace)
-        await this.$store.dispatch('workspace/fetchRoles', this.workspace)
+        await this.$store.dispatch('workspace/fetchPermissions', workspace)
+        await this.$store.dispatch('workspace/fetchRoles', workspace)
       } catch (error) {
-        this.$refs.context.hide()
+        this.$refs.context?.hide()
         notifyIf(error, 'workspace')
       }
     },
-    showWorkspaceTrashModal() {
-      this.$refs.context.hide()
-      this.$refs.workspaceTrashModal.show()
-    },
-    openExportData() {
-      this.$refs.context.hide()
-      this.$refs.exportWorkspaceModal.show()
-    },
-    openImportData() {
-      this.$refs.context.hide()
-      this.$refs.importWorkspaceModal.show()
+    openModal(ref, ...args) {
+      this.hide()
+      this.$refs[ref].show(...args)
     },
     async deleteWorkspace() {
-      this.loading = true
-
-      const selected =
-        this.$store.getters['workspace/getSelected'].id === this.workspace.id
-
+      if (this.deleting) {
+        return
+      }
+      this.deleting = true
+      const workspace = this.workspace
       try {
-        await this.$store.dispatch('workspace/delete', this.workspace)
+        await this.$store.dispatch('workspace/delete', workspace)
+        this.$refs.deleteModal?.hide()
         await this.$store.dispatch('toast/restore', {
           trash_item_type: 'workspace',
-          trash_item_id: this.workspace.id,
+          trash_item_id: workspace.id,
         })
-        if (selected) {
-          await this.$router.push({ name: 'all-workspaces' })
-          await pageFinished(this.nuxtApp)
-          await nextTick()
-        }
       } catch (error) {
         notifyIf(error, 'application')
+      } finally {
+        this.deleting = false
       }
-
-      this.loading = false
     },
   },
 }

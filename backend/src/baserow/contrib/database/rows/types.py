@@ -1,7 +1,7 @@
 from collections.abc import Iterable
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Any, NamedTuple, NewType, TypedDict, TypeVar
+from typing import Any, NamedTuple, NewType, NotRequired, TypedDict, TypeVar
 
 from django.db.models import QuerySet
 
@@ -18,6 +18,7 @@ RowsForUpdate = NewType("RowsForUpdate", QuerySet)
 
 
 class FileImportConfiguration(TypedDict):
+    undo_in_application: NotRequired[bool]
     import_fields: list[int]
     upsert_fields: list[int]
     upsert_values: list[list[Any]]

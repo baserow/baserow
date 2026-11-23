@@ -672,7 +672,8 @@
     "copyFailed": "Failed to copy to clipboard"
   },
   "chatwootSupportSidebarWorkspace": {
-    "directSupport": "Direct support"
+    "directSupport": "Direct support",
+    "loadError": "Could not open Direct support. Please try again."
   },
   "userTeamsField": {
     "no_records": "No teams"

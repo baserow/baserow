@@ -6,6 +6,7 @@ from django.test import override_settings
 from django.urls import reverse
 
 import pytest
+from drf_spectacular.generators import SchemaGenerator
 from freezegun import freeze_time
 
 from baserow.test_utils.helpers import AnyStr
@@ -1226,3 +1227,10 @@ def test_cancel_message_requires_workspace_access(api_client, enterprise_data_fi
 
     assert rsp.status_code == 404
     assert rsp.json()["error"] == "ERROR_ASSISTANT_CHAT_DOES_NOT_EXIST"
+
+
+def test_chat_status_is_deprecated_in_the_openapi_schema():
+    schema = SchemaGenerator().get_schema(request=None, public=True)
+
+    status = schema["components"]["schemas"]["AssistantChat"]["properties"]["status"]
+    assert status.get("deprecated") is True

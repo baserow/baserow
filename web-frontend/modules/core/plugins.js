@@ -46,6 +46,20 @@ export class BaserowPlugin extends Registerable {
   }
 
   /**
+   * Return additional items for the Settings or Help menu in the workspace sidebar.
+   */
+  getSidebarWorkspaceMenuComponents(workspace, menu) {
+    return []
+  }
+
+  /**
+   * Display an optional plan badge for the selected workspace in the sidebar header.
+   */
+  getSidebarWorkspacePlanBadge() {
+    return null
+  }
+
+  /**
    * Every registered plugin can display additional items in the sidebar menu that
    * is shown on pages without a workspace context, like the all workspaces page.
    */

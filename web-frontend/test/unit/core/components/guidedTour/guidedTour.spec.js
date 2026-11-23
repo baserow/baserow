@@ -1,4 +1,5 @@
 import flushPromises from 'flush-promises'
+import { onTestFinished } from 'vitest'
 import GuidedTour from '@baserow/modules/core/components/guidedTour/GuidedTour'
 import {
   GuidedTourType,
@@ -132,6 +133,48 @@ describe('GuidedTour component', () => {
     await wrapper.find('.guided-tour-step__foot button').trigger('click')
     await flushPromises()
   }
+
+  test.each(['going back', 'stopping and replaying'])(
+    '%s while a step is opening keeps the current step highlighted',
+    async (navigation) => {
+      const target = document.createElement('button')
+      target.id = 'delayed-tour-target'
+      target.scrollIntoView = vi.fn()
+      document.body.appendChild(target)
+      onTestFinished(() => target.remove())
+
+      const tour = testApp.getRegistry().get('guidedTour', 'test_main')
+      const steps = tour.steps
+      const delayed = steps.at(-1)
+      const animation = Promise.withResolvers()
+      vi.spyOn(tour, 'steps', 'get').mockReturnValue(steps)
+      vi.spyOn(delayed, 'selectors', 'get').mockReturnValue(['#' + target.id])
+      vi.spyOn(delayed, 'beforeShow').mockReturnValue(animation.promise)
+
+      authenticate(['test_main', 'test_first_time_only'])
+      const wrapper = await testApp.mount(GuidedTour, {})
+      await store.dispatch('guidedTour/forceStart')
+      await flushPromises()
+      await clickNext(wrapper)
+      expect(visibleStepContent(wrapper)).toBe('main step 3')
+      expect(delayed.beforeShow).toHaveBeenCalled()
+
+      if (navigation === 'going back') {
+        await wrapper.get('.guided-tour-step__back').trigger('click')
+      } else {
+        await wrapper.get('.guided-tour-step__close').trigger('click')
+        await flushPromises()
+        expect(wrapper.find('.guided-tour-step').exists()).toBe(false)
+        await store.dispatch('guidedTour/forceStart')
+      }
+      await flushPromises()
+      animation.resolve()
+      await flushPromises()
+
+      expect(visibleStepContent(wrapper)).toBe('main step 1')
+      expect(wrapper.get('.highlight').element.style.left).toBe('50%')
+    }
+  )
 
   test('tours start automatically the first time and save the completed state', async () => {
     authenticate([])

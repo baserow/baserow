@@ -4,7 +4,7 @@ import {
   getStoredChatUuid,
   getTabId,
   storeChatUuid,
-  getStoredOnboardingRunId,
+  getOnboardingRunId,
 } from '@baserow_enterprise/utils/assistantTabStorage'
 import { uuid as uuidv4 } from '@baserow/modules/core/utils/string'
 import { notifyIf } from '@baserow/modules/core/utils/error'
@@ -40,22 +40,34 @@ function inFlightMessage(follower) {
 
 /**
  * How Kuma took a message: a run answers it, the chat still answers another
- * one, or it was refused, which the chat explains.
+ * one, the user has as many runs as allowed, or it was refused, which the chat
+ * explains.
  */
 export const SEND_OUTCOME = Object.freeze({
   ACCEPTED: 'accepted',
   BUSY: 'busy',
+  LIMIT_REACHED: 'limit_reached',
   FAILED: 'failed',
 })
+
+const RUN_LIMIT_NOTICE_ID = 'run-limit-notice'
+
+function refusalNotice(id, content) {
+  return {
+    id,
+    role: 'ai',
+    content,
+    loading: false,
+    error: true,
+    reasoning: false,
+  }
+}
 
 /**
  * @returns {string} Why Kuma refused to start answering, for the chat.
  */
 function refusalMessage(error, i18n) {
   const handler = error.handler
-  if (handler?.isTooManyRequests()) {
-    return i18n.t('assistant.runLimitReached')
-  }
   // Invalid UI context is also a body error; it doesn't imply a long prompt.
   if (handler?.hasRequestBodyValidationError()) {
     return i18n.t('assistant.runFailedToStart')
@@ -206,7 +218,7 @@ export const actions = {
 
   setPanelOpen({ commit, rootGetters }, value) {
     commit('SET_PANEL_OPEN', value)
-    const runId = getStoredOnboardingRunId()
+    const runId = getOnboardingRunId()
     const follower = runId && rootGetters['chatRuns/getFollower'](runId)
     if (value && follower?.finished) {
       this.$registry
@@ -442,6 +454,7 @@ export const actions = {
     const chatId = getters.currentChat?.id ?? (await dispatch('createChat'))
     const chat = state.chats.find((chat) => chat.id === chatId)
     const draftId = uuidv4()
+    commit('REMOVE_MESSAGE', RUN_LIMIT_NOTICE_ID)
     const previousIds = new Set(state.messages.map((m) => m.id))
     commit('ADD_MESSAGE', {
       id: draftId,
@@ -613,7 +626,8 @@ export const actions = {
    * Shows why Kuma refused a message, unless the user left its chat meanwhile.
    * A busy chat follows the message it is still answering instead, without
    * the draft, and is busy even when re-reading it failed, so the text can go
-   * back into the input.
+   * back into the input. A message over the run limit goes back there too, and
+   * leaves a single notice in place of its draft.
    *
    * @returns {Promise<{outcome: string, runId: null}>}
    * @throws Anything but a failed request while re-reading a busy chat.
@@ -638,14 +652,15 @@ export const actions = {
       }
       return { outcome: SEND_OUTCOME.BUSY, runId: null }
     }
-    commit('ADD_MESSAGE', {
-      id: uuidv4(),
-      role: 'ai',
-      content: refusalMessage(error, $i18n),
-      loading: false,
-      error: true,
-      reasoning: false,
-    })
+    if (error.handler?.isTooManyRequests()) {
+      commit('REMOVE_MESSAGE', draftId)
+      commit(
+        'ADD_MESSAGE',
+        refusalNotice(RUN_LIMIT_NOTICE_ID, $i18n.t('assistant.runLimitReached'))
+      )
+      return { outcome: SEND_OUTCOME.LIMIT_REACHED, runId: null }
+    }
+    commit('ADD_MESSAGE', refusalNotice(uuidv4(), refusalMessage(error, $i18n)))
     return { outcome: SEND_OUTCOME.FAILED, runId: null }
   },
 

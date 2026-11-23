@@ -139,6 +139,11 @@ class ViewOptionGuidedTourStep extends GuidedTourStep {
 }
 
 class TablesGuidedTourStep extends GuidedTourStep {
+  constructor(app, database) {
+    super(app)
+    this.database = database
+  }
+
   get title() {
     return this.app.$i18n.t('tablesGuidedTourStep.title')
   }
@@ -148,7 +153,7 @@ class TablesGuidedTourStep extends GuidedTourStep {
   }
 
   get selectors() {
-    return ['[data-highlight="create-table"]']
+    return [`[data-highlight="create-table-${this.database.id}"]`]
   }
 
   get position() {
@@ -158,6 +163,25 @@ class TablesGuidedTourStep extends GuidedTourStep {
   get videos() {
     return ['ASi4H11uXNA']
   }
+
+  async beforeShow(parent) {
+    this.app.$bus.$emit('reveal-sidebar-application', this.database)
+    await nextTick()
+
+    // Highlight measures the button once, so let its groups finish unfolding.
+    const button = parent.querySelector(this.selectors[0])
+    const transitions = []
+    for (
+      let group = button?.closest('.tree__group');
+      group;
+      group = group.parentElement?.closest('.tree__group')
+    ) {
+      transitions.push(
+        ...group.getAnimations().map((animation) => animation.finished)
+      )
+    }
+    await Promise.allSettled(transitions)
+  }
 }
 
 export class DatabaseGuidedTourType extends GuidedTourType {
@@ -166,14 +190,25 @@ export class DatabaseGuidedTourType extends GuidedTourType {
   }
 
   get steps() {
-    return [
+    const steps = [
       new FiltersSortGroupGuidedTourStep(this.app),
       new AddFieldGuidedTourStep(this.app),
       new CreateViewGuidedTourStep(this.app),
       new CreateFormViewGuidedTourStep(this.app),
       new ViewOptionGuidedTourStep(this.app),
-      new TablesGuidedTourStep(this.app),
     ]
+    const database = this.app.$store.getters['application/getSelected']
+    if (
+      database?.type === 'database' &&
+      this.app.$hasPermission(
+        'database.create_table',
+        database,
+        database.workspace.id
+      )
+    ) {
+      steps.push(new TablesGuidedTourStep(this.app, database))
+    }
+    return steps
   }
 
   get order() {

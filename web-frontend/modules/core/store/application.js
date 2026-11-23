@@ -28,9 +28,17 @@ export const state = () => ({
   loaded: false,
   items: [],
   selected: null,
+  expandedSidebarApplications: {},
 })
 
 export const mutations = {
+  SET_SIDEBAR_EXPANDED(state, { id, workspaceId, expanded }) {
+    if (expanded) {
+      state.expandedSidebarApplications[id] = workspaceId
+    } else {
+      delete state.expandedSidebarApplications[id]
+    }
+  },
   SET_ITEMS(state, applications) {
     state.items = applications
   },
