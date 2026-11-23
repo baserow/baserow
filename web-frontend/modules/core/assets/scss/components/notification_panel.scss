@@ -97,6 +97,8 @@
 }
 
 .notification-panel__notification-content-desc {
+  white-space: normal;
+  overflow-wrap: anywhere;
   line-height: 20px;
   margin-bottom: 12px;
 }

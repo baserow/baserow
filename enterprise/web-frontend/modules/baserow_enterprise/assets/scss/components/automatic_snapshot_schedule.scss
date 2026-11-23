@@ -86,23 +86,6 @@
   margin: 0 20px 20px;
 }
 
-.automatic-snapshot-schedule__error {
-  display: flex;
-  align-items: flex-start;
-  gap: 8px;
-  margin: 0 20px 20px;
-  padding: 8px 12px;
-  border-radius: 6px;
-  background-color: $palette-red-50;
-  color: $palette-red-800;
-
-  i {
-    flex: none;
-    font-size: 16px;
-    line-height: 20px;
-  }
-}
-
 .automatic-snapshot-schedule__footer {
   display: flex;
   align-items: center;

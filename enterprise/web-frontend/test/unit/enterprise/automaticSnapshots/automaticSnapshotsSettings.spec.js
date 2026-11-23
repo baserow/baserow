@@ -123,13 +123,33 @@ describe('AutomaticSnapshotsSettings', () => {
     expect(rows).toHaveLength(3)
     expect(rows[0].text()).toContain('CRM')
     expect(rows[0].text()).toContain('automaticSnapshots.badgeOwn')
-    expect(
-      rows[0].find('.automatic-snapshots-settings__error-icon').exists()
-    ).toBe(true)
+    expect(rows[0].text()).not.toContain(
+      'The workspace has reached its snapshot limit.'
+    )
     expect(rows[1].text()).toContain('Portal')
     expect(rows[1].text()).toContain('automaticSnapshots.badgeWorkspace')
     expect(rows[1].text()).toContain('automaticSnapshots.everyWeek')
     expect(rows[2].text()).toContain('automaticSnapshots.badgeOff')
+  })
+
+  test('does not repeat historical failures from workspace or application schedules', async () => {
+    testApp.mock.onGet(url).reply(
+      200,
+      response({
+        workspace_default: schedule({
+          last_error: 'Historical workspace failure',
+        }),
+      })
+    )
+    const wrapper = await mountComponent()
+
+    expect(wrapper.text()).not.toContain('Historical workspace failure')
+    expect(wrapper.text()).not.toContain(
+      'The workspace has reached its snapshot limit.'
+    )
+    expect(wrapper.text()).toContain(
+      'automaticSnapshotsSettings.workspaceSchedule'
+    )
   })
 
   test('warns about scheduled applications that runs can not snapshot', async () => {
@@ -156,13 +176,10 @@ describe('AutomaticSnapshotsSettings', () => {
         ? next.text()
         : ''
     }
-    expect(warningAfter('CRM')).toContain(
-      'automaticSnapshots.fullOfProtectedWarningShort'
-    )
-    expect(warningAfter('Portal')).toContain(
-      'automaticSnapshots.maxSnapshotsZeroWarningShort'
-    )
+    expect(warningAfter('CRM')).toContain('automaticSnapshots.noRoom')
+    expect(warningAfter('Portal')).toContain('automaticSnapshots.noRoom')
     expect(warningAfter('Archive')).toBe('')
+    expect(wrapper.findAll('.alert--error.alert--compact')).toHaveLength(2)
   })
 
   test('offers to set up a workspace schedule when there is none', async () => {

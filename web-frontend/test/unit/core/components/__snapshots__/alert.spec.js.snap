@@ -1,0 +1,27 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`Alert.vue > renders an error using the compact appearance 1`] = `
+"<div class="alert alert--compact alert--error" style="">
+  <div class="alert__wrapper"><i class="alert__icon iconoir-warning-circle"></i>
+    <div class="alert__content">
+      <!--v-if-->
+      <div class="alert__message">There is not enough room for a new snapshot.</div>
+      <!--v-if-->
+    </div>
+    <!--v-if-->
+  </div>
+</div>"
+`;
+
+exports[`Alert.vue > renders an error using the default appearance 1`] = `
+"<div class="alert alert--error" style="">
+  <div class="alert__wrapper"><i class="alert__icon iconoir-warning-circle"></i>
+    <div class="alert__content">
+      <!--v-if-->
+      <div class="alert__message">There is not enough room for a new snapshot.</div>
+      <!--v-if-->
+    </div>
+    <!--v-if-->
+  </div>
+</div>"
+`;

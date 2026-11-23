@@ -140,17 +140,7 @@
             "
           ></SwitchInput>
         </div>
-        <div
-          v-if="workspaceDefault && workspaceDefault.last_error"
-          class="automatic-snapshot-schedule__error"
-        >
-          <i class="iconoir-warning-circle"></i>
-          <span>{{
-            $t('automaticSnapshots.lastError', {
-              error: workspaceDefault.last_error,
-            })
-          }}</span>
-        </div>
+
         <div
           v-if="workspaceDefault && canUpdateWorkspace"
           class="automatic-snapshot-schedule__footer"
@@ -271,18 +261,6 @@
                   <td>
                     <div class="automatic-snapshots-settings__schedule">
                       <span>{{ row.scheduleText }}</span>
-                      <template v-if="row.lastError">
-                        <i
-                          class="iconoir-warning-circle automatic-snapshots-settings__error-icon"
-                          :title="row.lastError"
-                          aria-hidden="true"
-                        ></i>
-                        <span
-                          class="automatic-snapshots-settings__visually-hidden"
-                        >
-                          {{ row.lastError }}
-                        </span>
-                      </template>
                     </div>
                     <div
                       v-if="row.nextRunText"
@@ -312,13 +290,13 @@
                 >
                   <td></td>
                   <td colspan="4">
-                    <div class="automatic-snapshots-settings__row-warning">
-                      <i
-                        class="iconoir-warning-triangle"
-                        aria-hidden="true"
-                      ></i>
-                      <span>{{ row.blockedWarning }}</span>
-                    </div>
+                    <Alert
+                      type="error"
+                      appearance="compact"
+                      class="automatic-snapshots-settings__row-warning"
+                    >
+                      {{ row.blockedWarning }}
+                    </Alert>
                   </td>
                 </tr>
               </template>
@@ -629,7 +607,6 @@ const rows = computed(() => {
             date: formatNextRun(active),
           })
         : '',
-      lastError: schedule?.last_error || '',
       blockedWarning: active ? getBlockedWarning(application) : '',
     }
   })

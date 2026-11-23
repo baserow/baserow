@@ -72,6 +72,19 @@ describe('automatic snapshot utils', () => {
     expect(warn({ limit: 0 })).toBe('automaticSnapshots.disabledWarning')
   })
 
+  test.each([
+    { limit: 0, maxSnapshots: 3, protectedCount: 0 },
+    { limit: 10, maxSnapshots: 0, protectedCount: 0 },
+    { limit: 10, maxSnapshots: 3, protectedCount: 3 },
+  ])(
+    'uses the same capacity message in the workspace list for %j',
+    (values) => {
+      expect(getScheduleBlockedWarning(values, 'CRM', t, true)).toBe(
+        'automaticSnapshots.noRoom'
+      )
+    }
+  )
+
   test('describes when a schedule runs', () => {
     expect(describeSchedule(schedule({ minute: 5 }), t)).toBe(
       'automaticSnapshots.everyDay {"time":"02:05"}'

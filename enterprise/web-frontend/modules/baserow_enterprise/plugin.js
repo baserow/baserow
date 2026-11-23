@@ -89,6 +89,7 @@ import {
 } from '@baserow_enterprise/dataSyncTypes'
 import { PeriodicIntervalFieldsConfigureDataSyncType } from '@baserow_enterprise/configureDataSyncTypes'
 import {
+  AutomaticSnapshotFailedNotificationType,
   ApplicationUserLimitNotificationType,
   DataScanNewResultsNotificationType,
   PeriodicDataSyncDeactivatedNotificationType,
@@ -381,6 +382,10 @@ export default defineNuxtPlugin({
     $registry.register(
       'notification',
       new ApplicationUserLimitNotificationType(context)
+    )
+    $registry.register(
+      'notification',
+      new AutomaticSnapshotFailedNotificationType(context)
     )
 
     $registry.register(

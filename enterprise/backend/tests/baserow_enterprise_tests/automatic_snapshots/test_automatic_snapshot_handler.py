@@ -8,6 +8,7 @@ import pytest
 from freezegun import freeze_time
 
 from baserow.core.models import Snapshot
+from baserow.core.notifications.models import Notification
 from baserow.core.snapshots.handler import SnapshotHandler
 from baserow.core.trash.handler import TrashHandler
 from baserow.core.utils import Progress
@@ -17,6 +18,7 @@ from baserow_enterprise.automatic_snapshots.exceptions import (
     AutomaticSnapshotScheduleInvalid,
 )
 from baserow_enterprise.automatic_snapshots.handler import (
+    NO_ROOM_FOR_SNAPSHOT_MESSAGE,
     REPLACED_RIGHT_AWAY_MESSAGE,
     UNEXPECTED_ERROR_MESSAGE,
     AutomaticSnapshotScheduleHandler,
@@ -327,11 +329,11 @@ def test_create_automatic_snapshot_records_disabled_snapshots(
 
     assert not Snapshot.objects.filter(created_automatically=True).exists()
     schedule.refresh_from_db()
-    assert schedule.last_error.startswith("The workspace can't take snapshots")
+    assert schedule.last_error == NO_ROOM_FOR_SNAPSHOT_MESSAGE
 
 
 @pytest.mark.django_db(transaction=True)
-def test_create_automatic_snapshot_skips_an_application_full_of_protected_snapshots(
+def test_create_automatic_snapshot_reports_an_application_full_of_protected_snapshots(
     enterprise_data_fixture, enable_enterprise
 ):
     user = enterprise_data_fixture.create_user()
@@ -353,7 +355,7 @@ def test_create_automatic_snapshot_skips_an_application_full_of_protected_snapsh
 
     assert not Snapshot.objects.filter(created_automatically=True).exists()
     schedule.refresh_from_db()
-    assert schedule.last_error == ""
+    assert schedule.last_error == NO_ROOM_FOR_SNAPSHOT_MESSAGE
     assert schedule.last_run_at is None
 
 
@@ -700,6 +702,9 @@ def test_create_automatic_snapshot_records_a_snapshot_replaced_right_away(
     assert newer.mark_for_deletion is True
     schedule.refresh_from_db()
     assert schedule.last_error == REPLACED_RIGHT_AWAY_MESSAGE
+    notification = Notification.objects.get(type="automatic_snapshot_failed")
+    assert notification.data["application_id"] == application.id
+    assert notification.data["error"] == NO_ROOM_FOR_SNAPSHOT_MESSAGE
 
 
 @pytest.mark.django_db

@@ -1,3 +1,4 @@
+import AutomaticSnapshotFailedNotification from '@baserow_enterprise/components/notifications/AutomaticSnapshotFailedNotification'
 import { NotificationType } from '@baserow/modules/core/notificationTypes'
 import NotificationImgIcon from '@baserow/modules/core/components/notifications/NotificationImgIcon'
 import BaserowIcon from '@baserow/modules/core/static/img/logoOnly.svg?url'
@@ -128,5 +129,30 @@ export class ApplicationUserLimitNotificationType extends NotificationType {
 
   getContentComponent() {
     return ApplicationUserLimitNotification
+  }
+}
+
+export class AutomaticSnapshotFailedNotificationType extends NotificationType {
+  static getType() {
+    return 'automatic_snapshot_failed'
+  }
+
+  getIconComponent() {
+    return NotificationImgIcon
+  }
+
+  getIconComponentProps() {
+    return { icon: BaserowIcon }
+  }
+
+  getContentComponent() {
+    return AutomaticSnapshotFailedNotification
+  }
+
+  getRoute(notificationData) {
+    return {
+      name: 'workspace',
+      params: { workspaceId: notificationData.workspace_id },
+    }
   }
 }

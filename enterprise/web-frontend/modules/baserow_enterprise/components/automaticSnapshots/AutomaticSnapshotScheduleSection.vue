@@ -98,21 +98,11 @@
 
     <Alert
       v-if="hasFeature && activeSchedule && maxSnapshotsWarning"
-      type="warning"
+      type="error"
       class="automatic-snapshot-schedule__warning"
     >
       {{ maxSnapshotsWarning }}
     </Alert>
-
-    <div
-      v-if="hasFeature && ownSchedule && ownSchedule.last_error"
-      class="automatic-snapshot-schedule__error"
-    >
-      <i class="iconoir-warning-circle"></i>
-      <span>{{
-        $t('automaticSnapshots.lastError', { error: ownSchedule.last_error })
-      }}</span>
-    </div>
 
     <div
       v-if="hasFeature && overview && !isEmpty && canUpdate"

@@ -31,4 +31,15 @@ describe('Alert.vue', () => {
     })
     expect(wrapper.classes()).toContain(`alert--${type}`)
   })
+  it.each(['default', 'compact'])(
+    'renders an error using the %s appearance',
+    (appearance) => {
+      const wrapper = shallowMount(Alert, {
+        props: { type: 'error', appearance },
+        slots: { default: 'There is not enough room for a new snapshot.' },
+      })
+
+      expect(wrapper.html()).toMatchSnapshot()
+    }
+  )
 })

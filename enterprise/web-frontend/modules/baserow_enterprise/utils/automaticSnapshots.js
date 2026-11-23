@@ -211,8 +211,8 @@ export function getNextRun(schedule, from = moment()) {
  * @param {number} values.protectedCount How many of its snapshots are protected.
  * @param {string} name The name of the application.
  * @param {Function} t The translation function.
- * @param {boolean} short Whether to return the short version, for a row that
- *   already names the application.
+ * @param {boolean} short Whether to return the common capacity message used in
+ *   workspace lists, instead of the detailed explanation for the snapshots modal.
  */
 export function getScheduleBlockedWarning(
   { limit, maxSnapshots, protectedCount },
@@ -222,18 +222,18 @@ export function getScheduleBlockedWarning(
 ) {
   if (limit === 0) {
     return short
-      ? t('automaticSnapshots.disabledWarningShort')
+      ? t('automaticSnapshots.noRoom')
       : t('automaticSnapshots.disabledWarning')
   }
   if (maxSnapshots === 0) {
     return short
-      ? t('automaticSnapshots.maxSnapshotsZeroWarningShort')
+      ? t('automaticSnapshots.noRoom')
       : t('automaticSnapshots.maxSnapshotsZeroWarning', { name })
   }
   if (protectedCount >= maxSnapshots) {
     const params = { name, count: maxSnapshots }
     return short
-      ? t('automaticSnapshots.fullOfProtectedWarningShort', params)
+      ? t('automaticSnapshots.noRoom')
       : t('automaticSnapshots.fullOfProtectedWarning', params)
   }
   return null

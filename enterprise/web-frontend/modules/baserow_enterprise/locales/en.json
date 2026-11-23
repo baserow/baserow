@@ -1117,7 +1117,6 @@
     "none": "Snapshot {name} on a schedule and keep the most recent copies, so a mistake can be undone.",
     "nextRun": "Next snapshot {date}",
     "upToMaxSnapshots": "Keeps up to the application's max snapshots",
-    "lastError": "The last automatic snapshot failed: {error}",
     "edit": "Edit schedule",
     "customise": "Customise for {name}",
     "setByWorkspace": "Set by a workspace admin",
@@ -1141,17 +1140,15 @@
     "minutePastLabel": "Minutes past the hour (UTC)",
     "timezoneLabel": "Timezone",
     "maxSnapshotsNote": "Each application keeps up to its max snapshots, set in the snapshots modal or as the workspace default. Once it's reached, a new snapshot replaces the oldest unprotected one. Applications with a max of 0 are skipped.",
-    "maxSnapshotsZeroWarning": "{name} has a max of 0 snapshots, so scheduled runs skip it. Raise its max snapshots to snapshot it on a schedule.",
-    "fullOfProtectedWarning": "{name} is at its max of {count} snapshots and every one is protected, so scheduled runs skip it. Unprotect or delete a snapshot, or raise its max snapshots.",
-    "disabledWarningShort": "Runs fail: snapshots are turned off.",
-    "maxSnapshotsZeroWarningShort": "Runs skip it: its max snapshots is 0.",
-    "fullOfProtectedWarningShort": "Runs skip it: it's at its max of {count} and every snapshot is protected.",
-    "disabledWarning": "Snapshots are turned off for this workspace, so scheduled runs fail.",
+    "maxSnapshotsZeroWarning": "There is not enough room to create a new snapshot. {name} has a max of 0 snapshots. Raise its max snapshots to enable automatic snapshots.",
+    "fullOfProtectedWarning": "There is not enough room to create a new snapshot. {name} is at its max of {count} snapshots and every one is protected. Unprotect or delete a snapshot, or raise its max snapshots.",
+    "disabledWarning": "There is not enough room to create a new snapshot. Snapshots are turned off for this workspace. Increase its snapshot allowance to enable snapshots.",
     "everyMinutes": "Every minute | Every {minutes} minutes",
     "everyHour": "Every hour at minute {minute} (UTC)",
     "everyDay": "Every day at {time}",
     "everyWeek": "Every {day} at {time}",
-    "everyMonth": "Every month on day {day} at {time}"
+    "everyMonth": "Every month on day {day} at {time}",
+    "noRoom": "There is not enough room to create a new snapshot."
   },
   "automaticSnapshotsSettings": {
     "title": "Automatic snapshots",
@@ -1182,5 +1179,9 @@
     "turnOff": "Turn off",
     "turnOn": "Turn on",
     "bulkTitle": "Schedule for the selected applications"
+  },
+  "automaticSnapshotFailedNotification": {
+    "title": "Automatic snapshot of {name} failed.",
+    "description": "{error} Open the application's snapshots modal for details."
   }
 }

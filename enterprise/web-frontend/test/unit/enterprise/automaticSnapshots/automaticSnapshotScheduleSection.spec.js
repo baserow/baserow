@@ -152,7 +152,7 @@ describe('AutomaticSnapshotScheduleSection', () => {
     ])
   })
 
-  test('shows the own schedule and its last error', async () => {
+  test('shows the own schedule without its historical error', async () => {
     giveEnterpriseLicense()
     testApp.mock.onGet(url).reply(
       200,
@@ -168,7 +168,10 @@ describe('AutomaticSnapshotScheduleSection', () => {
     const wrapper = await mountComponent()
 
     expect(wrapper.text()).toContain('automaticSnapshots.badgeOwn')
-    expect(wrapper.text()).toContain('automaticSnapshots.lastError')
+    expect(wrapper.text()).not.toContain('automaticSnapshots.lastError')
+    expect(wrapper.text()).not.toContain(
+      'The workspace has reached its snapshot limit.'
+    )
     expect(wrapper.find('.switch').classes()).toContain('switch--active')
     expect(footerLabels(wrapper)).toEqual([
       'automaticSnapshots.edit',
@@ -215,6 +218,12 @@ describe('AutomaticSnapshotScheduleSection', () => {
     expect(
       wrapper.find('.automatic-snapshot-schedule__warning').text()
     ).toContain('automaticSnapshots.fullOfProtectedWarning')
+    expect(
+      wrapper.find('.automatic-snapshot-schedule__warning').classes()
+    ).toContain('alert--error')
+    expect(
+      wrapper.find('.automatic-snapshot-schedule__warning').classes()
+    ).not.toContain('alert--compact')
   })
 
   test('does not warn when a snapshot can be replaced', async () => {

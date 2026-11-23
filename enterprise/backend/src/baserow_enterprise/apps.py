@@ -588,6 +588,9 @@ class BaserowEnterpriseConfig(AppConfig):
         from baserow_enterprise.application_users.notification_types import (
             ApplicationUserLimitNotificationType,
         )
+        from baserow_enterprise.automatic_snapshots.notification_types import (
+            AutomaticSnapshotFailedNotificationType,
+        )
         from baserow_enterprise.data_scanner.notification_types import (
             DataScanNewResultsNotificationType,
         )
@@ -603,6 +606,8 @@ class BaserowEnterpriseConfig(AppConfig):
         notification_type_registry.register(TwoWaySyncUpdateFailedNotificationType())
         notification_type_registry.register(TwoWaySyncDeactivatedNotificationType())
         notification_type_registry.register(DataScanNewResultsNotificationType())
+
+        notification_type_registry.register(AutomaticSnapshotFailedNotificationType())
         notification_type_registry.register(ApplicationUserLimitNotificationType())
 
         from baserow_enterprise.views.operations import (

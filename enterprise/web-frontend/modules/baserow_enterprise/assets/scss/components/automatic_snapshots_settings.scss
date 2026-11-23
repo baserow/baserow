@@ -168,26 +168,6 @@
   gap: 6px;
 }
 
-.automatic-snapshots-settings__row-warning {
-  display: flex;
-  align-items: flex-start;
-  gap: 6px;
-  font-weight: 400;
-  color: $palette-neutral-900;
-
-  i {
-    flex: none;
-    margin-top: 2px;
-    color: $palette-yellow-800;
-  }
-}
-
-.automatic-snapshots-settings__error-icon {
-  flex: none;
-  font-size: 16px;
-  color: $palette-red-800;
-}
-
 .automatic-snapshots-settings__visually-hidden {
   position: absolute;
   width: 1px;

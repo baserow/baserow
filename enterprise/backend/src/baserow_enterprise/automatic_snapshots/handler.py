@@ -43,6 +43,7 @@ from .exceptions import (
     AutomaticSnapshotScheduleInvalid,
 )
 from .models import AUTOMATIC_SNAPSHOT_PAUSED_LICENSE, AutomaticSnapshotSchedule
+from .notification_types import AutomaticSnapshotFailedNotificationType
 
 # The shortest length, in minutes, of each interval. A month is at least 28 days.
 INTERVAL_MINIMUM_MINUTES = {
@@ -53,6 +54,7 @@ INTERVAL_MINIMUM_MINUTES = {
 }
 
 UNEXPECTED_ERROR_MESSAGE = "Something went wrong while creating the snapshot."
+NO_ROOM_FOR_SNAPSHOT_MESSAGE = "There is not enough room to create a new snapshot."
 REPLACED_RIGHT_AWAY_MESSAGE = (
     "The new snapshot was deleted right after it was created, because the "
     "application's other snapshots were protected or its max snapshots was lowered "
@@ -611,18 +613,22 @@ class AutomaticSnapshotScheduleHandler:
         except (
             SnapshotIsBeingCreated,
             MaxSnapshotsIsZero,
-            MaxSnapshotsFullOfProtected,
         ):
-            # A manual snapshot is being created, the application has a max of
-            # 0 snapshots, which is how it's left out, or every snapshot it keeps is
-            # protected. The frontend warns about the last two, so this run is
-            # skipped without recording an error.
+            # A manual snapshot is already being created, or this application has
+            # opted out of snapshots by setting its max to 0.
             return
         except (
             MaximumSnapshotsReached,
+            MaxSnapshotsFullOfProtected,
             ApplicationOperationNotSupported,
         ) as exc:
-            self._set_last_error(schedule, exc)
+            self._set_last_error(schedule, exc, application)
+            return
+        except Exception as exc:
+            logger.exception(
+                "Starting automatic snapshot of application {} failed.", application.id
+            )
+            self._set_last_error(schedule, exc, application)
             return
 
         application_type = application_type_registry.get_by_model(
@@ -636,7 +642,7 @@ class AutomaticSnapshotScheduleHandler:
                 "Automatic snapshot of application {} failed.", application.id
             )
             snapshot.delete()
-            self._set_last_error(schedule, exc)
+            self._set_last_error(schedule, exc, application)
             return
 
         AutomaticSnapshotSchedule.objects.filter(id=schedule.id).update(
@@ -660,28 +666,34 @@ class AutomaticSnapshotScheduleHandler:
             AutomaticSnapshotSchedule.objects.filter(id=schedule.id).update(
                 last_error=REPLACED_RIGHT_AWAY_MESSAGE
             )
+            AutomaticSnapshotFailedNotificationType.notify_admins(
+                schedule, application, NO_ROOM_FOR_SNAPSHOT_MESSAGE
+            )
 
     def _set_last_error(
-        self, schedule: AutomaticSnapshotSchedule, exc: Exception
+        self,
+        schedule: AutomaticSnapshotSchedule,
+        exc: Exception,
+        application: Application,
     ) -> None:
         """
         Stores a message for the failed run that the schedule's admins can read.
+        Notify workspace admins without exposing internal exception details.
         Only known failures get a specific message. Any other failure gets a
         generic one, and its details are only in the server log.
         """
 
         if isinstance(exc, DatabaseSnapshotMaxLocksExceededException):
             message = DatabaseSnapshotMaxLocksExceededException.message
+        elif isinstance(exc, (MaximumSnapshotsReached, MaxSnapshotsFullOfProtected)):
+            message = NO_ROOM_FOR_SNAPSHOT_MESSAGE
+        elif isinstance(exc, ApplicationOperationNotSupported):
+            message = "The application doesn't support snapshots."
         else:
-            message = {
-                MaximumSnapshotsReached: (
-                    "The workspace can't take snapshots: they're disabled, or it's "
-                    "over its snapshot allowance."
-                ),
-                ApplicationOperationNotSupported: (
-                    "The application doesn't support snapshots."
-                ),
-            }.get(type(exc), UNEXPECTED_ERROR_MESSAGE)
+            message = UNEXPECTED_ERROR_MESSAGE
         AutomaticSnapshotSchedule.objects.filter(id=schedule.id).update(
             last_error=message
+        )
+        AutomaticSnapshotFailedNotificationType.notify_admins(
+            schedule, application, message
         )
