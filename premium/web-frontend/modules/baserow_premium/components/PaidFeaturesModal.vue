@@ -73,6 +73,7 @@ import modal from '@baserow/modules/core/mixins/modal'
 import MarkdownIt from '@baserow/modules/core/components/MarkdownIt'
 import SettingsService from '@baserow/modules/core/services/settings'
 import { getPricingURL } from '@baserow_premium/utils/pricing'
+import { getPaidFeaturesByPlan } from '@baserow_premium/paidFeatures'
 
 export default {
   name: 'PaidFeaturesModal',
@@ -104,15 +105,7 @@ export default {
       )
     },
     paidFeaturePlans() {
-      const plans = {}
-      Object.values(this.$registry.getAll('paidFeature')).forEach((feature) => {
-        const plan = feature.getPlan()
-        if (!Object.prototype.hasOwnProperty.call(plans, plan)) {
-          plans[plan] = []
-        }
-        plans[plan].push(feature)
-      })
-      return plans
+      return getPaidFeaturesByPlan(this.$registry)
     },
     selectedPaidFeature() {
       return this.$registry.get('paidFeature', this.selectedType)

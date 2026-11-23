@@ -1,3 +1,4 @@
+from baserow_enterprise.automatic_snapshots.models import AutomaticSnapshotSchedule
 from baserow_enterprise.automation.nodes.models import (
     CoreCodeActionNode,
     LocalBaserowRowCommentPostedTriggerNode,
@@ -42,6 +43,7 @@ from baserow_enterprise.semantic_search.models import (
 from baserow_enterprise.teams.models import Team, TeamSubject, WorkspaceTeamInvitation
 
 __all__ = [
+    "AutomaticSnapshotSchedule",
     "Team",
     "TeamSubject",
     "WorkspaceTeamInvitation",

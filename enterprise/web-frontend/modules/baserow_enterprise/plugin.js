@@ -116,6 +116,7 @@ import {
   SupportPaidFeature,
   SemanticSearchPaidFeature,
   XLSFileReaderPaidFeature,
+  AutomaticSnapshotsPaidFeature,
 } from '@baserow_enterprise/paidFeatures'
 import { FieldPermissionsContextItemType } from '@baserow_enterprise/fieldContextItemTypes'
 import {
@@ -437,6 +438,10 @@ export default defineNuxtPlugin({
 
     $registry.register('paidFeature', new DataScannerPaidFeature(context))
     $registry.register('paidFeature', new DateDependencyPaidFeature(context))
+    $registry.register(
+      'paidFeature',
+      new AutomaticSnapshotsPaidFeature(context)
+    )
     $registry.register(
       'timelineFieldRules',
       new DateDependencyTimelineComponent(context)
