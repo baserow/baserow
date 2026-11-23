@@ -17,6 +17,7 @@ from baserow.core.actions import InstallTemplateActionType
 from baserow.core.exceptions import PermissionDenied, PermissionException
 from baserow.core.handler import CoreHandler
 from baserow.core.identities.actions import CreateIdentityActionType
+from baserow.core.identities.exceptions import IdentityCannotBeScoped
 from baserow.core.identities.handler import IdentityHandler
 from baserow.core.identities.service import IdentityService
 from baserow.core.job_types import InstallTemplateJobType
@@ -27,6 +28,10 @@ from baserow.core.registries import ImportExportConfig
 from baserow.core.subjects import UserSubjectType
 from baserow.core.user_templates.handler import UserTemplateHandler
 from baserow_enterprise.audit_log.models import AuditLogEntry
+from baserow_enterprise.exceptions import ScopeNotExist
+from baserow_enterprise.identities.identity_extension_types import (
+    EnterpriseIdentityExtensionType,
+)
 from baserow_enterprise.role.actions import BatchAssignRoleActionType
 from baserow_enterprise.role.handler import RoleAssignmentHandler
 from baserow_enterprise.role.models import Role, RoleAssignment
@@ -614,3 +619,134 @@ def test_a_user_template_install_scopes_identities_too(enterprise_data_fixture, 
         (Database.objects.get(workspace=target).id, "VIEWER")
     }
     assert installed.pending_tool_choices is None
+
+
+@pytest.mark.import_export_workspace
+@pytest.mark.django_db(transaction=True)
+def test_a_user_template_install_recreates_the_template_identity_roles(
+    enterprise_data_fixture, admin
+):
+    source = enterprise_data_fixture.create_workspace(user=admin)
+    crm = enterprise_data_fixture.create_database_application(
+        workspace=source, name="CRM"
+    )
+    ops = enterprise_data_fixture.create_database_application(
+        workspace=source, name="Ops"
+    )
+    identity = enterprise_data_fixture.create_identity(
+        workspace=source, name="Author", role_uid="NO_ACCESS"
+    )
+    RoleAssignmentHandler().assign_role_batch(
+        source,
+        [
+            NewRoleAssignment(
+                identity, Role.objects.get(uid="VIEWER"), crm.application_ptr
+            )
+        ],
+    )
+    # Tools that change data, so the fallback would give builder on both databases.
+    agent = make_agent(enterprise_data_fixture, source, "Helper", WRITE_TOOLS, identity)
+    copy = UserTemplateHandler().copy_applications(
+        admin, [crm, ops, agent], name="Copy"
+    )
+    revision = enterprise_data_fixture.create_user_template(user=admin, workspace=copy)
+    content = UserTemplateHandler().serialize_template_content(revision)
+    target = enterprise_data_fixture.create_workspace(user=admin)
+
+    with transaction.atomic():
+        action_type_registry.get_by_type(InstallTemplateActionType).do(
+            admin, target, revision, content=content, create_identities=True
+        )
+
+    installed = AgentApplication.objects.get(workspace=target)
+    assert roles_of(run_identity(installed)) == {
+        (Database.objects.get(workspace=target, name="CRM").id, "VIEWER")
+    }
+
+
+@pytest.mark.django_db(transaction=True)
+def test_exported_roles_that_cant_be_given_create_no_identity(
+    enterprise_data_fixture, admin, settings, tmp_path
+):
+    template = sync_template(enterprise_data_fixture, settings, tmp_path, [WRITE_TOOLS])
+    path = tmp_path / "agent-kit.json"
+    content = json.loads(path.read_text())
+    database_id = next(
+        application["id"]
+        for application in content["export"]
+        if application["type"] == "database"
+    )
+    for application in content["export"]:
+        if application["type"] == "agent":
+            application["run_as_identity_roles"] = [[database_id, "ADMIN"]]
+    path.write_text(json.dumps(content))
+    workspace = enterprise_data_fixture.create_workspace(user=admin)
+
+    job = install(admin, workspace, template, create_identities=True)
+
+    assert job.state == JOB_FINISHED, job.human_readable_error
+    agent = AgentApplication.objects.get(workspace=workspace)
+    assert agent.run_as_subject_id is None
+    assert agent.pending_tool_choices is not None
+    assert not IdentityHandler().get_queryset(workspace).exists()
+
+
+@pytest.mark.django_db(transaction=True)
+def test_an_expected_identity_failure_is_logged_as_a_warning(
+    enterprise_data_fixture, admin, settings, tmp_path
+):
+    template = sync_template(enterprise_data_fixture, settings, tmp_path, [WRITE_TOOLS])
+    workspace = enterprise_data_fixture.create_workspace(user=admin)
+
+    with (
+        patch.object(
+            IdentityService,
+            "create_scoped_identity",
+            side_effect=PermissionDenied(),
+        ),
+        patch("baserow.contrib.agent.service.logger") as logger,
+    ):
+        job = install(admin, workspace, template, create_identities=True)
+
+    assert job.state == JOB_FINISHED
+    assert logger.warning.called
+    assert not logger.exception.called
+
+
+@pytest.mark.django_db(transaction=True)
+def test_an_identity_with_access_cant_be_scoped(enterprise_data_fixture, admin):
+    workspace = enterprise_data_fixture.create_workspace(user=admin)
+    database = enterprise_data_fixture.create_database_application(workspace=workspace)
+    identity = enterprise_data_fixture.create_identity(
+        workspace=workspace, role_uid="BUILDER"
+    )
+
+    with pytest.raises(IdentityCannotBeScoped):
+        EnterpriseIdentityExtensionType().scope_to_applications(
+            identity, [database], False, admin
+        )
+
+
+@pytest.mark.django_db(transaction=True)
+def test_assigning_roles_without_role_permissions_still_checks_the_scopes(
+    enterprise_data_fixture, admin
+):
+    workspace = enterprise_data_fixture.create_workspace(user=admin)
+    other = enterprise_data_fixture.create_workspace(user=admin)
+    elsewhere = enterprise_data_fixture.create_database_application(workspace=other)
+    identity = enterprise_data_fixture.create_identity(
+        workspace=workspace, role_uid="NO_ACCESS"
+    )
+
+    with pytest.raises(ScopeNotExist):
+        action_type_registry.get_by_type(BatchAssignRoleActionType).do(
+            admin,
+            [
+                NewRoleAssignment(
+                    identity, Role.objects.get(uid="VIEWER"), elsewhere.application_ptr
+                )
+            ],
+            workspace,
+            check_role_permissions=False,
+        )
+    assert not RoleAssignment.objects.filter(subject_id=identity.id).exists()

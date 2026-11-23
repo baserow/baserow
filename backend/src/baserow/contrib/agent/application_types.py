@@ -111,6 +111,11 @@ class AgentApplicationType(ApplicationType):
             exported this way.
         """
 
+        if not (application.run_as_subject_type and application.run_as_subject_id):
+            # A copy waiting for an identity, like the Agent of a user template,
+            # keeps the roles it was imported with, by its own application ids.
+            pending = (application.pending_tool_choices or {}).get("identity_roles")
+            return None if pending is None else [list(role) for role in pending]
         resolution = AgentHandler().resolve_run_as_subject(
             application.run_as_subject_type,
             application.run_as_subject_id,
