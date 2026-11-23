@@ -1,4 +1,7 @@
 {
+  "applicationSnapshotPermissions": {
+    "description": "Includes the permissions set on the {applicationTypeName}."
+  },
   "untrustedContentReviewModal": {
     "title": "Review imported content",
     "publishBlocked": "Review and trust the imported content before publishing.",

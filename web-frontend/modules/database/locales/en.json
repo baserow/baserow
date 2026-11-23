@@ -1,4 +1,7 @@
 {
+  "databaseSnapshotPermissions": {
+    "description": "Includes the permissions set on the database, its tables and its views."
+  },
   "webhookModal": {
     "title": "{name} webhooks",
     "createWebhook": "Create webhook",

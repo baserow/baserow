@@ -63,10 +63,7 @@
       <Button
         v-if="usage === null && !snapshotsLoading"
         type="secondary"
-        @click="
-          hideError()
-          loadSnapshots()
-        "
+        @click="retryLoadSnapshots()"
         >{{ $t('action.retry') }}</Button
       >
 
@@ -588,6 +585,10 @@ export default {
     },
     getJobNotCancellableMessage() {
       return this.$t('job.errorJobCannotBeCancelledDescription')
+    },
+    retryLoadSnapshots() {
+      this.hideError()
+      return this.loadSnapshots()
     },
     async loadSnapshots() {
       this.snapshotsLoading = true
