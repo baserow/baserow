@@ -302,4 +302,93 @@ describe('Assistant store', () => {
       store.getters['assistant/messages'].map((message) => message.content)
     ).toEqual(['Latest'])
   })
+
+  describe('deciding held changes', () => {
+    const card = (id, status = 'pending') => ({
+      id,
+      status,
+      reason: '',
+      title: 'Change the Agent "Triage"',
+      changes: [],
+    })
+    const approvals = () => store.getters['assistant/messages'][0].approvals
+
+    beforeEach(async () => {
+      await store.dispatch('assistant/createChat')
+      store.commit('assistant/SET_MESSAGES', [
+        {
+          id: 8,
+          role: 'ai',
+          content: 'I need your approval before I make this change.',
+          approvals: [card(3), card(4)],
+        },
+      ])
+    })
+
+    test('keeps a saved decision when following the run fails', async () => {
+      service.decideApprovals = vi
+        .fn()
+        .mockResolvedValue({ run: { id: 'run-1' }, chat_id: 1 })
+      store._actions['chatRuns/follow'] = [
+        vi.fn().mockRejectedValue(new Error('stream lost')),
+      ]
+
+      await expect(
+        store.dispatch('assistant/decideApprovals', [{ id: 3, approved: true }])
+      ).rejects.toThrow('stream lost')
+
+      expect(approvals()[0].status).toBe('approved')
+      expect(store.getters['assistant/currentChat'].running).toBe(false)
+    })
+
+    test('a failed save resets only its own card, on the current message', async () => {
+      let refuse
+      service.decideApprovals = vi.fn(
+        () => new Promise((resolve, reject) => (refuse = reject))
+      )
+
+      const deciding = store.dispatch('assistant/decideApprovals', [
+        { id: 3, approved: false, reason: 'No' },
+      ])
+      // Another tab decides the second card while this request is pending.
+      store.commit('assistant/UPDATE_MESSAGE', {
+        id: 8,
+        updates: { approvals: [approvals()[0], card(4, 'approved')] },
+      })
+      refuse(new Error('offline'))
+      await expect(deciding).rejects.toThrow('offline')
+
+      expect(approvals().map((a) => a.status)).toStrictEqual([
+        'pending',
+        'approved',
+      ])
+    })
+
+    test('reads the chat again when the card was decided elsewhere', async () => {
+      const error = new Error('not pending')
+      error.handler = { code: 'ERROR_ASSISTANT_TOOL_APPROVAL_NOT_PENDING' }
+      service.decideApprovals = vi.fn().mockRejectedValue(error)
+      service.fetchChatMessages = vi.fn().mockResolvedValue({
+        messages: [
+          {
+            id: 8,
+            type: 'ai',
+            content: '',
+            approvals: [card(3, 'rejected'), card(4, 'approved')],
+          },
+        ],
+      })
+
+      await store.dispatch('assistant/decideApprovals', [
+        { id: 3, approved: true },
+      ])
+      await flushPromises()
+
+      expect(service.fetchChatMessages).toHaveBeenCalled()
+      expect(approvals().map((a) => a.status)).toStrictEqual([
+        'rejected',
+        'approved',
+      ])
+    })
+  })
 })
