@@ -112,6 +112,10 @@ describe('PromoteIntegrationModal', () => {
     expect(text).toContain(
       'localBaserowIntegrationType.localBaserowPromotionReauthorizeHint'
     )
+    // And what builders of other applications can then do as them.
+    expect(text).toContain(
+      'localBaserowIntegrationType.localBaserowPromotionAccessHint'
+    )
     expect(testApp.mock.history.patch).toHaveLength(0)
   })
 

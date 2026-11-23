@@ -94,6 +94,8 @@ This retains a common export/import path and avoids leaving services without int
 
 Workspace-scoped permissions will allow Builders to list and select workspace integrations, while only Admins may create, update, order, delete or restore them. The operations are separate from app-level integration permissions: because the shared application belongs to the workspace, reusing existing Builder-level operations could unintentionally grant management rights over integrations used by other apps.
 
+Someone who is a Builder of a single application, with no workspace role that lets them build, may also see and select the workspace integrations, but only from that application. Anyone who can list an application's integrations can use its workspace integrations from it, just as everyone who can edit an application already uses the access of the integrations it holds. This is the group workspace integrations are meant to serve, such as agencies and contractors given one application. An Admin who wants to keep an integration away from them keeps it at the application level. Only the workspace settings page needs the workspace-level permission.
+
 Roles can't be assigned on the shared application itself, and nobody can be invited to it, so the workspace role alone decides who manages workspace integrations. A role on the shared application would otherwise reach updating, deleting and restoring them, but not creating, listing or ordering them.
 
 ### 7. Every integration type an app can use from the workspace is allowed

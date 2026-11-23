@@ -2,6 +2,31 @@ import { IntegrationType } from '@baserow/modules/core/integrationTypes'
 import LocalBaserowForm from '@baserow/modules/integrations/localBaserow/components/integrations/LocalBaserowForm'
 import localBaserowIntegration from '@baserow/modules/integrations/localBaserow/assets/images/localBaserowIntegration.svg?url'
 
+/**
+ * Follows a promotion hint, which says who the integration will run as, with
+ * what that lets other people do: builders of any application of the workspace
+ * can then use it, as that person or identity, on the tables they can open
+ * themselves (the backend checks their own access when they pick one).
+ *
+ * @param {object} app The Nuxt app.
+ * @param {string} hint Who the integration will run as.
+ * @param {string|null} name The identity it keeps running as, or null when it
+ *   will run as the user promoting it.
+ * @returns {string} Both sentences.
+ */
+const withAccessHint = (app, hint, name = null) => {
+  const access =
+    name === null
+      ? app.$i18n.t(
+          'localBaserowIntegrationType.localBaserowPromotionAccessHint'
+        )
+      : app.$i18n.t(
+          'localBaserowIntegrationType.localBaserowPromotionSubjectAccessHint',
+          { name }
+        )
+  return `${hint} ${access}`
+}
+
 export class LocalBaserowIntegrationType extends IntegrationType {
   static getType() {
     return 'local_baserow'
@@ -67,14 +92,19 @@ export class LocalBaserowIntegrationType extends IntegrationType {
    * Mirrors what the backend does when the integration moves to the workspace: a
    * person can only authorize an integration as themselves, so one authorized as
    * someone else, or as nobody, is authorized as the user promoting it, while an
-   * identity belongs to the workspace and is kept, even trashed.
+   * identity belongs to the workspace and is kept, even trashed. Each hint is
+   * followed by what that lets builders of other applications do, see
+   * `withAccessHint`.
    */
   getPromotionHint(integration) {
     const subject = integration.authorized_subject
     // Nobody authorized it, or the person who did no longer exists.
     if (!subject) {
-      return this.app.$i18n.t(
-        'localBaserowIntegrationType.localBaserowPromotionUnauthorizedHint'
+      return withAccessHint(
+        this.app,
+        this.app.$i18n.t(
+          'localBaserowIntegrationType.localBaserowPromotionUnauthorizedHint'
+        )
       )
     }
     // A trashed identity is kept, so it stays unusable, as its error says.
@@ -85,22 +115,30 @@ export class LocalBaserowIntegrationType extends IntegrationType {
     const subjectType = this.app.$registry.get('subject', subject.type)
     const name = subjectType.getDisplayName(subject)
     if (subject.user_type === 'identity') {
-      return this.app.$i18n.t(
-        'localBaserowIntegrationType.localBaserowPromotionSubjectHint',
-        { type: subjectType.getTypeDisplayName(subject), name }
+      return withAccessHint(
+        this.app,
+        this.app.$i18n.t(
+          'localBaserowIntegrationType.localBaserowPromotionSubjectHint',
+          { type: subjectType.getTypeDisplayName(subject), name }
+        ),
+        name
       )
     }
 
     const user = this.app.$store.getters['auth/getUserObject']
     if (subject.id !== user?.id) {
-      return this.app.$i18n.t(
-        'localBaserowIntegrationType.localBaserowPromotionReauthorizeHint',
-        { name }
+      return withAccessHint(
+        this.app,
+        this.app.$i18n.t(
+          'localBaserowIntegrationType.localBaserowPromotionReauthorizeHint',
+          { name }
+        )
       )
     }
 
-    return this.app.$i18n.t(
-      'localBaserowIntegrationType.localBaserowPromotionHint'
+    return withAccessHint(
+      this.app,
+      this.app.$i18n.t('localBaserowIntegrationType.localBaserowPromotionHint')
     )
   }
 

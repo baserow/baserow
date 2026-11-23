@@ -67,6 +67,9 @@ describe('LocalBaserowIntegrationType', () => {
 
   const promotionHint = (subject) =>
     integrationType().getPromotionHint({ authorized_subject: subject })
+  // Who it will run as, then what builders of other applications can do as them.
+  const withAccess = (hint, access = 'localBaserowPromotionAccessHint') =>
+    `localBaserowIntegrationType.${hint} localBaserowIntegrationType.${access}`
 
   test('promoting an integration says who it will run as', () => {
     testApp.authenticate({
@@ -82,7 +85,7 @@ describe('LocalBaserowIntegrationType', () => {
         first_name: 'Ada',
         username: 'ada@example.com',
       })
-    ).toBe('localBaserowIntegrationType.localBaserowPromotionHint')
+    ).toBe(withAccess('localBaserowPromotionHint'))
     // A person can only authorize an integration as themselves, so the backend
     // authorizes it as the user promoting it.
     expect(
@@ -92,7 +95,7 @@ describe('LocalBaserowIntegrationType', () => {
         first_name: 'Grace',
         username: 'grace@example.com',
       })
-    ).toBe('localBaserowIntegrationType.localBaserowPromotionReauthorizeHint')
+    ).toBe(withAccess('localBaserowPromotionReauthorizeHint'))
     // An identity belongs to the workspace and is kept.
     expect(
       promotionHint({
@@ -102,13 +105,18 @@ describe('LocalBaserowIntegrationType', () => {
         name: 'Support bot',
         trashed: false,
       })
-    ).toBe('localBaserowIntegrationType.localBaserowPromotionSubjectHint')
+    ).toBe(
+      withAccess(
+        'localBaserowPromotionSubjectHint',
+        'localBaserowPromotionSubjectAccessHint'
+      )
+    )
   })
 
   test('promoting an integration nobody authorized says it will run as you', () => {
     // The backend authorizes it as the user promoting it.
     expect(promotionHint(null)).toBe(
-      'localBaserowIntegrationType.localBaserowPromotionUnauthorizedHint'
+      withAccess('localBaserowPromotionUnauthorizedHint')
     )
   })
 
