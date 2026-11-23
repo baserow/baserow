@@ -83,6 +83,19 @@ export class MembersWorkspaceSettingsPageType extends WorkspaceSettingsPageType 
     return i18n.t('membersSettings.membersTabTitle')
   }
 
+  /**
+   * Same check as the sidebar's Members entry. Members who may only list the
+   * workspace integrations reach these settings too, and the member list would
+   * be refused for them.
+   */
+  hasPermission(workspace) {
+    return this.app.$hasPermission(
+      'workspace.list_workspace_users',
+      workspace,
+      workspace.id
+    )
+  }
+
   getRoute(workspace) {
     return {
       name: 'settings-members',
