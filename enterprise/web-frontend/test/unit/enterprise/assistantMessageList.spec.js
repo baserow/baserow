@@ -317,7 +317,9 @@ describe('AssistantMessageList', () => {
 
     const buttons = () => wrapper.findAll('.assistant-approval__actions button')
     await buttons()[1].trigger('click')
-    await wrapper.get('.assistant-approval__reason').setValue(' Not that table ')
+    await wrapper
+      .get('.assistant-approval__reason')
+      .setValue(' Not that table ')
     await buttons()[0].trigger('click')
     await flushPromises()
     expect(service.decideApprovals).toHaveBeenLastCalledWith(
