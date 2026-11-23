@@ -120,10 +120,25 @@ export default {
   data() {
     return {
       deleting: false,
-      bodyExpanded: false,
     }
   },
   computed: {
+    bodyExpanded: {
+      get() {
+        return (
+          this.$store.state.application.expandedSidebarApplications[
+            this.application.id
+          ] === this.workspace.id
+        )
+      },
+      set(expanded) {
+        this.$store.commit('application/SET_SIDEBAR_EXPANDED', {
+          id: this.application.id,
+          workspaceId: this.workspace.id,
+          expanded,
+        })
+      },
+    },
     isApplicationSelected() {
       return this.$store.getters['application/isSelected'](this.application)
     },
@@ -158,6 +173,9 @@ export default {
         }
       },
     },
+  },
+  beforeUnmount() {
+    this.bodyExpanded = false
   },
   methods: {
     onTitleClick(event) {

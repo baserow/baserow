@@ -89,3 +89,40 @@ def test_asking_for_an_unknown_scope_returns_an_error(api_client, data_fixture):
 
     assert not TextField.objects.filter(id=field.id).exists()
     assert not Action.objects.get().is_undone()
+
+
+@pytest.mark.django_db
+@pytest.mark.undo_redo
+def test_undo_redo_table_renames_across_expanded_applications(api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+    workspace = data_fixture.create_workspace(user=user)
+    headers = {"HTTP_CLIENTSESSIONID": "sidebar", "HTTP_AUTHORIZATION": f"JWT {token}"}
+    tables = []
+    for name in ("A", "B", "C"):
+        database = data_fixture.create_database_application(workspace=workspace)
+        table = data_fixture.create_database_table(database=database, name=name)
+        response = api_client.patch(
+            reverse("api:database:tables:item", kwargs={"table_id": table.id}),
+            {"name": name + " renamed"},
+            format="json",
+            **headers,
+        )
+        assert response.status_code == HTTP_200_OK
+        tables.append(table)
+
+    a, b, c = tables
+    scopes = {"application": a.database_id, "applications": [b.database_id]}
+    for command, table, expected_name in (
+        ("undo", b, "B"),
+        ("undo", a, "A"),
+        ("redo", a, "A renamed"),
+        ("redo", b, "B renamed"),
+    ):
+        response = api_client.patch(
+            reverse(f"api:user:{command}"), {"scopes": scopes}, format="json", **headers
+        )
+        assert response.status_code == HTTP_200_OK
+        table.refresh_from_db()
+        assert table.name == expected_name
+    c.refresh_from_db()
+    assert c.name == "C renamed"

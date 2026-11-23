@@ -126,6 +126,63 @@ describe('SidebarWithWorkspace', () => {
     expect(databaseList.element.closest('[inert]')).toBeNull()
   })
 
+  test('undo and redo include a table renamed in another expanded database', async () => {
+    const { store, mock } = testApp
+    await store.dispatch('workspace/select', workspace)
+    const databases = []
+    for (const [id, name] of [
+      [2, 'A'],
+      [3, 'B'],
+    ]) {
+      databases.push(
+        await store.dispatch('application/forceCreate', {
+          id,
+          name,
+          type: 'database',
+          order: id,
+          workspace,
+          tables: [{ id: id * 10, name: 'Table', order: 1 }],
+        })
+      )
+    }
+    const [a, b] = databases
+    await store.dispatch('application/select', a)
+    const wrapper = await testApp.mount(SidebarWithWorkspace, {
+      props: { applications: databases, selectedWorkspace: workspace },
+      global: { mocks: { $hasPermission: () => true } },
+    })
+    const title = wrapper.get('[aria-label="B"]')
+    await title.trigger('click')
+    const row = wrapper
+      .findAllComponents({ name: 'SidebarItem' })
+      .find((item) => item.props('database').id === b.id)
+    const table = row.props('table')
+    mock
+      .onPatch(`/database/tables/${table.id}/`)
+      .reply(200, { ...table, name: 'Renamed' })
+    await row.vm.renameTable(b, table, { value: 'Renamed' })
+    expect(table.name).toBe('Renamed')
+    for (const command of ['undo', 'redo']) {
+      const url = `/user/${command}/`
+      mock.onPatch(url).reply(200, { result_code: 'SUCCESS' })
+      await store.dispatch(`undoRedo/${command}`, { showLoadingToast: false })
+      const request = mock.history.patch.find((request) => request.url === url)
+      expect(JSON.parse(request.data).scopes).toMatchObject({
+        workspace: workspace.id,
+        application: a.id,
+        applications: [b.id],
+      })
+    }
+    expect(store.getters['application/isSelected'](a)).toBe(true)
+    await store.dispatch('undoRedo/pushNewScopeSet', { table: 20 })
+    expect(store.getters['undoRedo/getCurrentScope']).toEqual({ table: 20 })
+    await store.dispatch('undoRedo/popCurrentScopeSet')
+    await title.trigger('click')
+    expect(store.getters['undoRedo/getCurrentScope']).not.toHaveProperty(
+      'applications'
+    )
+  })
+
   test('keeps open application sublists when selection changes', async () => {
     const { store, $registry } = testApp
     vi.spyOn(
