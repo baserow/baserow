@@ -264,17 +264,22 @@ export default {
       if (this.workspace.id !== workspace.id) return
       await this.clearChat()
       this.$refs.message.focus()
-      await this.sendMessage({ message: prompt, workspace })
+      await this.sendOrReturnText(prompt, workspace)
     },
 
     async handleSendMessage(text) {
       if (!text) return
 
-      const outcome = await this.sendMessage({
-        message: text,
-        workspace: this.workspace,
-      })
-      if (outcome === SEND_OUTCOME.BUSY) {
+      await this.sendOrReturnText(text, this.workspace)
+    },
+
+    /**
+     * Sends the text, and puts it back into the input when Kuma can't take it
+     * yet, so the user doesn't have to type it again.
+     */
+    async sendOrReturnText(text, workspace) {
+      const outcome = await this.sendMessage({ message: text, workspace })
+      if ([SEND_OUTCOME.BUSY, SEND_OUTCOME.LIMIT_REACHED].includes(outcome)) {
         this.$refs.message?.setCurrentMessage(text)
       }
     },
