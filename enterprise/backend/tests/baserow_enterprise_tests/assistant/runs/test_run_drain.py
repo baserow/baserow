@@ -4,7 +4,7 @@ import time
 from typing import Any
 
 import pytest
-from asgiref.sync import async_to_sync
+from asgiref.sync import async_to_sync, sync_to_async
 from pydantic_ai.models.function import FunctionModel
 
 from baserow.contrib.database.models import Database
@@ -14,7 +14,10 @@ from baserow.core.chat_runs.tasks import execute_chat_run
 from baserow_enterprise.assistant.assistant import BackgroundAssistant
 from baserow_enterprise.assistant.deps import ToolHelpers
 from baserow_enterprise.assistant.retrying_model import RetryingModel
-from baserow_enterprise_tests.assistant.runs.utils import create_a_database
+from baserow_enterprise_tests.assistant.runs.utils import (
+    create_a_database,
+    terminate_the_run_thread_connection,
+)
 
 
 @pytest.mark.django_db(transaction=True)
@@ -59,6 +62,53 @@ def test_a_stopped_run_finishes_only_after_its_running_tool_ends(
     assert run.status == ChatRunStatus.CANCELLED
     assert order == ["tool finished", "run finished"]
     assert not Database.objects.filter(name="Kuma DB").exists()
+
+
+@pytest.mark.django_db(transaction=True)
+def test_stop_accepted_before_tool_dispatch_prevents_the_write(
+    assistant_run, kuma_model, monkeypatch
+):
+    monkeypatch.setattr(
+        "baserow.core.chat_runs.journal.LEASE_RENEW_INTERVAL_SECONDS", 60
+    )
+    run = assistant_run(content="Create a database")
+
+    async def stream(messages, info):
+        await sync_to_async(ChatRunHandler().request_cancel)(run.id)
+        async for part in create_a_database(messages, info):
+            yield part
+
+    kuma_model(stream)
+    execute_chat_run(str(run.id))
+
+    run.refresh_from_db()
+    assert run.status == ChatRunStatus.CANCELLED
+    assert not Database.objects.filter(workspace=run.workspace, name="Kuma DB").exists()
+
+
+@pytest.mark.django_db(transaction=True)
+def test_a_dropped_run_connection_does_not_fail_the_stop_check(
+    assistant_run, kuma_model, monkeypatch
+):
+    monkeypatch.setattr(
+        "baserow.core.chat_runs.journal.LEASE_RENEW_INTERVAL_SECONDS", 60
+    )
+    run = assistant_run(content="Create a database")
+    terminated = []
+
+    async def stream(messages, info):
+        if not terminated:
+            terminated.append(True)
+            await sync_to_async(terminate_the_run_thread_connection)()
+        async for part in create_a_database(messages, info):
+            yield part
+
+    kuma_model(stream)
+    execute_chat_run(str(run.id))
+
+    run.refresh_from_db()
+    assert run.status == ChatRunStatus.COMPLETED
+    assert Database.objects.filter(workspace=run.workspace, name="Kuma DB").exists()
 
 
 @pytest.mark.django_db

@@ -83,7 +83,26 @@ describe('Kuma panel with a store-owned HTTP follower', () => {
     await flushPromises()
     expect(api.cancel).toHaveBeenCalledExactlyOnceWith('run-1')
     expect(stop.element.disabled).toBe(true)
-    expect(status()).toBe('assistant.statusCancelling')
+    expect(status()).toBe('assistant.statusStopping')
+  })
+
+  test('a Stop before the run ID arrives immediately shows Stopping', async () => {
+    const id = await store.dispatch('assistant/createChat')
+    store.commit('assistant/UPDATE_CHAT', { id, updates: { running: true } })
+    await flushPromises()
+    const stop = wrapper.find('.assistant__send-button')
+    await stop.trigger('click')
+    expect(stop.element.disabled).toBe(true)
+    expect(status()).toBe('assistant.statusStopping')
+    expect(api.cancel).not.toHaveBeenCalled()
+  })
+
+  test('a native stop from another tab disables Stop and shows it is stopping', async () => {
+    await receive({ kind: 'run.cancel_requested', data: {}, cursor: cursor(1) })
+    await flushPromises()
+    expect(api.cancel).not.toHaveBeenCalled()
+    expect(wrapper.find('.assistant__send-button').element.disabled).toBe(true)
+    expect(status()).toBe('assistant.statusStopping')
   })
 
   test('live output loss shows a waiting state for the saved response', async () => {

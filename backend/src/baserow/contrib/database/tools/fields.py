@@ -1221,6 +1221,8 @@ def update_fields(
         # Applied in the caller's order, so a rename can come before a formula
         # that uses the new name.
         for index, field_update in enumerate(fields):
+            if ctx.is_cancelled():
+                break
             ctx.update_status(
                 _("Updating field %(field_id)s...")
                 % {"field_id": field_update.field_id}
@@ -1268,6 +1270,8 @@ def delete_fields(
 
     with transaction.atomic():
         for field_id in field_ids:
+            if ctx.is_cancelled():
+                break
             ctx.update_status(
                 _("Deleting field %(field_id)s...") % {"field_id": field_id}
             )

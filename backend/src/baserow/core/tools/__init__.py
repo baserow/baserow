@@ -28,6 +28,10 @@ def _ignore_status(message: str) -> None:
     pass
 
 
+def _never_cancelled() -> bool:
+    return False
+
+
 @dataclass
 class ToolContext:
     """Who a shared tool acts for, and where it reports its progress."""
@@ -38,6 +42,8 @@ class ToolContext:
     timezone: str | None = None
     """The timezone date values are in, UTC when None. Set by the caller so
     tools use the execution timezone for either a user or an identity."""
+    is_cancelled: Callable[[], bool] = field(default=_never_cancelled)
+    """Whether a batch should stop before its next item, preserving finished work."""
 
 
 ToolParams = ParamSpec("ToolParams")

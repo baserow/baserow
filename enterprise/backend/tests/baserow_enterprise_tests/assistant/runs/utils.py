@@ -2,6 +2,8 @@ from collections.abc import AsyncIterator
 from typing import Any
 from unittest.mock import MagicMock
 
+from django.db import connection, connections
+
 from pydantic_ai.messages import (
     ModelMessage,
     ModelMessagesTypeAdapter,
@@ -66,3 +68,17 @@ async def create_a_database(
             tool_call_id="call-1",
         )
     }
+
+
+def terminate_the_run_thread_connection() -> None:
+    """Kills the calling thread's database connection, as a database restart would."""
+
+    with connection.cursor() as cursor:
+        cursor.execute("SELECT pg_backend_pid()")
+        pid = cursor.fetchone()[0]
+    other = connections.create_connection("default")
+    try:
+        with other.cursor() as cursor:
+            cursor.execute("SELECT pg_terminate_backend(%s)", [pid])
+    finally:
+        other.close()

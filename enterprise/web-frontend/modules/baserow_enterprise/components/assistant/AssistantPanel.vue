@@ -76,6 +76,7 @@ import { provideNow } from '@baserow/modules/core/composables/useNow'
 import { RUN_STATUS } from '@baserow/modules/core/chatRuns/constants'
 import { SEND_OUTCOME } from '@baserow_enterprise/store/assistant'
 import { navigateToAssistantLocation } from '@baserow_enterprise/utils/assistantNavigation'
+import { isStopping } from '@baserow_enterprise/utils/assistant'
 
 const WAITING_FOR_WORKER_AFTER_MS = 3000
 
@@ -119,15 +120,15 @@ export default {
       return Boolean(this.currentChat?.running || this.activeFollower)
     },
     isAssistantCancelling() {
-      return Boolean(this.activeFollower?.stopRequested)
+      return isStopping(this.activeFollower, this.currentChat)
     },
     assistantRunningMessage() {
+      if (this.isAssistantCancelling) {
+        return this.$t('assistant.statusStopping')
+      }
       const follower = this.activeFollower
       if (!follower) {
         return ''
-      }
-      if (follower.stopRequested) {
-        return this.$t('assistant.statusCancelling')
       }
       if (follower.replayUnavailable || !follower.streaming) {
         return this.$t('assistant.statusWaitingForOutput')
