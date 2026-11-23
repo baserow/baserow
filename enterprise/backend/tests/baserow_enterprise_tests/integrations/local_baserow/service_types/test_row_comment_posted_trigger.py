@@ -10,7 +10,10 @@ from baserow.contrib.agent.triggers.exceptions import AgentTriggerTypeNotAvailab
 from baserow.contrib.agent.triggers.handler import AgentTriggerHandler
 from baserow.contrib.agent.triggers.service import AgentTriggerService
 from baserow.contrib.agent.triggers.tasks import start_trigger_conversations
-from baserow.contrib.automation.api.nodes.serializers import AutomationNodeSerializer
+from baserow.contrib.automation.api.nodes.serializers import (
+    AutomationNodeSerializer,
+    node_serializer_context,
+)
 from baserow.contrib.automation.nodes.handler import AutomationNodeHandler
 from baserow.contrib.automation.workflows.handler import AutomationWorkflowHandler
 from baserow.core.ai_provider.models import AIProviderConfig, AIProviderModel
@@ -59,6 +62,13 @@ def post(scenario, *mentions, text="Please review", row=None, author=None):
         return RowCommentHandler.create_comment(
             author or scenario.ctx.user, row.get_parent().id, str(row.id), message
         )
+
+
+def context_data(scenario, trigger):
+    context = node_serializer_context(scenario.ctx.user, [trigger])
+    return AutomationNodeSerializer(trigger, context=context).data["service"][
+        "context_data"
+    ]
 
 
 def publish(fixture, scenario, only_when_mentioned):
@@ -145,8 +155,7 @@ def test_automation_reports_comment_access_for_its_integration(
     )
     workflow = publish(enterprise_data_fixture, scenario, only_when_mentioned=True)
     trigger = workflow.get_original().get_trigger().specific
-    data = AutomationNodeSerializer(trigger).data
-    assert data["service"]["context_data"] == {"can_read_comments": can_read}
+    assert context_data(scenario, trigger) == {"can_read_comments": can_read}
     if can_read:
         trigger.get_type().raise_if_misconfigured(trigger)
     else:
@@ -172,8 +181,7 @@ def test_automation_reports_a_trashed_setup_instead_of_comment_access(
     # The node list loads a trashed integration as None, the foreign key as trashed.
     [listed] = AutomationNodeHandler().get_nodes(workflow, with_cache=False)
     for trigger in (listed, workflow.get_trigger().specific):
-        data = AutomationNodeSerializer(trigger).data
-        assert data["service"]["context_data"] is None
+        assert context_data(scenario, trigger) is None
         with pytest.raises(ServiceImproperlyConfiguredDispatchException, match=error):
             trigger.get_type().raise_if_misconfigured(trigger)
 
