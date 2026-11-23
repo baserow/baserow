@@ -295,7 +295,7 @@ def test_create_all_missing_shared_applications_skips_a_locked_workspace(
     with connection.cursor() as cursor:
         cursor.execute("SET lock_timeout = '5s'")
     try:
-        # Another connection holds the workspace row, like a long import would.
+        # Another connection holds the workspace row, like renaming it would.
         with transaction.atomic(using="default-copy"):
             Workspace.objects.using("default-copy").select_for_update().get(
                 id=locked.id

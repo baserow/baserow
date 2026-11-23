@@ -960,7 +960,10 @@ class CoreHandler:
         Creates the shared application of each given workspace that doesn't have one,
         because it was created before shared applications existed. Trashed workspaces
         are skipped. Each workspace row is locked while its shared application is
-        looked up again and created, so concurrent calls create only one.
+        looked up again and created, so concurrent calls create only one. Only short
+        transactions hold that row, like renaming or trashing the workspace: a long
+        import doesn't, because the foreign keys of the applications it inserts are
+        checked when it commits.
 
         TODO ZDM: transitional, like its callers, the application listing and the
         backfill task. All are removed once a data migration has created the shared
@@ -968,9 +971,8 @@ class CoreHandler:
 
         :param workspace_ids: The ids of the workspaces to check.
         :param skip_locked: Skips a workspace whose row another transaction has
-            locked instead of waiting for it, e.g. a long import that inserts an
-            application into it. The backfill sets it; the listing doesn't, because
-            it must return the shared application.
+            locked instead of waiting for it. The backfill sets it; the listing
+            doesn't, because it must return the shared application.
         :return: The shared applications created.
         """
 
