@@ -1,3 +1,4 @@
+from uuid import uuid4
 from zipfile import ZipFile
 
 from django.contrib.auth.models import AbstractUser
@@ -5,6 +6,7 @@ from django.core.files.storage import Storage
 from django.db import transaction
 from django.db.transaction import Atomic
 from django.urls import URLResolver, include, path
+from django.utils.crypto import salted_hmac
 
 from celery.exceptions import SoftTimeLimitExceeded
 from loguru import logger
@@ -110,33 +112,65 @@ class AgentApplicationType(ApplicationType):
         return None, None
 
     @staticmethod
-    def _exported_identity_roles(
-        application: AgentApplication, import_export_config: ImportExportConfig
-    ) -> list[list] | None:
+    def _serialized_identity(key: str, roles: list | None) -> dict:
         """
-        The roles that the identity the Agent acts as has on single applications,
-        for an install to give a new identity the same access.
+        :param key: Says which Agents of one export act as the same identity.
+        :param roles: (application id, role uid) pairs, or None.
+        :return: The identity as it's exported and kept by an Agent waiting for one.
+        """
+
+        return {
+            "key": key,
+            "application_roles": None
+            if roles is None
+            else [
+                {"application_id": application_id, "role": role_uid}
+                for application_id, role_uid in roles
+            ],
+        }
+
+    @staticmethod
+    def _identity_roles(identity: dict) -> list[tuple[int, str]] | None:
+        """
+        :param identity: An identity made by `_serialized_identity`.
+        :return: Its (application id, role uid) pairs, or None without roles.
+        """
+
+        roles = identity.get("application_roles")
+        if roles is None:
+            return None
+        return [(role["application_id"], role["role"]) for role in roles]
+
+    def _exported_identity(
+        self, application: AgentApplication, import_export_config: ImportExportConfig
+    ) -> dict | None:
+        """
+        The identity the Agent acts as, for an install to make a new one with the
+        same access: a key shared by the Agents that act as it, and the roles it
+        has on single applications. The roles are None when its access can't be
+        exported this way.
 
         :param application: The exported Agent.
         :param import_export_config: How the Agent is exported.
-        :return: (application id, role uid) pairs, or None when its access can't be
-            exported this way.
+        :return: The exported identity, or None when the Agent has none.
         """
 
         if not (application.run_as_subject_type and application.run_as_subject_id):
             # A copy waiting for an identity, like the Agent of a user template,
-            # keeps the roles it was imported with, by its own application ids.
-            pending = (application.pending_tool_choices or {}).get("identity_roles")
+            # keeps the identity it was imported with, by its own application ids.
+            pending = (application.pending_tool_choices or {}).get("identity")
             if pending is None:
                 return None
-            roles = [list(role) for role in pending]
+            roles = self._identity_roles(pending)
             user = import_export_config.exported_by
-            if user is None:
-                return roles
-            # Left out, the new identity gets no access to their applications.
-            return identity_extension_type_registry.filter_readable_application_roles(
-                roles, user, application.workspace
-            )
+            if roles is not None and user is not None:
+                # Left out, the new identity gets no access to their applications.
+                roles = (
+                    identity_extension_type_registry.filter_readable_application_roles(
+                        roles, user, application.workspace
+                    )
+                )
+            return self._serialized_identity(pending["key"], roles)
         resolution = AgentHandler().resolve_run_as_subject(
             application.run_as_subject_type,
             application.run_as_subject_id,
@@ -147,37 +181,52 @@ class AgentApplicationType(ApplicationType):
         roles = identity_extension_type_registry.get_application_roles(
             resolution.subject, import_export_config.exported_by
         )
-        return None if roles is None else [list(role) for role in roles]
+        # Not its id, which is a local reference. An import replaces the key.
+        key = salted_hmac("agent-exported-identity", str(resolution.subject.id))
+        return self._serialized_identity(key.hexdigest(), roles)
 
-    @staticmethod
-    def _imported_identity_roles(
-        serialized_values: dict, id_mapping: dict
-    ) -> list[list] | None:
+    def _imported_identity(
+        self, serialized_values: dict, id_mapping: dict
+    ) -> dict | None:
         """
-        The exported roles of the Agent's identity on the applications imported
-        with it, by their new ids. Entries that aren't an application id and a role
-        uid are left out, so a malformed export can't fail the import.
+        The exported identity of the Agent, with its roles on the applications
+        imported with it, by their new ids. Its key is replaced by one of this
+        import, so Agents share an identity only with those imported with them.
+        Roles that aren't an application id and a role uid are left out, so a
+        malformed export can't fail the import.
 
         :param serialized_values: The exported Agent.
         :param id_mapping: The export-to-import id map.
-        :return: (application id, role uid) pairs, or None when none were exported.
+        :return: The identity the Agent waits for, or None when none was exported.
         """
 
-        exported = serialized_values.get("run_as_identity_roles")
-        if exported is None:
+        exported = serialized_values.get("run_as_identity")
+        if not isinstance(exported, dict):
             return None
-        if not isinstance(exported, list):
-            return []
+        exported_key = exported.get("key")
+        if isinstance(exported_key, str) and exported_key:
+            key = id_mapping.setdefault("agent_identity_keys", {}).setdefault(
+                exported_key, uuid4().hex
+            )
+        else:
+            key = uuid4().hex
+        exported_roles = exported.get("application_roles")
+        if exported_roles is None:
+            return self._serialized_identity(key, None)
+        if not isinstance(exported_roles, list):
+            return self._serialized_identity(key, [])
         applications = id_mapping.get("applications", {})
-        return [
-            [applications[entry[0]], entry[1]]
-            for entry in exported
-            if isinstance(entry, list)
-            and len(entry) == 2
-            and type(entry[0]) is int
-            and isinstance(entry[1], str)
-            and entry[0] in applications
-        ]
+        return self._serialized_identity(
+            key,
+            [
+                (applications[role["application_id"]], role["role"])
+                for role in exported_roles
+                if isinstance(role, dict)
+                and type(role.get("application_id")) is int
+                and isinstance(role.get("role"), str)
+                and role["application_id"] in applications
+            ],
+        )
 
     @staticmethod
     def _enabled_models(workspace: Workspace) -> dict[str, list[str]]:
@@ -239,18 +288,22 @@ class AgentApplicationType(ApplicationType):
         installed_applications: list,
     ) -> None:
         """
-        Make each installed Agent with pending tool choices act as a new identity
-        named after it, with no workspace access and a role on only the other
-        applications of the same install: the roles the template's identity had
-        when it was exported, or else the builder role if one of its tools changes
-        data, and the viewer role otherwise. Without other applications, the
-        identity has no access, and the tools are checked against that when they
-        run. Binding it turns the pending tools on, as when an identity is picked.
+        Make the installed Agents with pending tool choices act as new identities.
+        Agents that acted as the same identity in the template share one, named
+        after the first of them, and any other Agent gets its own, named after it.
 
-        An Agent whose identity can't be created, scoped or bound stays installed
-        with its pending choices: the identity is a shortcut that the installer
-        can still take by hand, so it doesn't fail the install. Each Agent is done
-        in a savepoint, so a failure never leaves an identity behind.
+        A new identity has no workspace access and a role on only the other
+        applications of the same install: the roles the template's identity had
+        when it was exported, or else the builder role if one of the tools of its
+        Agents changes data, and the viewer role otherwise. Without other
+        applications, the identity has no access, and the tools are checked
+        against that when they run. Binding it turns the pending tools on, as when
+        an identity is picked.
+
+        Agents whose identity can't be created, scoped or bound stay installed
+        with their pending choices: the identity is a shortcut that the installer
+        can still take by hand, so it doesn't fail the install. Each identity is
+        done in a savepoint, so a failure never leaves one behind.
         """
 
         # Without the feature, the installer can't see the Agents or their identities.
@@ -277,41 +330,67 @@ class AgentApplicationType(ApplicationType):
             for application in installed_applications
             if not isinstance(application, AgentApplication)
         ]
+        # Agents that wait for the same identity, in the order they were installed.
+        waiting: dict[str, list[AgentApplication]] = {}
         for agent in applications:
-            self._create_install_identity(user, workspace, agent, scoped_applications)
+            if not AgentHandler().get_pending_tool_configuration(agent)[
+                "allowed_tools"
+            ]:
+                continue
+            identity = agent.pending_tool_choices.get("identity") or {}
+            waiting.setdefault(identity.get("key") or f"agent-{agent.id}", []).append(
+                agent
+            )
+        for agents in waiting.values():
+            self._create_install_identity(user, workspace, agents, scoped_applications)
+
+    @staticmethod
+    def _can_name_an_identity(name: str) -> bool:
+        try:
+            no_url_validation(name)
+        except ValidationError:
+            return False
+        return True
 
     def _create_install_identity(
         self,
         user: AbstractUser,
         workspace: Workspace,
-        agent: AgentApplication,
+        agents: list[AgentApplication],
         applications: list,
     ) -> None:
         """
-        Creates and binds the identity of one installed Agent, if it waits for one.
-        See `create_install_identities`.
+        Creates the identity that installed Agents wait for and binds it to each of
+        them. See `create_install_identities`.
 
         :param user: The user who installs the template.
         :param workspace: The workspace the template is installed into.
-        :param agent: The installed Agent.
+        :param agents: The installed Agents that wait for the same identity.
         :param applications: The installed applications the identity may access.
         """
 
-        pending = AgentHandler().get_pending_tool_configuration(agent)
-        if not pending["allowed_tools"]:
-            return
+        agent_ids = [agent.id for agent in agents]
         # Identity names reach emails, so they get the check of the identities API.
-        name = agent.name[:150]
-        try:
-            no_url_validation(name)
-        except ValidationError:
+        name = next(
+            (
+                agent.name[:150]
+                for agent in agents
+                if self._can_name_an_identity(agent.name[:150])
+            ),
+            None,
+        )
+        if name is None:
             logger.warning(
-                "Not creating the identity of the installed Agent {}: its name "
-                "can't be the name of an identity.",
-                agent.id,
+                "Not creating the identity of the installed Agents {}: none of "
+                "their names can be the name of an identity.",
+                agent_ids,
             )
             return
-        roles = agent.pending_tool_choices.get("identity_roles")
+        # Every Agent holds a copy of the roles of the identity they share.
+        roles = self._identity_roles(
+            agents[0].pending_tool_choices.get("identity") or {}
+        )
+        handler = AgentHandler()
         try:
             with transaction.atomic():
                 identity = action_type_registry.get_by_type(
@@ -323,29 +402,35 @@ class AgentApplicationType(ApplicationType):
                     applications=applications,
                     can_change_data=any(
                         agent_tool_type_registry.get(tool).changes_data
-                        for tool in pending["allowed_tools"]
+                        for agent in agents
+                        for tool in handler.get_pending_tool_configuration(agent)[
+                            "allowed_tools"
+                        ]
                     ),
-                    roles=None if roles is None else [tuple(role) for role in roles],
+                    roles=roles,
                 )
-                # Audited, because the Agent gets the identity's access.
-                action_type_registry.get_by_type(UpdateAgentConfigurationActionType).do(
-                    user,
-                    agent.id,
-                    run_as_subject_type=UserSubjectType.type,
-                    run_as_subject_id=identity.id,
-                )
+                # Audited, because the Agents get the identity's access.
+                for agent in agents:
+                    action_type_registry.get_by_type(
+                        UpdateAgentConfigurationActionType
+                    ).do(
+                        user,
+                        agent.id,
+                        run_as_subject_type=UserSubjectType.type,
+                        run_as_subject_id=identity.id,
+                    )
         except (PermissionException, IdentityCannotBeScoped) as error:
             # Expected when the installer can't change an application.
             logger.warning(
-                "Not creating the identity of the installed Agent {}: {}",
-                agent.id,
+                "Not creating the identity of the installed Agents {}: {}",
+                agent_ids,
                 repr(error),
             )
         except SoftTimeLimitExceeded:
             raise
         except Exception as error:
             logger.exception(
-                "Could not create the identity of the installed Agent {}.", agent.id
+                "Could not create the identity of the installed Agents {}.", agent_ids
             )
             exception_capturer(error)
 
@@ -510,11 +595,9 @@ class AgentApplicationType(ApplicationType):
                 run_as_subject_id=application.run_as_subject_id,
             )
         else:
-            identity_roles = self._exported_identity_roles(
-                application, import_export_config
-            )
-            if identity_roles is not None:
-                serialized["run_as_identity_roles"] = identity_roles
+            identity = self._exported_identity(application, import_export_config)
+            if identity is not None:
+                serialized["run_as_identity"] = identity
         if self._includes_conversations(import_export_config):
             serialized["conversations"] = AgentHandler().export_conversations(
                 application
@@ -603,11 +686,9 @@ class AgentApplicationType(ApplicationType):
                     ),
                 ],
             )
-            identity_roles = self._imported_identity_roles(
-                serialized_values, id_mapping
-            )
-            if identity_roles is not None:
-                application.pending_tool_choices["identity_roles"] = identity_roles
+            identity = self._imported_identity(serialized_values, id_mapping)
+            if identity is not None:
+                application.pending_tool_choices["identity"] = identity
             application.save(update_fields=["pending_tool_choices"])
         for serialized_integration in serialized_integrations:
             IntegrationHandler().import_integration(

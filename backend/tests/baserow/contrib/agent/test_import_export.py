@@ -1,7 +1,7 @@
 import json
 from datetime import datetime, timezone
 from io import BytesIO
-from unittest.mock import patch
+from unittest.mock import ANY, patch
 
 import pytest
 from freezegun import freeze_time
@@ -1166,6 +1166,8 @@ def test_template_install_keeps_tool_choices_pending(data_fixture, configured_ag
     assert installed.pending_tool_choices == {
         "allowed_tools": ["list_tables", "create_rows"],
         "ask_first_tools": ["create_rows"],
+        # The identity of the template, without roles to recreate.
+        "identity": {"key": ANY, "application_roles": None},
     }
 
 
@@ -1263,6 +1265,8 @@ def test_installed_tools_that_change_data_ask_first(data_fixture, configured_age
     assert installed.pending_tool_choices == {
         "allowed_tools": ["list_tables", "create_rows"],
         "ask_first_tools": ["create_rows"],
+        # The identity of the template, without roles to recreate.
+        "identity": {"key": ANY, "application_roles": None},
     }
 
 
