@@ -108,7 +108,7 @@ import {
  * can use, read-only since they're managed in the workspace settings, then its
  * own, which can be edited, made available to the whole workspace and deleted.
  *
- * Options API on purpose: specs vary `$hasPermission` through `global.mocks`.
+ * Options API, as in the builder's `IntegrationSettings` it was moved from.
  */
 export default {
   name: 'ApplicationIntegrationSettings',

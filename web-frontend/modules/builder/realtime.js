@@ -20,9 +20,9 @@ const getPageContext = (store, pageId) => {
 }
 
 /**
- * Returns the application (builder) for a given application ID, or null when it isn't
- * loaded in the store. Used by the integration and user source realtime handlers,
- * which are scoped to the application rather than a page.
+ * Returns the application, of any type, for a given application ID, or null when it
+ * isn't loaded in the store. Used by the integration and user source realtime
+ * handlers, which are scoped to the application rather than a page.
  */
 const getApplicationContext = (store, applicationId) => {
   const application = store.getters['application/get'](applicationId)
@@ -401,7 +401,8 @@ export const registerRealtimeEvents = (realtime) => {
     })
   })
 
-  // Integration events
+  // Integration events, for every application type and the shared application:
+  // no other module handles them.
   realtime.registerEvent('integration_created', ({ store }, data) => {
     const ctx = getApplicationContext(store, data.integration.application_id)
     if (!ctx) return
