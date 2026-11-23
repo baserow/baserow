@@ -652,7 +652,7 @@ def test_get_public_dashboard_info_keeps_the_result_when_a_filter_uses_its_optio
         title="Region",
         mode="dropdown",
         options=BaserowFormulaObject.create(
-            f"get('data_source_context.{data_source.id}.{region.db_column}')"
+            f"get('data_source_context.{data_source.service.specific.table_id}.{region.db_column}')"
         ),
     )
 

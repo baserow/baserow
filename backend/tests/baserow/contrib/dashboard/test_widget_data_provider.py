@@ -1175,7 +1175,7 @@ def context_options(data_fixture, filter_dashboard):
     source.save()
     widget.mode = "dropdown"
     widget.options = BaserowFormulaObject.create(
-        f"get('data_source_context.{source.id}.field_{field.id}.*.value')"
+        f"get('data_source_context.{source.service.specific.table_id}.field_{field.id}.*.value')"
     )
     widget.save()
     return field
@@ -1241,14 +1241,16 @@ def test_option_context_formula_scope_and_import(
     result = import_formula(
         widget.options,
         {
-            "dashboard_data_sources": {source.id: source.id},
+            "database_tables": {
+                source.service.specific.table_id: source.service.specific.table_id
+            },
             "database_fields": {context_options.id: 5678},
         },
         data_provider_type_registry=dashboard_options_data_provider_registry,
     )
     assert (
         result["formula"]
-        == f"get('data_source_context.{source.id}.field_5678.*.value')"
+        == f"get('data_source_context.{source.service.specific.table_id}.field_5678.*.value')"
     )
 
 
@@ -1294,16 +1296,20 @@ def test_context_provider_collects_nested_references_without_evaluating(
     properties = extract_formula_properties(
         [
             BaserowFormulaObject.create(
-                f"concat(get('data_source_context.{source.id}.field_886.*.value'), "
-                f"get('data_source_context.{source.id}.field_887.*.value'))"
+                f"concat(get('data_source_context.{source.service.specific.table_id}.field_886.*.value'), "
+                f"get('data_source_context.{source.service.specific.table_id}.field_887.*.value'))"
             ),
             BaserowFormulaObject.create(
-                f"get('data_source_context.{source.id}.field_888.*.value')", mode="raw"
+                f"get('data_source_context.{source.service.specific.table_id}.field_888.*.value')",
+                mode="raw",
             ),
         ],
         dashboard_property_data_provider_registry,
     )
-    assert set(properties[source.service_id]) == {"field_886", "field_887"}
+    assert set(properties[f"table_{source.service.specific.table_id}"]) == {
+        "field_886",
+        "field_887",
+    }
 
 
 @pytest.mark.django_db
@@ -1375,7 +1381,7 @@ def test_public_context_uses_formulas_declared_by_other_widget_types(
         data_fixture.create_summary_widget(
             dashboard=dashboard,
             data_source=source,
-            description=f"get('data_source_context.{source.id}.{referenced.db_column}.*.value')",
+            description=f"get('data_source_context.{source.service.specific.table_id}.{referenced.db_column}.*.value')",
         )
     response = api_client.get(
         reverse("api:dashboard:public:info", kwargs={"slug": dashboard.slug})
@@ -1478,7 +1484,7 @@ def test_public_property_cache_reuses_widgets_and_invalidates_changes(
         field=field, value="Updated options", color="blue"
     )
     widget.options = BaserowFormulaObject.create(
-        f"get('data_source_context.{source.id}.{field.db_column}.*.value')"
+        f"get('data_source_context.{source.service.specific.table_id}.{field.db_column}.*.value')"
     )
     widget.save(update_fields=["options"])
     response = api_client.get(url)
@@ -1584,31 +1590,22 @@ def test_dispatch_validates_every_registered_data_provider(filter_dashboard, val
         registry.unregister(DefaultValidationProvider.type)
 
 
-@pytest.mark.django_db
-def test_context_property_extraction_uses_handler(
-    filter_dashboard, context_options, monkeypatch
-):
-    """Extraction resolves properties via the handler and tolerates deleted sources."""
+def test_context_property_extraction_is_independent_of_sources():
     from baserow.contrib.dashboard.data_providers import (
         DashboardDataSourceContextDataProviderType,
     )
 
-    _, _, dashboard, source, _, _ = filter_dashboard
     provider = DashboardDataSourceContextDataProviderType()
-    original_get = DashboardDataSourceHandler.get_data_source
-    lookups = []
-
-    def get_data_source(self, source_id, **kwargs):
-        lookups.append(source_id)
-        return original_get(self, source_id, **kwargs)
-
-    monkeypatch.setattr(DashboardDataSourceHandler, "get_data_source", get_data_source)
-    path = [str(source.id), context_options.db_column, "*", "value"]
-    assert provider.extract_properties(path) == {
-        source.service_id: [context_options.db_column]
+    assert provider.extract_properties(["123", "field_456", "*", "value"]) == {
+        "table_123": ["field_456"]
     }
-    assert lookups == [source.id]
-    assert provider.extract_properties(["999999999", context_options.db_column]) == {}
+    assert provider.import_path(
+        ["123", "field_456", "*", "value"],
+        {
+            "database_tables": {123: 789},
+            "database_fields": {456: 987},
+        },
+    ) == ["789", "field_987", "*", "value"]
 
 
 @pytest.mark.django_db
@@ -1618,20 +1615,22 @@ def test_option_formula_validation_checks_dashboard_ownership(
 ):
     """Ownership is checked when saving formulas, rather than during extraction."""
     _, token, dashboard, source, widget, _ = filter_dashboard
-    foreign = data_fixture.create_dashboard_local_baserow_list_rows_data_source()
+    foreign = data_fixture.create_dashboard_local_baserow_list_rows_data_source(
+        table=data_fixture.create_database_table()
+    )
     url = reverse(
         "api:dashboard:widgets:list" if create else "api:dashboard:widgets:item",
         kwargs={"dashboard_id": dashboard.id} if create else {"widget_id": widget.id},
     )
     request = api_client.post if create else api_client.patch
-    for source_id, expected_status in [
-        (foreign.id, 400),
+    for table_id, expected_status in [
+        (foreign.service.specific.table_id, 400),
         (999999999, 400),
-        (source.id, 200),
+        (source.service.specific.table_id, 200),
     ]:
         payload = {
             "options": BaserowFormulaObject.create(
-                f"get('data_source_context.{source_id}.{context_options.db_column}.*.value')"
+                f"get('data_source_context.{table_id}.{context_options.db_column}.*.value')"
             )
         }
         if create:
@@ -1641,7 +1640,7 @@ def test_option_formula_validation_checks_dashboard_ownership(
         )
         assert response.status_code == expected_status, response.json()
         if expected_status == 400:
-            assert "options" in response.json()
+            assert "options" in response.json().get("detail", response.json())
 
 
 @pytest.mark.django_db
@@ -1738,7 +1737,7 @@ def test_dropdown_selection_labels_in_runtime_and_stored_conditions(
         multiple=multiple,
         default_value=[] if multiple else "",
         options=BaserowFormulaObject.create(
-            f"get('data_source_context.{source.id}.{field.db_column}.*.value')"
+            f"get('data_source_context.{source.service.specific.table_id}.{field.db_column}.*.value')"
         ),
         target_filters=[] if stored else links,
     )
@@ -1980,3 +1979,37 @@ def test_conditions_on_unavailable_fields_are_still_validated(
     response = patch_target_filters(api_client, token, widget, [link])
 
     assert response.status_code == 400, response.json()
+
+
+@pytest.mark.django_db
+def test_table_options_survive_original_widget_deletion(
+    api_client, data_fixture, filter_dashboard, context_options
+):
+    """Cached public options follow the table after their original source is trashed."""
+    _, _, dashboard, source, widget, _ = filter_dashboard
+    table = source.service.specific.table
+    replacement = data_fixture.create_dashboard_local_baserow_list_rows_data_source(
+        dashboard=dashboard,
+        table=table,
+        integration=source.service.specific.integration,
+    )
+    SummaryWidget.objects.create(
+        dashboard=dashboard, title="Remaining", data_source=replacement
+    )
+    url = reverse("api:dashboard:public:info", kwargs={"slug": dashboard.slug})
+    assert api_client.get(url).status_code == 200  # Warm the property cache.
+    original = SummaryWidget.objects.get(dashboard=dashboard, data_source=source)
+    TrashHandler.trash(None, dashboard.workspace, dashboard, original)
+    response = api_client.get(url)
+    assert response.status_code == 200
+    sources = response.json()["data_sources"]
+    assert all(item["id"] != source.id for item in sources)
+    remaining = next(item for item in sources if item["id"] == replacement.id)
+    assert remaining["context_table_id"] == table.id
+    assert [
+        item["value"] for item in remaining["context_data"][context_options.db_column]
+    ] == ["Europe", "Americas"]
+    assert (
+        widget.options["formula"]
+        == f"get('data_source_context.{table.id}.{context_options.db_column}.*.value')"
+    )

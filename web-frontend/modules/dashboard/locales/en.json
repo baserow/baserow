@@ -170,7 +170,8 @@
     "whenEmptyCount": "1 condition when empty | {count} conditions when empty"
   },
   "dashboardDataProviderType": {
-    "widgetData": "Filter widgets"
+    "widgetData": "Filter widgets",
+    "tableContext": "Table data"
   },
   "dashboardServiceRefinementForms": {
     "dashboardFilters": "Dashboard filters"

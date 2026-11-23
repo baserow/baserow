@@ -105,7 +105,7 @@ describe('TextFilterWidget', () => {
       data: { results: ['France'] },
     })
     store.commit('dashboardApplication/SET_DATA_SOURCES', [
-      { id: 9, context_data: { field_10: [{ value: 'France' }] } },
+      { id: 9, table_id: 9, context_data: { field_10: [{ value: 'France' }] } },
     ])
     await store.dispatch('dashboardApplication/forceSetWidgets', [dropdown])
     store.commit('dashboardApplication/SET_PUBLIC', {
@@ -144,10 +144,19 @@ describe('TextFilterWidget', () => {
     }
     const store = testApp.store
     store.commit('dashboardApplication/SET_DATA_SOURCES', [
-      { id: 9, context_data: { field_10: [{ value: 'Private' }] } },
+      {
+        id: 9,
+        table_id: -1,
+        context_table_id: 9,
+        context_data: { field_10: [{ value: 'Private' }] },
+      },
     ])
     store.commit('template/dashboardApplication/SET_DATA_SOURCES', [
-      { id: 9, context_data: { field_10: [{ value: 'Template' }] } },
+      {
+        id: 9,
+        table_id: 9,
+        context_data: { field_10: [{ value: 'Template' }] },
+      },
     ])
     await store.dispatch('template/dashboardApplication/forceSetWidgets', [
       dropdown,

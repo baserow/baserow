@@ -109,6 +109,7 @@ describe('TextFilterWidgetSettings', () => {
     store.commit('dashboardApplication/SET_DATA_SOURCES', [
       {
         id: 1,
+        table_id: 1,
         context_data: { field_10: [{ value: 'France' }, { value: 'Belgium' }] },
       },
     ])

@@ -1,8 +1,5 @@
 import re
 
-from baserow.contrib.dashboard.data_sources.exceptions import (
-    DashboardDataSourceDoesNotExist,
-)
 from baserow.contrib.dashboard.data_sources.handler import DashboardDataSourceHandler
 from baserow.contrib.dashboard.widgets.handler import WidgetHandler
 from baserow.core.cache import local_cache
@@ -108,53 +105,49 @@ class DashboardDataSourceContextDataProviderType(DataProviderType):
     type = "data_source_context"
 
     def is_valid(self, path, validation_context=None):
+        """Allow table metadata only when this dashboard has a source for it."""
         if len(path) < 2 or not re.fullmatch(r"[1-9][0-9]{0,18}", path[0]):
-            raise BaserowFormulaSyntaxError(
-                "Choose dashboard data source context data."
-            )
+            raise BaserowFormulaSyntaxError("Choose dashboard table context data.")
         dashboard_id = (validation_context or {}).get("dashboard_id")
         if dashboard_id is not None:
-            source = self._get_data_source(path[0])
-            if source is None or source.dashboard_id != dashboard_id:
+            from baserow.contrib.dashboard.models import Dashboard
+
+            dashboard = Dashboard.objects.get(id=dashboard_id)
+            sources = DashboardDataSourceHandler().get_data_sources(dashboard)
+            if not any(
+                source.service_id
+                and getattr(source.service.specific, "table_id", None) == int(path[0])
+                for source in sources
+            ):
                 raise BaserowFormulaSyntaxError(
-                    "Choose a data source belonging to this dashboard."
+                    "Choose a table used by this dashboard."
                 )
         return True
 
     def get_data_chunk(self, dispatch_context, path):
         raise NotImplementedError("Dashboard option formulas resolve in the frontend.")
 
-    def _get_data_source(self, source_id):
-        """Resolve through the handler, tolerating references to deleted sources."""
-        try:
-            return DashboardDataSourceHandler().get_data_source(int(source_id))
-        except DashboardDataSourceDoesNotExist:
-            return None
-
     def extract_properties(self, path, **kwargs):
-        """Resolve a context reference to properties of its owning service."""
+        """Keep cached metadata references independent of a widget's source."""
         self.is_valid(path)
-        source_id, *rest = path
-        source = self._get_data_source(source_id)
-        if source is None or not source.service_id:
-            return {}
-        service = source.service.specific
-        return {
-            service.id: service.get_type().extract_properties(service, rest, **kwargs)
-        }
+        table_id, field, *_ = path
+        return (
+            {f"table_{table_id}": [field]}
+            if re.fullmatch(r"field_[0-9]+", field)
+            else {}
+        )
 
     def import_path(self, path, id_mapping, **kwargs):
-        """Remap the source and let its service remap metadata properties."""
+        """Remap table and field identifiers when importing a dashboard."""
         self.is_valid(path)
-        source_id, *rest = path
-        mapped_id = id_mapping.get("dashboard_data_sources", {}).get(int(source_id))
-        if mapped_id is not None:
-            source_id = mapped_id
-            source = self._get_data_source(source_id)
-            if source and source.service_id:
-                service = source.service.specific
-                rest = service.get_type().import_context_path(rest, id_mapping)
-        return [str(source_id), *rest]
+        table_id, field, *rest = path
+        table_id = id_mapping.get("database_tables", {}).get(int(table_id), table_id)
+        if match := re.fullmatch(r"field_([0-9]+)", field):
+            field_id = int(match[1])
+            field = (
+                f"field_{id_mapping.get('database_fields', {}).get(field_id, field_id)}"
+            )
+        return [str(table_id), field, *rest]
 
 
 dashboard_options_data_provider_registry = DataProviderTypeRegistry()
