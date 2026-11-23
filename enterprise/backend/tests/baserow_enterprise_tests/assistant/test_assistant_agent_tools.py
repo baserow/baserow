@@ -20,6 +20,7 @@ from baserow_enterprise.assistant.tools.agent.tools import (
     AgentSetup,
     apply_agent_setup,
     get_agent,
+    get_agent_test_result,
     list_agent_tools,
 )
 from baserow_enterprise.assistant.tools.agent.tools import (
@@ -581,3 +582,39 @@ def test_a_schedule_every_minute_reads_in_the_singular():
     assert _describe_schedule(
         {"interval": "MINUTE", "minute": 5, "timezone": "UTC"}
     ) == ("every 5 minutes")
+
+
+@pytest.mark.django_db
+def test_waiting_for_a_test_reply_stops_when_kuma_is_cancelled(data_fixture, mocker):
+    import asyncio
+    from types import SimpleNamespace
+
+    from baserow.contrib.agent.models import AgentReplyStatus
+
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    agent = data_fixture.create_agent_application(workspace=workspace)
+    conversation = data_fixture.create_agent_conversation(user=user, agent=agent)
+    AgentMessage.objects.create(
+        conversation=conversation,
+        uuid=uuid4(),
+        role=AgentMessage.Role.ASSISTANT,
+        content="",
+        status=AgentReplyStatus.QUEUED,
+    )
+    ctx = _ctx(user, workspace)
+    clock = [0.0]
+
+    def sleep(seconds):
+        # The user stops Kuma during the first wait.
+        ctx.deps.tool_helpers._cancel_event.set()
+        clock[0] += seconds
+
+    mocker.patch(
+        "baserow_enterprise.assistant.tools.agent.tools.time",
+        SimpleNamespace(monotonic=lambda: clock[0], sleep=sleep),
+    )
+
+    with pytest.raises(asyncio.CancelledError):
+        get_agent_test_result(ctx, agent.id, conversation.uuid, thought="t")
+    assert clock[0] == 1

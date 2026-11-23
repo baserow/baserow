@@ -78,7 +78,8 @@ TEST_TITLE_PREFIX = "Test: "
 # How long get_agent_test_result waits for the Agent to finish replying.
 # Agent replies run on the same queue as Kuma's run, so the wait is kept short
 # to not hold a worker the reply may need.
-TEST_RESULT_WAIT_SECONDS = 20
+TEST_RESULT_WAIT_SECONDS = 10
+TEST_RESULT_POLL_SECONDS = 1
 CHANGED_SINCE_APPROVAL = (
     "Not applied: the Agent or the proposed change is different from what the "
     "user approved. Read the Agent again with get_agent and propose the change "
@@ -957,12 +958,14 @@ def get_agent_test_result(
     """\
     Read the reply of a test conversation: its status, text, the tools it called and the calls waiting for approval.
 
-    WHEN to use: After test_agent. It waits up to 20 seconds for the reply. When the status is still queued or running, call it once more; if it is still not done, tell the user to follow it in the test conversation.
+    WHEN to use: After test_agent. It waits up to 10 seconds for the reply. When the status is still queued or running, call it once more; if it is still not done, tell the user to follow it in the test conversation.
     """
 
     agent_id = _agent(ctx, agent_id).id
     deadline = time.monotonic() + TEST_RESULT_WAIT_SECONDS
     while True:
+        # The user can stop Kuma while it waits for the reply.
+        ctx.deps.tool_helpers.raise_if_cancelled()
         conversation, messages = AgentService().list_messages(
             ctx.deps.user, agent_id, conversation_uuid
         )
@@ -975,7 +978,7 @@ def get_agent_test_result(
         )
         if settled or time.monotonic() >= deadline:
             break
-        time.sleep(2)
+        time.sleep(TEST_RESULT_POLL_SECONDS)
     if reply is None:
         return {"status": AgentReplyStatus.QUEUED}
     return {
