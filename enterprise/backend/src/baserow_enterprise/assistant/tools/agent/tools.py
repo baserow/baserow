@@ -146,11 +146,21 @@ class NewIdentity(BaseModel):
 class Schedule(BaseModel):
     interval: Literal["MINUTE", "HOUR", "DAY", "WEEK", "MONTH"] = "DAY"
     hour: int = Field(default=9, ge=0, le=23)
-    minute: int = Field(default=0, ge=0, le=59)
+    minute: int = Field(
+        default=0,
+        ge=0,
+        le=59,
+        description="The minute past the hour; for MINUTE, every how many minutes.",
+    )
     day_of_week: int | None = Field(
         default=None, ge=0, le=6, description="0 is Monday, for WEEK."
     )
     day_of_month: int | None = Field(default=None, ge=1, le=31)
+    timezone: str | None = Field(
+        default=None,
+        description="The IANA timezone hour and minute are in. Defaults to the "
+        "user's timezone.",
+    )
 
 
 class TriggerSpec(BaseModel):
@@ -240,6 +250,61 @@ def _agent(ctx: RunContext[AssistantDeps], agent_id: int):
     return agent.specific
 
 
+WEEKDAYS = (
+    "Monday",
+    "Tuesday",
+    "Wednesday",
+    "Thursday",
+    "Friday",
+    "Saturday",
+    "Sunday",
+)
+
+
+def _user_timezone(user) -> str:
+    """The user's timezone from their profile, or UTC when they have none."""
+
+    return getattr(getattr(user, "profile", None), "timezone", None) or "UTC"
+
+
+def _schedule_values(service) -> dict[str, Any] | None:
+    """The schedule of a periodic trigger's service, in the form Schedule takes."""
+
+    if getattr(service, "interval", None) is None:
+        return None
+    return {
+        field: getattr(service, field)
+        for field in (
+            "interval",
+            "hour",
+            "minute",
+            "day_of_week",
+            "day_of_month",
+            "timezone",
+        )
+    }
+
+
+def _describe_schedule(schedule: dict[str, Any]) -> str:
+    """
+    :param schedule: The schedule's values, as Schedule or _schedule_values give.
+    :return: In plain words, when the schedule starts a run.
+    """
+
+    interval = schedule.get("interval") or "DAY"
+    minute = schedule.get("minute") or 0
+    at = f"at {schedule.get('hour') or 0:02d}:{minute:02d} ({schedule['timezone']})"
+    if interval == "MINUTE":
+        return f"every {minute or 1} minutes"
+    if interval == "HOUR":
+        return f"every hour at {minute:02d} minutes past"
+    if interval == "WEEK":
+        return f"every {WEEKDAYS[schedule.get('day_of_week') or 0]} {at}"
+    if interval == "MONTH":
+        return f"on day {schedule.get('day_of_month') or 1} of every month {at}"
+    return f"every day {at}"
+
+
 def _read_setup(user, agent) -> dict[str, Any]:
     """The Agent's current setup, in the form apply_agent_setup takes."""
 
@@ -268,6 +333,7 @@ def _read_setup(user, agent) -> dict[str, Any]:
                 "name": trigger.name,
                 "enabled": trigger.enabled,
                 "table_id": getattr(trigger.service.specific, "table_id", None),
+                "schedule": _schedule_values(trigger.service.specific),
             }
             for trigger in triggers
         ],
@@ -291,11 +357,17 @@ def _changes_data(name: str) -> bool:
     )
 
 
-def _trigger_event(workspace: Workspace, type_name: str, table_id: int | None) -> str:
+def _trigger_event(
+    workspace: Workspace,
+    type_name: str,
+    table_id: int | None,
+    schedule: dict[str, Any] | None = None,
+) -> str:
     """
     :param workspace: The chat's workspace, which a watched table is looked up in.
     :param type_name: The trigger's type.
     :param table_id: The table a row trigger watches.
+    :param schedule: The schedule of a periodic trigger, with its timezone.
     :return: In plain words, when the trigger starts a run.
     """
 
@@ -304,7 +376,7 @@ def _trigger_event(workspace: Workspace, type_name: str, table_id: int | None) -
         where = f" in {table.name}" if table else ""
         return f"when rows are {type_name.rsplit('_', 1)[-1]}{where}"
     if type_name == SCHEDULE_TRIGGER:
-        return "on a schedule"
+        return _describe_schedule(schedule) if schedule else "on a schedule"
     return "when its trigger fires"
 
 
@@ -375,10 +447,9 @@ def _widening_changes(
         changes.append("Let the Agent open web pages")
     for trigger in setup.add_triggers:
         if trigger.enabled:
-            changes.append(
-                "Run the Agent by itself "
-                + _trigger_event(workspace, trigger.type, trigger.table_id)
-            )
+            schedule = trigger.schedule.model_dump() if trigger.schedule else None
+            event = _trigger_event(workspace, trigger.type, trigger.table_id, schedule)
+            changes.append(f"Run the Agent by itself {event}")
     for change in setup.update_triggers:
         before = next(
             (
@@ -389,7 +460,9 @@ def _widening_changes(
             None,
         )
         if change.enabled and before is not None and not before["enabled"]:
-            event = _trigger_event(workspace, before["type"], before["table_id"])
+            event = _trigger_event(
+                workspace, before["type"], before["table_id"], before.get("schedule")
+            )
             changes.append(f"Run the Agent by itself {event}")
     return changes
 
@@ -422,6 +495,27 @@ def _default_ask_first(setup: AgentSetup, current: dict[str, Any] | None):
     ]
 
 
+def _with_schedule_timezones(setup: AgentSetup, timezone: str) -> AgentSetup:
+    """
+    Give each new periodic trigger a schedule in the user's timezone unless it
+    names one, so the card and the saved trigger show the time the user meant.
+
+    :param setup: The proposed change.
+    :param timezone: The user's timezone.
+    :return: The change, with a schedule and timezone on every periodic trigger.
+    """
+
+    triggers = []
+    for spec in setup.add_triggers:
+        if spec.type == SCHEDULE_TRIGGER:
+            schedule = spec.schedule or Schedule()
+            if not schedule.timezone:
+                schedule = schedule.model_copy(update={"timezone": timezone})
+            spec = spec.model_copy(update={"schedule": schedule})
+        triggers.append(spec)
+    return setup.model_copy(update={"add_triggers": triggers})
+
+
 def _trigger_values(spec: TriggerSpec) -> dict[str, Any]:
     if spec.type in ROWS_TRIGGER_TYPES:
         if not spec.table_id:
@@ -431,8 +525,7 @@ def _trigger_values(spec: TriggerSpec) -> dict[str, Any]:
             )
         return {"table_id": spec.table_id}
     if spec.type == SCHEDULE_TRIGGER:
-        schedule = (spec.schedule or Schedule()).model_dump(exclude_none=True)
-        return {"timezone": "UTC", **schedule}
+        return spec.schedule.model_dump(exclude_none=True)
     return {}
 
 
@@ -599,6 +692,7 @@ def apply_agent_setup(
         # Ask first only changes with the tools it applies to, so keep them.
         allowed = (current or {}).get("allowed_tools") or []
         setup = setup.model_copy(update={"allowed_tools": allowed})
+    setup = _with_schedule_timezones(setup, _user_timezone(user))
     ask_first = _default_ask_first(setup, current)
     widening = _widening_changes(workspace, current, setup, ask_first)
     if agent is None and not setup.name:

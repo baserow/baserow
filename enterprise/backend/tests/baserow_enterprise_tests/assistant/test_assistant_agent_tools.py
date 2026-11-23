@@ -386,3 +386,43 @@ def test_a_refused_trigger_returns_an_error_to_kuma(data_fixture, settings):
     with pytest.raises(ToolInputError, match="minute"):
         apply_agent_setup(ctx, setup, thought="t")
     assert not AgentApplication.objects.filter(workspace=workspace).exists()
+
+
+@pytest.mark.django_db
+def test_a_schedule_runs_in_the_users_timezone_and_the_card_says_when(
+    data_fixture,
+):
+    user = data_fixture.create_user()
+    user.profile.timezone = "Europe/Amsterdam"
+    user.profile.save()
+    workspace = data_fixture.create_workspace(user=user)
+    setup = {
+        "name": "Digest",
+        "add_triggers": [
+            {
+                "type": "periodic",
+                "enabled": True,
+                "schedule": {"interval": "WEEK", "day_of_week": 0, "hour": 8},
+            }
+        ],
+    }
+
+    metadata = _held(_ctx(user, workspace), setup)
+    assert metadata["details"]["changes"] == [
+        "Run the Agent by itself every Monday at 08:00 (Europe/Amsterdam)"
+    ]
+
+    result = apply_agent_setup(
+        _ctx(user, workspace, approved_key=metadata["tool_key"]),
+        AgentSetup(**setup),
+        thought="t",
+    )
+    [trigger] = result["setup"]["triggers"]
+    assert trigger["schedule"] == {
+        "interval": "WEEK",
+        "hour": 8,
+        "minute": 0,
+        "day_of_week": 0,
+        "day_of_month": 1,
+        "timezone": "Europe/Amsterdam",
+    }
