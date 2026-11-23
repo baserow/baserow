@@ -9,6 +9,7 @@ from django.utils import translation
 from asgiref.sync import sync_to_async
 from loguru import logger
 from pydantic_ai import DeferredToolResults, ToolDenied
+from pydantic_ai.messages import ModelMessagesTypeAdapter, ModelResponse, TextPart
 
 from baserow.api.sessions import (
     set_client_undo_redo_action_group_id,
@@ -268,9 +269,10 @@ class AssistantChatRunType(ChatRunType):
         chat, human_message = self._load_turn(run)
         result = outcome.result or AssistantRunResult(
             text="",
-            message_history=append_turn(
-                chat.message_history,
-                human_message.content,
+            message_history=self._closed_turn(
+                run,
+                chat,
+                human_message,
                 NOT_STARTED_ANSWER
                 if outcome.error_code in NOTHING_RAN_ERROR_CODES
                 else unfinished_answer(""),
@@ -321,8 +323,8 @@ class AssistantChatRunType(ChatRunType):
 
         chat, human_message = self._load_turn(run)
         text = fold_output(events or [])["text"]
-        history = append_turn(
-            chat.message_history, human_message.content, unfinished_answer(text)
+        history = self._closed_turn(
+            run, chat, human_message, unfinished_answer(text), unfinished_answer(text)
         )
         return self._save_answer(
             run,
@@ -395,13 +397,47 @@ class AssistantChatRunType(ChatRunType):
         """
 
         chat, human_message = self._load_turn(run)
-        history = append_turn(
-            chat.message_history, human_message.content, NOT_STARTED_ANSWER
-        )
+        history = self._closed_turn(run, chat, human_message, NOT_STARTED_ANSWER)
         result = AssistantRunResult(text="", message_history=history)
         return self._save_answer(
             run, chat, human_message, result, run.status, run.error_code
         )
+
+    def _closed_turn(
+        self,
+        run: ChatRun,
+        chat: AssistantChat,
+        human_message: AssistantChatMessage,
+        answer: str,
+        resumed_answer: str | None = None,
+    ) -> bytes:
+        """
+        The chat's history with the run's turn closed by a text answer, for a run
+        that didn't record its own turn. A run that continues a paused one keeps
+        the paused run's messages, since its calls before the pause already ran.
+
+        :param run: The run.
+        :param chat: The run's chat.
+        :param human_message: The message the run answers.
+        :param answer: The answer that closes a new message's turn.
+        :param resumed_answer: The answer that closes a continued turn. Defaults
+            to the note that changes may have been made, as the calls before the
+            pause did run.
+        :return: The new history, serialized.
+        """
+
+        resumed_id = run.context.get("resume_message_id")
+        paused = None
+        if resumed_id is not None:
+            message = chat.messages.filter(id=resumed_id).first()
+            paused = (message.artifacts.get("paused") or {}) if message else {}
+        if not paused or "messages" not in paused:
+            return append_turn(chat.message_history, human_message.content, answer)
+        messages = ModelMessagesTypeAdapter.validate_python(paused["messages"])
+        closing = ModelResponse(
+            parts=[TextPart(content=resumed_answer or unfinished_answer(""))]
+        )
+        return ModelMessagesTypeAdapter.dump_json([*messages, closing])
 
     def _load_turn(self, run: ChatRun) -> tuple[AssistantChat, AssistantChatMessage]:
         """
@@ -466,7 +502,8 @@ class AssistantChatRunType(ChatRunType):
             ai_message = AssistantChatMessage.objects.select_for_update().get(
                 id=resumed_id, chat=chat
             )
-            ai_message.content = result.text
+            # A run that stopped before writing keeps the paused run's text.
+            ai_message.content = result.text or ai_message.content
             ai_message.artifacts = artifacts
             ai_message.save(update_fields=["content", "artifacts", "updated_on"])
             AssistantChatPrediction.objects.filter(ai_response=ai_message).update(

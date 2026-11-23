@@ -865,6 +865,7 @@ class BackgroundAssistant(Assistant):
         """
 
         self._tool_helpers.request_context["ui_context"] = ui_context.format()
+        self._resume = resume
         if resume is None:
             self._deps.mode = _mode_for_ui_context(ui_context)
             self._loaded_history = await self._load_message_history() or []
@@ -995,13 +996,16 @@ class BackgroundAssistant(Assistant):
         :return: The chat's new history, serialized.
         """
 
-        if count_user_prompts(self._agent_messages) > count_user_prompts(
+        # A continued run adds no prompt, but its paused run's calls already ran.
+        resumed = getattr(self, "_resume", None) is not None
+        if resumed or count_user_prompts(self._agent_messages) > count_user_prompts(
             self._loaded_history
         ):
             closing = ModelResponse(
                 parts=[TextPart(content=unfinished_answer(self._latest_text))]
             )
-            return ModelMessagesTypeAdapter.dump_json([*self._agent_messages, closing])
+            messages = self._agent_messages or self._loaded_history
+            return ModelMessagesTypeAdapter.dump_json([*messages, closing])
         return append_turn(self._chat.message_history, prompt, NOT_STARTED_ANSWER)
 
     def _paused_result(self, paused: AgentPaused) -> AssistantRunResult:

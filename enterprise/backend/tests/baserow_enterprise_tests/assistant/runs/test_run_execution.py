@@ -3,7 +3,7 @@ import json
 import threading
 from unittest.mock import MagicMock
 
-from django.db import DEFAULT_DB_ALIAS
+from django.db import DEFAULT_DB_ALIAS, transaction
 from django.utils import translation
 
 import pytest
@@ -374,3 +374,109 @@ def test_a_resumed_run_that_pauses_again_resumes_with_only_its_new_decision(
     assert "One is enough" in answers[0]
     agents = AgentApplication.objects.filter(workspace=chat.workspace)
     assert list(agents.values_list("name", flat=True)) == ["Bot 1"]
+
+
+def _paused_on_agent_setup(assistant_run, enterprise_data_fixture, kuma_model, mocker):
+    """
+    Runs Kuma until it pauses on an apply_agent_setup call that needs approval,
+    then approves it. The resumed run is queued but not executed.
+
+    :return: The resumed run, its chat, and the tool returns the resumed model saw.
+    """
+
+    from baserow_enterprise.assistant.deps import AgentMode
+    from baserow_enterprise.assistant.models import AssistantToolApproval
+
+    mocker.patch(
+        "baserow_enterprise.assistant.assistant._mode_for_ui_context",
+        return_value=AgentMode.AGENT,
+    )
+    mocker.patch.object(ChatRunHandler, "_enqueue")
+    run = assistant_run(content="Build an Agent")
+    chat = AssistantChat.objects.get(id=run.chat_id)
+    identity = enterprise_data_fixture.create_identity(workspace=chat.workspace)
+
+    async def stream(messages, info):
+        if any(
+            isinstance(part, ToolReturnPart)
+            for message in messages
+            if isinstance(message, ModelRequest)
+            for part in message.parts
+        ):
+            raise RuntimeError("The provider went away")
+        setup = {
+            "name": "Bot",
+            "run_as_identity_id": identity.id,
+            "allowed_tools": ["list_tables", "create_tables"],
+        }
+        yield {
+            0: DeltaToolCall(
+                name="apply_agent_setup",
+                json_args=json.dumps({"thought": "t", "setup": setup}),
+                tool_call_id="call-1",
+            )
+        }
+
+    kuma_model(stream)
+    execute_chat_run(str(run.id))
+    pending = AssistantToolApproval.objects.get(message__chat=chat, status="pending")
+    resumed, _ = AssistantHandler().decide_approvals(
+        chat.user,
+        chat,
+        [{"id": pending.id, "approved": True}],
+        UIContext.model_validate(run.context["ui_context"]),
+        "",
+    )
+    return resumed, chat
+
+
+def _tool_call_ids(history: bytes) -> list[str]:
+    return [
+        part.tool_call_id
+        for message in ModelMessagesTypeAdapter.validate_json(bytes(history))
+        for part in message.parts
+        if getattr(part, "part_kind", "") in ("tool-call", "tool-return")
+    ]
+
+
+@pytest.mark.django_db(transaction=True)
+def test_a_resumed_run_that_fails_keeps_the_paused_runs_calls_in_history(
+    assistant_run, enterprise_data_fixture, kuma_model, mocker, fast_journal
+):
+    from baserow.contrib.agent.models import AgentApplication
+
+    resumed, chat = _paused_on_agent_setup(
+        assistant_run, enterprise_data_fixture, kuma_model, mocker
+    )
+
+    execute_chat_run(str(resumed.id))
+
+    resumed.refresh_from_db()
+    chat.refresh_from_db()
+    assert resumed.status == ChatRunStatus.FAILED
+    # The approved call ran before the model failed, so the history keeps it and
+    # doesn't claim nothing changed.
+    assert AgentApplication.objects.filter(workspace=chat.workspace).exists()
+    assert _tool_call_ids(chat.message_history) == ["call-1", "call-1"]
+    assert history_texts(resumed)[-1].endswith(unfinished_answer(""))
+
+
+@pytest.mark.django_db(transaction=True)
+def test_a_resumed_run_that_never_starts_keeps_the_paused_runs_calls_in_history(
+    assistant_run, enterprise_data_fixture, kuma_model, mocker, fast_journal
+):
+    resumed, chat = _paused_on_agent_setup(
+        assistant_run, enterprise_data_fixture, kuma_model, mocker
+    )
+    resumed.status = ChatRunStatus.FAILED
+    resumed.error_code = ChatRunErrorCode.NOT_STARTED
+
+    with transaction.atomic():
+        AssistantChatRunType().on_run_not_started(resumed)
+
+    chat.refresh_from_db()
+    assert _tool_call_ids(chat.message_history) == ["call-1"]
+    assert history_texts(resumed)[-1] == unfinished_answer("")
+    message = chat.messages.get(id=resumed.context["resume_message_id"])
+    assert message.content == "I need your approval before I make this change."
+    assert message.artifacts["run"]["error_code"] == ChatRunErrorCode.NOT_STARTED
