@@ -228,6 +228,49 @@ describe('Workspace sidebar', () => {
     expect(testApp.body.find('.modal__wrapper').exists()).toBe(false)
   })
 
+  test('only deletes the workspace after confirmation and offers to restore it', async () => {
+    const { store, mock, body } = testApp
+    await store.dispatch('workspace/forceCreate', { id: 1, name: 'Design' })
+    const workspace = store.getters['workspace/get'](1)
+    mock.onGet('/workspaces/1/permissions/').reply(200, [])
+    mock.onGet('/workspaces/1/roles/').reply(200, [])
+    mock.onDelete('/workspaces/1/').reply(204)
+    const wrapper = await testApp.mount(SidebarMenu, {
+      props: { selectedWorkspace: workspace },
+      global: {
+        mocks: { $hasPermission: () => true },
+        stubs: { Teleport: false, NotificationPanel: true },
+      },
+    })
+    const settings = wrapper.get('[data-highlight="workspace-settings"] button')
+    async function openDeletePrompt() {
+      await settings.trigger('click')
+      await flushPromises()
+      await body
+        .get('.sidebar-workspace-menu .context__menu-item-link--delete')
+        .trigger('click')
+      return body.get('.modal__wrapper')
+    }
+
+    const prompt = await openDeletePrompt()
+    await prompt.get('.action__links a').trigger('click')
+    await expect.poll(() => body.find('.modal__wrapper').exists()).toBe(false)
+    expect(mock.history.delete).toHaveLength(0)
+
+    const reopenedPrompt = await openDeletePrompt()
+    await reopenedPrompt.get('button.button--danger').trigger('click')
+    await flushPromises()
+    expect(mock.history.delete.map(({ url }) => url)).toEqual([
+      '/workspaces/1/',
+    ])
+    expect(store.state.toast.items).toContainEqual(
+      expect.objectContaining({
+        type: 'restore',
+        data: { trash_item_type: 'workspace', trash_item_id: 1 },
+      })
+    )
+  })
+
   test('restores focus one level at a time when closing the admin submenu', async () => {
     testApp.authenticate({
       id: 1,

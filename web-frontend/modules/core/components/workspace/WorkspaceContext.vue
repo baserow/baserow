@@ -44,6 +44,16 @@
       :workspace="workspace"
     />
     <LeaveWorkspaceModal ref="leaveModal" :workspace="workspace" />
+    <ConfirmModal
+      v-if="actions.delete"
+      ref="deleteModal"
+      :title="$t('deleteWorkspaceModal.title', workspace)"
+      :message="$t('deleteWorkspaceModal.confirmation', workspace)"
+      :confirm-label="$t('workspaceContext.deleteWorkspace')"
+      :loading="deleting"
+      danger
+      @confirm="deleteWorkspace"
+    />
     <WorkspaceSettingsModal
       v-if="canUpdate"
       ref="settingsModal"
@@ -57,6 +67,7 @@ import context from '@baserow/modules/core/mixins/context'
 import { notifyIf } from '@baserow/modules/core/utils/error'
 import ExportWorkspaceModal from '@baserow/modules/core/components/export/ExportWorkspaceModal.vue'
 import ImportWorkspaceModal from '@baserow/modules/core/components/import/ImportWorkspaceModal.vue'
+import ConfirmModal from '@baserow/modules/core/components/modals/ConfirmModal'
 import TrashModal from '@baserow/modules/core/components/trash/TrashModal'
 import LeaveWorkspaceModal from '@baserow/modules/core/components/workspace/LeaveWorkspaceModal'
 import WorkspaceActionItem from '@baserow/modules/core/components/workspace/WorkspaceActionItem.vue'
@@ -65,6 +76,7 @@ import WorkspaceSettingsModal from '@baserow/modules/core/components/workspace/W
 export default {
   name: 'WorkspaceContext',
   components: {
+    ConfirmModal,
     ExportWorkspaceModal,
     ImportWorkspaceModal,
     LeaveWorkspaceModal,
@@ -154,8 +166,7 @@ export default {
           ? {
               icon: 'iconoir-bin',
               label: 'workspaceContext.deleteWorkspace',
-              run: this.deleteWorkspace,
-              loading: this.deleting,
+              run: () => this.openModal('deleteModal'),
               destructive: true,
             }
           : null,
@@ -188,6 +199,7 @@ export default {
       const workspace = this.workspace
       try {
         await this.$store.dispatch('workspace/delete', workspace)
+        this.$refs.deleteModal?.hide()
         await this.$store.dispatch('toast/restore', {
           trash_item_type: 'workspace',
           trash_item_id: workspace.id,
