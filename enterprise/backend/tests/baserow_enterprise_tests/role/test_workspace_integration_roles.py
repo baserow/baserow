@@ -1,12 +1,15 @@
 from unittest.mock import patch
 
+from django.db import connection
 from django.shortcuts import reverse
+from django.test.utils import CaptureQueriesContext
 
 import pytest
 from rest_framework.status import HTTP_404_NOT_FOUND
 
 from baserow.contrib.automation.nodes.registries import automation_node_type_registry
 from baserow.contrib.automation.nodes.service import AutomationNodeService
+from baserow.core.cache import local_cache
 from baserow.core.exceptions import PermissionException
 from baserow.core.integrations.handler import IntegrationHandler
 from baserow.core.integrations.models import Integration
@@ -390,6 +393,41 @@ def test_workspace_integration_events_reach_only_applications_using_their_type(
     )
     args, _ = mock_broadcast_to_users.call_args
     assert set(args[0]) == {admin.id, database_builder.id, application_builder.id}
+
+
+@pytest.mark.django_db
+@patch("baserow.ws.tasks.broadcast_to_users")
+def test_workspace_integration_event_queries_dont_grow_with_the_applications(
+    mock_broadcast_to_users, data_fixture, enable_enterprise, synced_roles
+):
+    admin = data_fixture.create_user()
+    viewer = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=admin, members=[viewer])
+    RoleAssignmentHandler().assign_role(
+        viewer, workspace, role=Role.objects.get(uid="VIEWER")
+    )
+    application = data_fixture.create_builder_application(workspace=workspace)
+    # Holds a role below the workspace, so its scope is looked up too.
+    application_builder = _application_builder(
+        data_fixture, workspace, application, "VIEWER"
+    )
+
+    def count_queries():
+        # Each task run starts with an empty local cache.
+        with local_cache.context(), CaptureQueriesContext(connection) as queries:
+            broadcast_to_workspace_integration_users(workspace.id, {"type": "test"})
+        return len(queries)
+
+    count_queries()  # Fills the caches that outlive a task run, like the roles.
+    with_one_application = count_queries()
+    for _ in range(3):
+        data_fixture.create_builder_application(workspace=workspace)
+
+    # The viewer can't list integrations anywhere, so they're checked on every
+    # application.
+    assert count_queries() == with_one_application
+    args, _ = mock_broadcast_to_users.call_args
+    assert set(args[0]) == {admin.id, application_builder.id}
 
 
 @pytest.mark.django_db

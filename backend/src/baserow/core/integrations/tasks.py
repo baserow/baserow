@@ -36,6 +36,7 @@ def broadcast_to_workspace_integration_users(
     from baserow.core.integrations.registries import integration_type_registry
     from baserow.core.models import Application, Workspace, WorkspaceUser
     from baserow.core.registries import application_type_registry
+    from baserow.core.types import PermissionCheck
     from baserow.ws.tasks import broadcast_to_users
 
     try:
@@ -60,39 +61,36 @@ def broadcast_to_workspace_integration_users(
     permitted_ids = {user.id for user in permitted}
     remaining = [user for user in members if user.id not in permitted_ids]
 
-    # One check per application at most, for the members not permitted yet, so a
-    # workspace whose members may all list them is done after the first one.
-    applications = Application.objects_without_shared.filter(
-        workspace=workspace
-    ).order_by("id")
-    if integration_type is not None:
-        integration_type_instance = integration_type_registry.get(integration_type)
-        using_models = [
-            application_type.model_class
-            for application_type in application_type_registry.get_all()
-            if application_type.can_use_workspace_integration_type(
-                integration_type_instance
+    # The members not permitted yet are checked on every application in one call, so
+    # that the queries don't grow with the number of applications.
+    if remaining:
+        applications = Application.objects_without_shared.filter(workspace=workspace)
+        if integration_type is not None:
+            integration_type_instance = integration_type_registry.get(integration_type)
+            using_models = [
+                application_type.model_class
+                for application_type in application_type_registry.get_all()
+                if application_type.can_use_workspace_integration_type(
+                    integration_type_instance
+                )
+            ]
+            applications = applications.filter(
+                content_type__in=list(
+                    ContentType.objects.get_for_models(*using_models).values()
+                )
             )
+        # The permission check walks from each application up to its workspace.
+        checks = [
+            PermissionCheck(
+                user, ListIntegrationsApplicationOperationType.type, application
+            )
+            for application in applications.select_related("workspace")
+            for user in remaining
         ]
-        applications = applications.filter(
-            content_type__in=list(
-                ContentType.objects.get_for_models(*using_models).values()
-            )
-        )
-    for application in applications.iterator():
-        if not remaining:
-            break
-        allowed_ids = {
-            user.id
-            for user in handler.check_permission_for_multiple_actors(
-                remaining,
-                ListIntegrationsApplicationOperationType.type,
-                workspace,
-                context=application,
-            )
+        results = handler.check_multiple_permissions(checks, workspace)
+        permitted_ids |= {
+            check.actor.id for check, allowed in results.items() if allowed is True
         }
-        permitted_ids |= allowed_ids
-        remaining = [user for user in remaining if user.id not in allowed_ids]
 
     if permitted_ids:
         broadcast_to_users(
