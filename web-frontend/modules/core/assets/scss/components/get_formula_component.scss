@@ -39,3 +39,11 @@
     color: $palette-neutral-1100;
   }
 }
+
+// A formula that can't be edited, disabled or read-only, can't lose its parts.
+.formula-input-field--disabled,
+.formula-input-field--read-only {
+  .get-formula-component__remove {
+    display: none;
+  }
+}

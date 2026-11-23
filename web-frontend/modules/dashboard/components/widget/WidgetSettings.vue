@@ -8,9 +8,13 @@
     />
     <component
       :is="widgetSettingsComponent"
+      ref="settings"
       :dashboard="dashboard"
       :widget="widget"
       :store-prefix="storePrefix"
+      :small="small"
+      :show-own-filters="showOwnFilters"
+      :link-filter-widget-id="linkFilterWidgetId"
     />
   </div>
 </template>
@@ -36,6 +40,16 @@ export default {
     }
   },
   props: {
+    linkFilterWidgetId: { type: Number, default: null },
+    /** Whether the widget's own filter conditions can be edited here. */
+    showOwnFilters: {
+      type: Boolean,
+      default: true,
+    },
+    small: {
+      type: Boolean,
+      default: true,
+    },
     dashboard: {
       type: Object,
       required: true,
@@ -59,6 +73,14 @@ export default {
     },
   },
   methods: {
+    /** Validate the same title and data settings used by the sidebar. */
+    validate() {
+      this.$refs.form.touch()
+      const valid = this.$refs.form.isFormValid()
+      if (!valid) this.$refs.form.focusOnFirstError()
+      const settingsValid = this.$refs.settings?.validate?.() ?? true
+      return valid && settingsValid
+    },
     async baseFormValuesChanged(values) {
       if (this.$refs.form.isFormValid()) {
         const defaultValues = this.$refs.form.defaultValues

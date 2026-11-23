@@ -38,6 +38,12 @@ export default {
       required: false,
       default: false,
     },
+    /** Only offer widgets that show data, for example to be filtered. */
+    hideFilters: {
+      type: Boolean,
+      required: false,
+      default: false,
+    },
   },
   emits: ['widget-variation-selected'],
   computed: {
@@ -61,9 +67,9 @@ export default {
         {
           id: 'filters',
           label: this.$t('createWidgetModal.filters'),
-          items: this.widgetVariations.filter(
-            ({ type }) => type.isFilterWidget
-          ),
+          items: this.hideFilters
+            ? []
+            : this.widgetVariations.filter(({ type }) => type.isFilterWidget),
         },
       ]
     },

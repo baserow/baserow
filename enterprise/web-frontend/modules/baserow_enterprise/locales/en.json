@@ -821,12 +821,16 @@
   "chartWidget": {
     "name": "Chart",
     "bar": "Bar chart",
-    "line": "Line chart"
+    "barDescription": "Compares values as bars",
+    "line": "Line chart",
+    "lineDescription": "Shows how values change as a line"
   },
   "pieChartWidget": {
     "name": "Pie chart",
     "pie": "Pie chart",
+    "pieDescription": "Shows each value's share of the whole",
     "doughnut": "Doughnut chart",
+    "doughnutDescription": "A pie chart with a hole in the middle",
     "polarArea": "Polar area chart"
   },
   "groupedAggregateRowsDataSourceForm": {

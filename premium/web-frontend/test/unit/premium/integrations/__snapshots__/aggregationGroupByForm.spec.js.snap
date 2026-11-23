@@ -10,7 +10,7 @@ exports[`Multiple-select aggregation grouping > selects either mode, restores sa
     <option value="null">aggregationGroupByForm.groupByRowId</option>
     <option value="none">aggregationGroupByForm.groupByNone</option>
   </select>
-  <div data-form-error="false" class="control margin-top-2"><label for="v-0-0-0" class="control__label"><span>aggregationGroupByForm.modeLabel</span><span class="control__required">common.optional</span>
+  <div data-form-error="false" class="control margin-top-2"><label for="v-0-0-0" class="control__label control__label--small"><span>aggregationGroupByForm.modeLabel</span><span class="control__required">common.optional</span>
       <!--v-if-->
       <!--v-if-->
     </label>
@@ -25,7 +25,7 @@ exports[`Multiple-select aggregation grouping > selects either mode, restores sa
       <!--v-if-->
     </div>
   </div>
-  <div data-form-error="false" class="control control--messages margin-top-2"><label for="v-0-0-1" class="control__label"><span>aggregationGroupByForm.bucketLimit</span><span class="control__required">common.optional</span>
+  <div data-form-error="false" class="control control--messages margin-top-2"><label for="v-0-0-1" class="control__label control__label--small"><span>aggregationGroupByForm.bucketLimit</span><span class="control__required">common.optional</span>
       <!--v-if-->
       <!--v-if-->
     </label>

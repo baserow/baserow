@@ -79,3 +79,13 @@ export const getTextFilterDefaultValue = (widget) => {
 
 /** Matches the backend limit on a dispatched filter value. */
 export const TEXT_FILTER_MAX_VALUE_LENGTH = 1000
+
+/** Filter widgets currently applied to the target widget. */
+export const getFiltersOfWidget = (widgets, targetWidgetId, registry) =>
+  widgets.filter((owner) => {
+    const type = registry.get('dashboardWidget', owner.type)
+    return (
+      type.isFilterWidget &&
+      type.getTargetWidgetIds(owner).includes(targetWidgetId)
+    )
+  })

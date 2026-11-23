@@ -1,5 +1,6 @@
 <template>
   <LocalBaserowTableServiceConditionalForm
+    ref="form"
     :model-value="localGroup.filters"
     :filter-groups="localGroup.filter_groups"
     :filter-type="localGroup.filter_type"
@@ -10,36 +11,7 @@
     @update:model-value="update('filters', $event)"
     @update:filter-groups="update('filter_groups', $event)"
     @update:filter-type="update('filter_type', $event)"
-  >
-    <template #actions="{ addFilter, addFilterGroup }">
-      <div
-        class="dashboard-widget-filters__actions"
-        :class="{
-          'dashboard-widget-filters__actions--empty':
-            !localGroup.filters.length && !localGroup.filter_groups.length,
-        }"
-      >
-        <Button
-          type="secondary"
-          button-type="button"
-          icon="iconoir-plus"
-          class="filters__add"
-          @click="addFilter()"
-        >
-          {{ $t('localBaserowTableServiceConditionalForm.addFilter') }}
-        </Button>
-        <Button
-          type="secondary"
-          button-type="button"
-          icon="iconoir-plus"
-          class="filters__add"
-          @click="addFilterGroup()"
-        >
-          {{ $t('localBaserowTableServiceConditionalForm.addFilterGroup') }}
-        </Button>
-      </div>
-    </template>
-  </LocalBaserowTableServiceConditionalForm>
+  />
 </template>
 
 <script setup>
@@ -59,6 +31,7 @@ const defaultFilterValue = computed(() =>
     ? { formula: `get('widget_data.${props.owner.id}')`, mode: 'simple' }
     : { formula: '', mode: 'raw' }
 )
+const form = ref(null)
 const storePrefix = inject('storePrefix', ref(''))
 const localGroup = ref(props.group)
 watch(
@@ -97,4 +70,11 @@ const update = (key, value) => {
   updatePending = true
   nextTick(flushUpdate)
 }
+/** Add one condition on the first field it can filter, if there is one. */
+function addFirstFilter() {
+  if (props.readOnly || !form.value?.getFirstCompatibleField(props.fields))
+    return
+  form.value.addFilter()
+}
+defineExpose({ addFirstFilter })
 </script>

@@ -125,6 +125,14 @@ class TextFilterWidget(Widget):
 
     placeholder = models.TextField(blank=True, default="", db_default="")
     default_value = models.JSONField(blank=True, default=str, db_default="")
+    apply_to_new_widgets = models.BooleanField(
+        default=True,
+        db_default=True,
+        help_text=(
+            "Also filter widgets that start showing a table this filter already "
+            "applies to, using the first widget's conditions on that table."
+        ),
+    )
 
     @property
     def target_filters(self):

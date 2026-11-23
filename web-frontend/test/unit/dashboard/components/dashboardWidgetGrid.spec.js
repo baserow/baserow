@@ -178,6 +178,41 @@ describe('DashboardWidgetGrid', () => {
     expect(wrapper.classes('dashboard-widget-grid--layout-ready')).toBe(true)
   })
 
+  test('places a widget added to a ready grid without its position transition', async () => {
+    const widgetList = reactive([...widgets])
+    mountGrid({ widgetList })
+    await measureGrid(1200)
+    await wrapper.findComponent(GridLayoutStub).vm.$emit('layout-ready')
+    animationFrames.shift()()
+    await nextTick()
+    const placing = (id) =>
+      wrapper
+        .get(`[data-testid="dashboard-widget-grid-item-${id}"]`)
+        .classes('dashboard-widget-grid__item--placing')
+
+    widgetList.push({
+      id: 2,
+      type: 'summary',
+      title: 'New',
+      grid_x: 2,
+      grid_y: 0,
+      grid_width: 2,
+      grid_height: 4,
+    })
+    await nextTick()
+    await nextTick()
+
+    expect(placing(1)).toBe(false)
+    expect(placing(2)).toBe(true)
+    // Two frames: the grid applies the position, then it is painted.
+    animationFrames.shift()()
+    await nextTick()
+    expect(placing(2)).toBe(true)
+    animationFrames.shift()()
+    await nextTick()
+    expect(placing(2)).toBe(false)
+  })
+
   test('cleans up the resize cursor when a pointer operation ends outside a grid item', async () => {
     mountGrid()
     await measureGrid(1200)

@@ -22,6 +22,7 @@
     <FormGroup
       v-if="isMultipleValueRelation"
       :label="$t('aggregationGroupByForm.modeLabel')"
+      small-label
       class="margin-top-2"
     >
       <Dropdown
@@ -42,6 +43,7 @@
     <FormGroup
       v-if="aggregationGroupBy !== 'none'"
       :label="$t('aggregationGroupByForm.bucketLimit')"
+      small-label
       class="margin-top-2"
     >
       <FormInput
