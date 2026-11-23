@@ -102,6 +102,13 @@ class WorkspaceIntegrationsSerializer(serializers.Serializer):
             "integrations, or null when the workspace doesn't have one."
         ),
     )
+    integration_types = serializers.ListField(
+        child=serializers.CharField(),
+        help_text=(
+            "The integration types the application can use from the workspace. "
+            "The integrations are of these types only."
+        ),
+    )
     integrations = PolymorphicIntegrationSerializer(
         many=True,
         help_text="The workspace integrations the application can use.",

@@ -196,9 +196,11 @@ class WorkspaceIntegrationsView(APIView):
         operation_id="list_application_workspace_integrations",
         description=(
             "Lists the workspace integrations that the application can use, with "
-            "the hidden application of the workspace that owns them. Allowed to "
-            "anyone who may list the integrations of the application, including a "
-            "user with a role on that application only."
+            "the hidden application of the workspace that owns them. Only those of "
+            "an integration type the application can use are listed, and "
+            "`integration_types` says which types those are. Allowed to anyone who "
+            "may list the integrations of the application, including a user with a "
+            "role on that application only."
         ),
         responses={
             200: WorkspaceIntegrationsSerializer,
@@ -218,7 +220,7 @@ class WorkspaceIntegrationsView(APIView):
 
         application = CoreHandler().get_application(application_id)
 
-        shared_application, integrations = (
+        shared_application, integration_types, integrations = (
             IntegrationService().get_workspace_integrations(request.user, application)
         )
 
@@ -226,6 +228,7 @@ class WorkspaceIntegrationsView(APIView):
             WorkspaceIntegrationsSerializer(
                 {
                     "shared_application": shared_application,
+                    "integration_types": integration_types,
                     "integrations": integrations,
                 }
             ).data

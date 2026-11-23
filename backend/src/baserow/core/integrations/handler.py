@@ -360,6 +360,31 @@ class IntegrationHandler:
         else:
             return queryset
 
+    def get_workspace_integration_types(self, application: Application) -> List[str]:
+        """
+        Returns the integration types of the workspace integrations the given
+        application can use, see
+        `ApplicationType.can_use_workspace_integration_type`. A type the shared
+        application doesn't accept, like an MCP server, is never one.
+
+        :param application: The application the integrations are used from,
+            specific or not.
+        :return: The integration types, in the registry's order.
+        """
+
+        application_type = application_type_registry.get_by_model(
+            application.specific_class
+        )
+        shared_application_type = application_type_registry.get_by_model(
+            SharedApplication
+        )
+        return [
+            integration_type.type
+            for integration_type in integration_type_registry.get_all()
+            if shared_application_type.supports_integration_type(integration_type)
+            and application_type.can_use_workspace_integration_type(integration_type)
+        ]
+
     def get_usable_integrations(
         self, application: Application, specific: bool = True
     ) -> Union[QuerySet[Integration], Iterable[Integration]]:

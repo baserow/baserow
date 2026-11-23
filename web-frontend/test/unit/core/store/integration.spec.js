@@ -422,35 +422,85 @@ describe('workspace integrations in the integration store', () => {
     expect(usable(200)).toEqual([])
   })
 
-  const workspaceIntegrations = (integrations, sharedApplication) => ({
+  const workspaceIntegrations = (
+    integrations,
+    sharedApplication,
+    integrationTypes = ['local_baserow', 'smtp']
+  ) => ({
     shared_application: sharedApplication,
+    integration_types: integrationTypes,
     integrations,
   })
 
-  test('the workspace integrations are fetched once per workspace', async () => {
+  test('the workspace integrations are fetched once per application', async () => {
     await store.dispatch('application/forceCreate', database(101))
     // The store doesn't have the shared application, like for a user with a
     // role on some applications only, whose application listing leaves it out.
-    testApp.mock
-      .onGet('application/100/workspace-integrations/')
-      .reply(
-        200,
-        workspaceIntegrations(
-          [integration(2, SHARED_APPLICATION.id, 'Team')],
-          SHARED_APPLICATION
+    for (const id of [100, 101]) {
+      testApp.mock
+        .onGet(`application/${id}/workspace-integrations/`)
+        .reply(
+          200,
+          workspaceIntegrations(
+            [integration(2, SHARED_APPLICATION.id, 'Team')],
+            SHARED_APPLICATION
+          )
         )
-      )
+    }
 
+    expect(names(await fetchOnce(100))).toEqual(['Team'])
     expect(names(await fetchOnce(100))).toEqual(['Team'])
     expect(names(await fetchOnce(101))).toEqual(['Team'])
 
     expect(testApp.mock.history.get.map(({ url }) => url)).toEqual([
       'application/100/workspace-integrations/',
+      'application/101/workspace-integrations/',
     ])
     expect(
       store.getters['application/getSharedApplication']({ id: WORKSPACE_ID })
     ).toMatchObject({ id: SHARED_APPLICATION.id })
     expect(usable(101)).toEqual(['Team'])
+  })
+
+  test('an application only replaces the workspace integrations of its types', async () => {
+    // The backend sends a database the types its button actions carry, and an
+    // application builder every type.
+    await store.dispatch('application/forceCreate', database(101))
+    const team = { ...integration(2, SHARED_APPLICATION.id, 'Team') }
+    const rows = {
+      ...integration(3, SHARED_APPLICATION.id, 'Rows'),
+      type: 'local_baserow',
+    }
+    testApp.mock
+      .onGet('application/100/workspace-integrations/')
+      .reply(
+        200,
+        workspaceIntegrations([team, rows], SHARED_APPLICATION, [
+          'local_baserow',
+          'smtp',
+        ])
+      )
+    testApp.mock
+      .onGet('application/101/workspace-integrations/')
+      .reply(
+        200,
+        workspaceIntegrations(
+          [{ ...team, name: 'Team, renamed' }],
+          SHARED_APPLICATION,
+          ['smtp']
+        )
+      )
+
+    await fetchOnce(100)
+    expect(names(await fetchOnce(101))).toEqual(['Team, renamed'])
+
+    // The Local Baserow one the database wasn't sent is still there for the
+    // other application, which doesn't fetch them again.
+    expect(usable(100)).toEqual(['Rows', 'Team, renamed'])
+    expect(names(await fetchOnce(100))).toEqual(['Rows', 'Team, renamed'])
+    // Only what the database can use is returned for it.
+    expect(names(await fetchOnce(101))).toEqual(['Team, renamed'])
+    expect(testApp.mock.history.get).toHaveLength(2)
   })
 
   test('nothing is loaded for a workspace without shared application', async () => {

@@ -72,6 +72,7 @@ describe('Builder IntegrationSettings', () => {
       .onGet(`application/${BUILDER_ID}/workspace-integrations/`)
       .replyOnce(200, {
         shared_application: sharedApplication,
+        integration_types: ['local_baserow', 'smtp'],
         integrations: workspaceIntegrations,
       })
     const wrapper = await testApp.mount(IntegrationSettings, {

@@ -27,16 +27,17 @@ def _broadcast_on_commit(
     operation_type: str,
     scope_name: str,
     scope_id: int,
+    integration_type: str | None,
     previous_application: Application | None = None,
 ):
     """
     Broadcasts an event about an integration of the given application once the
     transaction commits, to the users permitted the operation on the scope. The
     event of a workspace integration goes instead to everyone who can see it from
-    any application, see `broadcast_to_workspace_integration_users`. So does the
-    event of one that just left the workspace, like after the undo of a
-    promotion, so that it leaves their lists too: those who can see it in its
-    application are among them.
+    an application that can use its type, see
+    `broadcast_to_workspace_integration_users`. So does the event of one that just
+    left the workspace, like after the undo of a promotion, so that it leaves
+    their lists too: those who can see it in its application are among them.
 
     :param application: The application that holds the integration.
     :param user: The user who made the change, whose web socket is skipped.
@@ -44,6 +45,8 @@ def _broadcast_on_commit(
     :param operation_type: The operation the recipients are permitted.
     :param scope_name: The scope type the operation is checked on.
     :param scope_id: The id of the scope.
+    :param integration_type: The type of the integration, which decides who sees
+        a workspace integration. None when the sender doesn't say.
     :param previous_application: The application that held the integration
         before this change moved it, if it did.
     """
@@ -59,7 +62,10 @@ def _broadcast_on_commit(
     def broadcast():
         if is_workspace_integration:
             broadcast_to_workspace_integration_users.delay(
-                workspace_id, get_payload(), web_socket_id
+                workspace_id,
+                get_payload(),
+                web_socket_id,
+                integration_type=integration_type,
             )
         else:
             broadcast_to_permitted_users.delay(
@@ -92,6 +98,7 @@ def integration_created(
         ReadIntegrationOperationType.type,
         IntegrationObjectScopeType.type,
         integration.id,
+        integration.get_type().type,
     )
 
 
@@ -116,13 +123,19 @@ def integration_updated(
         ReadIntegrationOperationType.type,
         IntegrationObjectScopeType.type,
         integration.id,
+        integration.get_type().type,
         previous_application=previous_application,
     )
 
 
 @receiver(integration_signals.integration_deleted)
 def integration_deleted(
-    sender, integration_id: int, application: Application, user: AbstractUser, **kwargs
+    sender,
+    integration_id: int,
+    application: Application,
+    user: AbstractUser,
+    integration_type: str | None = None,
+    **kwargs,
 ):
     _broadcast_on_commit(
         application,
@@ -135,4 +148,5 @@ def integration_deleted(
         ListIntegrationsApplicationOperationType.type,
         ApplicationObjectScopeType.type,
         application.id,
+        integration_type,
     )

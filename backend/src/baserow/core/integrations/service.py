@@ -158,9 +158,10 @@ class IntegrationService:
         """
         Checks that the user may see and use the workspace integrations from the
         given application. Whoever may list the integrations of an application may,
-        because every application of a workspace offers its workspace integrations
-        alongside its own. That includes a user with a role on that application
-        only, who can't list the workspace integrations in the workspace settings.
+        because every application of a workspace offers the workspace integrations
+        it can use alongside its own. That includes a user with a role on that
+        application only, who can't list the workspace integrations in the
+        workspace settings.
 
         :param user: The user to check.
         :param application: The application the workspace integrations are used
@@ -211,21 +212,27 @@ class IntegrationService:
 
     def get_workspace_integrations(
         self, user: AbstractUser, application: Application
-    ) -> Tuple[Optional[SharedApplication], List[Integration]]:
+    ) -> Tuple[Optional[SharedApplication], List[str], List[Integration]]:
         """
         Gets the workspace integrations the given application can use, for a user
         allowed to use them from it, see `check_can_use_workspace_integrations`.
+        Only those of a type the application can use are returned, see
+        `IntegrationHandler.get_workspace_integration_types`: a user with a role on
+        a database only would otherwise see, in a Local Baserow integration, the
+        tables of the whole workspace, through an application that can't use it.
 
         :param user: The user trying to get the integrations.
         :param application: The application the integrations are used from.
-        :return: The shared application that owns the workspace integrations, and
-            the integrations. None and no integrations when the workspace has no
-            shared application yet, or the application no workspace, like a
-            published copy.
+        :return: The shared application that owns the workspace integrations, the
+            integration types the application can use, and the integrations of
+            those types. No shared application and no integrations when the
+            workspace has no shared application yet, or the application no
+            workspace, like a published copy.
         """
 
         self.check_can_use_workspace_integrations(user, application)
 
+        integration_types = self.handler.get_workspace_integration_types(application)
         shared_application = (
             SharedApplication.objects.filter(workspace_id=application.workspace_id)
             .select_related("workspace")
@@ -234,10 +241,18 @@ class IntegrationService:
             else None
         )
         if shared_application is None:
-            return None, []
+            return None, integration_types, []
 
-        return shared_application, list(
-            self.handler.get_integrations(application=shared_application)
+        return (
+            shared_application,
+            integration_types,
+            [
+                integration
+                for integration in self.handler.get_integrations(
+                    application=shared_application
+                )
+                if integration.get_type().type in integration_types
+            ],
         )
 
     def create_integration(

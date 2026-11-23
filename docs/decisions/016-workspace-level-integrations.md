@@ -102,6 +102,8 @@ The shared application will support every integration type that isn't limited to
 
 This deliberately makes an authorised identity usable across applications: a Builder who can select the integration may use capabilities available through that identity. The Admin-only management rule and visible identity are the v1 controls; this broader reach is an accepted security consequence.
 
+An application is only offered, and only shown, the workspace integrations of a type it can use. A database, whose buttons only send through SMTP and Slack integrations, is never sent a Local Baserow integration or the databases, tables and views its identity can reach, and a dashboard, whose data sources always use its own integration, is sent none. Otherwise someone with a role on that one database would learn the structure of databases they have no access to, through an application that can't use the integration.
+
 The only type limited to particular applications today is the MCP server: an agent only reads the MCP servers it owns, so a workspace MCP server would do nothing, and promoting one would take it away from its agent.
 
 ### 8. Promotion only, as a one-row move

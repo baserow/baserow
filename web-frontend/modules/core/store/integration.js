@@ -73,6 +73,18 @@ const mutations = {
   CLEAR_ITEMS(state, { application }) {
     application.integrations = []
   },
+  /**
+   * Replaces the application's integrations of the given types, and keeps the
+   * others.
+   */
+  REPLACE_ITEMS_OF_TYPES(state, { application, types, integrations }) {
+    application.integrations = [
+      ...application.integrations.filter(
+        (integration) => !types.includes(integration.type)
+      ),
+      ...integrations,
+    ]
+  },
 }
 
 const actions = {
@@ -359,9 +371,9 @@ const actions = {
   },
   /**
    * Loads the workspace integrations the application can use, at most once per
-   * workspace unless forced. Realtime events keep the list and what's stored on
-   * each integration current, but not what the backend works out when it sends
-   * them, like the tables and views a Local Baserow integration can reach
+   * application unless forced. Realtime events keep the list and what's stored
+   * on each integration current, but not what the backend works out when it
+   * sends them, like the tables and views a Local Baserow integration can reach
    * (`context_data`). So the panels that offer them fetch them again through
    * `fetchUsable`, like they fetch the application's own integrations again.
    *
@@ -371,11 +383,20 @@ const actions = {
    * when the user can't list the integrations of the application, or isn't a
    * member of the workspace, like the one of a template preview.
    *
+   * The backend sends only the types the application can use, and says which,
+   * so a database isn't sent a Local Baserow integration. The shared
+   * application keeps one list for the whole workspace, so an answer replaces
+   * only the integrations of those types, and another application that uses
+   * other types still finds them after it. For the same reason, the
+   * application remembers the types it loaded (`_workspaceIntegrationTypes`),
+   * not the shared one.
+   *
    * @param {Object} application An application of the workspace.
    * @param {boolean} force Fetches them even when they were loaded already. A
    *   forced fetch that gives up keeps the list it would have replaced.
-   * @returns {Promise<Array|null>} The workspace integrations, or null when
-   *   their list changed under the fetch and it gave up, like `fetch`.
+   * @returns {Promise<Array|null>} The workspace integrations of the types the
+   *   application can use, or null when their list changed under the fetch and
+   *   it gave up, like `fetch`.
    */
   async fetchWorkspaceIntegrations(
     { commit, dispatch, getters, state, rootGetters },
@@ -395,9 +416,14 @@ const actions = {
       return []
     }
 
-    const known = rootGetters['application/getSharedApplication'](workspace)
-    if (!force && known?._integrationsLoadedOnce) {
-      return getters.getIntegrations(known)
+    // Looked up again after awaiting, as `forceSetAll` can replace it.
+    const consumer = () =>
+      rootGetters['application/get'](application.id) || application
+    const loadedTypes = consumer()._workspaceIntegrationTypes
+    if (!force && loadedTypes) {
+      return getters
+        .getWorkspaceIntegrations(consumer())
+        .filter((integration) => loadedTypes.includes(integration.type))
     }
 
     for (let attempt = 0; attempt < FETCH_ATTEMPTS; attempt++) {
@@ -430,15 +456,19 @@ const actions = {
         }))
 
       // Committed for the same reason as in `fetch`.
-      commit('CLEAR_ITEMS', { application: current })
-      data.integrations.forEach((integration) =>
-        commit('ADD_ITEM', { application: current, integration })
-      )
+      commit('REPLACE_ITEMS_OF_TYPES', {
+        application: current,
+        types: data.integration_types,
+        integrations: data.integrations,
+      })
       // Never unset: it says the list was loaded at least once, which stays
       // true when a later forced fetch gives up.
       await dispatch(
         'application/forceUpdate',
-        { application: current, data: { _integrationsLoadedOnce: true } },
+        {
+          application: consumer(),
+          data: { _workspaceIntegrationTypes: data.integration_types },
+        },
         { root: true }
       )
       return data.integrations

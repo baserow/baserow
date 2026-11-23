@@ -9,25 +9,33 @@ def broadcast_to_workspace_integration_users(
     workspace_id: int,
     payload: Dict[str, Any],
     ignore_web_socket_id: Optional[str] = None,
+    integration_type: Optional[str] = None,
 ):
     """
     Broadcasts a realtime event about a workspace integration to everyone who can
     see it: the members who may list the workspace integrations in the workspace
     settings, and those who may list the integrations of at least one application
-    of the workspace, since every application offers the workspace integrations.
+    of the workspace that can use an integration of its type, since those
+    applications offer it, see `ApplicationType.can_use_workspace_integration_type`.
 
     :param workspace_id: The workspace of the integration.
     :param payload: The event.
     :param ignore_web_socket_id: The web socket that made the change, which isn't
         sent the event.
+    :param integration_type: The type of the integration. Without it, every
+        application of the workspace counts.
     """
+
+    from django.contrib.contenttypes.models import ContentType
 
     from baserow.core.handler import CoreHandler
     from baserow.core.integrations.operations import (
         ListIntegrationsApplicationOperationType,
         ListIntegrationsWorkspaceOperationType,
     )
+    from baserow.core.integrations.registries import integration_type_registry
     from baserow.core.models import Application, Workspace, WorkspaceUser
+    from baserow.core.registries import application_type_registry
     from baserow.ws.tasks import broadcast_to_users
 
     try:
@@ -57,6 +65,20 @@ def broadcast_to_workspace_integration_users(
     applications = Application.objects_without_shared.filter(
         workspace=workspace
     ).order_by("id")
+    if integration_type is not None:
+        integration_type_instance = integration_type_registry.get(integration_type)
+        using_models = [
+            application_type.model_class
+            for application_type in application_type_registry.get_all()
+            if application_type.can_use_workspace_integration_type(
+                integration_type_instance
+            )
+        ]
+        applications = applications.filter(
+            content_type__in=list(
+                ContentType.objects.get_for_models(*using_models).values()
+            )
+        )
     for application in applications.iterator():
         if not remaining:
             break

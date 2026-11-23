@@ -522,6 +522,25 @@ class ApplicationType(
             and integration_type.supports_application_type(self)
         )
 
+    def can_use_workspace_integration_type(self, integration_type) -> bool:
+        """
+        Whether this application offers its services the workspace integrations
+        of the given type. It does when its services choose their integration and
+        it accepts the type, so a database, which accepts only what its button
+        actions carry, isn't offered a Local Baserow integration, and a dashboard,
+        whose data sources always use its own, isn't offered any. The workspace
+        integrations listed through an application and the realtime events about
+        them follow this, so nobody sees through an application what it can't use.
+
+        :param integration_type: The type in question.
+        :return: True when the application can use workspace integrations of it.
+        """
+
+        return (
+            self.lets_services_choose_integrations
+            and self.supports_integration_type(integration_type)
+        )
+
     def prepare_value_for_db(self, values: dict, instance: "Application | None" = None):
         """
         This function allows you to hook into the moment an application is created or

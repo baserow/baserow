@@ -51,7 +51,11 @@ describe('Automation IntegrationSettings', () => {
       .replyOnce(200, [smtpIntegration])
     testApp.mock
       .onGet(`application/${AUTOMATION_ID}/workspace-integrations/`)
-      .replyOnce(200, { shared_application: null, integrations: [] })
+      .replyOnce(200, {
+        shared_application: null,
+        integration_types: ['local_baserow', 'smtp'],
+        integrations: [],
+      })
     const wrapper = await testApp.mount(IntegrationSettings, {
       props: {
         automation: store.getters['application/get'](AUTOMATION_ID),
@@ -100,6 +104,7 @@ describe('Automation IntegrationSettings', () => {
     }
     const answer = (name) => ({
       shared_application: sharedApplication,
+      integration_types: ['local_baserow', 'smtp'],
       integrations: [{ ...smtpIntegration, id: 21, application_id: 20, name }],
     })
     testApp.mock.onGet(workspaceUrl).replyOnce(200, answer('Team mail'))

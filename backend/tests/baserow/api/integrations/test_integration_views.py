@@ -100,8 +100,53 @@ def test_list_the_workspace_integrations_an_application_can_use(
     assert {i["application_id"] for i in response_json["integrations"]} == {
         shared_application.id
     }
+    assert {"local_baserow", "smtp"} <= set(response_json["integration_types"])
     # Serialized like the other integration listings, so secrets stay out.
     assert "password" not in response_json["integrations"][1]
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "create_application,expected_types",
+    [
+        # Only what its button actions carry.
+        ("create_database_application", ["slack_bot", "smtp"]),
+        # Only what its action tools' services use.
+        ("create_agent_application", ["smtp"]),
+        # Its data sources always use its own integration.
+        ("create_dashboard_application", []),
+    ],
+)
+def test_list_the_workspace_integrations_of_the_types_an_application_can_use(
+    api_client, data_fixture, create_application, expected_types
+):
+    user, token = data_fixture.create_user_and_token()
+    workspace = data_fixture.create_workspace(user=user)
+    application = getattr(data_fixture, create_application)(workspace=workspace)
+    shared_application = data_fixture.create_shared_application(workspace=workspace)
+    # Lists the tables of the whole workspace, which shouldn't reach anyone
+    # through an application that can't use it.
+    data_fixture.create_local_baserow_integration(
+        application=shared_application, user=user
+    )
+    smtp = data_fixture.create_smtp_integration(application=shared_application)
+    slack_bot = data_fixture.create_slack_bot_integration(
+        application=shared_application
+    )
+
+    url = reverse(
+        "api:integrations:list_workspace", kwargs={"application_id": application.id}
+    )
+    response = api_client.get(url, format="json", HTTP_AUTHORIZATION=f"JWT {token}")
+
+    assert response.status_code == HTTP_200_OK
+    response_json = response.json()
+    assert response_json["shared_application"]["id"] == shared_application.id
+    assert sorted(response_json["integration_types"]) == expected_types
+    ids_by_type = {"smtp": smtp.id, "slack_bot": slack_bot.id}
+    assert sorted(i["id"] for i in response_json["integrations"]) == sorted(
+        ids_by_type[integration_type] for integration_type in expected_types
+    )
 
 
 @pytest.mark.django_db
@@ -117,7 +162,11 @@ def test_list_the_workspace_integrations_of_a_workspace_without_shared_applicati
     response = api_client.get(url, format="json", HTTP_AUTHORIZATION=f"JWT {token}")
 
     assert response.status_code == HTTP_200_OK
-    assert response.json() == {"shared_application": None, "integrations": []}
+    response_json = response.json()
+    assert response_json["shared_application"] is None
+    assert response_json["integrations"] == []
+    # Still says which types the application could use.
+    assert "local_baserow" in response_json["integration_types"]
 
 
 @pytest.mark.django_db

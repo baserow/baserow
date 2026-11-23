@@ -239,7 +239,9 @@ def test_application_builders_list_the_workspace_integrations_from_their_applica
     )
     service = IntegrationService()
 
-    shared, integrations = service.get_workspace_integrations(app_builder, application)
+    shared, _, integrations = service.get_workspace_integrations(
+        app_builder, application
+    )
 
     assert shared.id == shared_application.id
     assert [i.id for i in integrations] == [workspace_integration.id]
@@ -249,6 +251,33 @@ def test_application_builders_list_the_workspace_integrations_from_their_applica
     # The workspace settings stay for the workspace Builders and Admins.
     with pytest.raises(PermissionException):
         service.get_integrations(app_builder, shared_application)
+
+
+@pytest.mark.django_db
+def test_database_builders_dont_see_the_workspace_integrations_it_cant_use(
+    data_fixture, enable_enterprise, synced_roles
+):
+    admin = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=admin)
+    database = data_fixture.create_database_application(workspace=workspace)
+    app_builder = _application_builder(data_fixture, workspace, database, "NO_ACCESS")
+    shared_application = data_fixture.create_shared_application(workspace=workspace)
+    # Promoted by the admin, it lists every table the admin can see, in
+    # databases the builder has no role on.
+    data_fixture.create_local_baserow_integration(
+        application=shared_application, user=admin
+    )
+    slack_bot = data_fixture.create_slack_bot_integration(
+        application=shared_application
+    )
+
+    shared, integration_types, integrations = (
+        IntegrationService().get_workspace_integrations(app_builder, database)
+    )
+
+    assert shared.id == shared_application.id
+    assert "local_baserow" not in integration_types
+    assert [i.id for i in integrations] == [slack_bot.id]
 
 
 @pytest.mark.django_db
@@ -329,6 +358,38 @@ def test_workspace_integration_events_reach_the_workspace_builders_without_apps(
 
     args, _ = mock_broadcast_to_users.call_args
     assert set(args[0]) == {admin.id, builder.id}
+
+
+@pytest.mark.django_db
+@patch("baserow.ws.tasks.broadcast_to_users")
+def test_workspace_integration_events_reach_only_applications_using_their_type(
+    mock_broadcast_to_users, data_fixture, enable_enterprise, synced_roles
+):
+    admin = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=admin)
+    database = data_fixture.create_database_application(workspace=workspace)
+    builder_application = data_fixture.create_builder_application(workspace=workspace)
+    database_builder = _application_builder(
+        data_fixture, workspace, database, "NO_ACCESS"
+    )
+    application_builder = _application_builder(
+        data_fixture, workspace, builder_application, "NO_ACCESS"
+    )
+    data_fixture.create_shared_application(workspace=workspace)
+
+    broadcast_to_workspace_integration_users(
+        workspace.id, {"type": "test"}, integration_type="local_baserow"
+    )
+    args, _ = mock_broadcast_to_users.call_args
+    # A database can't use a Local Baserow integration, so its builder isn't
+    # sent the tables it lists.
+    assert set(args[0]) == {admin.id, application_builder.id}
+
+    broadcast_to_workspace_integration_users(
+        workspace.id, {"type": "test"}, integration_type="slack_bot"
+    )
+    args, _ = mock_broadcast_to_users.call_args
+    assert set(args[0]) == {admin.id, database_builder.id, application_builder.id}
 
 
 @pytest.mark.django_db

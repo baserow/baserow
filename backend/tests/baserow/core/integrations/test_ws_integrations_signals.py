@@ -121,6 +121,8 @@ def test_workspace_integration_events_go_to_whoever_can_see_them_from_an_applica
         "integration_deleted",
     ]
     assert calls[2][0][1]["application_id"] == shared_application.id
+    # So only the applications that can use the type count.
+    assert [call[1]["integration_type"] for call in calls] == ["local_baserow"] * 3
 
 
 @pytest.mark.django_db

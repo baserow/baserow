@@ -51,6 +51,7 @@ class IntegrationTrashableItemType(TrashableItemType):
             integration_id=item_to_trash.id,
             application=application,
             user=requesting_user,
+            integration_type=item_to_trash.get_type().type,
         )
 
     def restore(self, trashed_item: Integration, trash_entry: TrashEntry) -> None:

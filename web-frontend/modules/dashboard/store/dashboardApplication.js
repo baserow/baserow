@@ -887,7 +887,7 @@ export const actions = {
     )
   },
   async fetchInitial(
-    { state, commit, dispatch, rootGetters },
+    { state, commit, dispatch },
     { dashboardId, forEditing, withoutLiveData = false }
   ) {
     const { $client } = this
@@ -921,18 +921,8 @@ export const actions = {
       return
     }
     if (forEditing) {
-      const dashboard = rootGetters['application/get'](dashboardId)
-      const [{ data: integrationsData }] = await Promise.all([
-        IntegrationService($client).fetchAll(dashboardId),
-        // Kept in the integration store, where `getIntegrationById` finds a
-        // workspace integration that a data source uses.
-        dashboard &&
-          dispatch(
-            'integration/fetchWorkspaceIntegrationsOnce',
-            { application: dashboard },
-            { root: true }
-          ),
-      ])
+      const { data: integrationsData } =
+        await IntegrationService($client).fetchAll(dashboardId)
       if (!isDashboardRequestCurrent(state, request)) {
         return
       }
@@ -1281,21 +1271,11 @@ export const getters = {
   getIntegrations(state) {
     return state.integrations
   },
-  /**
-   * One of the dashboard's integrations, or a workspace one that a data source
-   * uses.
-   */
-  getIntegrationById:
-    (state, getters, rootState, rootGetters) => (integrationId) => {
-      const isIt = (integration) => integration.id === integrationId
-      const dashboard = rootGetters['application/get'](state.dashboardId)
-      return (
-        state.integrations.find(isIt) ||
-        rootGetters['integration/getWorkspaceIntegrations'](dashboard).find(
-          isIt
-        )
-      )
-    },
+  getIntegrationById: (state) => (integrationId) => {
+    return state.integrations.find(
+      (integration) => integration.id === integrationId
+    )
+  },
 }
 
 export default {

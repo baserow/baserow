@@ -162,6 +162,7 @@ export async function mockIntegrations(testApp) {
     .onGet(`application/${agentData.id}/workspace-integrations/`)
     .reply(200, {
       shared_application: sharedApplication,
+      integration_types: ['smtp'],
       integrations: [],
     })
   testApp.mock.onGet(`application/${agentData.id}/integrations/`).reply(200, [])
