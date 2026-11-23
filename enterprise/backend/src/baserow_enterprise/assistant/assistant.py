@@ -1014,7 +1014,12 @@ class BackgroundAssistant(Assistant):
             closing = ModelResponse(
                 parts=[TextPart(content=unfinished_answer(self._latest_text))]
             )
-            messages = self._agent_messages or self._loaded_history
+            # A continued run that failed before loading keeps its paused run's.
+            messages = (
+                self._agent_messages
+                or self._loaded_history
+                or ModelMessagesTypeAdapter.validate_json(resume.messages_json)
+            )
             return ModelMessagesTypeAdapter.dump_json([*messages, closing])
         return append_turn(self._chat.message_history, prompt, NOT_STARTED_ANSWER)
 
