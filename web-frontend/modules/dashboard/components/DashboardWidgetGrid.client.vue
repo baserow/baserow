@@ -21,6 +21,7 @@
     />
     <GridLayout
       v-if="hasMeasuredDimensions && layout.length > 0"
+      ref="grid"
       v-model:layout="layout"
       :col-num="columns"
       :row-height="gridRowHeight"
@@ -142,6 +143,19 @@ export default {
         `${this.storePrefix}dashboardApplication/getWidgets`
       ]
     },
+    placedNewWidgetId() {
+      const id =
+        this.$store.getters[
+          `${this.storePrefix}dashboardApplication/getNewWidget`
+        ]?.id
+      // Wait until the grid has painted the card at its final coordinates.
+      return this.isLayoutReady &&
+        this.widgetsById[id] &&
+        this.layout.some((item) => item.i === id) &&
+        !this.placingItemIds.includes(String(id))
+        ? id
+        : null
+    },
     widgetsById() {
       return Object.fromEntries(
         this.widgets.map((widget) => [String(widget.id), widget])
@@ -164,6 +178,18 @@ export default {
     },
   },
   watch: {
+    placedNewWidgetId: {
+      flush: 'post',
+      handler(id) {
+        if (id == null) return
+        const item = this.$refs.grid.getItem(id)
+        item.wrapper.scrollIntoView({ block: 'nearest', inline: 'nearest' })
+        this.$store.commit(
+          `${this.storePrefix}dashboardApplication/SET_NEW_WIDGET`,
+          null
+        )
+      },
+    },
     columns() {
       this.syncLayoutFromWidgets()
     },

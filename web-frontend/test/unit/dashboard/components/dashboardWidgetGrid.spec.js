@@ -20,6 +20,15 @@ const GridLayoutStub = {
   name: 'GridLayout',
   props: ['colNum', 'isDraggable', 'isResizable', 'verticalCompact'],
   emits: ['layout-ready', 'layout-updated'],
+  methods: {
+    getItem(id) {
+      return {
+        wrapper: this.$el.querySelector(
+          `[data-testid="dashboard-widget-grid-item-${id}"]`
+        ),
+      }
+    },
+  },
   template: `
     <div
       class="vgl-layout"
@@ -99,6 +108,7 @@ describe('DashboardWidgetGrid', () => {
     widgetList = widgets,
     editMode = ref(true),
     storePrefix = '',
+    newWidget = ref(null),
   } = {}) {
     wrapper = mount(DashboardWidgetGrid, {
       props: {
@@ -111,8 +121,12 @@ describe('DashboardWidgetGrid', () => {
           $t: (key) => key,
           $store: {
             dispatch,
+            commit: vi.fn(),
             getters: {
               [`${storePrefix}dashboardApplication/getWidgets`]: widgetList,
+              get [`${storePrefix}dashboardApplication/getNewWidget`]() {
+                return newWidget.value
+              },
               get [`${storePrefix}dashboardApplication/isEditMode`]() {
                 return editMode.value
               },
@@ -211,6 +225,34 @@ describe('DashboardWidgetGrid', () => {
     animationFrames.shift()()
     await nextTick()
     expect(placing(2)).toBe(false)
+  })
+
+  test('reveals only the locally created widget once the grid has placed it', async () => {
+    const widgetList = reactive([...widgets])
+    const newWidget = ref(null)
+    mountGrid({ widgetList, newWidget })
+    await measureGrid(1200)
+    await wrapper.findComponent(GridLayoutStub).vm.$emit('layout-ready')
+    animationFrames.shift()()
+    await nextTick()
+
+    const local = { ...widgets[0], id: 2 }
+    widgetList.push(local, { ...widgets[0], id: 3 })
+    newWidget.value = local
+    await nextTick()
+    const cards = wrapper.findAllComponents(GridItemStub)
+    const scrolls = cards.map((card) =>
+      vi.spyOn(card.element, 'scrollIntoView')
+    )
+    expect(scrolls[1]).not.toHaveBeenCalled()
+    animationFrames.shift()()
+    animationFrames.shift()()
+    await nextTick()
+    expect(scrolls.map((scroll) => scroll.mock.calls.length)).toEqual([0, 1, 0])
+    expect(wrapper.vm.$store.commit).toHaveBeenCalledWith(
+      'dashboardApplication/SET_NEW_WIDGET',
+      null
+    )
   })
 
   test('cleans up the resize cursor when a pointer operation ends outside a grid item', async () => {

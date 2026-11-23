@@ -81,6 +81,7 @@ describe('Dashboard', () => {
 
     expect(dispatch).toHaveBeenCalledWith('dashboardApplication/createWidget', {
       dashboard: { id: 1 },
+      reveal: true,
       widget: {
         title: 'Summary',
         type: 'summary',
@@ -105,9 +106,6 @@ describe('Dashboard', () => {
     resolveCreateWidget()
     await flushPromises()
 
-    expect(dispatch).toHaveBeenLastCalledWith(
-      'dashboardApplication/enterEditMode'
-    )
     expect(
       wrapper
         .get('[data-testid="header-create-widget"]')

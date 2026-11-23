@@ -20,6 +20,7 @@ export const state = () => ({
   loading: false,
   editMode: false,
   selectedWidgetId: null,
+  newWidget: null,
   widgets: [],
   widgetValues: {},
   widgetSelections: {},
@@ -370,6 +371,7 @@ export const mutations = {
     state.dataSourceMutationGenerations = {}
     state.editMode = false
     state.selectedWidgetId = null
+    state.newWidget = null
     cancelDataSourceRefresh(state)
     state.widgetValues = {}
     state.widgetSelections = {}
@@ -387,6 +389,7 @@ export const mutations = {
   },
   SET_DASHBOARD_ID(state, dashboardId) {
     if (state.dashboardId !== dashboardId) {
+      state.newWidget = null
       cancelDataSourceRefresh(state)
       state.widgetValues = {}
       state.widgetSelections = {}
@@ -489,6 +492,9 @@ export const mutations = {
   },
   ADD_INTEGRATION(state, integration) {
     state.integrations.push(integration)
+  },
+  SET_NEW_WIDGET(state, widget) {
+    state.newWidget = widget
   },
   SELECT_WIDGET(state, widgetId) {
     state.selectedWidgetId = widgetId
@@ -1021,8 +1027,8 @@ export const actions = {
    * a widget from another widget's settings keeps working on that one.
    */
   async createWidget(
-    { state, dispatch },
-    { dashboard, widget, select = true }
+    { state, commit, dispatch },
+    { dashboard, widget, select = true, reveal = false }
   ) {
     const { $client } = this
     const request = {
@@ -1041,6 +1047,10 @@ export const actions = {
       return createdWidget
     }
     if (select) dispatch('selectWidget', createdWidget.id)
+    if (reveal) {
+      dispatch('enterEditMode')
+      commit('SET_NEW_WIDGET', createdWidget)
+    }
     // The POST above is the creation boundary. Refreshing related client state must
     // never turn a persisted widget into an apparent creation failure.
     await refreshAfterWidgetCreation(dispatch, dashboard)
@@ -1225,6 +1235,7 @@ export const getters = {
       return first.id - second.id
     })
   },
+  getNewWidget: (state) => state.newWidget,
   getSelectedWidgetId(state) {
     return state.selectedWidgetId
   },

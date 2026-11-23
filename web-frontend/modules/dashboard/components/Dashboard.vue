@@ -63,15 +63,13 @@ export default {
           `${this.storePrefix}dashboardApplication/createWidget`,
           {
             dashboard: this.dashboard,
+            reveal: true,
             widget: {
               title: typeFromRegistry.name,
               type: widgetType,
               ...widgetVariation.params,
             },
           }
-        )
-        await this.$store.dispatch(
-          `${this.storePrefix}dashboardApplication/enterEditMode`
         )
       } catch (error) {
         notifyIf(error, 'dashboard')
