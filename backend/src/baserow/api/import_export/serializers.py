@@ -31,9 +31,7 @@ class ExportWorkspaceExportedFileURLSerializerMixin(FileURLSerializerMixin):
 
     def _get_exported_file_name(self, instance):
         resource = instance.resource
-        if not instance.finished or resource is None:
-            return None
-        return resource.get_archive_name()
+        return resource.get_archive_name() if resource else None
 
     @extend_schema_field(OpenApiTypes.STR)
     def get_exported_file_name(self, instance):

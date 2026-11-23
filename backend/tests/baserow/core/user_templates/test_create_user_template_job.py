@@ -1,12 +1,10 @@
 from datetime import datetime, timedelta, timezone
 from unittest.mock import patch
 
-from django.db import connection, transaction
-from django.urls import reverse
+from django.db import transaction
 
 import pytest
 from freezegun import freeze_time
-from rest_framework.test import APIClient
 
 from baserow.contrib.builder.data_sources.models import DataSource
 from baserow.contrib.builder.elements.models import ChoiceElement
@@ -69,10 +67,6 @@ from baserow.core.user_templates.models import (
 from baserow.core.user_templates.service import UserTemplateService
 from baserow.core.user_templates.tasks import delete_orphaned_user_template_workspaces
 from baserow.core.utils import Progress
-from baserow.test_utils.helpers import (
-    permanently_delete_workspace,
-    wait_for_a_lock_waiter,
-)
 from tests.baserow.core.user_templates.utils import (
     CLEARED_KEYS,
     ICON,
@@ -82,7 +76,6 @@ from tests.baserow.core.user_templates.utils import (
     cancel_in_another_connection,
     copied_applications,
     create_content,
-    create_database_source,
     create_source,
     deny_export,
     find_values,
@@ -1213,154 +1206,3 @@ def test_create_user_template_job_keeps_a_default_left_by_a_field_conversion(
         view__name="Defaults",
     )
     assert copied.value == 5
-
-
-WORKSPACE_DELETED_ERROR = "The requested workspace does not exist."
-
-
-def assert_template_of_deleted_workspace_not_kept(user):
-    job = CreateUserTemplateJob.objects.get(user=user)
-    assert job.state == JOB_FAILED
-    assert job.human_readable_error == WORKSPACE_DELETED_ERROR
-    assert job.error_code == "WorkspaceDoesNotExist"
-    assert not Template.objects.filter(owner=user).exists()
-    assert not Workspace.objects_and_trash.exists()
-
-
-def assert_template_kept(user):
-    job = CreateUserTemplateJob.objects.get(user=user)
-    assert job.state == JOB_FINISHED
-    assert Template.objects.get(owner=user).id == job.template_id
-    assert job.source_workspace_id is None
-
-
-def assert_a_new_create_job_starts(data_fixture, user):
-    workspace = data_fixture.create_workspace(user=user)
-    database = data_fixture.create_database_application(workspace=workspace)
-    assert start_job(user, workspace, [database], name="Next").state == JOB_FINISHED
-
-
-@pytest.mark.parametrize(
-    "when", ["during_the_copy", "during_the_copy_with_a_cancel", "after_the_revision"]
-)
-def test_create_job_ends_when_source_workspace_deleted(data_fixture, when):
-    source = create_database_source(data_fixture)
-    user, workspace = source["user"], source["workspace"]
-
-    if when == "during_the_copy":
-        track_content = CreateUserTemplateJobType._track_content
-
-        def delete_then_track(self, job, **content):
-            track_content(self, job, **content)
-            if "template_workspace" in content:
-                permanently_delete_workspace(workspace)
-
-        patched = patch.object(
-            CreateUserTemplateJobType, "_track_content", delete_then_track
-        )
-    elif when == "during_the_copy_with_a_cancel":
-        import_applications = CoreHandler.import_applications_to_workspace
-
-        def delete_and_cancel_then_import(self, *args, **kwargs):
-            permanently_delete_workspace(workspace)
-            JobHandler.cancel_job(CreateUserTemplateJob.objects.get())
-            return import_applications(self, *args, **kwargs)
-
-        patched = patch.object(
-            CoreHandler,
-            "import_applications_to_workspace",
-            delete_and_cancel_then_import,
-        )
-    else:
-        do = CreateUserTemplateActionType.do
-
-        def create_then_delete(action_type, *args, **kwargs):
-            template = do(*args, **kwargs)
-            permanently_delete_workspace(workspace)
-            return template
-
-        patched = patch.object(CreateUserTemplateActionType, "do", create_then_delete)
-
-    with patched:
-        start_job(user, workspace, [source["database"]])
-
-    if when == "during_the_copy":
-        assert_template_of_deleted_workspace_not_kept(user)
-        assert_a_new_create_job_starts(data_fixture, user)
-    elif when == "during_the_copy_with_a_cancel":
-        assert CreateUserTemplateJob.objects.get(user=user).state == JOB_CANCELLED
-        assert not Template.objects.filter(owner=user).exists()
-        assert not Workspace.objects_and_trash.exists()
-    else:
-        assert_template_kept(user)
-
-
-def delete_workspace_in_another_connection(outcome, workspace, token, deletion):
-    """
-    Deletes the workspace in a connection of its own, as an instance admin's
-    request or from the trash.
-    """
-
-    try:
-        if deletion == "trash":
-            permanently_delete_workspace(workspace)
-            return
-        response = APIClient().delete(
-            reverse("api:admin:workspaces:edit", kwargs={"workspace_id": workspace.id}),
-            HTTP_AUTHORIZATION=f"JWT {token}",
-        )
-        outcome["delete"] = response.status_code
-    finally:
-        connection.close()
-
-
-@pytest.mark.parametrize(
-    "first,deletion", [("job", "admin"), ("deletion", "admin"), ("job", "trash")]
-)
-def test_create_job_and_workspace_deletion_race(
-    data_fixture, test_thread, first, deletion
-):
-    source = create_database_source(data_fixture)
-    user, workspace = source["user"], source["workspace"]
-    _, admin_token = data_fixture.create_user_and_token(is_staff=True)
-    save_template = CreateUserTemplateJobType._save_template
-    lock_job = JobHandler.lock_job
-    outcome = {}
-
-    with test_thread(
-        delete_workspace_in_another_connection,
-        outcome,
-        workspace,
-        admin_token,
-        deletion,
-    ) as thread:
-
-        def delete_after_the_check(job):
-            thread.start()
-            # The deletion waits for the lock the job holds until it commits.
-            wait_for_a_lock_waiter()
-            return lock_job(job)
-
-        def save_with_a_concurrent_deletion(self, job, template):
-            if first == "job":
-                with patch.object(JobHandler, "lock_job", delete_after_the_check):
-                    save_template(self, job, template)
-            else:
-                thread.start()
-                assert thread.thread_stopped.wait(10)
-                save_template(self, job, template)
-
-        with patch.object(
-            CreateUserTemplateJobType,
-            "_save_template",
-            save_with_a_concurrent_deletion,
-        ):
-            start_job(user, workspace, [source["database"]])
-        assert thread.thread_stopped.wait(10)
-
-    assert outcome == ({"delete": 204} if deletion == "admin" else {})
-    assert not Workspace.objects_and_trash.filter(id=workspace.id).exists()
-    if first == "job":
-        assert_template_kept(user)
-    else:
-        assert_template_of_deleted_workspace_not_kept(user)

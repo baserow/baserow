@@ -9,7 +9,7 @@ from rest_framework.status import (
 ERROR_GROUP_DOES_NOT_EXIST = (
     "ERROR_GROUP_DOES_NOT_EXIST",
     HTTP_404_NOT_FOUND,
-    "The requested workspace does not exist.",
+    "The requested group does not exist.",
 )
 ERROR_USER_INVALID_GROUP_PERMISSIONS = (
     "ERROR_USER_INVALID_GROUP_PERMISSIONS",

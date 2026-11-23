@@ -34,9 +34,8 @@ from baserow.contrib.integrations.local_baserow.service_types import (
 from baserow.core.handler import CoreHandler
 from baserow.core.models import TrashEntry
 from baserow.core.operations import UpdateApplicationOperationType
-from baserow.test_utils.helpers import wait_for_a_lock_waiter
 
-from ..utils import agent_url, in_another_connection
+from ..utils import agent_url, in_another_connection, wait_for_a_lock_waiter
 
 MESSAGE = {"formula": "'Daily digest'", "mode": "simple", "version": "0.1"}
 

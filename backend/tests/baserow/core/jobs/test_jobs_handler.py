@@ -10,7 +10,7 @@ from django.db import connection, transaction
 import pytest
 
 from baserow.contrib.database.export.models import ExportJob
-from baserow.core.jobs.constants import JOB_CANCELLED, JOB_FINISHED
+from baserow.core.jobs.constants import JOB_CANCELLED
 from baserow.core.jobs.exceptions import (
     JobDoesNotExist,
     JobNotCancellable,
@@ -425,25 +425,6 @@ def test_job_cancel_ignores_is_cancellable_without_lock_on_cancel(
     assert JobHandler.cancel_job(job) == job
     job.refresh_from_db()
     assert job.state == JOB_CANCELLED
-
-
-@pytest.mark.django_db(transaction=True)
-def test_job_cancel_refused_when_the_job_finished_after_the_cached_state(
-    data_fixture, mutable_job_type_registry
-):
-    class FinishingJobType(JobType):
-        type = "finishing_job"
-        model_class = Job
-
-    mutable_job_type_registry.register(FinishingJobType())
-    job = create_pending_job(data_fixture.create_user(), FinishingJobType)
-    job.set_state_started()
-    # Saved by the worker before it cleared the cached state.
-    Job.objects.filter(id=job.id).update(state=JOB_FINISHED)
-
-    with pytest.raises(JobNotCancellable):
-        JobHandler.cancel_job(job)
-    assert Job.objects.get(id=job.id).state == JOB_FINISHED
 
 
 @pytest.mark.django_db(transaction=True)

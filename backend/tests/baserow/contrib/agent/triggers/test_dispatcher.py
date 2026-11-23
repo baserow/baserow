@@ -37,12 +37,12 @@ from baserow.core.services.registries import (
     TriggerServiceTypeMixin,
     service_type_registry,
 )
-from baserow.test_utils.helpers import wait_for_a_lock_waiter
 
 from ..utils import (
     hold_a_workspace_run,
     in_another_connection,
     queued_reply,
+    wait_for_a_lock_waiter,
 )
 
 DUE_AT = datetime(2026, 11, 9, 10, 0, tzinfo=timezone.utc)

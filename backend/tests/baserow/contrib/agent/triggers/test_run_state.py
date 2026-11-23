@@ -21,12 +21,12 @@ from baserow.contrib.agent.triggers.handler import AgentTriggerHandler
 from baserow.core.chat_runs.handler import ChatRunHandler
 from baserow.core.chat_runs.models import ChatRun
 from baserow.core.trash.handler import TrashHandler
-from baserow.test_utils.helpers import wait_for_a_lock_waiter
 
 from ..utils import (
     hold_a_workspace_run,
     in_another_connection,
     queued_reply,
+    wait_for_a_lock_waiter,
 )
 
 

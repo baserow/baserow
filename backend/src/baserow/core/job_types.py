@@ -395,12 +395,7 @@ class ExportApplicationsJobType(JobType):
         ApplicationDoesNotExist: ERROR_APPLICATION_DOES_NOT_EXIST,
     }
 
-    job_exceptions_map = {
-        PermissionDenied: ERROR_PERMISSION_DENIED[2],
-        WorkspaceDoesNotExist: ERROR_GROUP_DOES_NOT_EXIST[2],
-    }
-
-    required_relations = {"workspace": WorkspaceDoesNotExist}
+    job_exceptions_map = {PermissionDenied: ERROR_PERMISSION_DENIED[2]}
 
     request_serializer_field_names = [
         "application_ids",

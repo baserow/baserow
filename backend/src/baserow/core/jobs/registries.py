@@ -55,15 +55,6 @@ class JobType(
     A number of max jobs count for the same type for a given user.
     """
 
-    required_relations: Dict[str, Type[Exception]] = {}
-
-    """
-    The `on_delete=SET_NULL` relations of the job that it can't finish without,
-    mapped to the exception the job fails with when the object a relation points
-    to is deleted while the job runs. Each exception must also be in
-    `job_exceptions_map`.
-    """
-
     lock_on_cancel: bool = False
 
     """

@@ -78,12 +78,6 @@ class WorkspaceTrashableItemType(TrashableItemType):
         Deletes the provided workspace and all of its applications permanently.
         """
 
-        # Locked before the relations to it are emptied, the order in which a
-        # job locks it and then its own row, so that the two never deadlock.
-        Workspace._base_manager.select_for_update().filter(
-            id=trashed_workspace.id
-        ).exists()
-
         # Select all the applications so we can delete them via the handler which is
         # needed in order to call the pre_delete method for each application.
         applications = (
