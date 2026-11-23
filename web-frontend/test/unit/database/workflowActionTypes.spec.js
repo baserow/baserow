@@ -31,6 +31,7 @@ describe('databaseWorkflowActionType registry', () => {
   test('every type is registered', () => {
     const types = testApp._app.$registry.getAll('databaseWorkflowActionType')
     expect(Object.keys(types).sort()).toEqual([
+      'google_gmail_send_email',
       'http_request',
       'local_baserow_create_row',
       'local_baserow_delete_row',
@@ -54,6 +55,7 @@ describe('databaseWorkflowActionType registry', () => {
       'local_baserow_update_row',
       'local_baserow_delete_row',
       'slack_write_message',
+      'google_gmail_send_email',
       'start_workflow',
     ])
   })

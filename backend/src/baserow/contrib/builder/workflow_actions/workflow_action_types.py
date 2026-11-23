@@ -43,6 +43,9 @@ from baserow.contrib.integrations.core.service_types import (
     CoreSMTPEmailServiceType,
     CoreStartWorkflowServiceType,
 )
+from baserow.contrib.integrations.google.service_types import (
+    GoogleGmailSendEmailServiceType,
+)
 from baserow.contrib.integrations.local_baserow.mixins import (
     UpdateRowRequiresRowIdMixin,
 )
@@ -72,6 +75,8 @@ from baserow.core.services.models import Service
 from baserow.core.services.registries import service_type_registry
 from baserow.core.services.types import DispatchResult
 from baserow.core.workflow_actions.models import WorkflowAction
+
+from .models import GoogleGmailSendEmailWorkflowAction
 
 
 class ActiveDataSourceIdField(serializers.IntegerField):
@@ -628,3 +633,16 @@ class SlackWriteMessageWorkflowActionType(BuilderWorkflowServiceActionType):
     def get_pytest_params(self, pytest_data_fixture) -> Dict[str, int]:
         service = pytest_data_fixture.create_slack_write_message_service()
         return {"service": service}
+
+
+class GoogleGmailSendEmailWorkflowActionType(BuilderWorkflowServiceActionType):
+    type = "google_gmail_send_email"
+    model_class = GoogleGmailSendEmailWorkflowAction
+    service_type = GoogleGmailSendEmailServiceType.type
+
+    def get_pytest_params(self, pytest_data_fixture):
+        return {
+            "service": pytest_data_fixture.create_service(
+                GoogleGmailSendEmailServiceType.model_class, integration=None
+            )
+        }

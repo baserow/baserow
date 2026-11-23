@@ -196,6 +196,7 @@ def test_only_services_that_reach_outside_are_external():
         "http_get",
         "smtp_email",
         "slack_write_message",
+        "google_gmail_send_email",
         "ai_agent",
     }
 
