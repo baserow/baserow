@@ -119,6 +119,30 @@ export class ClientErrorMap {
         $i18n.t('clientHandler.maximumSnapshotsReachedTitle'),
         $i18n.t('clientHandler.maximumSnapshotsReachedDescription')
       ),
+      ERROR_MAX_SNAPSHOTS_IS_ZERO: new ResponseErrorMessage(
+        $i18n.t('clientHandler.maxSnapshotsIsZeroTitle'),
+        $i18n.t('clientHandler.maxSnapshotsIsZeroDescription')
+      ),
+      ERROR_MAX_SNAPSHOTS_FULL_OF_PROTECTED: new ResponseErrorMessage(
+        $i18n.t('clientHandler.maxSnapshotsFullOfProtectedTitle'),
+        $i18n.t('clientHandler.maxSnapshotsFullOfProtectedDescription')
+      ),
+      ERROR_MAX_SNAPSHOTS_EXCEEDS_ALLOWANCE: new ResponseErrorMessage(
+        $i18n.t('clientHandler.maxSnapshotsExceedsAllowanceTitle'),
+        $i18n.t('clientHandler.maxSnapshotsExceedsAllowanceDescription')
+      ),
+      ERROR_MAX_SNAPSHOTS_ABOVE_LIMIT: new ResponseErrorMessage(
+        $i18n.t('clientHandler.maxSnapshotsAboveLimitTitle'),
+        $i18n.t('clientHandler.maxSnapshotsAboveLimitDescription')
+      ),
+      ERROR_MAX_SNAPSHOTS_BELOW_PROTECTED: new ResponseErrorMessage(
+        $i18n.t('clientHandler.maxSnapshotsBelowProtectedTitle'),
+        $i18n.t('clientHandler.maxSnapshotsBelowProtectedDescription')
+      ),
+      ERROR_MAX_SNAPSHOTS_CHANGE_DELETES_SNAPSHOTS: new ResponseErrorMessage(
+        $i18n.t('clientHandler.maxSnapshotsChangeDeletesSnapshotsTitle'),
+        $i18n.t('clientHandler.maxSnapshotsChangeDeletesSnapshotsDescription')
+      ),
       ERROR_SNAPSHOT_IS_BEING_CREATED: new ResponseErrorMessage(
         $i18n.t('clientHandler.snapshotBeingCreatedTitle'),
         $i18n.t('clientHandler.snapshotBeingCreatedDescription')

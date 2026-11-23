@@ -165,6 +165,7 @@ class DashboardDataSourceService:
         user: AbstractUser,
         data_source_id: int,
         service_type: ServiceType,
+        link_filter_widget_id: int | None = None,
         **kwargs,
     ) -> UpdatedDashboardDataSource:
         """
@@ -175,6 +176,8 @@ class DashboardDataSourceService:
         :param user: The user trying to update the data_source.
         :param data_source_id: The Id of the data source that should be updated.
         :param service_type: The type of the related service.
+        :param link_filter_widget_id: A filter that links the widget for its new
+            table, even when it does not filter widgets added later.
         :param kwargs: Additional attributes of the data source and the service.
         :raises DashboardDataSourceDoesNotExist: If the data source
             doesn't exist.
@@ -212,7 +215,10 @@ class DashboardDataSourceService:
         prepared_values = service_type.prepare_values(kwargs, user, instance=service)
 
         updated_data_source = self.handler.update_data_source(
-            data_source, service_type=service_type, **prepared_values
+            data_source,
+            service_type=service_type,
+            link_filter_widget_id=link_filter_widget_id,
+            **prepared_values,
         )
 
         for widget in updated_data_source.updated_filter_widgets:
@@ -226,13 +232,25 @@ class DashboardDataSourceService:
         return updated_data_source
 
     def restore_data_source(
-        self, user, data_source_id, service_type, values, filter_links=None
+        self,
+        user,
+        data_source_id,
+        service_type,
+        values,
+        filter_links=None,
+        link_filter_widget_id=None,
     ):
         """Replay a saved configuration, including conditions cleared by table changes."""
         from baserow.contrib.dashboard.widgets.handler import WidgetHandler
         from baserow.contrib.dashboard.widgets.models import Widget
 
-        updated = self.update_data_source(user, data_source_id, service_type, **values)
+        updated = self.update_data_source(
+            user,
+            data_source_id,
+            service_type,
+            link_filter_widget_id=link_filter_widget_id,
+            **values,
+        )
         service = updated.data_source.service.specific
         if "service_filters" in values or "service_filter_groups" in values:
             service_type.update_service_filters(
@@ -240,6 +258,19 @@ class DashboardDataSourceService:
                 values.get("service_filters"),
                 values.get("service_filter_groups"),
             )
+        if filter_links is not None:
+            # Undo replays the source update, which may auto-link widgets on the
+            # original table. Remove those additions unless a saved link replaces
+            # them. Redo (without a snapshot) still applies automatic linking.
+            filter_links = {key: list(links) for key, links in filter_links.items()}
+            for widget_id, entries in updated.original_filter_links.items():
+                originals = filter_links.setdefault(widget_id, [])
+                known = {link["target_widget_id"] for link in originals}
+                originals.extend(
+                    entry
+                    for entry in entries
+                    if entry.get("_absent") and entry["target_widget_id"] not in known
+                )
         filter_links = filter_links or {}
         for widget in WidgetHandler().get_widgets_for_update(
             updated.data_source.dashboard,

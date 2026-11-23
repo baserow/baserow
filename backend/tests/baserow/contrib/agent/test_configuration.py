@@ -1063,6 +1063,7 @@ def test_configuration_is_served_only_by_the_agent_endpoints(
             "local_baserow_rows_deleted",
             "http_trigger",
             "periodic",
+            "local_baserow_row_comment_posted",
         ],
         "available_action_types": ["smtp_email", "http_request"],
         "max_actions": None,

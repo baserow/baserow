@@ -1,7 +1,7 @@
 import asyncio
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass
-from functools import partial
+from functools import cached_property, partial
 from typing import TYPE_CHECKING, Any
 
 from django.conf import settings
@@ -62,7 +62,10 @@ from baserow.core.chat_runs.types import ChatRunOutcome
 from baserow.core.generative_ai.constants import WEB_SEARCH_MAX_PER_REPLY
 from baserow.core.generative_ai.model_profiles import AGENT
 from baserow.core.generative_ai.output_validation import ModelOutputValidator
-from baserow.core.generative_ai.registries import generative_ai_model_type_registry
+from baserow.core.generative_ai.registries import (
+    GenerativeAIModelType,
+    generative_ai_model_type_registry,
+)
 from baserow.core.tools import ToolContext
 from baserow.core.tools.errors import ToolErrorCode
 from baserow.core.utils import remove_null_characters
@@ -427,6 +430,10 @@ class AgentResponder:
             filter(None, [instructions, *request.unavailable_tool_messages])
         )
 
+    @cached_property
+    def _model_type(self) -> GenerativeAIModelType:
+        return generative_ai_model_type_registry.get(self._request.provider_type)
+
     def _search_unavailable(self) -> None:
         """
         Show that this reply couldn't offer the web search it was meant to, so the
@@ -452,6 +459,7 @@ class AgentResponder:
                 if (
                     web_search_tool is None
                     or exc.status_code != 400
+                    or self._model_type.get_provider_failure(exc) is not None
                     or self._text
                     or self._steps.started
                 ):
@@ -472,8 +480,7 @@ class AgentResponder:
 
         self._web_search_tool = web_search_tool
         request = self._request
-        model_type = generative_ai_model_type_registry.get(request.provider_type)
-        validator = model_type.get_output_validator(request.model_identifier)
+        validator = self._model_type.get_output_validator(request.model_identifier)
         retries = {"tools": TOOL_RETRIES}
         if validator is not None:
             retries["output"] = OUTPUT_RETRIES
@@ -717,16 +724,29 @@ class AgentResponder:
             return ChatRunOutcome(
                 ChatRunStatus.FAILED, ChatRunErrorCode.TIMEOUT, result
             )
-        if not work.cancelled() and work.exception() is not None:
+        error = None if work.cancelled() else work.exception()
+        if error is not None:
             logger.error(
                 "Agent reply {} failed: run_id={}, provider={!r}, model={!r}, {}",
                 self._request.reply_id,
                 self._journal.run.id,
                 self._request.provider_type[:128],
                 self._request.model_identifier[:128],
-                _describe_failure(work.exception()),
+                _describe_failure(error),
             )
-        return ChatRunOutcome(ChatRunStatus.FAILED, ChatRunErrorCode.FAILED, result)
+        return ChatRunOutcome(
+            ChatRunStatus.FAILED, self._failure_error_code(error), result
+        )
+
+    def _failure_error_code(self, error: BaseException | None) -> str:
+        """
+        :param error: What ended the reply, if anything was raised.
+        :return: The provider's failure when it names one, else a plain failure.
+        """
+
+        if error is None:
+            return ChatRunErrorCode.FAILED
+        return self._model_type.get_provider_failure(error) or ChatRunErrorCode.FAILED
 
     def _reply_result(self) -> AgentReplyResult:
         """

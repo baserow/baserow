@@ -68,7 +68,8 @@ class CreateAgentTriggerActionType(ActionType):
         :raises ApplicationDoesNotExist: When the Agent doesn't exist or is trashed.
         :raises PermissionException: When the user may not update the Agent or read
             its configuration.
-        :raises AgentTriggerTypeNotAvailable: When the Agent doesn't offer the type.
+        :raises AgentTriggerTypeNotAvailable: When the Agent doesn't offer the type
+            or the workspace's license locks it.
         :raises ServiceMisconfigured: When the service values are invalid.
         :raises AgentTriggerNoAccess: When the Agent's run identity can't read what
             the trigger watches.
@@ -162,7 +163,8 @@ class UpdateAgentTriggerActionType(ActionType):
             its configuration.
         :raises AgentTriggerDoesNotExist: When the Agent has no such trigger.
         :raises AgentTriggerTypeNotAvailable: When it would change to, switch on or
-            reschedule a type the Agent doesn't offer.
+            reschedule a type the Agent doesn't offer, or switch on or change the
+            settings of a type the workspace's license locks.
         :raises ServiceMisconfigured: When the service values are invalid.
         :raises AgentTriggerNoAccess: When the Agent's run identity can't read what
             the trigger watches.

@@ -66,6 +66,7 @@
         :type-options="typeOptionsOf(trigger)"
         :types-version="typesVersion"
         :run-as-active="runAsActive"
+        :run-as-name="runAsActive ? configuration.run_as.name : ''"
         :available-types="availableTypes"
         :saving="savingIds.has(trigger.id)"
         :service-error="serviceErrors[trigger.id] || ''"

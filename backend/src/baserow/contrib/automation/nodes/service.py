@@ -3,6 +3,9 @@ from typing import Any, Iterable, Optional
 from django.contrib.auth.models import AbstractUser
 
 from baserow.contrib.automation.models import AutomationWorkflow
+from baserow.contrib.automation.nodes.backfill import (
+    fill_workflow_table_ids_before_edit,
+)
 from baserow.contrib.automation.nodes.exceptions import (
     AutomationNodeDoesNotExist,
     AutomationNodeMissingOutput,
@@ -139,6 +142,7 @@ class AutomationNodeService:
         reference_node_id: int | None = None,
         position: GraphPointPositionType = "south",  # south, child
         output: str = "",
+        next_output: str = "",
         **kwargs,
     ) -> AutomationNode:
         """
@@ -150,6 +154,9 @@ class AutomationNodeService:
         :param reference_node_id: The node reference node for the position.
         :param position: The position relative to the reference node.
         :param output: The output of the reference node.
+        :param next_output: The output of the new node that the nodes it is
+            inserted before follow, the default one unless given. It is checked
+            once the node exists, so callers must run this in a transaction.
         :param kwargs: Additional attributes of the automation node.
         :return: The created automation node.
         """
@@ -200,7 +207,16 @@ class AutomationNodeService:
 
         node_type.after_create(new_node)
 
+        if next_output and next_output not in new_node.service.get_type().get_edges(
+            new_node.service.specific
+        ):
+            raise AutomationNodeMissingOutput(
+                f"Output {next_output} doesn't exist on node {new_node.id}"
+            )
+
         workflow.get_graph().insert(new_node, reference_node, position, output)
+        if next_output:
+            workflow.get_graph().move_next_points(new_node, "", next_output)
 
         cache_key = WORKFLOW_DIRTY_CACHE_KEY.format(workflow.id)
         global_cache.update(cache_key, lambda _: True)
@@ -241,6 +257,7 @@ class AutomationNodeService:
         )
 
         node_type.raise_if_deactivated(node.workflow.automation.workspace)
+        fill_workflow_table_ids_before_edit(node.workflow)
 
         # Export the 'original' node values now, as `prepare_values`
         # will be changing the service first, and then `update_node`
@@ -291,6 +308,7 @@ class AutomationNodeService:
         automation = workflow.automation
 
         node.get_type().before_delete(node.specific)
+        fill_workflow_table_ids_before_edit(workflow)
 
         TrashHandler.trash(
             user if not ignore_user_for_signal else None,
@@ -410,6 +428,8 @@ class AutomationNodeService:
             node=new_node,
             user=user,
         )
+
+        fill_workflow_table_ids_before_edit(workflow)
 
         # When we use a replace operation type, we make sure no graph modification is
         # made so that we can do it here.

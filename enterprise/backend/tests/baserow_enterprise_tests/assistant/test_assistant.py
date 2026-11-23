@@ -630,7 +630,7 @@ class TestCompactMessageHistory:
         """list_elements reads the columns again, but removed ones are gone."""
 
         removed = [
-            {"uid": "c2", "name": "Go", "type": "button", "deleted_click_actions": 1}
+            {"uid": "c2", "name": "Go", "type": "button", "trashed_click_actions": 1}
         ]
         result = {
             "status": "ok",
@@ -687,7 +687,7 @@ class TestCompactMessageHistory:
         """list_elements reads the menu items again, but removed ones are gone."""
 
         removed = [
-            {"uid": "m2", "name": "Help", "type": "button", "deleted_click_actions": 1}
+            {"uid": "m2", "name": "Help", "type": "button", "trashed_click_actions": 1}
         ]
         result = {
             "status": "ok",

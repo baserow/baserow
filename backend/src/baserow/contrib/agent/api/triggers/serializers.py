@@ -129,7 +129,7 @@ class CreateAgentTriggerSerializer(
     type = serializers.CharField(
         max_length=255,
         help_text="The service type of the trigger, one of the configuration's "
-        "available_trigger_types.",
+        "available_trigger_types that the workspace's license covers.",
     )
     name = serializers.CharField(
         max_length=AGENT_TRIGGER_NAME_MAX_LENGTH,
@@ -169,7 +169,8 @@ class UpdateAgentTriggerSerializer(
         max_length=255,
         required=False,
         help_text="Another service type for the trigger, one of the "
-        "configuration's available_trigger_types: its service is replaced by a "
+        "configuration's available_trigger_types that the workspace's license "
+        "covers: its service is replaced by a "
         "new one of that type, set from `service`. The trigger keeps its id, "
         "name, switch and other settings.",
     )
@@ -202,7 +203,8 @@ class AgentTriggerTypeSerializer(serializers.Serializer):
 
     type = serializers.CharField(
         help_text="The service type, one of the configuration's "
-        "available_trigger_types."
+        "available_trigger_types, including the ones the workspace's license "
+        "locks."
     )
     form_choices = serializers.JSONField(
         allow_null=True,

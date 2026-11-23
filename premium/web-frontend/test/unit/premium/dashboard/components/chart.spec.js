@@ -176,6 +176,21 @@ describe('Chart', () => {
     )
   })
 
+  test('cancels a queued library update when the chart is removed', async () => {
+    const chart = wrapper.getComponent(BarComponentStub).vm.chart
+    const update = vi.fn(() => {
+      throw new TypeError('Cannot addEventListener on a destroyed canvas')
+    })
+    chart.update = update
+    // vue-chartjs defers updates to the next tick and retains the instance.
+    const queuedUpdate = nextTick(() => chart.update())
+    wrapper.unmount()
+    wrapper = null
+
+    await expect(queuedUpdate).resolves.toBeUndefined()
+    expect(update).not.toHaveBeenCalled()
+  })
+
   test('disconnects its observer when unmounted', () => {
     const resizeObserver = resizeObservers[0]
 

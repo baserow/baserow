@@ -149,6 +149,8 @@ def test_non_user_template_copies_preserve_http_services(
     if operation == "duplicate":
         copied = handler.duplicate_application(user, builder)
     elif operation == "snapshot":
+        builder.max_snapshots = 1
+        builder.save(update_fields=["max_snapshots"])
         snapshots = SnapshotHandler()
         snapshot = snapshots.create(builder.id, user, "Captured responses")
         snapshots.perform_create(snapshot, Progress(total=100))

@@ -10,6 +10,7 @@ from baserow.contrib.builder.action_scopes import (
 )
 from baserow.contrib.builder.elements.handler import ElementHandler
 from baserow.contrib.builder.elements.models import Element
+from baserow.contrib.builder.pages.handler import PageHandler
 from baserow.contrib.builder.pages.models import Page
 from baserow.contrib.builder.workflow_actions.handler import (
     BuilderWorkflowActionHandler,
@@ -165,20 +166,25 @@ class UpdateBuilderWorkflowActionActionType(UndoableActionType):
 
     @classmethod
     def undo(cls, user: AbstractUser, params: Params, action_to_undo: Action):
-        workflow_action = BuilderWorkflowActionHandler().get_workflow_action(
-            params.workflow_action_id
-        )
-        BuilderWorkflowActionService().update_workflow_action(
-            user, workflow_action, **params.original_values
-        )
+        cls._replay(user, params.workflow_action_id, params.original_values)
 
     @classmethod
     def redo(cls, user: AbstractUser, params: Params, action_to_redo: Action):
+        cls._replay(user, params.workflow_action_id, params.new_values)
+
+    @classmethod
+    def _replay(
+        cls, user: AbstractUser, workflow_action_id: int, values: Dict[str, Any]
+    ):
         workflow_action = BuilderWorkflowActionHandler().get_workflow_action(
-            params.workflow_action_id
+            workflow_action_id
+        )
+        # A page linked to when the values were saved can be removed since.
+        values = PageHandler().without_links_to_deleted_pages(
+            workflow_action.page.builder, values
         )
         BuilderWorkflowActionService().update_workflow_action(
-            user, workflow_action, **params.new_values
+            user, workflow_action, **values
         )
 
 

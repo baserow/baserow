@@ -25,7 +25,6 @@ from baserow.core.handler import CoreHandler
 from baserow.core.models import User
 from baserow.core.prosemirror.utils import (
     prosemirror_doc_from_plain_text,
-    prosemirror_doc_to_plain_text,
 )
 from baserow.core.tools import ToolContext, tool_execution
 from baserow.core.tools.errors import ToolInputError, item_error_message
@@ -38,6 +37,7 @@ from baserow_premium.row_comments.handler import (
     RowCommentHandler,
 )
 from baserow_premium.row_comments.models import RowComment
+from baserow_premium.row_comments.utils import row_comment_to_plain_text
 
 MAX_PAGE_SIZE = 100
 # A search reads the comments up to its page in every table.
@@ -109,14 +109,6 @@ def _get_table(ctx: ToolContext, table_id: int) -> Table:
 
     return (
         TableHandler().list_workspace_tables(ctx.user, ctx.workspace).get(id=table_id)
-    )
-
-
-def _to_plain_text(message: dict[str, Any]) -> str:
-    # prosemirror_doc_to_plain_text only reads a document's first block.
-    return "\n".join(
-        prosemirror_doc_to_plain_text({"type": "doc", "content": [block]})
-        for block in message.get("content", [])
     )
 
 
@@ -282,7 +274,7 @@ def _comment_values(comment: RowComment, **place: Any) -> dict[str, Any]:
         **place,
         "user_id": comment.user_id,
         "user_name": comment.user.first_name if comment.user else None,
-        "text": _to_plain_text(comment.message),
+        "text": row_comment_to_plain_text(comment.message),
         "mentions": [
             {"id": user.id, "name": user.first_name}
             for user in sorted(comment.mentions.all(), key=lambda user: user.id)

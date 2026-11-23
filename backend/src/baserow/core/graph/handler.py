@@ -466,6 +466,20 @@ class BaseGraphHandler(ABC):
         point_info = self.get_info(point)
         return [x for sublist in point_info.get("next", {}).values() for x in sublist]
 
+    def get_next_point_ids(
+        self, point: GraphPoint | str | int, output: str
+    ) -> List[int | str]:
+        """
+        Get the IDs of the points that follow the given point on one of its outputs,
+        without loading them.
+
+        :param point: The point, or its ID, to get the next point IDs from.
+        :param output: The output to get the next point IDs for.
+        :return: The IDs, empty when no point follows on that output.
+        """
+
+        return list(self.get_info(point).get("next", {}).get(output, []))
+
     def get_next_points(
         self, point: GraphPoint, output: str | None = None
     ) -> List[GraphPoint]:
@@ -1060,6 +1074,208 @@ class BaseGraphHandler(ABC):
                 del point_info["next"]
 
         self._update_graph()
+
+    def move_next_points(
+        self, point: GraphPoint, from_output: str, to_output: str
+    ) -> None:
+        """
+        Move the points that follow a point on one of its outputs to another of its
+        outputs, the points after them coming along.
+
+        :raises GraphPointReferencePointInvalid: When there are points to move and
+            points already follow the point on `to_output`.
+        """
+
+        self._lock_instance_for_update()
+        next_points = self.get_info(point).get("next", {})
+        if not next_points.get(from_output):
+            return
+        if next_points.get(to_output):
+            raise GraphPointReferencePointInvalid(
+                f"Points already follow point {point.id} on output {to_output}."
+            )
+        moved = next_points.pop(from_output)
+        self.get_info(point)["next"] = {**next_points, to_output: moved}
+        self._update_graph()
+
+    def join_next_points(
+        self, point: GraphPoint, from_output: str, to_output: str
+    ) -> None:
+        """
+        Like `move_next_points`, but when points already follow the point on
+        `to_output` they are kept: they come after the moved points, at the end of
+        their chain.
+
+        :param point: The point whose outputs to change.
+        :param from_output: The output whose points move.
+        :param to_output: The output the points move to.
+        """
+
+        self._lock_instance_for_update()
+        next_points = self.get_info(point).get("next", {})
+        if not next_points.get(from_output):
+            return
+        existing = next_points.get(to_output)
+        if existing:
+            tail_id = self._get_chain_tail_id(next_points[from_output][0])
+            self.get_info(tail_id).setdefault("next", {})[""] = list(existing)
+        next_points = {k: v for k, v in next_points.items() if k != to_output}
+        next_points[to_output] = next_points.pop(from_output)
+        self.get_info(point)["next"] = next_points
+        self._update_graph()
+
+    def split_next_points(
+        self,
+        point: GraphPoint,
+        from_output: str,
+        to_output: str,
+        moved_point_ids: Iterable[int],
+    ) -> None:
+        """
+        The opposite of `join_next_points`: the points at the start of the chain on
+        `from_output` that are in `moved_point_ids` move to `to_output`, up to the
+        first point that isn't. That point and the points after it stay.
+
+        :param point: The point whose outputs to change.
+        :param from_output: The output whose points move.
+        :param to_output: The output the points move to.
+        :param moved_point_ids: The IDs of the points that may move.
+        :raises GraphPointReferencePointInvalid: When there are points to move and
+            points already follow the point on `to_output`.
+        """
+
+        self._lock_instance_for_update()
+        next_points = self.get_info(point).get("next", {})
+        if not next_points.get(from_output):
+            return
+        chain = self._walk_chain_ids(next_points[from_output][0], set())
+        moved_ids = {str(point_id) for point_id in moved_point_ids}
+        count = next(
+            (
+                index
+                for index, point_id in enumerate(chain)
+                if point_id not in moved_ids
+            ),
+            len(chain),
+        )
+        if count == 0:
+            return
+        if count == len(chain):
+            self.move_next_points(point, from_output, to_output)
+            return
+        if next_points.get(to_output):
+            raise GraphPointReferencePointInvalid(
+                f"Points already follow point {point.id} on output {to_output}."
+            )
+        staying = self.get_info(chain[count - 1])["next"].pop("")
+        self.get_info(point)["next"] = {
+            **next_points,
+            to_output: next_points[from_output],
+            from_output: staying,
+        }
+        self._update_graph()
+
+    def get_chain_ids(self, point: GraphPoint, output: str) -> List[str]:
+        """
+        The IDs of the points of the chain that follows a point on one of its
+        outputs, in order.
+
+        :param point: The point the chain follows.
+        :param output: The output of the point the chain is on.
+        :return: The IDs, empty when no point follows on that output.
+        """
+
+        next_ids = self.get_next_point_ids(point, output)
+        return self._walk_chain_ids(next_ids[0], set()) if next_ids else []
+
+    def get_branch_layout(self, point: GraphPoint, output: str) -> Dict[str, Any]:
+        """
+        The layout of everything that follows a point on one of its outputs: the
+        first point, and for every point reached from it through `next` (all
+        outputs) and `children` (all edges), where its next points and children
+        are. Two layouts are equal only when the same points are in the same
+        places. It's JSON-serializable, to be stored and compared later.
+
+        :param point: The point the branch follows.
+        :param output: The output of the point the branch is on.
+        :return: A dict with the first point ID, or None, and the points.
+        """
+
+        next_ids = self.get_next_point_ids(point, output)
+        first = str(next_ids[0]) if next_ids else None
+        points: Dict[str, Any] = {}
+        self._collect_layout([first] if first else [], points)
+        return {"first": first, "points": points}
+
+    def get_run_layout(
+        self, point: GraphPoint, output: str, run_ids: Iterable[int | str]
+    ) -> Dict[str, Any]:
+        """
+        Like `get_branch_layout`, but only for the run of points at the start of
+        the chain on `output` that are in `run_ids`, with everything inside them:
+        their children and the points on their other outputs. The chain after
+        the run is left out, only the ID of the point right after it is kept.
+
+        :param point: The point the chain follows.
+        :param output: The output of the point the chain is on.
+        :param run_ids: The IDs of the points the run may hold.
+        :return: A dict with the run's point IDs in order, the layout of the
+            points in and inside it, and the ID of the point after it, or None.
+        """
+
+        allowed = {str(point_id) for point_id in run_ids}
+        next_ids = self.get_next_point_ids(point, output)
+        current = str(next_ids[0]) if next_ids else None
+        run: List[str] = []
+        while current is not None and current in allowed and current not in run:
+            run.append(current)
+            following = self.graph.get(current, {}).get("next", {}).get("", [])
+            current = str(following[0]) if following else None
+
+        points: Dict[str, Any] = {}
+        inside = []
+        for point_id in run:
+            entry = self._layout_entry(point_id)
+            # The run's order is kept in `run`, and the point after it in `after`.
+            entry.get("next", {}).pop("", None)
+            if not entry.get("next"):
+                entry.pop("next", None)
+            points[point_id] = entry
+            inside.extend(
+                i for edges in entry.values() for ids in edges.values() for i in ids
+            )
+        self._collect_layout(inside, points)
+        return {"run": run, "points": points, "after": current}
+
+    def _layout_entry(self, point_id: str) -> Dict[str, Any]:
+        info = self.graph.get(point_id, {})
+        entry = {}
+        for key, edges in (
+            ("next", info.get("next", {})),
+            ("children", self._get_children_dict_from_info(info)),
+        ):
+            edges = {edge: [str(i) for i in ids] for edge, ids in edges.items()}
+            edges = {edge: ids for edge, ids in edges.items() if ids}
+            if edges:
+                entry[key] = edges
+        return entry
+
+    def _collect_layout(self, stack: List[str], points: Dict[str, Any]) -> None:
+        """
+        Add the layout entry of the given points, and of every point reached from
+        them through `next` and `children`, to `points`. Points already in it are
+        not walked again.
+        """
+
+        while stack:
+            current = stack.pop()
+            if current in points:
+                continue
+            entry = self._layout_entry(current)
+            points[current] = entry
+            stack.extend(
+                i for edges in entry.values() for ids in edges.values() for i in ids
+            )
 
     def remove(
         self, point_to_delete: GraphPoint, keep_info: bool = False

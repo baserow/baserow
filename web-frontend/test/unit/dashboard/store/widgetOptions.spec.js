@@ -40,7 +40,7 @@ const seed = (multiple = true, defaultValue = ['France', 'Belgium']) =>
       mode: 'dropdown',
       multiple,
       options: {
-        formula: "get('data_source_context.1.field_10.*.value')",
+        formula: "get('table_context.1.field_10.*.value')",
         mode: 'advanced',
       },
       default_value: defaultValue,

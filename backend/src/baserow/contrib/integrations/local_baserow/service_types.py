@@ -5,6 +5,7 @@ from typing import (
     Generator,
     List,
     Optional,
+    Set,
     Tuple,
     Type,
     Union,
@@ -316,6 +317,9 @@ class LocalBaserowTableServiceType(LocalBaserowServiceType):
         LastModifiedByFieldType.type,
         MultipleCollaboratorsFieldType.type,
     ]
+
+    def get_table_ids(self, service: ServiceSubClass) -> Set[int]:
+        return {service.table_id} if service.table_id is not None else set()
 
     def outdates_sample_data(self, changes: Dict[str, Tuple]) -> bool:
         """
@@ -3255,19 +3259,12 @@ class LocalBaserowDeleteRowServiceType(
         return DispatchResult(data=dispatch_data["data"], status=204)
 
 
-class LocalBaserowRowsSignalTriggerServiceType(
+class LocalBaserowTableSignalTriggerServiceType(
     TriggerServiceTypeMixin, LocalBaserowTableServiceType
 ):
-    # The signal that this service type is called by.
-    signal: Signal = None
-
-    # Local Baserow signal services (e.g. rows created, updated, deleted)
-    # all return an array of rows, even if only a single row is affected.
-    # We set `_returns_list` to `True` so that when we generate the schema,
-    # the `type` is set to `array` instead of `object`.
-    _returns_list = True
-    # No later event brings the rows of a skipped one again.
+    signal: Signal
     events_can_be_skipped = False
+    read_operations = (ListRowsDatabaseTableOperationType.type,)
 
     def can_subject_read(
         self,
@@ -3276,9 +3273,8 @@ class LocalBaserowRowsSignalTriggerServiceType(
         workspace: Workspace,
     ) -> bool:
         """
-        A subject reads a table's events when it may list the table's rows, so a
-        member who only reaches a restricted view doesn't. Without a table nothing
-        is received yet.
+        A subject needs the trigger's read permissions on the whole table.
+        Without a selected table the service receives no events.
 
         :param service: The specific trigger service.
         :param subject: The subject the consumer acts as, or None for none.
@@ -3295,20 +3291,22 @@ class LocalBaserowRowsSignalTriggerServiceType(
             or TrashHandler.item_has_a_trashed_parent(table, check_item_also=True)
         ):
             return False
-        return CoreHandler().check_permissions(
-            subject,
-            ListRowsDatabaseTableOperationType.type,
-            workspace=workspace,
-            context=table,
-            raise_permission_exceptions=False,
-        )
+        checks = [
+            PermissionCheck(subject, operation, table)
+            for operation in self.read_operations
+        ]
+        allowed = CoreHandler().check_multiple_permissions(checks, workspace=workspace)
+        return all(allowed[check] is True for check in checks)
+
+    def get_event_source_id(self, service: LocalBaserowTableService) -> int | None:
+        return service.table_id
 
     def get_form_choices(
         self, subject: Optional[Subject], workspace: Workspace
     ) -> Dict[str, List[Dict]]:
         """
-        The databases with the tables whose rows the subject may list, computed
-        once per request for all the row trigger types. Trigger forms hide views.
+        The databases and tables readable by the subject, shared by trigger
+        types requiring the same permissions.
 
         :param subject: The subject the consumer acts as, or None for none.
         :param workspace: The workspace the consumer acts in.
@@ -3320,7 +3318,7 @@ class LocalBaserowRowsSignalTriggerServiceType(
         subject_type = subject_type_registry.get_by_model(subject).type
         return local_cache.get(
             f"local_baserow_trigger_form_choices_{subject_type}_"
-            f"{subject.pk}_{workspace.id}",
+            f"{subject.pk}_{workspace.id}_{self.read_operations}",
             lambda: {"databases": self._list_readable_databases(subject, workspace)},
         )
 
@@ -3338,36 +3336,27 @@ class LocalBaserowRowsSignalTriggerServiceType(
             subject, workspace, with_views=False
         )
         checks = [
-            PermissionCheck(subject, ListRowsDatabaseTableOperationType.type, table)
+            PermissionCheck(subject, operation, table)
             for database in databases
             for table in database.tables
+            for operation in self.read_operations
         ]
         allowed = CoreHandler().check_multiple_permissions(checks, workspace=workspace)
-        readable_ids = {check.context.id for check in checks if allowed[check] is True}
+        unreadable_ids = {
+            check.context.id for check in checks if allowed[check] is not True
+        }
         serialized = LocalBaserowDatabaseSerializer(databases, many=True).data
         return [
             {**database, "tables": tables}
             for database in serialized
             if (
                 tables := [
-                    table for table in database["tables"] if table["id"] in readable_ids
+                    table
+                    for table in database["tables"]
+                    if table["id"] not in unreadable_ids
                 ]
             )
         ]
-
-    def get_event_context(
-        self, service: LocalBaserowTableService, event_payload: Dict[str, Any]
-    ) -> Dict[str, Any]:
-        """
-        :param service: The specific trigger service the event fired.
-        :param event_payload: The payload, or one part of it.
-        :return: How many rows the payload holds and the name of their table.
-        """
-
-        return {
-            **super().get_event_context(service, event_payload),
-            "table": service.table.name,
-        }
 
     def connect(self) -> None:
         """
@@ -3382,6 +3371,58 @@ class LocalBaserowRowsSignalTriggerServiceType(
         """
 
         self.signal.disconnect(self._signal_receiver)
+
+    def get_services_for_table(self, table: "Table", **kwargs):
+        """Return the services watching the table through its own workspace."""
+        # A service reading the table through an integration of another
+        # workspace isn't dispatched.
+        services = [
+            service
+            for service in self._get_services_to_dispatch(
+                table, **kwargs
+            ).select_related("integration__application")
+            if self.is_table_in_integration_workspace(service, table)
+        ]
+        for service in services:
+            # Listeners read the table per service; the event already holds it.
+            service.table = table
+        return services
+
+    def _get_services_to_dispatch(self, table: "Table", **signal_kwargs):
+        """
+        Returns the queryset of services which should be dispatched for this signal.
+        Subclasses can narrow this down (e.g. only services watching a field which
+        actually changed) by overriding this method and using the signal kwargs.
+
+        :param table: The table the signal was sent for.
+        :param signal_kwargs: The remaining kwargs sent with the signal.
+        :return: A queryset of `model_class` instances to dispatch.
+        """
+
+        return self.model_class.objects.filter(table=table)
+
+    def _signal_receiver(self, *args, **kwargs):
+        transaction.on_commit(lambda: self._handle_signal(*args, **kwargs))
+
+
+class LocalBaserowRowsSignalTriggerServiceType(
+    LocalBaserowTableSignalTriggerServiceType
+):
+    _returns_list = True
+
+    def get_event_context(
+        self, service: LocalBaserowTableService, event_payload: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """
+        :param service: The specific trigger service the event fired.
+        :param event_payload: The payload, or one part of it.
+        :return: How many rows the payload holds and the name of their table.
+        """
+
+        return {
+            **super().get_event_context(service, event_payload),
+            "table": service.table.name,
+        }
 
     def _process_event(self, *args, **kwargs):
         return self.on_event(*args, **kwargs)
@@ -3406,18 +3447,7 @@ class LocalBaserowRowsSignalTriggerServiceType(
 
             return self._prepare_result(local_model, data_to_process)
 
-        # A service reading the table through an integration of another
-        # workspace isn't dispatched.
-        services = [
-            service
-            for service in self._get_services_to_dispatch(
-                table, **kwargs
-            ).select_related("integration__application")
-            if self.is_table_in_integration_workspace(service, table)
-        ]
-        for service in services:
-            # Listeners read the table per service; the event already holds it.
-            service.table = table
+        services = self.get_services_for_table(table, **kwargs)
         self._process_event(
             services,
             get_data,
@@ -3440,22 +3470,6 @@ class LocalBaserowRowsSignalTriggerServiceType(
             local_model, RowSerializer, is_response=True, user_field_names=True
         )
         return serializer(rows, many=True).data
-
-    def _get_services_to_dispatch(self, table: "Table", **signal_kwargs):
-        """
-        Returns the queryset of services which should be dispatched for this signal.
-        Subclasses can narrow this down (e.g. only services watching a field which
-        actually changed) by overriding this method and using the signal kwargs.
-
-        :param table: The table the signal was sent for.
-        :param signal_kwargs: The remaining kwargs sent with the signal.
-        :return: A queryset of `model_class` instances to dispatch.
-        """
-
-        return self.model_class.objects.filter(table=table)
-
-    def _signal_receiver(self, *args, **kwargs):
-        transaction.on_commit(lambda: self._handle_signal(*args, **kwargs))
 
     def import_context_path(
         self, path: List[str], id_mapping: Dict[int, int], **kwargs

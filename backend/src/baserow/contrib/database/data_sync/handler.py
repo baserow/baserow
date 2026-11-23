@@ -859,15 +859,11 @@ class DataSyncHandler:
 
         handler = FieldHandler()
 
-        # A renamed primary key leaves both properties `unique_primary` here, so
-        # skip the one being deleted or the table ends up without a primary field.
-        removed_field_ids = {p.field_id for p in properties_to_be_removed}
+        # The stored flag can be stale (a renamed primary key, a copy made without
+        # it), so the source decides which field becomes primary.
+        unique_primary_keys = {p.key for p in data_sync_properties if p.unique_primary}
         unique_primary_field = next(
-            (
-                ep.field
-                for ep in enabled_properties
-                if ep.unique_primary and ep.field_id not in removed_field_ids
-            ),
+            (ep.field for ep in enabled_properties if ep.key in unique_primary_keys),
             None,
         )
 
@@ -944,6 +940,12 @@ class DataSyncHandler:
             field_kwargs["immutable_properties"] = (
                 data_sync_property.immutable_properties
             )
+            if field_kwargs["name"] != enabled_property.field.name:
+                field_kwargs["name"] = handler.find_next_unused_field_name(
+                    data_sync.table,
+                    [field_kwargs["name"]],
+                    field_ids_to_ignore=[enabled_property.field.id],
+                )
             enabled_property.field = handler.update_field(
                 user=user,
                 field=enabled_property.field.specific,

@@ -3,8 +3,7 @@ Checking the formulas in a node's values without a model. Telling formulas from
 literals is in ``baserow.core.formula.literals``.
 """
 
-import re
-from typing import Any, Callable
+from typing import Any, Callable, Optional
 
 from baserow.core.exceptions import InstanceTypeDoesNotExist
 from baserow.core.formula.exceptions import InvalidRuntimeFormula
@@ -25,12 +24,6 @@ from baserow.core.formula.types import (
     BaserowFormulaObject,
 )
 
-# A get( right before a string literal, the path it reads.
-GET_OPEN_RE = re.compile(r"\bget\(\s*$")
-
-# A previous_node path: previous_node.<node>.<rest>.
-PREVIOUS_NODE_PATH_RE = re.compile(r"previous_node\.([^.]+)(.*)", re.DOTALL)
-
 
 class InvalidAutomationFormula(Exception):
     """A node value that should be a formula but isn't a valid one."""
@@ -50,25 +43,26 @@ def _mask_strings(formula: str) -> str:
     )
 
 
-def previous_node_paths(formula: str) -> list[tuple[int, int, str, str]]:
+def previous_node_paths(
+    formula: str,
+) -> list[tuple[Optional[int], Optional[int], str, tuple[str, ...]]]:
     """
     The previous_node paths the get() calls of a formula read, as the start and
-    end of the node part in the formula, the node part and the rest of the path.
-    Text in other string literals, such as concat('from previous_node.orders'), is
-    left alone.
+    end of the node part in the formula (None when it can't be told), the node part
+    and the rest of the path. They are read as the data providers read them and as
+    the check of the nodes a formula reads does, so `get('previous_node[5].x')`
+    and `GET(('previous_node.5.x'))` are found, while text in other string
+    literals, such as concat('from previous_node.orders'), is left alone. A formula
+    that can't be parsed has none.
     """
 
-    masked = _mask_strings(formula)
-    paths = []
-    for literal in STRING_LITERAL_RE.finditer(formula):
-        if not GET_OPEN_RE.search(masked, 0, literal.start()):
-            continue
-        path = PREVIOUS_NODE_PATH_RE.fullmatch(literal.group()[1:-1])
-        if path is None:
-            continue
-        start = literal.start() + 1 + path.start(1)
-        paths.append((start, start + len(path.group(1)), path.group(1), path.group(2)))
-    return paths
+    from baserow.contrib.automation.nodes.access import formula_reads
+
+    return [
+        (read.start, read.end, read.node, read.rest)
+        for read in formula_reads([formula]).paths
+        if read.provider == "previous_node"
+    ]
 
 
 def resolve_node_refs(formula: str, refs: dict[str, int]) -> str:
@@ -78,7 +72,11 @@ def resolve_node_refs(formula: str, refs: dict[str, int]) -> str:
     the trigger.
     """
 
-    for start, end, node, _ in reversed(previous_node_paths(formula)):
+    for start, end, node, _ in sorted(
+        (path for path in previous_node_paths(formula) if path[0] is not None),
+        key=lambda path: path[0],
+        reverse=True,
+    ):
         if node in refs:
             formula = formula[:start] + str(refs[node]) + formula[end:]
     return formula
@@ -201,6 +199,49 @@ def _listed_paths(output: dict[str, Any]) -> str:
     return ", ".join(paths)
 
 
+def _check_hidden_reads(
+    field: str,
+    formula: str,
+    outputs: Callable[[int], dict[str, Any] | None],
+) -> None:
+    """
+    Refuse a formula that reads a node the user may not see the output of, as it
+    shows a table they may not see. Its outputs aren't listed, nor is a path
+    checked against them, so that the error doesn't tell its fields.
+    """
+
+    from baserow.contrib.automation.nodes.access import formula_reads
+
+    reads = formula_reads([formula])
+    for node_id in sorted(reads.node_ids):
+        output = outputs(node_id)
+        if output is None:
+            continue
+        if output.get("table_accessible") is False:
+            raise InvalidAutomationFormula(
+                field,
+                formula,
+                f"Node {node_id} shows a table you can't access, so this formula "
+                "can't read it.",
+            )
+        if output.get("reads_hidden_data") and not output["properties"]:
+            raise InvalidAutomationFormula(
+                field,
+                formula,
+                f"Node {node_id} reads data of a table you can't access, so this "
+                "formula can't read it.",
+            )
+    any_hidden = getattr(outputs, "any_hidden", None)
+    if reads.any_node and any_hidden is not None and any_hidden():
+        raise InvalidAutomationFormula(
+            field,
+            formula,
+            "The formula reads a path it builds, and this workflow has nodes that "
+            "show a table you can't access, so it can't be checked. Read each "
+            "node with get('previous_node.<node id>...').",
+        )
+
+
 def check_output_paths(
     field: str,
     formula: str,
@@ -215,11 +256,12 @@ def check_output_paths(
     :raises InvalidAutomationFormula: Naming the paths the node outputs.
     """
 
+    _check_hidden_reads(field, formula, outputs)
     for _, _, node_id, rest in previous_node_paths(formula):
         if not node_id.isdigit():
             continue
-        path = f"previous_node.{node_id}{rest}"
-        segments = rest.split(".")[1:]
+        segments = list(rest)
+        path = ".".join(["previous_node", node_id, *segments])
         output = outputs(int(node_id))
         if output is None:
             raise InvalidAutomationFormula(

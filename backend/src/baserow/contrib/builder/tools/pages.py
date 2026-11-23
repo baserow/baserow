@@ -100,6 +100,8 @@ def create_pages_with_options(
     errors: list[str] = []
     with transaction.atomic():
         for page_create in pages:
+            if ctx.is_cancelled():
+                break
             ctx.update_status(
                 _("Creating page %(name)s...") % {"name": page_create.name}
             )

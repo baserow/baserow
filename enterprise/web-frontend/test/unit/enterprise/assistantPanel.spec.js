@@ -373,23 +373,30 @@ describe('AssistantPanel', () => {
       expect(unhandled).not.toHaveBeenCalled()
     })
 
-    test('closing the panel while a navigation target loads prevents late navigation', async () => {
-      let finishRead
-      testApp.mock
-        .onGet(`/applications/${database.id}/`)
-        .reply(() => new Promise((resolve) => (finishRead = resolve)))
-      store.commit('assistant/SET_UI_LOCATION', {
-        type: 'database-table',
-        database_id: database.id,
-        table_id: newTable.id,
-      })
-      await vi.advanceTimersByTimeAsync(11000)
-      await store.dispatch('assistant/setPanelOpen', false)
-      finishRead([200, { ...database, tables: [newTable] }])
-      await flushPromises()
+    test.each(['close', 'stop'])(
+      '%s while a navigation target loads prevents late navigation',
+      async (action) => {
+        let finishRead
+        testApp.mock
+          .onGet(`/applications/${database.id}/`)
+          .reply(() => new Promise((resolve) => (finishRead = resolve)))
+        store.commit('assistant/SET_UI_LOCATION', {
+          type: 'database-table',
+          database_id: database.id,
+          table_id: newTable.id,
+        })
+        await vi.advanceTimersByTimeAsync(11000)
+        if (action === 'close') {
+          await store.dispatch('assistant/setPanelOpen', false)
+        } else {
+          await store.dispatch('assistant/cancelMessage')
+        }
+        finishRead([200, { ...database, tables: [newTable] }])
+        await flushPromises()
 
-      expect(push).not.toHaveBeenCalled()
-    })
+        expect(push).not.toHaveBeenCalled()
+      }
+    )
 
     test('fetches a new view of a table whose views are loaded and opens it', async () => {
       const view = { id: 30, table_id: newTable.id, type: 'grid', order: 1 }

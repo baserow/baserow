@@ -3,14 +3,13 @@
     <FormGroup
       :error="v$.values.name.$error"
       small-label
-      :label="$t('snapshotsModal.createLabel')"
+      :label="$t('snapshotsModal.nameLabel')"
       required
     >
       <slot name="input">
         <FormInput
           ref="name"
           v-model="v$.values.name.$model"
-          size="large"
           :error="fieldHasErrors('name')"
           class="snapshots-modal__name-input"
           @blur="v$.values.name.$touch"

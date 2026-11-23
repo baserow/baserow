@@ -937,6 +937,8 @@ def test_import_export_duplicate_table(enterprise_data_fixture):
     imported_properties = imported_data_sync.synced_properties.all().order_by("key")
     assert imported_properties[0].key == f"field_{text_field.id}"
     assert imported_properties[1].key == "id"
+    assert imported_properties[0].unique_primary is False
+    assert imported_properties[1].unique_primary is True
 
 
 @pytest.mark.django_db

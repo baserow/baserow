@@ -145,6 +145,7 @@ export default {
         disabledReason: nodeType.isDeactivatedReason({
           workspace: this.resolvedWorkspace,
         }),
+        locked: this.getDeactivatedClickModal(nodeType) !== null,
         meta: nodeType,
       }
     },

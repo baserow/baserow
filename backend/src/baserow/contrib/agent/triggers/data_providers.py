@@ -36,6 +36,17 @@ def trigger_timezone_name(service: Service) -> str:
     return service.get_type().get_timezone_name(service) or FIRED_AT_DEFAULT_TIMEZONE
 
 
+def trigger_data_as_text(values: dict[str, Any]) -> str:
+    """
+    :param values: The values of one event, by name.
+    :return: The values as a labelled, fenced JSON block for a message, which
+        text written by a person can't close.
+    """
+
+    block = json.dumps(values, default=str, ensure_ascii=False, indent=2)
+    return f"Trigger data:\n```json\n{block}\n```"
+
+
 def rows_as_text(service: Service, event_payload: dict[str, Any]) -> str:
     """
     The rows of a list payload as a fenced JSON block with one row per line, for a

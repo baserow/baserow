@@ -139,9 +139,7 @@ class AgentTriggerDispatcher:
             reason = "it is disabled"
         elif not self._agent_is_live(agent):
             reason = "its agent is trashed or is a snapshot"
-        elif service_type.type not in AgentTriggerHandler().available_trigger_types(
-            agent
-        ):
+        elif not AgentTriggerHandler().is_type_usable(agent, service_type.type):
             reason = "its type isn't available"
         elif (
             AgentHandler().get_configuration_readiness(agent)[0]
@@ -197,7 +195,10 @@ class AgentTriggerDispatcher:
         """
 
         service = trigger.service.specific
-        can_read = self._can_read(trigger)
+        identity = AgentHandler().get_run_identity(trigger.agent)
+        if not service.get_type().matches_event(service, identity, payload):
+            return
+        can_read = AgentTriggerHandler().can_identity_read(trigger, identity)
         firings, dropped_batches = [], 0
         if can_read:
             batches = service.get_type().split_event_payload(
@@ -206,10 +207,11 @@ class AgentTriggerDispatcher:
             kept = batches[: settings.AGENT_TRIGGER_MAX_BATCHES_PER_EVENT]
             firings = [self._resolve_firing(trigger, batch, fired_at) for batch in kept]
             dropped_batches = len(batches) - len(kept)
+        source_id = service.get_type().get_event_source_id(service)
         # A broker error for one trigger mustn't drop the starts queued after it.
         transaction.on_commit(
             lambda: start_trigger_conversations.delay(
-                trigger.id, service.id, firings, dropped_batches, can_read
+                trigger.id, service.id, firings, dropped_batches, can_read, source_id
             ),
             robust=True,
         )
@@ -249,10 +251,11 @@ class AgentTriggerDispatcher:
         firings: Sequence[Sequence[str | None]],
         dropped_batches: int = 0,
         can_read: bool = True,
+        source_id: int | None = None,
     ) -> None:
         """
         Apply the rules of a trigger to each firing of one event, in order, if the
-        trigger still has the service that fired and still can run: start or
+        trigger still watches what fired and still can run: start or
         queue each conversation and tell the readers, or record why a firing was
         skipped. An event the agent's run identity couldn't read when it
         happened, or can't read now, is recorded as skipped: the identity may
@@ -268,6 +271,7 @@ class AgentTriggerDispatcher:
         :param dropped_batches: How many batches of the event were left out.
         :param can_read: Whether the run identity could read the event's data
             when the event happened.
+        :param source_id: What the service watched when the event fired, if any.
         """
 
         try:
@@ -275,7 +279,7 @@ class AgentTriggerDispatcher:
                 trigger = self._lock(trigger_id)
                 if (
                     trigger is None
-                    or not self._has_service(trigger, service_id)
+                    or not self._still_watches(trigger, service_id, source_id)
                     or not self._is_runnable(trigger)
                 ):
                     return
@@ -290,23 +294,30 @@ class AgentTriggerDispatcher:
             logger.exception("Could not start agent trigger {}.", trigger_id)
             exception_capturer(e)
 
-    def _has_service(self, trigger: AgentTrigger, service_id: int) -> bool:
+    def _still_watches(
+        self, trigger: AgentTrigger, service_id: int, source_id: int | None
+    ) -> bool:
         """
-        Whether the trigger still has the service its firings were resolved
-        from. A builder who replaced it changed what the trigger watches, so the
-        firings are dropped without recording a skip the new service didn't cause.
+        Whether the trigger still has the service its firings were resolved from
+        and that service still watches the event's source. A builder who replaced
+        the service or pointed it elsewhere changed what the trigger watches, so
+        the firings are dropped without recording a skip the new setup didn't
+        cause.
 
-        :param trigger: The locked trigger.
+        :param trigger: The locked trigger, with its service.
         :param service_id: The id of the service the firings were resolved from.
-        :return: True when the trigger's service is still that one.
+        :param source_id: What the service watched when the event fired, if any.
+        :return: True when the trigger watches what fired.
         """
 
-        if trigger.service_id == service_id:
+        service = trigger.service.specific
+        if (
+            trigger.service_id == service_id
+            and service.get_type().get_event_source_id(service) == source_id
+        ):
             return True
         logger.debug(
-            "Agent trigger {} skipped: its service {} was replaced.",
-            trigger.id,
-            service_id,
+            "Agent trigger {} skipped: it no longer watches what fired.", trigger.id
         )
         return False
 

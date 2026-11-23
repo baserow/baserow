@@ -7,6 +7,8 @@
     :data-source="dataSource"
     :default-values="dataSource"
     :store-prefix="storePrefix"
+    :small="small"
+    :show-own-filters="showOwnFilters"
     @values-changed="onDataSourceValuesChanged"
   />
 </template>
@@ -21,6 +23,16 @@ export default {
   components: { AggregateRowsDataSourceForm },
   mixins: [error],
   props: {
+    linkFilterWidgetId: { type: Number, default: null },
+    /** Whether the widget's own filter conditions can be edited here. */
+    showOwnFilters: {
+      type: Boolean,
+      default: true,
+    },
+    small: {
+      type: Boolean,
+      default: true,
+    },
     dashboard: {
       type: Object,
       required: true,
@@ -53,6 +65,15 @@ export default {
     },
   },
   methods: {
+    /** Validate all data settings before completing guided widget creation. */
+    validate() {
+      const form = this.$refs.dataSourceForm
+      if (!form) return false
+      form.touch(true)
+      const valid = form.isFormValid(true)
+      if (!valid) form.focusOnFirstError()
+      return valid
+    },
     async onDataSourceValuesChanged(changedDataSourceValues) {
       if (this.$refs.dataSourceForm.isFormValid()) {
         try {
@@ -61,6 +82,9 @@ export default {
             {
               dataSourceId: this.dataSource.id,
               values: changedDataSourceValues,
+              ...(this.linkFilterWidgetId == null
+                ? {}
+                : { linkFilterWidgetId: this.linkFilterWidgetId }),
             }
           )
         } catch (error) {

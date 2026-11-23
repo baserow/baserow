@@ -7,6 +7,7 @@ from pydantic_ai import RunContext
 from pydantic_ai.models.test import TestModel
 from pydantic_ai.usage import RunUsage
 
+from baserow.contrib.automation.nodes.access import ALLOW_ALL
 from baserow.contrib.automation.nodes.models import AutomationNode
 from baserow.contrib.automation.nodes.operations import (
     DeleteAutomationNodeOperationType,
@@ -133,23 +134,21 @@ def test_list_nodes(data_fixture):
 
 @pytest.mark.django_db(transaction=True)
 def test_add_node_after_existing(data_fixture):
-    """Add a router node between the trigger and existing email node."""
+    """
+    Add a router between the trigger and the existing email node, asking for the
+    default branch. The email moves there with its settings and is reported as
+    shifted.
+    """
+
     user = data_fixture.create_user()
     workspace = data_fixture.create_workspace(user=user)
     automation, workflow_id = _create_test_workflow(data_fixture, user, workspace)
 
-    # Get existing nodes
     ctx = make_test_ctx(user, workspace)
     existing = list_nodes(ctx, workflow_id=workflow_id, thought="check")
     trigger_id = existing["nodes"][0]["id"]
     email_id = existing["nodes"][1]["id"]
 
-    # Delete the existing email node first (we'll re-add it after the router)
-    delete_nodes(
-        ctx, node_ids=[email_id], thought="remove email to re-add after router"
-    )
-
-    # Add a router after the trigger, then a new email after the router
     result = add_nodes(
         ctx,
         workflow_id=workflow_id,
@@ -160,34 +159,78 @@ def test_add_node_after_existing(data_fixture):
                 type="router",
                 previous_node_ref=str(trigger_id),
                 edges=[
-                    {"label": "always", "condition": "true"},
+                    {"label": "Skip", "condition": "false"},
                 ],
-            ),
-            ActionNodeCreate(
-                ref="slack1",
-                label="Send Slack After Router",
-                type="smtp_email",
-                previous_node_ref="router1",
-                router_edge_label="always",
-                to_emails="test@example.com",
-                subject="Hello",
-                body="Routed message",
+                shifted_node_edge_label="default",
             ),
         ],
         thought="insert router between trigger and email",
     )
 
-    assert len(result["created_nodes"]) == 2
-    assert result["created_nodes"][0]["type"] == "router"
-    assert result["created_nodes"][0]["label"] == "My Router"
-    assert result["created_nodes"][1]["label"] == "Send Slack After Router"
+    (router,) = result["created_nodes"]
+    assert (router["type"], router["label"]) == ("router", "My Router")
+    assert result["shifted_nodes"] == [
+        {
+            "id": email_id,
+            "label": "Send Email",
+            "type": "smtp_email",
+            "previous_node_ref": str(router["id"]),
+        }
+    ]
 
-    # Verify final workflow order
     final = list_nodes(ctx, workflow_id=workflow_id, thought="verify")
-    assert len(final["nodes"]) == 3
-    assert final["nodes"][0]["type"] == "periodic"
-    assert final["nodes"][1]["type"] == "router"
-    assert final["nodes"][2]["type"] == "smtp_email"
+    assert [node["id"] for node in final["nodes"]] == [
+        trigger_id,
+        router["id"],
+        email_id,
+    ]
+    email = AutomationNode.objects.get(id=email_id).service.specific
+    assert email.subject["formula"] == "'Hello'"
+
+
+@pytest.mark.django_db(transaction=True)
+def test_add_node_before_existing_by_id(data_fixture):
+    """
+    Insert a router before the existing email node by its ID, with the email on
+    the router's branch.
+    """
+
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    automation, workflow_id = _create_test_workflow(data_fixture, user, workspace)
+    ctx = make_test_ctx(user, workspace)
+    trigger_id, email_id = [
+        node["id"]
+        for node in list_nodes(ctx, workflow_id=workflow_id, thought="x")["nodes"]
+    ]
+
+    result = add_nodes(
+        ctx,
+        workflow_id=workflow_id,
+        nodes=[
+            ActionNodeCreate(
+                ref="router1",
+                label="Only VIPs",
+                type="router",
+                before_node_id=email_id,
+                edges=[{"label": "VIP", "condition": "true"}],
+                shifted_node_edge_label="VIP",
+            )
+        ],
+        thought="put the email behind a condition",
+    )
+
+    (router,) = result["created_nodes"]
+    (shifted,) = result["shifted_nodes"]
+    assert (shifted["id"], shifted["router_edge_label"]) == (email_id, "VIP")
+    final = list_nodes(ctx, workflow_id=workflow_id, thought="verify")["nodes"]
+    assert [node["id"] for node in final] == [trigger_id, router["id"], email_id]
+
+
+def test_add_nodes_prompt_inserts_before_a_node_by_id():
+    doc = add_nodes.__doc__
+    assert "To add a node before an existing node X, set before_node_id" in doc
+    assert "use X's previous_node_ref" not in doc
 
 
 @pytest.mark.django_db(transaction=True)
@@ -532,6 +575,7 @@ def test_router_edge_conditions_stay_valid_formulas(
                     RouterEdgeCreate(label="Do this", condition="High priority"),
                     RouterEdgeCreate(label="Do that", condition="Low priority"),
                 ],
+                shifted_node_edge_label="default",
             )
         ],
         thought="add router",
@@ -1777,6 +1821,69 @@ def test_a_failed_read_before_generation_leaves_the_formula_error(
     assert error["error"] == "read failed"
 
 
+@pytest.mark.django_db
+def test_formula_examples_leave_out_tables_the_user_cannot_see(
+    enterprise_data_fixture, enable_enterprise, synced_roles
+):
+    fixture = enterprise_data_fixture
+    admin = fixture.create_user()
+    workspace = fixture.create_workspace(user=admin)
+    table = fixture.create_database_table(
+        database=fixture.create_database_application(workspace=workspace)
+    )
+    fixture.create_text_field(table=table, name="Salary")
+    workflow = fixture.create_automation_workflow(
+        automation=fixture.create_automation_application(workspace=workspace),
+        trigger_type="local_baserow_rows_created",
+        trigger_service_kwargs={"table": table},
+    )
+    action = fixture.create_core_router_action_node(workflow=workflow)
+    restricted = fixture.create_user()
+    fixture.create_user_workspace(
+        user=restricted, workspace=workspace, permissions="NO_ACCESS"
+    )
+    RoleAssignmentHandler().assign_role(
+        restricted,
+        workspace,
+        role=Role.objects.get(uid="BUILDER"),
+        scope=workflow.automation.application_ptr,
+    )
+
+    seen = automation_agents.WorkflowExamples(admin).context_for(action)
+    assert "Salary" in str(seen.get_context_metadata())
+
+    hidden = automation_agents.WorkflowExamples(restricted).context_for(action)
+    assert "Salary" not in str(hidden.context) + str(hidden.get_context_metadata())
+
+
+@pytest.mark.django_db
+def test_formula_requests_leave_out_fields_the_user_cannot_see(
+    enterprise_data_fixture, enable_enterprise, synced_roles, row_action_node
+):
+    admin, node, field = row_action_node
+    workspace = node.workflow.automation.workspace
+    field.name = "Salary"
+    field.save()
+    restricted = enterprise_data_fixture.create_user()
+    enterprise_data_fixture.create_user_workspace(
+        user=restricted, workspace=workspace, permissions="NO_ACCESS"
+    )
+    RoleAssignmentHandler().assign_role(
+        restricted,
+        workspace,
+        role=Role.objects.get(uid="BUILDER"),
+        scope=node.workflow.automation.application_ptr,
+    )
+    errors = [{"field_id": field.id, "field": "values", "formula": "", "error": ""}]
+
+    def requests_for(user):
+        access = automation_agents.AutomationNodeAccess(user).add_nodes([node])
+        return automation_agents.formula_requests(node, errors, access)
+
+    assert requests_for(admin)[field.id]["name"] == "Salary"
+    assert "Salary" not in str(requests_for(restricted))
+
+
 @pytest.mark.django_db(transaction=True)
 def test_add_nodes_tells_the_generator_which_node_wrote_the_previous_row(
     data_fixture, monkeypatch, real_formula_pass
@@ -1870,8 +1977,10 @@ def test_formula_requests_name_the_node_this_one_follows(data_fixture, label):
     )
     error = {"field": "row_id", "formula": "$formula: the created row"}
 
-    [request] = automation_agents.formula_requests(node, [error], previous).values()
-    [without] = automation_agents.formula_requests(node, [error]).values()
+    [request] = automation_agents.formula_requests(
+        node, [error], ALLOW_ALL, previous
+    ).values()
+    [without] = automation_agents.formula_requests(node, [error], ALLOW_ALL).values()
 
     named = f"node {previous.id} ('{label}')" if label else f"node {previous.id}:"
     assert f"This node follows {named}" in request

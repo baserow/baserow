@@ -15,6 +15,7 @@ def start_trigger_conversations(
     firings: list[list[str | None]],
     dropped_batches: int = 0,
     can_read: bool = True,
+    source_id: int | None = None,
 ) -> None:
     """
     Apply the rules of a trigger to each firing of one event, after the event
@@ -26,12 +27,13 @@ def start_trigger_conversations(
         reply, or None, in the event's order.
     :param dropped_batches: How many batches of the event were left out.
     :param can_read: Whether the run identity could read the event's data.
+    :param source_id: What the service watched when the event fired, if any.
     """
 
     from .dispatcher import agent_trigger_dispatcher
 
     agent_trigger_dispatcher.start(
-        trigger_id, service_id, firings, dropped_batches, can_read
+        trigger_id, service_id, firings, dropped_batches, can_read, source_id
     )
 
 

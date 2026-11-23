@@ -90,10 +90,11 @@ class PublicDashboardDataSourceSerializer(PublicServiceSerializer):
 
     def to_representation(self, instance):
         data = super().to_representation(instance)
-        # The table service types expose the id of their table, which is part of
-        # their public contract in the application builder. Visitors of a
-        # dashboard don't need it, so they get the placeholder instead.
         if "table_id" in data:
+            # Option formulas already carry this table ID. Publish it only for
+            # referenced metadata; other table identifiers remain placeholders.
+            if self.context.get("referenced_option_fields"):
+                data["context_table_id"] = data["table_id"]
             data["table_id"] = PUBLIC_PLACEHOLDER_ENTITY_ID
         return data
 
@@ -171,13 +172,16 @@ class PublicDashboardInfoSerializer(serializers.Serializer):
             get_dashboard_used_property_names,
         )
 
-        data_sources = list(self.context["data_sources"])
         fields = get_dashboard_used_property_names(self.context["widgets"])
         return [
             serialize_public_data_source(
-                data_source, fields.get(data_source.service_id)
+                data_source,
+                fields.get(
+                    f"table_{getattr(data_source.service.specific, 'table_id', None)}",
+                    [],
+                ),
             )
-            for data_source in data_sources
+            for data_source in self.context["data_sources"]
             if data_source.service_id
         ]
 

@@ -1,7 +1,7 @@
 import re
 from unittest.mock import patch
 
-from django.db import connection
+from django.db import connection, transaction
 from django.test.utils import CaptureQueriesContext
 
 import pytest
@@ -9,9 +9,13 @@ import pytest
 from baserow.contrib.automation.nodes.exceptions import (
     AutomationNodeDoesNotExist,
     AutomationNodeMisconfiguredService,
+    AutomationNodeMissingOutput,
     AutomationNodeNotMovable,
 )
-from baserow.contrib.automation.nodes.models import LocalBaserowCreateRowActionNode
+from baserow.contrib.automation.nodes.models import (
+    AutomationNode,
+    LocalBaserowCreateRowActionNode,
+)
 from baserow.contrib.automation.nodes.registries import automation_node_type_registry
 from baserow.contrib.automation.nodes.service import AutomationNodeService
 from baserow.contrib.automation.nodes.trash_types import AutomationNodeTrashableItemType
@@ -1033,3 +1037,31 @@ def test_replace_node_clears_the_note(data_fixture: Fixtures):
 
     assert replace_result.node.id != original_node.id
     assert replace_result.node.note == ""
+
+
+@pytest.mark.django_db
+def test_create_node_refuses_a_next_output_the_new_node_does_not_have(
+    data_fixture: Fixtures,
+):
+    user = data_fixture.create_user()
+    workflow = data_fixture.create_automation_workflow(user)
+    trigger = workflow.get_trigger()
+    after = data_fixture.create_automation_node(workflow=workflow, type="smtp_email")
+    graph_before = dict(workflow.get_graph().graph)
+    node_count = AutomationNode.objects.count()
+    node_type = automation_node_type_registry.get("local_baserow_create_row")
+
+    # The node row is written before the check, so callers run it in a transaction.
+    with pytest.raises(AutomationNodeMissingOutput), transaction.atomic():
+        AutomationNodeService().create_node(
+            user,
+            node_type,
+            workflow,
+            reference_node_id=trigger.id,
+            next_output="not-an-output",
+        )
+
+    assert AutomationNode.objects.count() == node_count
+    workflow.reload_graph()
+    assert workflow.graph[str(trigger.id)]["next"] == {"": [after.id]}
+    assert workflow.graph == graph_before

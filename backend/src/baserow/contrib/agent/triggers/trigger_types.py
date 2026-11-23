@@ -1,10 +1,9 @@
-import json
 from typing import Any
 
 from baserow.contrib.integrations.core.models import CoreHTTPTriggerService
 from baserow.core.services.models import Service
 
-from .data_providers import rows_as_text
+from .data_providers import rows_as_text, trigger_data_as_text
 from .registries import AgentTriggerType
 
 ROWS_TRIGGER_TYPES = (
@@ -48,7 +47,4 @@ class RowsAgentTriggerType(AgentTriggerType):
         """
 
         values = service.get_type().get_event_context(service, event_payload)
-        return (
-            f"Trigger data:\n```json\n{json.dumps(values, default=str, indent=2)}"
-            f"\n```{rows_as_text(service, event_payload)}"
-        )
+        return trigger_data_as_text(values) + rows_as_text(service, event_payload)

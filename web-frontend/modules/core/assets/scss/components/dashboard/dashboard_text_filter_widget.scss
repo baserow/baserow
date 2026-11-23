@@ -1,6 +1,12 @@
 .dashboard-text-filter-widget {
   min-width: 0;
 
+  // As tall as the "Not applied" badge, so filters with and without it line
+  // up side by side.
+  > .control__label {
+    min-height: 20px;
+  }
+
   > .control__label > span:first-child {
     min-width: 0;
     overflow: hidden;

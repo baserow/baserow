@@ -54,12 +54,22 @@ MAX_INT_FIELD_VALUE = 2**31 - 1
 
 def with_usable_db_connection(function: Callable[..., Any]) -> Callable[..., Any]:
     """
-    Refresh a synchronous worker's database connections before and after its work.
+    Gives the function a working database connection, the way Django does at the
+    start and end of every HTTP request and Celery task.
 
-    Request-style cleanup allows persistent connections to be health checked on
-    their next query and drops failed or expired connections. A transaction opened
-    by the caller owns its connection until it exits, so leave it untouched. The
-    work is never retried: a failed connection can leave a write's outcome unknown.
+    Django never replaces a dead connection by itself: once Postgres closes it
+    (restart, failover, PgBouncer or idle timeout), every later query on that
+    thread fails. Use this for database work inside a long task that waits
+    between queries, e.g. a Kuma run: its connection sits idle for minutes during
+    model calls, so a tool call or docs search could otherwise fail on it.
+    Requests and short tasks don't need it.
+
+    Before and after the function, a connection that had errors or is older than
+    `CONN_MAX_AGE` is closed, so the next query opens a new one; a kept one is
+    health checked on its next query. With the default `CONN_MAX_AGE` of 0 that
+    means one new connection per call, with a longer one an extra `SELECT 1`:
+    fine per tool call, too slow per row. Connections inside an open transaction
+    are left alone. Nothing is retried: a write may have run before the failure.
 
     :param function: Synchronous database work on the connection's owning thread.
     :return: The wrapped function.

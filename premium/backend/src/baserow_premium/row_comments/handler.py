@@ -375,7 +375,7 @@ class RowCommentHandler:
         row_comment = RowComment.objects.create(
             user=requesting_user,
             table=table,
-            row_id=row_id,
+            row_id=row.id,
             message=message,
             comment=message,
         )

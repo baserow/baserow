@@ -17,9 +17,9 @@ export function useWidgetOptions(props) {
       const context = new Proxy(
         new RuntimeFormulaContext(
           {
-            data_source_context: app.$registry.get(
+            table_context: app.$registry.get(
               'dashboardDataProvider',
-              'data_source_context'
+              'table_context'
             ),
           },
           { storePrefix: prefix }

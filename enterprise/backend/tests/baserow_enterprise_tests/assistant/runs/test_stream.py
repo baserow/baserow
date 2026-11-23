@@ -197,6 +197,13 @@ def test_the_message_shows_once_and_a_started_run_is_running(mocker):
     assert follower.call_args.kwargs["replay"] is False
 
 
+def test_a_stop_request_reaches_the_tab_as_metadata(mocker):
+    records, _ = _collect(
+        mocker, [{"kind": "run.cancel_requested", "data": {}, "cursor": "c1"}]
+    )
+    assert records[-1]["_run"]["cancel_requested"] is True
+
+
 @pytest.mark.parametrize(
     "status,error_code,expected",
     [

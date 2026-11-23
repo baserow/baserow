@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Undo and redo now restore table columns, menu items, choice options and property options of application builder elements",
+    "issue_origin": "github",
+    "issue_number": 6508,
+    "domain": "builder",
+    "bullet_points": [],
+    "created_at": "2026-11-16"
+}

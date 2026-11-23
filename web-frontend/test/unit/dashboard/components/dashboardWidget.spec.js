@@ -19,24 +19,37 @@ const LoadingWidgetContent = {
   template: '<div class="loading-widget-content">{{ loading }}</div>',
 }
 
+const ControlsWidgetContent = {
+  name: 'ControlsWidgetContent',
+  template:
+    '<div class="controls-widget-content"><label for="v">Value</label>' +
+    '<input id="v" class="controls-widget-content__input" />' +
+    '<slot name="actions" /></div>',
+}
+
 function mountDashboardWidget({
   isMisconfigured = false,
   isLoading = true,
   showHeaderBorder = true,
+  hasControls = false,
+  isEditMode = true,
+  attachTo = false,
 } = {}) {
   const data = reactive(isLoading ? {} : { 1: { result: 42 } })
   const widgetType = {
     name: 'Chart',
-    component: LoadingWidgetContent,
+    component: hasControls ? ControlsWidgetContent : LoadingWidgetContent,
     isLoading: (_widget, data) => !data[1],
     isMisconfigured: () => isMisconfigured,
-    hasCard: true,
-    isDisplayWidget: true,
+    hasCard: !hasControls,
+    hasControls,
+    isDisplayWidget: !hasControls,
     getDataSourceData: (_widget, data) => data[1],
     showHeaderBorder,
   }
 
   wrapper = mount(DashboardWidget, {
+    ...(attachTo ? { attachTo: document.body } : {}),
     props: {
       dashboard: { workspace: { id: 1 } },
       widget: {
@@ -62,15 +75,20 @@ function mountDashboardWidget({
         $store: {
           getters: {
             'dashboardApplication/getData': data,
+            'dashboardApplication/getWidgets': [],
+            'dashboardApplication/getWidgetValues': {},
             'dashboardApplication/getSelectedWidgetId': null,
-            'dashboardApplication/isEditMode': true,
+            'dashboardApplication/isEditMode': isEditMode,
           },
         },
         $t: (key) => key,
       },
       stubs: {
         Badge: true,
-        WidgetContextMenu: true,
+        WidgetContextMenu: {
+          name: 'WidgetContextMenu',
+          template: '<button class="widget-context-menu-button">⋮</button>',
+        },
       },
     },
   })
@@ -105,7 +123,7 @@ describe('DashboardWidget', () => {
     expect(wrapper.classes()).toContain('skeleton-loading')
     for (const selector of [
       '.widget__header',
-      'widget-context-menu-stub',
+      '.widget-context-menu-button',
       '.loading-widget-content',
     ]) {
       expect(wrapper.get(selector).element.closest('.skeleton-loading')).toBe(
@@ -128,7 +146,7 @@ describe('DashboardWidget', () => {
     expect(wrapper.classes()).not.toContain('skeleton-loading')
     expect(wrapper.attributes('aria-busy')).toBeUndefined()
     expect(wrapper.get('.widget__header-title').text()).toBe('Loading chart')
-    expect(wrapper.find('widget-context-menu-stub').exists()).toBe(true)
+    expect(wrapper.find('.widget-context-menu-button').exists()).toBe(true)
     expect(wrapper.get('.loading-widget-content').text()).toBe('false')
   })
 
@@ -154,6 +172,50 @@ describe('DashboardWidget', () => {
 
     expect(wrapper.get('.widget__header').classes()).toContain(
       'widget__header--no-border'
+    )
+  })
+})
+
+describe('DashboardWidget with controls', () => {
+  test.each([
+    ['while editing', true, true],
+    ['while viewing', false, false],
+  ])('locks them %s', (_, isEditMode, locked) => {
+    const { wrapper } = mountDashboardWidget({
+      hasControls: true,
+      isLoading: false,
+      isEditMode,
+    })
+
+    expect(
+      wrapper
+        .get('.controls-widget-content')
+        .classes('dashboard-widget__content--locked')
+    ).toBe(locked)
+  })
+
+  test('a locked control loses the focus a label or the keyboard gives it', async () => {
+    const { wrapper } = mountDashboardWidget({
+      hasControls: true,
+      isLoading: false,
+      attachTo: true,
+    })
+    const input = wrapper.get('.controls-widget-content__input').element
+
+    input.focus()
+    expect(document.activeElement).not.toBe(input)
+    // The actions it was given stay usable.
+    const actions = wrapper.get('.widget-context-menu-button')
+    expect(actions.classes()).toContain('dashboard-widget__actions')
+    actions.element.focus()
+    expect(document.activeElement).toBe(actions.element)
+  })
+
+  test('a widget without controls is never locked', () => {
+    const { wrapper } = mountDashboardWidget({ isLoading: false })
+
+    expect(wrapper.find('.dashboard-widget__content--locked').exists()).toBe(
+      false
     )
   })
 })

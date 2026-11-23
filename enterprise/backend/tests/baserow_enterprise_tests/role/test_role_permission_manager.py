@@ -1892,6 +1892,8 @@ def test_fetching_permissions_does_not_extra_queries_per_snapshot(
         CoreHandler().get_permissions(viewer, workspace=workspace)
 
     # Let's create a snapshot of the database
+    database.max_snapshots = 2
+    database.save()
     handler = SnapshotHandler()
     snapshot = handler.create(database.id, admin, "Test snapshot")
     handler.perform_create(snapshot, Progress(100))
@@ -1919,6 +1921,8 @@ def test_fetching_permissions_does_not_extra_queries_per_snapshot(
         CoreHandler().get_permissions(viewer, workspace=workspace)
 
     # Let's create a snapshot of the builder app
+    builder.max_snapshots = 1
+    builder.save()
     handler = SnapshotHandler()
     snapshot = handler.create(builder.id, admin, "Test snapshot")
     handler.perform_create(snapshot, Progress(100))

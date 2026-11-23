@@ -20,6 +20,7 @@ from baserow.contrib.builder.workflow_actions.registries import (
     builder_workflow_action_type_registry,
 )
 from baserow.core.action.handler import ActionHandler
+from baserow.core.trash.handler import TrashHandler
 
 
 def _scope(page):
@@ -329,3 +330,41 @@ def test_service_workflow_action_delete_undo_redo_preserves_service(data_fixture
     )
     # The service reference is intact after restore.
     assert workflow_action.service_id == service_id
+
+
+@pytest.mark.django_db
+@pytest.mark.undo_redo
+@pytest.mark.parametrize("how", ["trash", "delete"])
+def test_undo_of_open_page_workflow_action_with_a_link_to_a_removed_page(
+    data_fixture, how
+):
+    session_id = str(uuid.uuid4())
+    user = data_fixture.create_user(session_id=session_id)
+    page = data_fixture.create_builder_page(user=user)
+    other_page = data_fixture.create_builder_page(builder=page.builder)
+    element = data_fixture.create_builder_button_element(page=page)
+    workflow_action = data_fixture.create_open_page_workflow_action(
+        page=page,
+        element=element,
+        event=EventTypes.CLICK.value,
+        navigation_type="page",
+        navigate_to_page=other_page,
+    )
+    workflow_action = BuilderWorkflowActionHandler().get_workflow_action(
+        workflow_action.id
+    )
+    UpdateBuilderWorkflowActionActionType.do(
+        user, workflow_action, navigate_to_page_id=page.id
+    )
+    other_page_id = other_page.id
+    if how == "trash":
+        TrashHandler.trash(user, page.builder.workspace, page.builder, other_page)
+    else:
+        other_page.delete()
+
+    ActionHandler.undo(user, _scope(page), session_id)
+
+    workflow_action.refresh_from_db()
+    # A trashed page can still be restored.
+    expected = other_page_id if how == "trash" else None
+    assert workflow_action.navigate_to_page_id == expected

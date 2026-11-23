@@ -60,3 +60,15 @@ test.each([false, true])(
     expect(filter.component).toBeDefined()
   }
 )
+
+test('widgets describe themselves in the add widget modal', () => {
+  const featureApp = { ...app, $featureFlagIsEnabled: () => true }
+  const variations = [
+    ...new SummaryWidgetType({ app: featureApp }).variations,
+    ...new TextFilterWidgetType({ app: featureApp }).variations,
+  ]
+  expect(variations.map(({ description }) => description)).toEqual([
+    'summaryWidget.description',
+    'textFilterWidget.description',
+  ])
+})

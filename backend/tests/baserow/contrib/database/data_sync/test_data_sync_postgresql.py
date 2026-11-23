@@ -26,7 +26,9 @@ from baserow.contrib.database.data_sync.postgresql_data_sync_type import (
 )
 from baserow.contrib.database.fields.handler import FieldHandler
 from baserow.contrib.database.fields.models import NumberField
+from baserow.contrib.database.table.handler import TableHandler
 from baserow.core.db import specific_iterator
+from baserow.core.registries import ImportExportConfig, application_type_registry
 
 
 @pytest.mark.django_db(transaction=True)
@@ -896,6 +898,131 @@ def test_update_data_sync_table_changing_table_with_different_primary_key(
     assert getattr(rows[0], f"field_{fields[0].id}") == Decimal("1")
     assert getattr(rows[1], f"field_{fields[0].id}") == Decimal("2")
     assert getattr(rows[2], f"field_{fields[0].id}") == Decimal("3")
+
+
+@pytest.mark.django_db(transaction=True)
+@pytest.mark.parametrize("first_action", ["sync", "change"])
+@pytest.mark.parametrize("copy_kind", ["duplicate", "old_export"])
+def test_copied_postgresql_data_sync_syncs_and_changes(
+    data_fixture, create_postgresql_test_table, copy_kind, first_action
+):
+    default_database = settings.DATABASES["default"]
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    database = data_fixture.create_database_application(workspace=workspace)
+    handler = DataSyncHandler()
+
+    data_sync = handler.create_data_sync_table(
+        user=user,
+        database=database,
+        table_name="Test",
+        type_name="postgresql",
+        synced_properties=["id", "text_col"],
+        postgresql_host=default_database["HOST"],
+        postgresql_username=default_database["USER"],
+        postgresql_password=default_database["PASSWORD"],
+        postgresql_port=default_database["PORT"],
+        postgresql_database=default_database["NAME"],
+        postgresql_table=create_postgresql_test_table,
+        postgresql_sslmode=default_database["OPTIONS"].get("sslmode", "prefer"),
+    )
+    handler.sync_data_sync_table(user=user, data_sync=data_sync)
+    with transaction.atomic():
+        FieldHandler().change_primary_field(
+            user=user,
+            table=data_sync.table,
+            new_primary_field=data_sync.table.field_set.get(name="text_col").specific,
+        )
+
+    if copy_kind == "duplicate":
+        copied_table = TableHandler().duplicate_table(user, data_sync.table)
+    else:
+        database_type = application_type_registry.get("database")
+        config = ImportExportConfig(
+            include_permission_data=True, exclude_sensitive_data=False
+        )
+        serialized = database_type.export_serialized(database, config)
+        for serialized_property in serialized["tables"][0]["data_sync"]["properties"]:
+            serialized_property.pop("unique_primary", None)
+        imported_database = database_type.import_serialized(
+            workspace, serialized, config, {}, None, None
+        )
+        copied_table = imported_database.table_set.get()
+
+    copied_data_sync = copied_table.data_sync.specific
+    assert copied_data_sync.synced_properties.get(key="id").unique_primary is (
+        copy_kind == "duplicate"
+    )
+
+    if first_action == "change":
+        with transaction.atomic():
+            handler.update_data_sync_table(
+                user=user, data_sync=copied_data_sync, synced_properties=["id"]
+            )
+        expected_fields = {"id 2": True}
+    else:
+        handler.sync_data_sync_table(user=user, data_sync=copied_data_sync)
+        expected_fields = {"id 2": False, "text_col": True}
+
+    copied_data_sync.refresh_from_db()
+    assert copied_data_sync.last_error is None
+    key_property = copied_data_sync.synced_properties.get(key="id")
+    assert key_property.unique_primary is True
+    assert key_property.field.name == "id 2"
+    assert {f.name: f.primary for f in copied_table.field_set.all()} == (
+        expected_fields
+    )
+    rows = copied_table.get_model().objects.all()
+    assert sorted(getattr(row, f"field_{key_property.field_id}") for row in rows) == [
+        Decimal("1"),
+        Decimal("2"),
+    ]
+
+
+@pytest.mark.django_db(transaction=True)
+def test_postgresql_data_sync_reserved_column_name_changes_type(
+    data_fixture, create_postgresql_test_table
+):
+    default_database = settings.DATABASES["default"]
+    user = data_fixture.create_user()
+    database = data_fixture.create_database_application(user=user)
+    handler = DataSyncHandler()
+
+    with connection.cursor() as cursor:
+        cursor.execute(
+            f'ALTER TABLE {create_postgresql_test_table} ADD COLUMN "order" TEXT'
+        )
+
+    data_sync = handler.create_data_sync_table(
+        user=user,
+        database=database,
+        table_name="Test",
+        type_name="postgresql",
+        synced_properties=["id", "order"],
+        postgresql_host=default_database["HOST"],
+        postgresql_username=default_database["USER"],
+        postgresql_password=default_database["PASSWORD"],
+        postgresql_port=default_database["PORT"],
+        postgresql_database=default_database["NAME"],
+        postgresql_table=create_postgresql_test_table,
+        postgresql_sslmode=default_database["OPTIONS"].get("sslmode", "prefer"),
+    )
+    handler.sync_data_sync_table(user=user, data_sync=data_sync)
+
+    with connection.cursor() as cursor:
+        cursor.execute(
+            f"ALTER TABLE {create_postgresql_test_table} "
+            'ALTER COLUMN "order" TYPE INTEGER USING NULL'
+        )
+
+    with transaction.atomic():
+        handler.sync_data_sync_table(user=user, data_sync=data_sync)
+
+    data_sync.refresh_from_db()
+    assert data_sync.last_error is None
+    order_field = data_sync.synced_properties.get(key="order").field.specific
+    assert order_field.name == "order 2"
+    assert isinstance(order_field, NumberField)
 
 
 @pytest.mark.django_db(transaction=True)

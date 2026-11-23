@@ -1,0 +1,9 @@
+{
+    "type": "feature",
+    "message": "Snapshots now use a per-workspace allowance: each application has a max number of snapshots, a new snapshot replaces the oldest unprotected one, and snapshots can be protected so they're never replaced.",
+    "issue_origin": "github",
+    "issue_number": 6607,
+    "domain": "core",
+    "bullet_points": [],
+    "created_at": "2026-11-17"
+}

@@ -207,3 +207,42 @@ test.each([
     )
   }
 )
+
+test('starts with one condition on the first field it can filter, the primary one first', async () => {
+  const wrapper = await testApp.mount(TargetFilterGroup, {
+    props: {
+      group: { filters: [], filter_groups: [], filter_type: 'AND' },
+      fields: [
+        { id: 98, type: 'text', name: 'Notes', primary: false },
+        { id: 99, type: 'text', name: 'Name', primary: true },
+      ],
+      dashboard: { id: 1 },
+      owner: { id: 2, type: 'text_filter' },
+    },
+  })
+  wrapper.vm.addFirstFilter()
+  await nextTick()
+  expect(wrapper.emitted('update').at(-1)[0].filters).toEqual([
+    expect.objectContaining({
+      field: 99,
+      type: 'equal',
+      group: null,
+      value: { formula: "get('widget_data.2')", mode: 'simple' },
+    }),
+  ])
+})
+
+test('starts without a condition when no field can be filtered', async () => {
+  const dispatch = vi.spyOn(testApp.store, 'dispatch')
+  const wrapper = await testApp.mount(TargetFilterGroup, {
+    props: {
+      group: { filters: [], filter_groups: [], filter_type: 'AND' },
+      fields: [],
+      dashboard: { id: 1 },
+    },
+  })
+  wrapper.vm.addFirstFilter()
+  await nextTick()
+  expect(wrapper.emitted('update')).toBeUndefined()
+  expect(dispatch).not.toHaveBeenCalledWith('toast/error', expect.anything())
+})
