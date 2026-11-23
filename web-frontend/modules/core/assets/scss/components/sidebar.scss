@@ -61,6 +61,12 @@
   }
 }
 
+.sidebar__brand img,
+.sidebar__workspace-home-icon {
+  display: block;
+  height: 16px;
+}
+
 .sidebar__workspace-breadcrumb {
   display: flex;
   align-items: center;
@@ -117,15 +123,9 @@
 .sidebar__workspace-home-icon {
   $logo: url('@baserow/modules/core/static/img/logoOnly.svg');
 
-  width: 15px;
-  height: 15px;
+  aspect-ratio: 1;
   background: currentcolor;
   mask: $logo center / contain no-repeat;
-
-  .sidebar--collapsed & {
-    width: 16px;
-    height: 16px;
-  }
 
   .sidebar__workspace-home:hover & {
     background: $logo center / contain no-repeat;

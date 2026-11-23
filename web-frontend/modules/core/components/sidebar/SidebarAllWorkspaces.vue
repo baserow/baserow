@@ -18,10 +18,8 @@
         v-if="collapsed"
         src="@baserow/modules/core/static/img/logoOnly.svg?url"
         alt=""
-        width="16"
-        height="16"
       />
-      <Logo v-else height="13" alt="" />
+      <Logo v-else alt="" />
     </nuxt-link>
 
     <SidebarAllWorkspacesMenu v-show="!collapsed"></SidebarAllWorkspacesMenu>
