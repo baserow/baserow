@@ -8,5 +8,7 @@ export default async function register(app) {
 }
 
 export { default as AgentApplicationContext } from '@baserow/modules/agent/components/AgentApplicationContext'
-export { default as AgentApplicationForm } from '@baserow/modules/agent/components/AgentApplicationForm'
 export { default as AgentApplicationSidebar } from '@baserow/modules/agent/components/AgentApplicationSidebar'
+export { default as AgentCreateModal } from '@baserow/modules/agent/components/AgentCreateModal'
+export { default as AgentTemplate } from '@baserow/modules/agent/components/AgentTemplate'
+export { default as AgentTemplateSidebar } from '@baserow/modules/agent/components/AgentTemplateSidebar'

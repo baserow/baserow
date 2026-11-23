@@ -17,14 +17,14 @@ describe('Agent template preview', () => {
     await testApp.afterEach()
   })
 
-  test('the agent type opens a template page for each agent', () => {
+  test('the agent type opens a template page for each agent', async () => {
     const type = new AgentApplicationType({
-      app: { $featureFlagIsEnabled: () => true },
+      app: useNuxtApp(),
     })
     const agent = { ...agentData }
 
-    expect(type.getTemplateSidebarComponent()).toBe(AgentTemplateSidebar)
-    expect(type.getTemplatesPageComponent()).toBe(AgentTemplate)
+    expect(await type.getTemplateSidebarComponent()).toBe(AgentTemplateSidebar)
+    expect(await type.getTemplatesPageComponent()).toBe(AgentTemplate)
     expect(type.getTemplatePage(agent)).toEqual({ agent })
   })
 

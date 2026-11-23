@@ -1,3 +1,8 @@
+import {
+  CreateRowCommentsToolPresentationType,
+  ListRowCommentsToolPresentationType,
+  SearchRowCommentsToolPresentationType,
+} from '@baserow_enterprise/agent/toolPresentationTypes'
 import { AssistantChatRunType } from '@baserow_enterprise/chatRunTypes'
 import {
   storeChatUuid,
@@ -64,6 +69,13 @@ import {
 export default async function register(nuxtApp) {
   const { $registry, $store } = nuxtApp
   const context = { app: nuxtApp }
+  for (const ToolType of [
+    CreateRowCommentsToolPresentationType,
+    ListRowCommentsToolPresentationType,
+    SearchRowCommentsToolPresentationType,
+  ]) {
+    $registry.register('toolPresentation', new ToolType(context))
+  }
   $registry.register(
     'aiProviderModelFeature',
     new KumaAIProviderModelFeatureType(context)

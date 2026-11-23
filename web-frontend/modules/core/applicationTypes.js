@@ -13,6 +13,12 @@ const ApplicationForm = lazyComponent(() =>
   )
 )
 
+const CreateApplicationModal = lazyComponent(() =>
+  import('@baserow/modules/core/components/authoringBundle').then(
+    (bundle) => bundle.CreateApplicationModal
+  )
+)
+
 export class ApplicationType extends Registerable {
   /** Initialize this application's feature before using its editing controls. */
   async load() {

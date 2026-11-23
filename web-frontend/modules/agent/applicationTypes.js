@@ -58,7 +58,9 @@ export class AgentApplicationType extends ApplicationType {
 
   // Without the feature flag, a template preview leaves its Agents out.
   getTemplateSidebarComponent() {
-    return this.canBeCreated() ? AgentTemplateSidebar : null
+    return this.canBeCreated()
+      ? getApplicationComponent(this.app, 'agent', 'AgentTemplateSidebar')
+      : null
   }
 
   getTemplatesPageComponent() {
