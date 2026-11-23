@@ -20,6 +20,7 @@ from baserow_enterprise.assistant.tools.agent.tools import (
     AgentSetup,
     apply_agent_setup,
     get_agent,
+    list_agent_tools,
 )
 from baserow_enterprise.assistant.tools.agent.tools import (
     test_agent as start_agent_test,
@@ -426,3 +427,64 @@ def test_a_schedule_runs_in_the_users_timezone_and_the_card_says_when(
         "day_of_month": 1,
         "timezone": "Europe/Amsterdam",
     }
+
+
+ENABLED_MODELS_PATH = (
+    "baserow.core.generative_ai.registries.GenerativeAIModelTypeRegistry"
+    ".get_enabled_models_per_type"
+)
+
+
+@pytest.mark.django_db
+def test_kuma_only_sets_a_model_that_is_enabled_for_agents(data_fixture, mocker):
+    mocker.patch(ENABLED_MODELS_PATH, return_value={"openai": ["gpt-5"]})
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    agent = data_fixture.create_agent_application(workspace=workspace)
+    ctx = _ctx(user, workspace)
+
+    with pytest.raises(ToolInputError, match="isn't enabled") as refused:
+        apply_agent_setup(
+            ctx,
+            AgentSetup(provider_type="", model_identifier="anthropic/claude-haiku-4-5"),
+            thought="t",
+            agent_id=agent.id,
+        )
+    assert "gpt-5" in refused.value.hint
+    agent.refresh_from_db()
+    assert not agent.provider_type and not agent.model_identifier
+
+    assert list_agent_tools(ctx, thought="t")["models"] == [
+        {"provider_type": "openai", "model_identifier": "gpt-5"}
+    ]
+
+    result = apply_agent_setup(
+        ctx,
+        AgentSetup(
+            instructions="Say hi.", provider_type="openai", model_identifier="gpt-5"
+        ),
+        thought="t",
+        agent_id=agent.id,
+    )
+    assert result["setup"]["readiness"] == "ready"
+    assert "Offer a test" in result["next_steps"]
+
+
+@pytest.mark.django_db
+def test_kuma_says_a_new_agent_isnt_ready_when_no_model_is_enabled(
+    data_fixture, mocker
+):
+    mocker.patch(ENABLED_MODELS_PATH, return_value={})
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+
+    result = apply_agent_setup(
+        _ctx(user, workspace),
+        AgentSetup(name="Digest", instructions="Summarize."),
+        thought="t",
+    )
+
+    assert "not ready" in result["next_steps"]
+    assert "Offer a test" not in result["next_steps"]
+    assert result["setup"]["readiness"] != "ready"
+    assert "model_identifier" in result["setup"]["readiness_errors"]

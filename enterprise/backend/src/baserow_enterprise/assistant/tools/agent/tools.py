@@ -32,6 +32,7 @@ from baserow.contrib.agent.actions import (
     UpdateAgentConfigurationActionType,
 )
 from baserow.contrib.agent.application_types import AgentApplicationType
+from baserow.contrib.agent.constants import AgentReadinessState
 from baserow.contrib.agent.exceptions import (
     AgentNotReady,
     AgentRunAsSubjectDoesNotExist,
@@ -223,7 +224,11 @@ class AgentSetup(BaseModel):
         description="Allowed tools that wait for approval. Defaults to every "
         "allowed tool that changes data.",
     )
-    provider_type: str | None = None
+    provider_type: str | None = Field(
+        default=None,
+        description="With model_identifier, a model from list_agent_tools. Unset "
+        "on a new Agent picks the first enabled model.",
+    )
     model_identifier: str | None = None
     web_search_enabled: bool | None = None
     web_fetch_enabled: bool | None = None
@@ -316,6 +321,9 @@ def _read_setup(user, agent) -> dict[str, Any]:
         "agent_id": agent.id,
         "name": agent.name,
         "readiness": str(configuration.readiness),
+        "readiness_errors": {
+            field: str(code) for field, code in configuration.errors.items()
+        },
         "instructions": configuration.instructions,
         "provider_type": configuration.provider_type,
         "model_identifier": configuration.model_identifier,
@@ -348,6 +356,52 @@ def _read_setup(user, agent) -> dict[str, Any]:
             for action in actions
         ],
     }
+
+
+def _enabled_models(workspace: Workspace) -> list[dict[str, str]]:
+    """The models an Agent of the workspace can reply with, as the Agent UI lists."""
+
+    return [
+        {"provider_type": provider_type, "model_identifier": identifier}
+        for provider_type, identifiers in AgentApplicationType._enabled_models(
+            workspace
+        ).items()
+        for identifier in identifiers
+    ]
+
+
+def _check_model(
+    workspace: Workspace, current: dict[str, Any] | None, setup: AgentSetup
+) -> None:
+    """
+    :param workspace: The chat's workspace.
+    :param current: The Agent's setup now, or None for a new Agent.
+    :param setup: The proposed change.
+    :raises ToolInputError: When the change sets a model that isn't enabled for
+        Agents in the workspace.
+    """
+
+    if not setup.provider_type and not setup.model_identifier:
+        return
+    provider_type = setup.provider_type or (current or {}).get("provider_type")
+    model_identifier = setup.model_identifier or (current or {}).get("model_identifier")
+    enabled = _enabled_models(workspace)
+    if {"provider_type": provider_type, "model_identifier": model_identifier} in (
+        enabled
+    ):
+        return
+    if not enabled:
+        raise ToolInputError(
+            "No model is enabled for Agents in this workspace.",
+            hint="Leave provider_type and model_identifier out, and tell the user "
+            "to enable a model in the workspace's generative AI settings.",
+        )
+    raise ToolInputError(
+        f"The model {model_identifier!r} of provider {provider_type!r} isn't "
+        "enabled for Agents in this workspace.",
+        hint="Pick provider_type and model_identifier together from: "
+        + json.dumps(enabled),
+    )
 
 
 def _changes_data(name: str) -> bool:
@@ -650,14 +704,15 @@ def list_agent_tools(
     ],
 ) -> dict[str, Any]:
     """\
-    List the tools an Agent in this workspace can be given, and the role uids a new identity can have.
+    List the tools an Agent in this workspace can be given, the models it can reply with, and the role uids a new identity can have.
 
-    WHEN to use: Before choosing allowed_tools. Give an Agent the smallest set of tools that does the job.
+    WHEN to use: Before choosing allowed_tools or a model. Give an Agent the smallest set of tools that does the job. An Agent needs one of the listed models to reply; when none is listed, no model is enabled for Agents in the workspace.
     """
 
     tools = AgentService().get_available_tools(ctx.deps.user, ctx.deps.workspace.id)
     return {
         "tools": [tool for tool in tools if not tool["deactivated"]],
+        "models": _enabled_models(ctx.deps.workspace),
         "trigger_types": list(TRIGGER_TYPES),
         "action_types": list(ACTION_TYPES),
         "identity_roles": ["BUILDER", "EDITOR", "VIEWER", "MEMBER"],
@@ -693,6 +748,7 @@ def apply_agent_setup(
         allowed = (current or {}).get("allowed_tools") or []
         setup = setup.model_copy(update={"allowed_tools": allowed})
     setup = _with_schedule_timezones(setup, _user_timezone(user))
+    _check_model(workspace, current, setup)
     ask_first = _default_ask_first(setup, current)
     widening = _widening_changes(workspace, current, setup, ask_first)
     if agent is None and not setup.name:
@@ -717,16 +773,36 @@ def apply_agent_setup(
     with _readable_errors(), transaction.atomic():
         agent = _apply(user, workspace, agent, setup, ask_first)
     after = _read_setup(user, agent)
+    next_steps = (
+        "Tell the user what the Agent does now, naming any trigger or action that "
+        "is turned off; credentials for actions are entered in the Agent's "
+        "Configuration."
+    )
+    if after["readiness"] == AgentReadinessState.READY:
+        next_steps += (
+            " Offer a test: test_agent runs the Agent in a test conversation where "
+            "every change asks first, while adding rows yourself changes the "
+            "user's data."
+        )
+    else:
+        missing = ", ".join(after["readiness_errors"]) or "its configuration"
+        next_steps += (
+            f" The Agent is saved but not ready, so it can't reply or run: {missing} "
+            "is missing or unavailable. Say so plainly. "
+            + (
+                "Set the missing values with apply_agent_setup; models come from "
+                "list_agent_tools."
+                if _enabled_models(workspace)
+                else "No model is enabled for Agents in this workspace: tell the "
+                "user to enable one in the workspace's generative AI settings."
+            )
+        )
     return {
         "changed": after != current,
         "created": current is None,
         "previous_setup": current,
         "setup": after,
-        "next_steps": "Tell the user what the Agent does now, naming any trigger "
-        "or action that is turned off; credentials for actions are entered in the "
-        "Agent's Configuration. Offer a test: test_agent runs the Agent in a test "
-        "conversation where every change asks first, while adding rows yourself "
-        "changes the user's data.",
+        "next_steps": next_steps,
     }
 
 
