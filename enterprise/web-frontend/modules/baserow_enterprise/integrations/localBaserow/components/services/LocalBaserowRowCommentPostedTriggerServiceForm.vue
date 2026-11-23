@@ -14,7 +14,7 @@
     />
     <Checkbox
       :model-value="service.only_when_mentioned"
-      :disabled="!targetName"
+      :disabled="!targetName && !service.only_when_mentioned"
       @update:model-value="
         $emit('values-changed', { only_when_mentioned: $event })
       "

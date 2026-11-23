@@ -85,9 +85,9 @@
         role="switch"
         :tabindex="editable ? 0 : -1"
         :aria-label="$t('agent.triggerEnabled')"
-        :aria-checked="trigger.enabled && !locked"
+        :aria-checked="trigger.enabled"
         :aria-disabled="!editable"
-        :model-value="trigger.enabled && !locked"
+        :model-value="trigger.enabled"
         :disabled="!editable"
         @update:model-value="setEnabled"
         @keydown.enter.prevent="toggleEnabled"
@@ -545,7 +545,7 @@ function showLockedModal() {
 }
 
 function setEnabled(enabled) {
-  if (locked.value) showLockedModal()
+  if (locked.value && enabled) showLockedModal()
   else emit('update', { enabled })
 }
 

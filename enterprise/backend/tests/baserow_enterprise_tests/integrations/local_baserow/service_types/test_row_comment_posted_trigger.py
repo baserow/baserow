@@ -19,6 +19,7 @@ from baserow.core.services.exceptions import (
     ServiceImproperlyConfiguredDispatchException,
 )
 from baserow.core.services.registries import service_type_registry
+from baserow.core.trash.handler import TrashHandler
 from baserow_enterprise.integrations.local_baserow.models import (
     LocalBaserowRowCommentPosted,
 )
@@ -53,8 +54,9 @@ def post(scenario, *mentions, text="Please review", row=None, author=None):
             }
         )
     with TestCase.captureOnCommitCallbacks(execute=True):
+        # The API passes the row id as the URL's string.
         return RowCommentHandler.create_comment(
-            author or scenario.ctx.user, row.get_parent().id, row.id, message
+            author or scenario.ctx.user, row.get_parent().id, str(row.id), message
         )
 
 
@@ -153,6 +155,24 @@ def test_automation_reports_comment_access_for_its_integration(
             trigger.get_type().raise_if_misconfigured(trigger)
 
 
+@pytest.mark.parametrize(
+    "trash,error",
+    [("integration", "integration is trashed"), ("table", "table is trashed")],
+)
+def test_automation_reports_a_trashed_setup_instead_of_comment_access(
+    scenario, enterprise_data_fixture, trash, error
+):
+    workflow = publish(enterprise_data_fixture, scenario, only_when_mentioned=False)
+    trigger = workflow.get_original().get_trigger().specific
+    service = trigger.service.specific
+    item = service.integration if trash == "integration" else service.table
+    TrashHandler.trash(scenario.ctx.user, scenario.ctx.workspace, None, item)
+    trigger.refresh_from_db()
+    assert AutomationNodeSerializer(trigger).data["service"]["context_data"] is None
+    with pytest.raises(ServiceImproperlyConfiguredDispatchException, match=error):
+        trigger.get_type().raise_if_misconfigured(trigger)
+
+
 def test_agent_uses_the_current_run_identity_for_mentions_and_comment_access(
     scenario, enterprise_data_fixture, mocker
 ):
@@ -238,6 +258,20 @@ def test_only_committed_licensed_posts_are_dispatched(
         enterprise_data_fixture.delete_all_licenses()
         invalidate_cached_instance_wide_licenses()
     dispatch.assert_not_called()
+
+
+def test_comments_posted_by_identities_trigger_nothing(
+    scenario, enterprise_data_fixture, mocker
+):
+    identity = enterprise_data_fixture.create_identity(
+        workspace=scenario.ctx.workspace, name="Writer", role_uid="EDITOR"
+    )
+    dispatch = mocker.spy(service_type_registry.get(TYPE), "on_event")
+    LocalBaserowRowCommentPosted.objects.create(table=scenario.tasks)
+    post(scenario, author=identity)
+    dispatch.assert_not_called()
+    post(scenario)
+    dispatch.assert_called_once()
 
 
 def test_an_unlicensed_agent_trigger_can_only_be_renamed_or_replaced(

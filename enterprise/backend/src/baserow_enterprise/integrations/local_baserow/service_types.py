@@ -34,7 +34,9 @@ from baserow.core.services.exceptions import (
 )
 from baserow.core.services.registries import DispatchTypes
 from baserow.core.services.types import DispatchResult, FormulaToResolve
+from baserow.core.trash.handler import TrashHandler
 from baserow.core.types import Subject
+from baserow.core.user.identity import is_identity
 from baserow_enterprise.features import SEMANTIC_SEARCH
 from baserow_enterprise.integrations.local_baserow.models import (
     LocalBaserowRowCommentPosted,
@@ -710,23 +712,39 @@ class LocalBaserowRowCommentPostedTriggerServiceType(
 
     def get_comment_reader(
         self, service: LocalBaserowRowCommentPosted, workspace: Workspace
-    ) -> Subject | None:
-        """Return the integration subject if it can read comments on the table."""
-        if not service.table or not service.integration or service.integration.trashed:
-            return None
-        try:
-            subject = self.get_acting_user(
-                service, DispatchContext(workspace=workspace)
+    ) -> Subject:
+        """
+        The integration's subject, which reads the table's comments for the
+        trigger, whether or not it may.
+
+        :param service: The trigger service.
+        :param workspace: The workspace the trigger runs in.
+        :raises ServiceImproperlyConfiguredDispatchException: When the table or
+            the integration is missing or trashed, or no subject can act.
+        :return: The subject the trigger reads the comments as.
+        """
+
+        if service.table is None:
+            raise ServiceImproperlyConfiguredDispatchException("No table is selected.")
+        if TrashHandler.item_has_a_trashed_parent(service.table, check_item_also=True):
+            raise ServiceImproperlyConfiguredDispatchException(
+                "The selected table is trashed."
             )
-        except ServiceImproperlyConfiguredDispatchException:
-            return None
-        return subject if self.can_subject_read(service, subject, workspace) else None
+        if service.integration_id and service.integration.trashed:
+            raise ServiceImproperlyConfiguredDispatchException(
+                "The integration is trashed."
+            )
+        return self.get_acting_user(service, DispatchContext(workspace=workspace))
 
     def get_context_data(self, service, allowed_fields=None):
         if not service.integration_id or not service.table:
             return None
-        reader = self.get_comment_reader(service, service.table.database.workspace)
-        return {"can_read_comments": reader is not None}
+        workspace = service.table.database.workspace
+        try:
+            reader = self.get_comment_reader(service, workspace)
+        except ServiceImproperlyConfiguredDispatchException:
+            return None
+        return {"can_read_comments": self.can_subject_read(service, reader, workspace)}
 
     def matches_event(
         self,
@@ -746,6 +764,9 @@ class LocalBaserowRowCommentPostedTriggerServiceType(
         mentions: list[AbstractUser],
         **kwargs,
     ):
+        # Agents post comments as identities and would start each other in a loop.
+        if is_identity(user):
+            return
         table = row_comment.table
         services = self.get_services_for_table(table)
         if not services or self.is_deactivated(table.database.workspace):

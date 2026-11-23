@@ -1,7 +1,7 @@
 {
   "rowCommentTrigger": {
     "name": "Row comment is posted",
-    "description": "When someone posts a comment on a row in the selected table.",
+    "description": "When a person posts a comment on a row in the selected table. Comments posted by agents are ignored.",
     "inTable": "Row comment is posted in {tableName}",
     "onlyWhenMentioned": "Only trigger when {name} is mentioned",
     "commentAccessRequired": "The integration needs permission to read row comments on this table.",

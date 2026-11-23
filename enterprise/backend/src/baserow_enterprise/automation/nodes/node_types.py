@@ -6,9 +6,11 @@ from baserow.contrib.automation.nodes.node_types import (
     LocalBaserowTableNodeTypeMixin,
 )
 from baserow.core.import_export.untrusted_content import UntrustedContentTypeMixin
+from baserow.core.models import Workspace
 from baserow.core.services.exceptions import (
     ServiceImproperlyConfiguredDispatchException,
 )
+from baserow.core.types import Subject
 from baserow_enterprise.automation.nodes.models import (
     CoreCodeActionNode,
     CoreXLSFileReaderActionNode,
@@ -19,6 +21,9 @@ from baserow_enterprise.features import CODE_RUNNER, XLS_FILE_READER
 from baserow_enterprise.integrations.core.service_types import (
     CoreCodeServiceType,
     CoreXLSFileReaderServiceType,
+)
+from baserow_enterprise.integrations.local_baserow.models import (
+    LocalBaserowRowCommentPosted,
 )
 from baserow_enterprise.integrations.local_baserow.service_types import (
     LocalBaserowRowCommentPostedTriggerServiceType,
@@ -100,18 +105,34 @@ class LocalBaserowRowCommentPostedTriggerNodeType(
 
     def raise_if_misconfigured(self, automation_node):
         super().raise_if_misconfigured(automation_node)
-        service = automation_node.service.specific
         workspace = automation_node.workflow.get_original().automation.workspace
-        if self.get_service_type().get_comment_reader(service, workspace) is None:
+        self._get_comment_reader(automation_node.service.specific, workspace)
+
+    def _get_comment_reader(
+        self, service: LocalBaserowRowCommentPosted, workspace: Workspace
+    ) -> Subject:
+        """
+        :param service: The trigger service.
+        :param workspace: The workspace the trigger runs in.
+        :raises ServiceImproperlyConfiguredDispatchException: When the trigger
+            can't read the table's comments, saying why.
+        :return: The subject that reads the table's comments.
+        """
+
+        service_type = self.get_service_type()
+        reader = service_type.get_comment_reader(service, workspace)
+        if not service_type.can_subject_read(service, reader, workspace):
             raise ServiceImproperlyConfiguredDispatchException(
                 "The integration needs permission to read row comments on this table."
             )
+        return reader
 
     def _start_workflow(self, trigger, service, event_payload):
         service_type = self.get_service_type()
         workspace = trigger.workflow.get_original().automation.workspace
-        subject = service_type.get_comment_reader(service, workspace)
-        if subject is None:
+        try:
+            subject = self._get_comment_reader(service, workspace)
+        except ServiceImproperlyConfiguredDispatchException:
             return None
         payload = event_payload(service) if callable(event_payload) else event_payload
         if not service_type.matches_event(service, subject, payload):

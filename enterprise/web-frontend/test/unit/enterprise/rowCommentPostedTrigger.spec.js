@@ -81,7 +81,7 @@ describe('Row comment posted trigger', () => {
     })
   })
 
-  test('the agent checkbox follows the run-as identity and disables when it is cleared', async () => {
+  test('the agent checkbox follows the run-as identity and, once it is cleared, can only be unchecked', async () => {
     const wrapper = await mountForm({
       application: { type: 'agent' },
       mentionName: 'Triage agent',
@@ -98,6 +98,15 @@ describe('Row comment posted trigger', () => {
     expect(wrapper.get('label.checkbox').text()).toBe(
       'Only trigger when mentioned'
     )
+    await wrapper.setProps({
+      service: { table_id: 5, only_when_mentioned: true },
+    })
+    const checkbox = wrapper.get('input[type="checkbox"]')
+    expect(checkbox.element.disabled).toBe(false)
+    await checkbox.setValue(false)
+    expect(wrapper.emitted('values-changed').at(-1)).toEqual([
+      { only_when_mentioned: false },
+    ])
   })
 
   test('the table field explains a missing comment permission and clears the warning once granted', async () => {
@@ -143,7 +152,7 @@ describe('Row comment posted trigger', () => {
       expect(formula).toContain(`get('trigger.${name}')`)
     }
   })
-  test('an unlicensed agent trigger shows switched off with read-only settings that open the upgrade modal, and can still be renamed or replaced', async () => {
+  test('an unlicensed agent trigger keeps its switch, can be switched off but not on, and its read-only settings open the upgrade modal', async () => {
     const card = await testApp.mount(AgentTriggerCard, {
       props: {
         trigger: {
@@ -171,7 +180,7 @@ describe('Row comment posted trigger', () => {
     const modal = card.getComponent(PaidFeaturesModal)
     const opened = vi.spyOn(modal.vm.$refs.modal, 'show')
 
-    expect(card.get('[role="switch"]').attributes('aria-checked')).toBe('false')
+    expect(card.get('[role="switch"]').attributes('aria-checked')).toBe('true')
     expect(card.findAll('.agent-trigger-card__section[inert]')).toHaveLength(3)
     expect(
       card.get('.agent-trigger-card__name').attributes('readonly')
@@ -180,11 +189,16 @@ describe('Row comment posted trigger', () => {
       card.get('.agent-trigger-card__type').attributes('disabled')
     ).toBeUndefined()
     await card.get('[role="switch"]').trigger('click')
+    expect(card.emitted('update')).toEqual([[{ enabled: false }]])
+    await card.setProps({
+      trigger: { ...card.props('trigger'), enabled: false },
+    })
+    await card.get('[role="switch"]').trigger('click')
     await card.get('.agent-trigger-card__lock').trigger('click')
     await card.get('.agent-trigger-card__body').trigger('click')
     expect(opened).toHaveBeenCalledTimes(3)
     expect(modal.vm.selectedType).toBe('row_comment_trigger')
-    expect(card.emitted('update')).toBeUndefined()
+    expect(card.emitted('update')).toHaveLength(1)
     expect(card.find('.agent-trigger-card__delete').exists()).toBe(true)
   })
 
@@ -207,6 +221,26 @@ describe('Row comment posted trigger', () => {
     expect(item.find('.deactivated-label.iconoir-lock').exists()).toBe(true)
     await item.trigger('click')
     expect(opened).toHaveBeenCalledOnce()
+    expect(picker.emitted('select')).toBeUndefined()
+  })
+
+  test('the agent picker stays open on a disabled type without an upgrade modal', async () => {
+    vi.spyOn(serviceType, 'getDeactivatedClickModal').mockReturnValue(null)
+    const picker = await testApp.mount(AgentServicePicker, {
+      props: {
+        searchPlaceholder: '',
+        emptyText: '',
+        availableTypes: [type],
+        workspace: { id: 1 },
+      },
+      global: { mocks: { $t: t } },
+    })
+    picker.vm.toggle(document.body)
+    await flushPromises()
+    await picker
+      .get('.grouped-menu__actions .menu-list__item-button')
+      .trigger('click')
+    expect(picker.vm.$refs.context.isOpen()).toBe(true)
     expect(picker.emitted('select')).toBeUndefined()
   })
   test('the automation trigger menu keeps the icon and adds the lock badge', async () => {
