@@ -72,6 +72,12 @@ import {
   WorkspaceInvitationRejectedNotificationType,
   BaserowVersionUpgradeNotificationType,
   AbuseReportCreatedNotificationType,
+  UserTemplateInReviewNotificationType,
+  BlockedUserTemplateChangedNotificationType,
+  UserTemplateApprovedNotificationType,
+  UserTemplateRejectedNotificationType,
+  UserTemplateBlockedNotificationType,
+  UserTemplateUnblockedNotificationType,
 } from '@baserow/modules/core/notificationTypes'
 import { MoreOnboardingType } from '@baserow/modules/core/onboardingTypes'
 import { SidebarGuidedTourType } from '@baserow/modules/core/guidedTourTypes'
@@ -461,6 +467,17 @@ export default defineNuxtPlugin({
     registry.register(
       'notification',
       new AbuseReportCreatedNotificationType(context)
+    )
+    const userTemplateNotificationTypes = [
+      UserTemplateInReviewNotificationType,
+      BlockedUserTemplateChangedNotificationType,
+      UserTemplateApprovedNotificationType,
+      UserTemplateRejectedNotificationType,
+      UserTemplateBlockedNotificationType,
+      UserTemplateUnblockedNotificationType,
+    ]
+    userTemplateNotificationTypes.forEach((Type) =>
+      registry.register('notification', new Type(context))
     )
 
     registry.register('twoFactorAuth', new TOTPAuthType(context))

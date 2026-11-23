@@ -1,7 +1,6 @@
 from dataclasses import asdict, dataclass
 from typing import List, Optional
 
-from django.contrib.auth import get_user_model
 from django.template.defaultfilters import truncatechars
 from django.utils.translation import gettext as _
 
@@ -12,10 +11,9 @@ from baserow.core.notifications.registries import (
     EmailNotificationTypeMixin,
     NotificationType,
 )
+from baserow.core.user.utils import active_instance_admins
 
 from .models import AbuseReport
-
-User = get_user_model()
 
 
 @dataclass
@@ -55,9 +53,7 @@ class AbuseReportCreatedNotificationType(EmailNotificationTypeMixin, Notificatio
     def notify_instance_admins(
         cls, report: AbuseReport
     ) -> Optional[List[NotificationRecipient]]:
-        admins = User.objects.filter(
-            is_staff=True, is_active=True, profile__to_be_deleted=False
-        )
+        admins = active_instance_admins()
         if not admins.exists():
             return None
 

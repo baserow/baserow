@@ -230,3 +230,22 @@
 .notification-panel__refresh-hint-text {
   font-weight: 600;
 }
+
+.user-template-notification__reason {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.user-template-notification__reason--cut {
+  margin-bottom: 0;
+}
+
+.user-template-notification__show-more {
+  display: inline-block;
+  margin-bottom: 12px;
+}
+
+.user-template-notification__full-reason {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}

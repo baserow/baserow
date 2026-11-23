@@ -104,6 +104,14 @@ from baserow.core.user_templates.file_transfer import (
     TemplateContent,
     TemplateFilesTransfer,
 )
+from baserow.core.user_templates.notification_types import (
+    BlockedUserTemplateChangedNotificationType,
+    UserTemplateApprovedNotificationType,
+    UserTemplateBlockedNotificationType,
+    UserTemplateInReviewNotificationType,
+    UserTemplateRejectedNotificationType,
+    UserTemplateUnblockedNotificationType,
+)
 from baserow.core.user_templates.types import TemplateMetadata, UnblockOutcome
 from baserow.core.utils import ChildProgressBuilder
 
@@ -432,6 +440,10 @@ class UserTemplateHandler:
                 self.submit_revision(root, revision, require_approval=require_approval)
             elif step == "move":
                 self._move_review(latest_revision, revision)
+            if root.blocked_at:
+                BlockedUserTemplateChangedNotificationType.notify_admins(
+                    revision, exclude=user, only_unnotified=True
+                )
 
         return revision
 
@@ -1077,15 +1089,20 @@ class UserTemplateHandler:
         :return: Whether the revision is listed, otherwise it's in review.
         """
 
-        Template.objects.filter(Q(id=root.id) | Q(root=root)).exclude(
-            id=revision.id
-        ).filter(review_state=Template.ReviewState.PENDING).update(
-            review_state=Template.ReviewState.WITHDRAWN
+        withdrawn = (
+            Template.objects.filter(Q(id=root.id) | Q(root=root))
+            .exclude(id=revision.id)
+            .filter(review_state=Template.ReviewState.PENDING)
+            .update(review_state=Template.ReviewState.WITHDRAWN)
         )
         revision.submitted_on = timezone.now()
         if self.submit_needs_review(revision, require_approval):
             revision.review_state = Template.ReviewState.PENDING
             revision.save(update_fields=["review_state", "submitted_on"])
+            if not withdrawn:
+                UserTemplateInReviewNotificationType.notify_admins(
+                    revision, exclude=root.owner
+                )
             return False
 
         self._approve_revisions(
@@ -1298,6 +1315,9 @@ class UserTemplateHandler:
             raise TemplateHasNoContent(f"The template {template_id} has no content.")
 
         self._approve_revisions([(revision.id, revision.root_id)], admin)
+        UserTemplateApprovedNotificationType.notify_author(
+            revision, revision.get_root(), admin
+        )
         return revision
 
     def reject_template(
@@ -1357,6 +1377,9 @@ class UserTemplateHandler:
         revision.reviewed_by = admin
         revision.reviewed_on = timezone.now()
         revision.save(update_fields=revision_fields)
+        UserTemplateRejectedNotificationType.notify_author(
+            revision, revision.get_root(), admin, reason=reason
+        )
         return revision, unlisted
 
     def approve_pending_revisions(self, admin: AbstractUser) -> int:
@@ -1384,21 +1407,30 @@ class UserTemplateHandler:
             .select_for_update()
             .values_list("id", flat=True)
         )
-        rows = list(
-            pending.annotate(has_reject_reason=self._has_reject_reason()).values_list(
-                "id", "root_id", "has_reject_reason"
-            )
+        revisions = list(
+            pending.annotate(
+                has_reject_reason=self._has_reject_reason(),
+                owner_of_root_id=Coalesce("root__owner_id", "owner_id"),
+                slug_of_root=Coalesce("root__slug", "slug"),
+            ).only("id", "root_id", "name")
         )
         self._approve_revisions(
-            [(revision_id, root_id) for revision_id, root_id, _ in rows],
+            [(revision.id, revision.root_id) for revision in revisions],
             admin,
             rejected_template_ids=[
-                root_id or revision_id
-                for revision_id, root_id, rejected in rows
-                if rejected
+                revision.root_id or revision.id
+                for revision in revisions
+                if revision.has_reject_reason
             ],
         )
-        return len(rows)
+        UserTemplateApprovedNotificationType.notify_authors_in_bulk(
+            [
+                (revision, revision.owner_of_root_id, revision.slug_of_root)
+                for revision in revisions
+            ],
+            admin,
+        )
+        return len(revisions)
 
     def _has_reject_reason(self) -> Exists:
         """
@@ -1535,10 +1567,15 @@ class UserTemplateHandler:
         root = self._get_template_for_moderation(admin, template_id)
         latest = self.get_latest_revision_of_locked_root(root)
         self._check_seen_revision(latest, revision_id)
+        reason_unchanged = root.blocked_at is not None and root.blocked_reason == reason
         root.blocked_at = timezone.now()
         root.blocked_by = admin
         root.blocked_reason = reason
         root.save(update_fields=["blocked_at", "blocked_by", "blocked_reason"])
+        if not reason_unchanged:
+            UserTemplateBlockedNotificationType.notify_author(
+                latest, root, admin, reason=reason
+            )
         return latest
 
     def unblock_template(
@@ -1610,6 +1647,7 @@ class UserTemplateHandler:
                 **fields,
             )
         root.refresh_from_db()
+        UserTemplateUnblockedNotificationType.notify_author(latest, root, admin)
         state, _ = self.get_template_state(latest)
         return latest, UnblockOutcome(
             UserTemplateState(state),

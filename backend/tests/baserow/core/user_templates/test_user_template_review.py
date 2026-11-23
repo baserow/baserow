@@ -6,13 +6,10 @@ from django.test.utils import CaptureQueriesContext
 import pytest
 from freezegun import freeze_time
 
-from baserow.core.action.registries import action_type_registry
 from baserow.core.exceptions import IsNotAdminError, TemplateDoesNotExist
 from baserow.core.handler import CoreHandler
 from baserow.core.models import Template, UserTemplateState
 from baserow.core.user_templates.actions import (
-    ApproveUserTemplateAdminActionType,
-    BlockUserTemplateAdminActionType,
     RejectUserTemplateAdminActionType,
     UnblockUserTemplateAdminActionType,
 )
@@ -25,50 +22,27 @@ from baserow.core.user_templates.exceptions import (
     TemplateUpdated,
 )
 from baserow.core.user_templates.handler import UserTemplateHandler
+from baserow.core.user_templates.notification_types import (
+    UserTemplateApprovedNotificationType,
+)
 from baserow.test_utils.helpers import (
     stale_cached_settings,
     user_template_plan_rows,
 )
 from tests.baserow.core.user_templates.utils import (
+    CURRENT,
     ICON,
+    block,
     create_template,
+    get_state,
     make_private,
     make_public,
+    notified,
     recorded_actions,
+    review,
     template_row_writes,
+    unblock,
 )
-
-
-def get_state(root):
-    latest = UserTemplateHandler().get_latest_revision(Template.objects.get(id=root.id))
-    return UserTemplateHandler().get_template_state(latest)[0]
-
-
-CURRENT = object()
-
-
-def review(
-    action,
-    admin,
-    root,
-    revision_id,
-    seen_state=None,
-    seen_listed=None,
-    seen_reviewed_on=CURRENT,
-):
-    seen_state = seen_state or get_state(root)
-    if seen_listed is None:
-        seen_listed = Template.objects.get(id=root.id).public_revision_id is not None
-    if seen_reviewed_on is CURRENT:
-        seen_reviewed_on = Template.objects.get(id=revision_id).reviewed_on
-    seen = (seen_state, seen_listed, seen_reviewed_on)
-    if action == "approve":
-        return action_type_registry.get_by_type(ApproveUserTemplateAdminActionType).do(
-            admin, root.id, revision_id, *seen
-        )
-    return action_type_registry.get_by_type(RejectUserTemplateAdminActionType).do(
-        admin, root.id, revision_id, "Off topic", *seen
-    )
 
 
 def create_reviewable(data_fixture, revision_states):
@@ -293,7 +267,16 @@ def test_switching_approval_off_approves_the_pending_templates(
     assert [get_state(root) for root in pending] == [expected, expected]
     if not approved:
         return
+    assert notified(UserTemplateApprovedNotificationType) == [
+        (
+            root.owner_id,
+            {"template_id": root.id, "template_name": root.name}
+            | {"template_slug": root.slug},
+        )
+        for root in pending
+    ]
     sql = [query["sql"] for query in queries.captured_queries]
+    assert sum(q.startswith('INSERT INTO "core_notification"') for q in sql) == 1
     read = next(
         i for i, q in enumerate(sql) if "core_settings" in q and "FOR UPDATE" in q
     )
@@ -426,22 +409,6 @@ def test_review_writes_each_template_row_once(data_fixture, action, revision_sta
         review(action, admin, root, latest.id)
 
     assert writes and set(writes.values()) == {1}
-
-
-def latest_id(root):
-    return UserTemplateHandler().get_latest_revision(root).id
-
-
-def block(admin, root, reason="Spam", revision_id=None):
-    return action_type_registry.get_by_type(BlockUserTemplateAdminActionType).do(
-        admin, root.id, revision_id or latest_id(root), reason
-    )
-
-
-def unblock(admin, root, revision_id=None):
-    return action_type_registry.get_by_type(UnblockUserTemplateAdminActionType).do(
-        admin, root.id, revision_id or latest_id(root)
-    )
 
 
 def create_blocked(data_fixture, admin, revision_states, changed):

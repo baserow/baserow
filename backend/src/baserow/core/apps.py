@@ -650,6 +650,24 @@ class CoreConfig(AppConfig):
         action_type_registry.register(SubmitAbuseReportActionType())
         notification_type_registry.register(AbuseReportCreatedNotificationType())
 
+        from baserow.core.user_templates.notification_types import (
+            BlockedUserTemplateChangedNotificationType,
+            UserTemplateApprovedNotificationType,
+            UserTemplateBlockedNotificationType,
+            UserTemplateInReviewNotificationType,
+            UserTemplateRejectedNotificationType,
+            UserTemplateUnblockedNotificationType,
+        )
+
+        notification_type_registry.register(UserTemplateInReviewNotificationType())
+        notification_type_registry.register(
+            BlockedUserTemplateChangedNotificationType()
+        )
+        notification_type_registry.register(UserTemplateApprovedNotificationType())
+        notification_type_registry.register(UserTemplateRejectedNotificationType())
+        notification_type_registry.register(UserTemplateBlockedNotificationType())
+        notification_type_registry.register(UserTemplateUnblockedNotificationType())
+
         from baserow.core.generative_ai.generative_ai_model_types import (
             AnthropicGenerativeAIModelType,
             BedrockGenerativeAIModelType,

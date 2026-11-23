@@ -5,6 +5,7 @@ import WorkspaceInvitationAcceptedNotification from '@baserow/modules/core/compo
 import WorkspaceInvitationRejectedNotification from '@baserow/modules/core/components/notifications/WorkspaceInvitationRejectedNotification'
 import BaserowVersionUpgradeNotification from '@baserow/modules/core/components/notifications/BaserowVersionUpgradeNotification'
 import AbuseReportCreatedNotification from '@baserow/modules/core/components/notifications/AbuseReportCreatedNotification'
+import UserTemplateNotification from '@baserow/modules/core/components/notifications/UserTemplateNotification'
 import NotificationImgIcon from '@baserow/modules/core/components/notifications/NotificationImgIcon'
 import BaserowIcon from '@baserow/modules/core/static/img/logoOnly.svg?url'
 
@@ -112,5 +113,100 @@ export class AbuseReportCreatedNotificationType extends NotificationType {
 
   getContentComponent() {
     return AbuseReportCreatedNotification
+  }
+}
+
+export class UserTemplateNotificationType extends NotificationType {
+  getIconComponent() {
+    return NotificationImgIcon
+  }
+
+  getIconComponentProps() {
+    return { icon: BaserowIcon }
+  }
+
+  getContentComponent() {
+    return UserTemplateNotification
+  }
+
+  getTitleKey() {
+    throw new Error('getTitleKey not implemented')
+  }
+}
+
+export class UserTemplateInReviewNotificationType extends UserTemplateNotificationType {
+  static getType() {
+    return 'user_template_in_review'
+  }
+
+  getTitleKey() {
+    return 'userTemplateNotification.inReview'
+  }
+
+  getRoute() {
+    return { name: 'admin-templates', query: { tab: 'in_review' } }
+  }
+}
+
+export class BlockedUserTemplateChangedNotificationType extends UserTemplateNotificationType {
+  static getType() {
+    return 'blocked_user_template_changed'
+  }
+
+  getTitleKey() {
+    return 'userTemplateNotification.blockedChanged'
+  }
+
+  getRoute() {
+    return { name: 'admin-templates', query: { tab: 'blocked' } }
+  }
+}
+
+export class UserTemplateAuthorNotificationType extends UserTemplateNotificationType {
+  getRoute(notificationData) {
+    return {
+      name: 'template',
+      params: { slug: notificationData.template_slug },
+    }
+  }
+}
+
+export class UserTemplateApprovedNotificationType extends UserTemplateAuthorNotificationType {
+  static getType() {
+    return 'user_template_approved'
+  }
+
+  getTitleKey() {
+    return 'userTemplateNotification.approved'
+  }
+}
+
+export class UserTemplateRejectedNotificationType extends UserTemplateAuthorNotificationType {
+  static getType() {
+    return 'user_template_rejected'
+  }
+
+  getTitleKey() {
+    return 'userTemplateNotification.rejected'
+  }
+}
+
+export class UserTemplateBlockedNotificationType extends UserTemplateAuthorNotificationType {
+  static getType() {
+    return 'user_template_blocked'
+  }
+
+  getTitleKey() {
+    return 'userTemplateNotification.blocked'
+  }
+}
+
+export class UserTemplateUnblockedNotificationType extends UserTemplateAuthorNotificationType {
+  static getType() {
+    return 'user_template_unblocked'
+  }
+
+  getTitleKey() {
+    return 'userTemplateNotification.unblocked'
   }
 }

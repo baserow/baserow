@@ -1472,6 +1472,16 @@
     "detailsTitle": "Abuse report",
     "reportedBy": "Reported by {reporterName} ({reporterEmail})."
   },
+  "userTemplateNotification": {
+    "inReview": "{name} is waiting for review",
+    "blockedChanged": "{name} was changed while blocked",
+    "approved": "Your template {name} was approved",
+    "rejected": "Your template {name} was rejected",
+    "blocked": "Your template {name} was blocked",
+    "unblocked": "Your template {name} was unblocked",
+    "showMore": "Show more",
+    "reasonTitle": "Reason"
+  },
   "reportAbuseModal": {
     "title": "Report abuse",
     "description": "Do you believe this page is being used for phishing, impersonation, scams or other abusive purposes? Let the administrators of this Baserow instance know by submitting the form below.",

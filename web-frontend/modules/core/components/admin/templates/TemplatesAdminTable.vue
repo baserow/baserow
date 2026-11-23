@@ -74,7 +74,7 @@
 
 <script setup>
 import { computed, nextTick, onMounted, provide, ref, watch } from 'vue'
-import { useNuxtApp } from '#app'
+import { useNuxtApp, useRoute, useRouter } from '#app'
 
 import CrudTable from '@baserow/modules/core/components/crudTable/CrudTable'
 import CrudTableColumn from '@baserow/modules/core/crudTable/crudTableColumn'
@@ -127,11 +127,13 @@ const TABS = [
 ]
 
 const { $client, $i18n, $store } = useNuxtApp()
+const route = useRoute()
+const router = useRouter()
 
 const service = TemplatesAdminService($client)
 const { decide } = useTemplateReview()
 const crudTable = ref(null)
-const tabIndex = ref(0)
+const tabIndex = ref(tabIndexOf(route.query.tab))
 const counts = computed(() => $store.getters['templatesAdmin/counts'])
 const reviewRow = ref({})
 const previewing = ref(false)
@@ -175,8 +177,26 @@ async function fetchCounts() {
   }
 }
 
+function tabIndexOf(tab) {
+  return Math.max(
+    TABS.findIndex(({ state }) => state === tab),
+    0
+  )
+}
+
 onMounted(() => fetchCounts())
-watch(tabIndex, () => fetchCounts())
+watch(
+  () => route.query.tab,
+  (tab) => {
+    tabIndex.value = tabIndexOf(tab)
+  }
+)
+watch(tabIndex, () => {
+  fetchCounts()
+  if (route.query.tab !== state.value) {
+    router.replace({ query: { ...route.query, tab: state.value } })
+  }
+})
 
 function showReviewModal(row) {
   if (rejecting.value) {
