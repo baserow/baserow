@@ -946,6 +946,35 @@ def test_failure_after_hidden_provider_code_started_is_not_retried(
 
 
 @pytest.mark.django_db
+def test_a_rejected_api_key_is_not_retried_without_search(
+    mocker, data_fixture, configured_agent
+):
+    user = data_fixture.create_user()
+    seen = []
+
+    async def stream(messages, info):
+        seen.append(1)
+        raise ModelHTTPError(
+            400, "m", body={"error": {"details": [{"reason": "API_KEY_INVALID"}]}}
+        )
+        yield "never"
+
+    use_stream(mocker, stream)
+    agent = configured_agent(
+        user=user,
+        web_search_enabled=True,
+        provider_type="google",
+        available_model=("google", "test-model"),
+    )
+
+    reply = answer(user, agent)
+
+    assert (reply.status, reply.error_code) == ("failed", "provider_auth_failed")
+    assert not reply.steps
+    assert len(seen) == 1
+
+
+@pytest.mark.django_db
 def test_copies_keep_web_search_and_imports_from_elsewhere_turn_it_off(
     data_fixture, configured_agent
 ):

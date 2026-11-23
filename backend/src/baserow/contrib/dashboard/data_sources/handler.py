@@ -206,6 +206,7 @@ class DashboardDataSourceHandler:
         data_source: DashboardDataSourceForUpdate,
         service_type: ServiceType,
         name: str | None = None,
+        link_filter_widget_id: int | None = None,
         **kwargs,
     ) -> UpdatedDashboardDataSource:
         """
@@ -215,6 +216,8 @@ class DashboardDataSourceHandler:
         :param service_type: The new service type. If the service type
             shouldn't change, pass in the current service type.
         :param name: A new name for the data source.
+        :param link_filter_widget_id: A filter that links the widget for its new
+            table, even when it does not filter widgets added later.
         :param kwargs: The values that should be set on the service.
         :return: The updated data source.
         """
@@ -282,7 +285,8 @@ class DashboardDataSourceHandler:
                     widget,
                     {"data_source": {"table_id": original_table_id}},
                     {"data_source": updated},
-                )
+                ),
+                link_filter_widget_id=link_filter_widget_id,
             )
         return updated
 

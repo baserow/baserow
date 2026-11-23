@@ -30,6 +30,11 @@ export class WidgetType extends Registerable {
     return null
   }
 
+  /** A short explanation shown when hovering the widget in the add widget modal. */
+  get description() {
+    return null
+  }
+
   get createWidgetImage() {
     return null
   }
@@ -51,6 +56,7 @@ export class WidgetType extends Registerable {
     return [
       {
         name: this.name,
+        description: this.description,
         createWidgetImage: this.createWidgetImage,
         type: this,
         params: {},
@@ -95,6 +101,15 @@ export class WidgetType extends Registerable {
     return false
   }
 
+  /**
+   * Whether the widget shows controls that viewers use, like a filter's input.
+   * While the dashboard is edited, they can't be used or focused: a click
+   * selects the widget like any other. See `DashboardWidget`.
+   */
+  get hasControls() {
+    return false
+  }
+
   /** Widget lifecycle hooks receive the local Vuex context and widget registry. */
   afterCreate(widget, context) {}
 
@@ -120,6 +135,7 @@ export class DataSourceWidgetType extends WidgetType {
   getDataSourceId(widget) {
     return widget.data_source_id
   }
+
   afterCreate(widget, context) {
     if (
       context.state.dataSources.some(
@@ -164,6 +180,10 @@ export class SummaryWidgetType extends DataSourceWidgetType {
     return i18n.t('summaryWidget.name')
   }
 
+  get description() {
+    return this.app.$i18n.t('summaryWidget.description')
+  }
+
   get createWidgetImage() {
     return SummaryWidgetSvg
   }
@@ -193,6 +213,10 @@ export class FilterWidgetType extends WidgetType {
   }
 
   get isFilterWidget() {
+    return true
+  }
+
+  get hasControls() {
     return true
   }
 
@@ -329,6 +353,10 @@ export class TextFilterWidgetType extends FilterWidgetType {
 
   get name() {
     return this.app.$i18n.t('textFilterWidget.name')
+  }
+
+  get description() {
+    return this.app.$i18n.t('textFilterWidget.description')
   }
 
   get createWidgetImage() {

@@ -1,7 +1,7 @@
 import re
 import string
 from io import BytesIO
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 from zipfile import ZIP_DEFLATED, ZipFile
 
 from django.conf import settings
@@ -14,6 +14,7 @@ from django.test import override_settings
 import pytest
 import responses
 import zipstream
+from celery.exceptions import SoftTimeLimitExceeded
 from freezegun import freeze_time
 from PIL import Image
 
@@ -287,6 +288,28 @@ def test_upload_user_file_with_unsupported_image_format(
 
     file_path = tmpdir.join("thumbnails", "tiny", user_file.name)
     assert not file_path.isfile()
+
+
+@pytest.mark.django_db
+def test_upload_user_file_soft_time_limit_in_thumbnails_propagates(
+    data_fixture, tmpdir
+):
+    user = data_fixture.create_user()
+    storage = FileSystemStorage(location=str(tmpdir), base_url="http://localhost")
+    image_bytes = BytesIO()
+    Image.new("RGB", (10, 10), color="red").save(image_bytes, format="PNG")
+
+    with patch.object(
+        UserFileHandler,
+        "generate_and_save_image_thumbnails",
+        side_effect=SoftTimeLimitExceeded(),
+    ):
+        with pytest.raises(SoftTimeLimitExceeded):
+            UserFileHandler().upload_user_file(
+                user, "image.png", image_bytes, storage=storage
+            )
+
+    assert not UserFile.objects.exists()
 
 
 @pytest.mark.django_db

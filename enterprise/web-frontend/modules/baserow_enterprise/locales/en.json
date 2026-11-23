@@ -1,4 +1,14 @@
 {
+  "rowCommentTrigger": {
+    "name": "Row comment is posted",
+    "description": "When a person posts a comment on a row in the selected table. Comments posted by agents are ignored.",
+    "inTable": "Row comment is posted in {tableName}",
+    "onlyWhenMentioned": "Only trigger when {name} is mentioned",
+    "commentAccessRequired": "The integration needs permission to read row comments on this table.",
+    "upgradeDescription": "Start an automation or agent when someone posts a row comment. Choose a table and optionally require a mention of the connected user or agent identity.",
+    "noMentionTarget": "Only trigger when mentioned",
+    "message": "{author} commented on row {row} in table {table}: {text}"
+  },
   "rowCommentTools": {
     "listRowComments": "Read row comments",
     "listRowCommentsDescription": "Read the comments of a row",
@@ -628,12 +638,12 @@
   "assistant": {
     "statusThinking": "Thinking...",
     "statusAnswering": "Answering...",
-    "statusCancelling": "Cancelling...",
-    "messageCancelled": "Message cancelled",
     "runLimitReached": "Kuma is already answering as many of your messages as it can. Send this one when one of them is done.",
     "runFailedToStart": "Kuma couldn't start answering this message. Please try again.",
     "statusWaitingForWorker": "Waiting for a free worker...",
     "statusWaitingForOutput": "Waiting for the saved response...",
+    "statusStopping": "Stopping...",
+    "runStopped": "You stopped Kuma. Any changes already saved are kept.",
     "runErrorInterrupted": "Kuma was interrupted. Some changes may already have been made, so check them, then tell Kuma how to continue.",
     "runErrorNotStarted": "Kuma couldn't start on this message because no worker picked it up. Nothing was changed.",
     "runErrorTimeout": "Kuma ran out of time before finishing. Some changes may already have been made.",
@@ -667,9 +677,6 @@
   },
   "userTeamsField": {
     "no_records": "No teams"
-  },
-  "snapshotModalWarning": {
-    "message": "Please be aware that a snapshot will include any permissions set on the application and its tables."
   },
   "exportWorkspaceModalWarning": {
     "message": "Please be aware that an export will not include any permissions set on the application and its tables."
@@ -815,12 +822,16 @@
   "chartWidget": {
     "name": "Chart",
     "bar": "Bar chart",
-    "line": "Line chart"
+    "barDescription": "Compares values as bars",
+    "line": "Line chart",
+    "lineDescription": "Shows how values change as a line"
   },
   "pieChartWidget": {
     "name": "Pie chart",
     "pie": "Pie chart",
+    "pieDescription": "Shows each value's share of the whole",
     "doughnut": "Doughnut chart",
+    "doughnutDescription": "A pie chart with a hole in the middle",
     "polarArea": "Polar area chart"
   },
   "groupedAggregateRowsDataSourceForm": {

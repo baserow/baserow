@@ -84,6 +84,7 @@ describe('Kuma durable streamed send and resume', () => {
     api = {
       stream: vi.fn(() => new Promise(() => {})),
       get: vi.fn().mockResolvedValue({ status: 'running' }),
+      cancel: vi.fn().mockResolvedValue({ status: 'running' }),
     }
     coreService.mockReturnValue(api)
     await store.dispatch('workspace/forceCreate', workspace)
@@ -499,5 +500,107 @@ describe('Kuma durable streamed send and resume', () => {
     expect(service.sendMessage).toHaveBeenCalledTimes(1)
     expect(api.stream).not.toHaveBeenCalled()
     expect(store.getters['chatRuns/getFollower']('other-run')).toBeNull()
+  })
+
+  test('Stop clicked before metadata is sent to the committed run as soon as it is known', async () => {
+    const starting = store.dispatch('assistant/startRun', {
+      message: 'Hi',
+      workspace,
+    })
+    await flushPromises()
+    await store.dispatch('assistant/cancelMessage')
+    await emit('human', human, { cursor: cursor(1) })
+    expect((await starting).runId).toBe('run-1')
+    expect(api.cancel).toHaveBeenCalledExactlyOnceWith('run-1')
+    finish()
+  })
+
+  test.each(['before', 'after'])(
+    'refreshing the chat list %s an early Stop preserves the request',
+    async (when) => {
+      await open()
+      const starting = store.dispatch('assistant/startRun', {
+        message: 'Hi',
+        workspace,
+      })
+      await flushPromises()
+      service.fetchChats.mockResolvedValue({
+        results: [{ uuid, chat_id: 7, title: '' }],
+      })
+      if (when === 'after') await store.dispatch('assistant/cancelMessage')
+      await store.dispatch('assistant/fetchChats', workspace.id)
+      if (when === 'before') await store.dispatch('assistant/cancelMessage')
+      expect(store.getters['assistant/currentChat'].cancelling).toBe(true)
+
+      await emit('human', human, { cursor: cursor(1) })
+      await starting
+      expect(api.cancel).toHaveBeenCalledExactlyOnceWith('run-1')
+      finish()
+    }
+  )
+
+  test('a refused send clears its early Stop before the next send', async () => {
+    await open()
+    const first = send()
+    await flushPromises()
+    await store.dispatch('assistant/cancelMessage')
+    fail(refused(429, 'ERROR_CHAT_RUN_LIMIT'))
+    expect(await first).toBe(SEND_OUTCOME.FAILED)
+
+    const next = store.dispatch('assistant/startRun', {
+      message: 'Try again',
+      workspace,
+    })
+    await flushPromises()
+    await emit('human', human, { cursor: cursor(1) })
+    await next
+    expect(api.cancel).not.toHaveBeenCalled()
+    finish()
+  })
+
+  test('a failed Stop queued before metadata notifies and allows another Stop', async () => {
+    const starting = store.dispatch('assistant/startRun', {
+      message: 'Hi',
+      workspace,
+    })
+    await flushPromises()
+    await store.dispatch('assistant/cancelMessage')
+    const notify = vi.fn()
+    api.cancel.mockRejectedValueOnce({ handler: { notifyIf: notify } })
+
+    await emit('human', human, { cursor: cursor(1) })
+    await starting
+    expect(notify).toHaveBeenCalledOnce()
+    expect(store.getters['assistant/currentChat'].cancelling).toBe(false)
+    expect(follower().stopRequested).toBe(false)
+    await store.dispatch('assistant/cancelMessage')
+    expect(api.cancel).toHaveBeenCalledTimes(2)
+    finish()
+  })
+
+  test('a queued Stop before metadata keeps both the saved human prompt and terminal answer', async () => {
+    const starting = store.dispatch('assistant/startRun', {
+      message: 'Hi',
+      workspace,
+    })
+    await flushPromises()
+    await store.dispatch('assistant/cancelMessage')
+    await emit('human', human, { cursor: cursor(1), status: 'queued' })
+    await starting
+    await emit(
+      'ai/message',
+      { ...answer, content: 'Stopped' },
+      { cursor: cursor(2), status: 'cancelled' }
+    )
+    expect(
+      store.getters['assistant/messages'].map(({ id, content }) => [
+        id,
+        content,
+      ])
+    ).toEqual([
+      [501, 'Hi'],
+      [502, 'Stopped'],
+    ])
+    finish()
   })
 })

@@ -32,6 +32,7 @@ class UpdateDashboardDataSourceActionType(UndoableActionType):
         data_source_original_params: dict[str, any]
         data_source_new_params: dict[str, any]
         original_filter_links: dict[str, list] = field(default_factory=dict)
+        link_filter_widget_id: int | None = None
 
     @classmethod
     def do(
@@ -61,6 +62,7 @@ class UpdateDashboardDataSourceActionType(UndoableActionType):
                 updated_data_source.original_values,
                 updated_data_source.new_values,
                 updated_data_source.original_filter_links,
+                link_filter_widget_id=new_data.get("link_filter_widget_id"),
             ),
             scope=cls.scope(updated_data_source.data_source.dashboard.id),
             workspace=updated_data_source.data_source.dashboard.workspace,
@@ -100,4 +102,5 @@ class UpdateDashboardDataSourceActionType(UndoableActionType):
             params.data_source_id,
             service_type,
             params.data_source_new_params,
+            link_filter_widget_id=params.link_filter_widget_id,
         )

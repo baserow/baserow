@@ -255,6 +255,32 @@ def test_get_nodes(api_client, data_fixture):
 
 
 @pytest.mark.django_db
+def test_get_nodes_of_a_template_shows_the_fields_of_its_tables(
+    api_client, data_fixture
+):
+    workspace = data_fixture.create_workspace()
+    data_fixture.create_template(workspace=workspace)
+    table = data_fixture.create_database_table(
+        database=data_fixture.create_database_application(workspace=workspace)
+    )
+    field = data_fixture.create_text_field(table=table, name="Name")
+    workflow = data_fixture.create_automation_workflow(
+        automation=data_fixture.create_automation_application(workspace=workspace),
+        trigger_type=LocalBaserowRowsCreatedTriggerNodeType.type,
+        trigger_service_kwargs={"table": table},
+    )
+
+    url = reverse(API_URL_LIST, kwargs={"workflow_id": workflow.id})
+    response = api_client.get(url)
+
+    assert response.status_code == HTTP_200_OK
+    (trigger,) = response.json()
+    assert trigger["service"]["table_accessible"] is True
+    properties = trigger["service"]["schema"]["items"]["properties"]
+    assert properties[f"field_{field.id}"]["title"] == "Name"
+
+
+@pytest.mark.django_db
 def test_get_nodes_with_failed_simulated_dispatch_sample_data(api_client, data_fixture):
     """
     A failed simulated dispatch stores an `{"_error": ...}` sentinel as the
@@ -758,6 +784,7 @@ def test_create_router_node(api_client, data_fixture):
                 "title": AnyStr(),
                 "type": "object",
             },
+            "table_accessible": True,
             "type": "router",
         },
         "type": "router",

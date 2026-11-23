@@ -51,6 +51,26 @@ describe('Kuma HTTP record adapter', () => {
     return destroyRunsTestApp(testApp)
   })
 
+  test.each([
+    [
+      'send',
+      runRecord(
+        'chat-run-state',
+        {},
+        { cancel_requested: true, cursor: cursor(1) }
+      ),
+    ],
+    ['core', { kind: 'run.cancel_requested', data: {}, cursor: cursor(1) }],
+  ])(
+    'a stop received on the %s stream marks the run as stopping',
+    async (_, record) => {
+      await acceptRecord(store, record)
+      expect(
+        store.getters['chatRuns/getFollower']('run-1').view.cancelRequested
+      ).toBe(true)
+    }
+  )
+
   test('cumulative records replace text rather than appending it twice', async () => {
     await acceptRecord(
       store,
@@ -171,6 +191,36 @@ describe('Kuma HTTP record adapter', () => {
       [501, 'Hi'],
       [502, 'Saved'],
     ])
+  })
+
+  test.each(['local', 'remote'])(
+    'a %s Stop suppresses late navigation',
+    async (origin) => {
+      if (origin === 'local') {
+        store.commit('chatRuns/UPDATE_FOLLOWER', {
+          runId: 'run-1',
+          values: { stopRequested: true },
+        })
+      } else {
+        await acceptRecord(store, {
+          kind: 'run.cancel_requested',
+          data: {},
+          cursor: cursor(1),
+        })
+      }
+      await acceptRecord(store, navigation(2))
+      expect(navigated).toEqual([])
+    }
+  )
+
+  test('cancelled onboarding clears its saved target without opening it', async () => {
+    storeOnboardingRunId('run-1')
+    await applySnapshot(store, {
+      status: 'cancelled',
+      message: { ...created, run_status: 'cancelled' },
+    })
+    expect(navigated).toEqual([])
+    expect(getStoredOnboardingRunId()).toBeNull()
   })
 
   test('a completed onboarding run opens its target in an open panel', async () => {

@@ -1,11 +1,22 @@
 <template>
-  <Alert type="warning">
-    <p>{{ $t('snapshotModalWarning.message') }}</p>
-  </Alert>
+  <span>{{ message }}</span>
 </template>
 
 <script>
 export default {
   name: 'SnapshotModalWarning',
+  props: {
+    application: {
+      type: Object,
+      required: true,
+    },
+  },
+  computed: {
+    message() {
+      return this.$registry
+        .get('application', this.application.type)
+        .getSnapshotPermissionDescription()
+    },
+  },
 }
 </script>

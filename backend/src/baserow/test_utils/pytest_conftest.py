@@ -59,6 +59,7 @@ DEFAULT_DEFERRED_CALLABLES: List[str] = [
     "baserow.ws.tasks.broadcast_to_channel_group.delay",
     "baserow.ws.tasks.broadcast_to_users.delay",
     "baserow.ws.tasks.broadcast_to_permitted_users.delay",
+    "baserow.contrib.automation.nodes.ws.tasks.broadcast_node_event_to_permitted_users.delay",
     "baserow.ws.tasks.broadcast_to_group.delay",
     "baserow.ws.tasks.broadcast_to_groups.delay",
     "baserow.ws.tasks.broadcast_application_created.delay",
@@ -139,6 +140,20 @@ class StreamingAPIClient(APIClient):
             response.stream_chunks = stream_chunks
 
         return response
+
+
+@pytest.fixture
+def sentry_events(settings):
+    """
+    Enables Sentry and collects the events it would send, see
+    `collect_sentry_events`.
+    """
+
+    from baserow.test_utils.sentry import TEST_SENTRY_DSN, collect_sentry_events
+
+    settings.SENTRY_DSN = TEST_SENTRY_DSN
+    with collect_sentry_events() as events:
+        yield events
 
 
 @pytest.fixture()

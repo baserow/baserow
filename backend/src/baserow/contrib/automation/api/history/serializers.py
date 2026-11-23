@@ -42,6 +42,19 @@ class AutomationNodeHistorySerializer(serializers.ModelSerializer):
             "destination_label",
         )
 
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        access = self.context.get("node_access")
+        if access is None or access.history_hidden(
+            instance, self.context.get("run_workflow")
+        ):
+            # An error can name the fields and values of the table it read, and
+            # the edge label is read from the result, where a node can put any
+            # value it read. Which branch ran still shows in the nodes after it.
+            data["message"] = ""
+            data["edge_label"] = ""
+        return data
+
     @extend_schema_field(OpenApiTypes.STR)
     def get_node_type(self, obj):
         return obj.node.get_type().type
@@ -104,6 +117,19 @@ class AutomationNodeHistorySerializer(serializers.ModelSerializer):
 
 
 class AutomationNodeResultSerializer(serializers.ModelSerializer):
+    """
+    The result of a node in a run. It holds the data of the tables the node read,
+    so it is left out unless the context's `node_access` shows the node to the
+    reader.
+    """
+
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        access = self.context.get("node_access")
+        if access is None or access.history_hidden(instance.node_history):
+            data["result"] = None
+        return data
+
     class Meta:
         model = AutomationNodeResult
         fields = ("result",)

@@ -1,6 +1,7 @@
 import { ChatRunType } from '@baserow/modules/core/chatRuns/chatRunType'
 import {
   RUN_BASELINE,
+  RUN_CANCEL_REQUESTED,
   RUN_CREATED,
   RUN_FINISHED,
   RUN_STARTED,
@@ -14,6 +15,7 @@ import {
   getTabId,
   storeOnboardingRunId,
 } from '@baserow_enterprise/utils/assistantTabStorage'
+import { isStopping } from '@baserow_enterprise/utils/assistant'
 
 export const ASSISTANT_RUN_TYPE = 'assistant'
 const NAVIGATION = 'navigation'
@@ -63,6 +65,9 @@ export class AssistantChatRunType extends ChatRunType {
           message: record,
         },
       }
+    }
+    if (metadata.cancel_requested) {
+      return { kind: RUN_CANCEL_REQUESTED, data: {} }
     }
     switch (record.type) {
       case 'human':
@@ -124,6 +129,7 @@ export class AssistantChatRunType extends ChatRunType {
   onEvent(follower, event, live) {
     const store = this.app.$store
     const { chatId } = follower
+    const chat = store.getters['assistant/currentChat']
     switch (event.kind) {
       case RUN_CREATED:
         store.dispatch('assistant/forceAddRunMessage', {
@@ -137,9 +143,15 @@ export class AssistantChatRunType extends ChatRunType {
           title: event.data.title,
         })
         break
+      case RUN_CANCEL_REQUESTED:
+        if (chat?.chatId === chatId) {
+          store.dispatch('assistant/forceNavigate', null)
+        }
+        break
       case NAVIGATION:
         if (
           live &&
+          !isStopping(follower, chat?.chatId === chatId ? chat : null) &&
           event.data.origin_tab_id === getTabId() &&
           store.getters['assistant/isPanelOpen']
         ) {
@@ -180,6 +192,10 @@ export class AssistantChatRunType extends ChatRunType {
   }
 
   openOnboardingTable(follower) {
+    if (isStopping(follower) || follower.view.status === RUN_STATUS.CANCELLED) {
+      storeOnboardingRunId(null)
+      return
+    }
     const message = follower.view.message
     const table =
       message?.onboarding_target ||

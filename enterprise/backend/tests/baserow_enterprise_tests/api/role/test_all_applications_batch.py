@@ -469,6 +469,8 @@ def test_get_roles_per_scope_for_workspaces_equals_per_workspace_edge_cases(
     )
     table = data_fixture.create_database_table(user=admin, database=database)
     handler.assign_role(user, ws_snapshot, role=viewer_role, scope=table)
+    database.max_snapshots = 1
+    database.save()
     snapshot = SnapshotHandler().create(database.id, admin, "Snapshot")
     SnapshotHandler().perform_create(snapshot, Progress(100))
 

@@ -63,13 +63,13 @@ export class WidgetDataProviderType extends DataProviderType {
   }
 }
 
-export class DashboardDataSourceContextDataProviderType extends DataProviderType {
+export class DashboardTableContextDataProviderType extends DataProviderType {
   static getType() {
-    return 'data_source_context'
+    return 'table_context'
   }
 
   get name() {
-    return this.app.$i18n.t('dataProviderType.dataSourceContext')
+    return this.app.$i18n.t('dashboardDataProviderType.tableContext')
   }
 
   isValid(path) {
@@ -83,12 +83,16 @@ export class DashboardDataSourceContextDataProviderType extends DataProviderType
   }
 
   getDataContent(context) {
-    return Object.fromEntries(
-      this.getDataSources(context).map((source) => [
-        source.id,
-        source.context_data,
-      ])
-    )
+    const tables = {}
+    for (const source of this.getDataSources(context)) {
+      const tableId = source.context_table_id ?? source.table_id
+      if (!tableId) continue
+      tables[tableId] = {
+        ...tables[tableId],
+        ...source.context_data,
+      }
+    }
+    return tables
   }
 
   /** Preserve empty option arrays when resolving wildcard properties. */
@@ -108,9 +112,9 @@ export class DashboardDataSourceContextDataProviderType extends DataProviderType
     const properties = {}
     for (const source of this.getDataSources(context)) {
       const schema = source.context_data_schema
-      if (!schema || tables.has(source.table_id ?? source.id)) continue
-      tables.add(source.table_id ?? source.id)
-      properties[source.id] = { ...schema, order: tables.size - 1 }
+      if (!schema || !source.table_id || tables.has(source.table_id)) continue
+      tables.add(source.table_id)
+      properties[source.table_id] = { ...schema, order: tables.size - 1 }
     }
     return { type: 'object', properties }
   }

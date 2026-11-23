@@ -4,7 +4,7 @@ from baserow_premium.license.handler import LicenseHandler
 
 
 class RowCommentToolLicense:
-    """Workspace licence shared by the Kuma and Agent row comment tools."""
+    """Advanced or Enterprise workspace licence for row comment tools and triggers."""
 
     unavailable_reason = "this workspace lacks an Advanced or Enterprise license"
 

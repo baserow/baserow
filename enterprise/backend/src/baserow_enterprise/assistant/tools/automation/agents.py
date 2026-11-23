@@ -16,8 +16,13 @@ from django.utils.translation import gettext as _
 
 from loguru import logger
 
+from baserow.contrib.automation.nodes.access import (
+    AutomationNodeAccess,
+    visible_schema,
+)
 from baserow.contrib.automation.nodes.exceptions import AutomationNodeDoesNotExist
 from baserow.contrib.automation.nodes.models import AutomationNode
+from baserow.contrib.automation.nodes.service import AutomationNodeService
 from baserow.contrib.automation.tools import nodes as shared_nodes
 from baserow.contrib.automation.tools.formulas import formula_error
 from baserow.contrib.automation.tools.types import (
@@ -187,19 +192,21 @@ def _describe(error: dict[str, Any], base: str) -> str:
 def formula_requests(
     node: AutomationNode,
     errors: list[dict[str, Any]],
+    access: AutomationNodeAccess,
     previous: AutomationNode | None = None,
 ) -> dict[Any, Any]:
     """
     What to ask the generator for a node's formula errors, keyed as
-    ``_request_key``. A row value is described with its field.
+    ``_request_key``. A row value is described with its field, unless the user
+    may not see the fields of the node's table.
 
     :param previous: The node ``node`` follows, so "the previous step" in a
         value's description is read as that node, not the trigger.
     """
 
     fields = {}
-    if any("field_id" in error for error in errors):
-        service = node.service.specific
+    service = node.service.specific if any("field_id" in e for e in errors) else None
+    if service is not None and access.table_allows(service):
         schema = service.get_type().generate_schema(service) or {}
         fields = {
             int(field["id"]): field
@@ -257,6 +264,7 @@ class WorkflowExamples:
 
     def __init__(self, user, refs: dict[int, str] | None = None):
         self.user = user
+        self.access = AutomationNodeAccess(user)
         self.refs = refs or {}
         self._workflows: dict[int, tuple[dict, dict]] = {}
 
@@ -269,12 +277,18 @@ class WorkflowExamples:
         if workflow.id not in self._workflows:
             previous_of: dict[int, AutomationNode | None] = {}
             examples = {}
-            for node, previous, _output in shared_nodes.nodes_in_order(
-                self.user, workflow
-            ):
+            # All the nodes, also those no path reaches, which nodes can still
+            # read.
+            workflow_nodes = list(
+                AutomationNodeService().get_nodes(self.user, workflow)
+            )
+            ordered = shared_nodes.nodes_in_order(self.user, workflow, workflow_nodes)
+            self.access.add_nodes(workflow_nodes, all_of_workflow=True)
+            for node, previous, _output in ordered:
                 previous_of[node.id] = previous
                 service = node.service.specific
-                schema = service.get_type().generate_schema(service)
+                # As the user may see it.
+                schema = visible_schema(service, self.access)
                 if not schema:
                     continue
                 metadata = minimize_json_schema(schema)
@@ -503,7 +517,9 @@ def _repair_node(
         _("Generating formulas for node '%(label)s'...") % {"label": node.label}
     )
     context = examples.context_for(node)
-    requests = formula_requests(node, node_errors, examples.previous(node))
+    requests = formula_requests(
+        node, node_errors, examples.access, examples.previous(node)
+    )
     generated = generate_formula(requests, context) or {}
     # The user may cancel while the model runs; nothing is written then.
     raise_if_cancelled()

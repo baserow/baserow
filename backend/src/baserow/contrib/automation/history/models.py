@@ -161,6 +161,14 @@ class AutomationNodeHistory(AutomationHistory):
         "service stored and the iterator positions of the dispatch. Cleared once "
         "the node resumed.",
     )
+    read_table_ids = models.JSONField(
+        null=True,
+        blank=True,
+        default=None,
+        help_text="The IDs of the database tables the node and the nodes it read "
+        "used when it was dispatched, so who may see its message and result is "
+        "decided from them later. Null for entries written before it was kept.",
+    )
 
     class Meta(AutomationHistory.Meta):
         indexes = [

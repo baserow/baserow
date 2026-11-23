@@ -467,3 +467,25 @@ export class BuilderHTMLElementPaidFeature extends PaidFeature {
     return this.app.$i18n.t('elementType.htmlDescription')
   }
 }
+
+export class RowCommentTriggerPaidFeature extends PaidFeature {
+  static getType() {
+    return 'row_comment_trigger'
+  }
+
+  getPlan() {
+    return 'Advanced'
+  }
+
+  getIconClass() {
+    return 'iconoir-chat-bubble'
+  }
+
+  getName() {
+    return this.app.$i18n.t('rowCommentTrigger.name')
+  }
+
+  getContent() {
+    return this.app.$i18n.t('rowCommentTrigger.upgradeDescription')
+  }
+}

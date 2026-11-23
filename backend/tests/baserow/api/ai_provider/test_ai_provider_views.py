@@ -3,7 +3,12 @@ from unittest.mock import patch
 from django.db import DEFAULT_DB_ALIAS
 from django.shortcuts import reverse
 
+import httpx
+import httpx2
+import openai
 import pytest
+import sentry_sdk
+from google.genai import errors as google_errors
 from rest_framework.status import (
     HTTP_200_OK,
     HTTP_201_CREATED,
@@ -1396,6 +1401,76 @@ def test_saved_models_are_tested_in_one_request_and_results_are_persisted(
     assert saved_models[0]["last_test_feature_results"] == [
         {"feature_type": "ai_fields", "status": "success", "error": ""}
     ]
+
+
+def _openai_connection_error():
+    return openai.APIConnectionError(
+        request=httpx.Request("POST", "https://does-not-exist.invalid/v1/responses")
+    )
+
+
+def _google_server_error():
+    return google_errors.ServerError(
+        504, {"error": {"message": "Deadline expired before operation could complete."}}
+    )
+
+
+def _google_connect_error():
+    # google-genai doesn't wrap transport failures in its own errors.
+    return httpx2.ConnectError("[Errno 8] nodename nor servname provided")
+
+
+def _google_read_timeout():
+    return httpx2.ReadTimeout("The read operation timed out")
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "make_error,reported",
+    [
+        (_openai_connection_error, False),
+        (_google_server_error, False),
+        (_google_connect_error, False),
+        (_google_read_timeout, False),
+        # An error that doesn't come from the provider is still reported.
+        (lambda: TypeError("unexpected keyword argument 'timeout'"), True),
+    ],
+)
+def test_failing_model_test_reports_only_non_provider_errors_to_sentry(
+    api_client, staff_headers, sentry_events, make_error, reported
+):
+    provider = AIProviderConfig.objects.create(provider_type="mistral", api_key="key")
+    model = AIProviderModel.objects.create(
+        provider_config=provider,
+        model_identifier="mistral-large",
+        feature_types=[AI_PROVIDER_FEATURE_AI_FIELDS],
+    )
+    error = make_error()
+
+    def prompt_failing_provider(*args, **kwargs):
+        # Like the Sentry AI client integrations, which capture the client error
+        # before re-raising it to the caller.
+        sentry_sdk.capture_exception(error)
+        raise error
+
+    with patch(
+        "baserow.core.generative_ai.generative_ai_model_types."
+        "MistralGenerativeAIModelType.prompt",
+        side_effect=prompt_failing_provider,
+    ):
+        response = api_client.post(
+            reverse("api:ai_provider:test_models"),
+            {"model_ids": [model.id]},
+            format="json",
+            **staff_headers,
+        )
+
+    assert response.status_code == HTTP_200_OK
+    [result] = response.json()["results"]
+    assert result["status"] == "failure"
+    assert [event["exception"]["values"][-1]["type"] for event in sentry_events] == (
+        [type(error).__name__] if reported else []
+    )
 
 
 @pytest.mark.django_db

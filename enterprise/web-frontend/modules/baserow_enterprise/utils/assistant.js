@@ -17,6 +17,21 @@ export const isAssistantAvailable = (app, workspace) =>
   app.$hasPermission('assistant.chat', workspace, workspace.id) &&
   isAssistantConfigured(app, workspace)
 
+/**
+ * Whether Stop was asked for a reply: in this tab, before the send is accepted
+ * (`chat.cancelling`) or after, or in another tab. Kept in one place because the
+ * panel, the navigation guard and the onboarding table must agree on it.
+ *
+ * @param {object|null} follower The follower of the reply's run, if any.
+ * @param {object|null} chat The reply's chat, when Stop may come before its run.
+ */
+export const isStopping = (follower, chat = null) =>
+  Boolean(
+    chat?.cancelling ||
+    follower?.stopRequested ||
+    follower?.view.cancelRequested
+  )
+
 const RUN_ERROR_KEYS = {
   interrupted: 'assistant.runErrorInterrupted',
   not_started: 'assistant.runErrorNotStarted',
@@ -36,7 +51,7 @@ export function runOutcomeKey({ run_status: status, error_code: errorCode }) {
     return RUN_ERROR_KEYS[errorCode]
   }
   if (status === RUN_STATUS.CANCELLED) {
-    return 'assistant.messageCancelled'
+    return 'assistant.runStopped'
   }
   return status === RUN_STATUS.FAILED ? 'assistant.runErrorFailed' : null
 }

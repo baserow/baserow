@@ -1,5 +1,6 @@
 from baserow_enterprise.automation.nodes.models import (
     CoreCodeActionNode,
+    LocalBaserowRowCommentPostedTriggerNode,
     LocalBaserowSemanticSearchActionNode,
 )
 from baserow_enterprise.builder.custom_code.models import (
@@ -22,6 +23,7 @@ from baserow_enterprise.integrations.core.models import (
     CoreCodeServiceInjection,
 )
 from baserow_enterprise.integrations.local_baserow.models import (
+    LocalBaserowRowCommentPosted,
     LocalBaserowSemanticSearch,
 )
 from baserow_enterprise.integrations.models import (
@@ -60,7 +62,9 @@ __all__ = [
     "CoreCodeServiceInjection",
     "CoreCodeWorkflowAction",
     "CoreCodeActionNode",
+    "LocalBaserowRowCommentPosted",
     "LocalBaserowSemanticSearch",
+    "LocalBaserowRowCommentPostedTriggerNode",
     "LocalBaserowSemanticSearchActionNode",
     "SemanticSearchField",
     "SemanticSearchPendingUpdate",

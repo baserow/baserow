@@ -138,12 +138,14 @@ export default {
             }
           : null,
         settingsTabs: this.canUpdate
-          ? getEnabledWorkspaceSettings(this.$registry).map((setting) => ({
-              type: setting.type,
-              name: setting.getName(),
-              icon: setting.iconClass,
-              run: () => this.openModal('settingsModal', setting.type),
-            }))
+          ? getEnabledWorkspaceSettings(this.$registry, this.workspace).map(
+              (setting) => ({
+                type: setting.type,
+                name: setting.getName(),
+                icon: setting.iconClass,
+                run: () => this.openModal('settingsModal', setting.type),
+              })
+            )
           : [],
         members: {
           icon: 'baserow-icon-team',

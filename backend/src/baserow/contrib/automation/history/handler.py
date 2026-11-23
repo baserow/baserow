@@ -281,12 +281,14 @@ class AutomationHistoryHandler:
         message: str = "",
         attempt: int = 1,
         iteration_path: str = "",
+        read_table_ids: Optional[List[int]] = None,
     ) -> AutomationNodeHistory:
         """
         Creates a history entry for a Node dispatch. Every attempt of a node
         gets its own entry; `attempt` records which one this is, starting at 1.
         `iteration_path` is the iteration the node is dispatched in ("" outside
-        an iterator).
+        an iterator). `read_table_ids` are the tables the dispatch reads, which
+        decide who may later see its message and result.
         """
 
         return AutomationNodeHistory.objects.create(
@@ -298,6 +300,7 @@ class AutomationHistoryHandler:
             message=message,
             attempt=attempt,
             iteration_path=iteration_path,
+            read_table_ids=read_table_ids,
         )
 
     def create_node_result(

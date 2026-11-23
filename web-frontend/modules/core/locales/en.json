@@ -1,4 +1,7 @@
 {
+  "applicationSnapshotPermissions": {
+    "description": "Includes the permissions set on the {applicationTypeName}."
+  },
   "untrustedContentReviewModal": {
     "title": "Review imported content",
     "publishBlocked": "Review and trust the imported content before publishing.",
@@ -588,7 +591,49 @@
     "title": "Workspace Settings"
   },
   "workspaceSettingType": {
-    "aiProviders": "AI providers"
+    "aiProviders": "AI providers",
+    "snapshots": "Snapshots"
+  },
+  "snapshotsWorkspaceSettings": {
+    "title": "Snapshots",
+    "intro": "Each application has a max number of snapshots, reserved from this workspace's allowance. Once an application reaches it, a new snapshot replaces its oldest unprotected one.",
+    "adminsOnly": "Only workspace admins can see and change the snapshot settings.",
+    "loadFailed": "The snapshot allowance and max snapshots couldn't be loaded.",
+    "allowance": "Snapshot allowance",
+    "disabled": "Snapshots are turned off",
+    "usage": "{used} of {limit} reserved",
+    "usageWithoutLimit": "{used} reserved, no limit",
+    "held": "Snapshots held: {count}",
+    "overAllowance": "This workspace reserves more snapshots than its allowance. Lower some max snapshots, or upgrade, to keep taking snapshots.",
+    "defaultMaxSnapshots": "Default max snapshots",
+    "defaultMaxSnapshotsDescription": "The max snapshots of applications that don't have their own. Applications following it: {count}.",
+    "applications": "Max snapshots per application",
+    "columnApplication": "Application",
+    "columnMaxSnapshots": "Max snapshots",
+    "columnSnapshots": "Snapshots",
+    "maxSnapshotsDefault": "{count} (default)",
+    "snapshotsProtected": "{count} ({protected} protected)"
+  },
+  "maxSnapshots": {
+    "title": "Max snapshots",
+    "sourceWorkspace": "Inherited from workspace (default: {count}).",
+    "change": "Change",
+    "descriptionNone": "No snapshots can be taken while it's 0.",
+    "descriptionDefault": "Up to {count}, the workspace default. Once it's reached, a new snapshot replaces the oldest unprotected one.",
+    "descriptionOwn": "Up to {count}. Once it's reached, a new snapshot replaces the oldest unprotected one.",
+    "upTo": "Up to {count}",
+    "save": "Save",
+    "useDefault": "Use workspace default ({count})",
+    "confirmDelete": "A max of {maxSnapshots} deletes {count} snapshot: the oldest unprotected one. | A max of {maxSnapshots} deletes {count} snapshots: the oldest unprotected ones.",
+    "deleteAndSave": "Delete and save",
+    "errorInvalid": "Enter a whole number, 0 or more.",
+    "errorAboveMaximum": "An application can have at most {count} snapshots.",
+    "errorExceedsAllowance": "Not enough of the workspace allowance is left. Up to {count}.",
+    "errorBelowProtected": "It holds {count} protected snapshot, so its max can't be lower. | It holds {count} protected snapshots, so its max can't be lower.",
+    "overAllowance": "This takes the workspace over its snapshot allowance ({used} of {limit} reserved). If it's still over after the grace period, new snapshots are paused until some max snapshots are lowered or the plan is upgraded."
+  },
+  "snapshotAllowanceWarning": {
+    "overAllowance": "A new application has a max of {maxSnapshots} snapshots by default, which takes this workspace over its snapshot allowance ({used} of {limit} reserved). Lower some max snapshots, or the default, to stay within it."
   },
   "generativeAIModelType": {
     "openai": "OpenAI",

@@ -299,10 +299,28 @@ export class BaserowPlugin extends Registerable {
 
   /**
    * If set, `getExtraSnapshotModalComponents` will allow plugins to decide what kind of
-   * copy is shown in the snapshots modal's Alert box.
+   * copy is shown under the snapshots modal's "Take a snapshot now" title. Every
+   * component receives the `application` prop.
    */
-  getExtraSnapshotModalComponents(workspace) {
+  getExtraSnapshotModalComponents(workspace, application) {
     return null
+  }
+
+  /**
+   * Components shown in the snapshots modal, above the form to create a snapshot.
+   * Every component receives the `application` prop.
+   */
+  getSnapshotModalComponents(workspace, application) {
+    return []
+  }
+
+  /**
+   * Components shown at the bottom of the Snapshots page of the workspace settings.
+   * Every component receives the `workspace` prop and the `snapshotSettings` prop,
+   * which is `null` when the snapshot settings couldn't be loaded.
+   */
+  getWorkspaceSnapshotSettingsComponents(workspace) {
+    return []
   }
 
   /**

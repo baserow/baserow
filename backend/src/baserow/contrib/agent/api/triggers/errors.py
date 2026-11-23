@@ -6,7 +6,8 @@ ERROR_AGENT_TRIGGER_DOES_NOT_EXIST = (
 ERROR_AGENT_TRIGGER_TYPE_NOT_AVAILABLE = (
     "ERROR_AGENT_TRIGGER_TYPE_NOT_AVAILABLE",
     400,
-    "This trigger type isn't available for the agent.",
+    "This trigger type isn't offered on this instance or the workspace's license "
+    "doesn't cover it.",
 )
 ERROR_TRIGGER_SERVICE_MISCONFIGURED = (
     "ERROR_TRIGGER_SERVICE_MISCONFIGURED",
