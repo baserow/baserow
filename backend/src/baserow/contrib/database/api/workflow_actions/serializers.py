@@ -12,12 +12,11 @@ from baserow.api.services.serializers import (
 )
 from baserow.api.utils import DiscriminatorCustomFieldsMappingSerializer
 from baserow.api.workflow_actions.serializers import WorkflowActionSerializer
-from baserow.contrib.database.table.operations import ReadDatabaseTableOperationType
 from baserow.contrib.database.workflow_actions.models import DatabaseWorkflowAction
 from baserow.contrib.database.workflow_actions.registries import (
     database_workflow_action_type_registry,
 )
-from baserow.core.handler import CoreHandler
+from baserow.contrib.integrations.local_baserow.utils import ServiceTableAccess
 from baserow.core.services.models import Service
 
 if TYPE_CHECKING:
@@ -158,33 +157,21 @@ class DatabaseServiceSerializer(ServiceSerializer):
     """
     A service as a button field's editor sees it. The schema describes the
     table the action writes to, which is not always a table the reader may
-    see, so it is only included when they may.
+    list the fields of, so it is only included when they may.
     """
 
     table_accessible = serializers.SerializerMethodField(
-        help_text="Whether the reader may see the table this service writes to. "
+        help_text="Whether the reader may list the fields of the table this service writes to. "
         "The schema is left out when they may not."
     )
 
     @extend_schema_field(OpenApiTypes.BOOL)
     def get_table_accessible(self, instance: Service) -> bool:
-        service = instance.specific
-        table = getattr(service, "table", None)
-        if table is None:
-            # Nothing to hide until a table has been chosen.
-            return True
-
-        user = self.context.get("user")
-        if user is None:
-            return False
-
-        return CoreHandler().check_permissions(
-            user,
-            ReadDatabaseTableOperationType.type,
-            workspace=table.database.workspace,
-            context=table,
-            raise_permission_exceptions=False,
-        )
+        if getattr(self, "_table_access", None) is None:
+            # One for every service the serializer is used for, so each table is
+            # checked once.
+            self._table_access = ServiceTableAccess(self.context.get("user"))
+        return self._table_access.allows(instance.specific)
 
     def get_schema(self, instance: Service) -> Optional[Dict[str, Any]]:
         if not self.get_table_accessible(instance):

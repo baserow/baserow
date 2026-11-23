@@ -216,6 +216,7 @@ class ServiceHandler:
             service_changes
         ):
             service.sample_data = None
+            service.sample_data_table_ids = None
 
         service.save()
         service_type.after_update(service, kwargs, service_changes)

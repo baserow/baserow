@@ -57,6 +57,10 @@ def test_bounded_node_event_drops_sample_data_and_flags_refresh_when_too_large()
     assert event["node"]["service"]["sample_data"]["data"]["body_html"]
 
 
+@pytest.mark.enable_signals(
+    "baserow.contrib.automation.nodes.ws.tasks."
+    "broadcast_node_event_to_permitted_users.delay"
+)
 @pytest.mark.django_db
 @pytest.mark.parametrize("oversized", [True, False])
 def test_node_updated_broadcast_is_bounded(
@@ -73,14 +77,13 @@ def test_node_updated_broadcast_is_bounded(
     service.save()
 
     with (
-        patch(
-            "baserow.contrib.automation.nodes.ws.signals.broadcast_to_permitted_users"
-        ) as mocked,
+        patch("baserow.ws.tasks.broadcast_to_users") as mocked,
         django_capture_on_commit_callbacks(execute=True),
     ):
         automation_node_updated.send(None, user=None, node=node)
 
-    payload = mocked.delay.call_args.args[4]
+    user_ids, payload = mocked.call_args.args
+    assert user_ids == [user.id]
     assert payload["type"] == "automation_node_updated"
     assert payload["node"]["id"] == node.id
     if oversized:
@@ -89,3 +92,42 @@ def test_node_updated_broadcast_is_bounded(
     else:
         assert "requires_refresh" not in payload
         assert payload["node"]["service"]["sample_data"]["data"]["body_html"] == body
+
+
+@pytest.mark.django_db
+def test_node_events_leave_the_reading_to_the_task(
+    data_fixture, django_capture_on_commit_callbacks
+):
+    """
+    A test run sends an event for every node: the request only queues them, so
+    it doesn't read the workflow and its formulas again for each.
+    """
+
+    user = data_fixture.create_user()
+    workflow = data_fixture.create_automation_workflow(user=user)
+    nodes = [
+        data_fixture.create_core_router_action_node(workflow=workflow) for _ in range(5)
+    ]
+
+    with (
+        patch(
+            "baserow.contrib.automation.nodes.ws.signals."
+            "broadcast_node_event_to_permitted_users"
+        ) as task,
+        patch(
+            "baserow.contrib.automation.nodes.access.node_reads",
+            side_effect=AssertionError("The formulas were read in the request."),
+        ),
+        patch(
+            "baserow.contrib.automation.api.nodes.serializers."
+            "AutomationNodeSerializer.to_representation",
+            side_effect=AssertionError("A node was serialized in the request."),
+        ),
+        django_capture_on_commit_callbacks(execute=True),
+    ):
+        for node in nodes:
+            automation_node_updated.send(None, user=None, node=node)
+
+    assert [call.args[1:3] for call in task.delay.call_args_list] == [
+        (node.id, "automation_node_updated") for node in nodes
+    ]

@@ -12,6 +12,7 @@ class ServiceDict(TypedDict):
     integration_id: int
     type: str
     sample_data: dict
+    sample_data_table_ids: Optional[list[int]]
 
 
 class ServiceFilterDict(TypedDict):

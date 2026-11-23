@@ -16,11 +16,15 @@ from baserow.core.utils import get_value_at_path
 SENTINEL = "__no_results__"
 
 
-class AutomationDataProviderType(DataProviderType, ABC): ...
+class AutomationDataProviderType(DataProviderType, ABC):
+    # Whether a path of this provider starts with the ID of the node it reads, as
+    # `previous_node.<node id>.<path>` does.
+    reads_node_id = False
 
 
 class PreviousNodeProviderType(AutomationDataProviderType):
     type = "previous_node"
+    reads_node_id = True
 
     def get_data_chunk(
         self, dispatch_context: AutomationDispatchContext, path: List[str]
@@ -75,6 +79,7 @@ class PreviousNodeProviderType(AutomationDataProviderType):
 
 class CurrentIterationDataProviderType(AutomationDataProviderType):
     type = "current_iteration"
+    reads_node_id = True
 
     def get_data_chunk(
         self, dispatch_context: AutomationDispatchContext, path: List[str]
