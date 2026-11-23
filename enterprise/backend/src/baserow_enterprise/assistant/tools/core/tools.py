@@ -52,7 +52,7 @@ def list_builders(
     WHEN to use: You need to find databases, applications, automations, or dashboards in the workspace. Call this before creating builders to avoid duplicates.
     WHAT it does: Lists the builders the user can access, optionally filtered by type, one page at a time (20 by default).
     RETURNS: Dict of builders grouped by type, each with id, name, type. _info says when more pages follow.
-    DO NOT USE when: You already know the builder ID you need, or you look for an Agent: list_agents lists those.
+    DO NOT USE when: You already know the builder ID you need.
     """
 
     ctx.deps.tool_helpers.update_status(
@@ -366,7 +366,7 @@ def switch_mode(
                 "'application' for page/element/data-source ops, "
                 "'automation' for workflow/node ops, "
                 "'dashboard' for widget ops, "
-                "'agent' to build, edit or test Agents, "
+                "'agent' for the agent tools when the catalog lists them, "
                 "'explain' for answering Baserow questions."
             )
         ),
@@ -387,6 +387,13 @@ def switch_mode(
     target = AgentMode(mode)
     if ctx.deps.mode == target:
         return f"Already in {target.value} mode."
+    if target == AgentMode.AGENT and "apply_agent_setup" not in (
+        ctx.deps.permitted_tools
+    ):
+        return (
+            "Agent mode isn't available: building Agents isn't turned on for this "
+            "user. Tell the user Kuma can't build Agents here."
+        )
 
     ctx.deps.mode = target
     if target == AgentMode.EXPLAIN:

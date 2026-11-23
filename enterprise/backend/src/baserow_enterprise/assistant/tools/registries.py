@@ -137,6 +137,7 @@ class AssistantToolRegistry(Registry[AssistantToolType]):
             )
 
         deps.unavailable_tool_messages = unavailable_messages
+        deps.permitted_tools = frozenset(tool_names)
         combined = CombinedToolset(toolsets)
         inlined = InlineRefsToolset(combined, model=model, model_profile=model_profile)
         routed = ModeAwareToolset(inlined, deps)

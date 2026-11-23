@@ -5,7 +5,7 @@ from pydantic_ai.messages import RetryPromptPart, ToolReturnPart, UserPromptPart
 
 from baserow_enterprise.assistant.deps import AssistantDeps
 from baserow_enterprise.assistant.output_validation import validate_final_answer
-from baserow_enterprise.assistant.prompts import AGENT_SYSTEM_PROMPT
+from baserow_enterprise.assistant.prompts import AGENT_KNOWLEDGE, AGENT_SYSTEM_PROMPT
 from baserow_enterprise.assistant.tools.routing import is_mode_redirect
 from baserow_enterprise.assistant.tools.toolset import AssistantFunctionToolset
 
@@ -163,6 +163,13 @@ def dynamic_tool_catalog(ctx) -> str:
         catalog = f"{catalog}\n- database row tools: {names}"
 
     return f"\n<tool_catalog>\n{catalog}\n</tool_catalog>"
+
+
+@main_agent.instructions
+def dynamic_agent_knowledge(ctx: RunContext[AssistantDeps]) -> str:
+    """Describe Agents only to a user who can build them with the agent tools."""
+
+    return AGENT_KNOWLEDGE if "apply_agent_setup" in ctx.deps.permitted_tools else ""
 
 
 @main_agent.instructions

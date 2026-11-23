@@ -35,11 +35,17 @@ from baserow.contrib.agent.registries import agent_tool_type_registry
 from baserow.contrib.automation.models import Automation
 from baserow.core.exceptions import PermissionDenied
 from baserow.core.models import Workspace
-from baserow_enterprise.assistant.agents import dynamic_unavailable_tools, main_agent
+from baserow_enterprise.assistant.agents import (
+    dynamic_agent_knowledge,
+    dynamic_unavailable_tools,
+    main_agent,
+)
 from baserow_enterprise.assistant.deps import AgentMode, AssistantDeps
 from baserow_enterprise.assistant.model_profiles import (
     ResolvedAssistantModelProfile,
 )
+from baserow_enterprise.assistant.prompts import AGENT_SYSTEM_PROMPT
+from baserow_enterprise.assistant.tools.core.tools import switch_mode
 from baserow_enterprise.assistant.tools.registries import assistant_tool_registry
 from baserow_enterprise.assistant.tools.routing import (
     ModeAwareToolset,
@@ -787,3 +793,22 @@ def test_fixer_crash_degrades_to_model_retry_with_the_report() -> None:
         with pytest.raises(ModelRetry, match="did NOT run"):
             asyncio.run(toolset.call_tool("create_fields", {"fields": []}, None, None))
     inner_call.assert_not_awaited()
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("agent_builder", [False, True])
+def test_kuma_offers_agents_only_when_it_can_build_them(
+    data_fixture: Any, settings, agent_builder: bool
+) -> None:
+    settings.FEATURE_FLAGS = ["agent-builder"] if agent_builder else []
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    built = build_production_toolset(user, workspace)
+    ctx = SimpleNamespace(deps=built.deps)
+
+    assert ("list_agents" in built.catalog) is agent_builder
+    assert "Agent →" not in AGENT_SYSTEM_PROMPT
+    assert ("Agent →" in dynamic_agent_knowledge(ctx)) is agent_builder
+    switched = switch_mode(ctx, "agent", thought="t")
+    assert (built.deps.mode == AgentMode.AGENT) is agent_builder
+    assert ("isn't available" in switched) is not agent_builder
