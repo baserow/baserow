@@ -124,10 +124,10 @@ export default {
               run: () => this.openModal('settingsModal'),
             }
           : null,
-        aiProviders: this.canUpdate
+        integrations: this.canUpdate
           ? {
               icon: 'iconoir-puzzle',
-              label: 'workspaceSettingType.aiProviders',
+              label: 'sidebar.integrations',
               run: () => this.openModal('settingsModal', 'generative-ai'),
             }
           : null,

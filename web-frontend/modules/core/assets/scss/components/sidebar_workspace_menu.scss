@@ -63,6 +63,13 @@
     }
   }
 
+  .sidebar-workspace-menu__badge {
+    margin-inline-start: -4px;
+    padding-inline: 6px;
+    font-weight: 500;
+    line-height: 12px;
+  }
+
   button.context__menu-item-link {
     width: 100%;
     border: 0;

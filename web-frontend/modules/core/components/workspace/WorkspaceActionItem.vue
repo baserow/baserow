@@ -17,6 +17,7 @@
         aria-hidden="true"
       ></i>
       {{ $t(action.label) }}
+      <slot />
     </NuxtLink>
     <button
       v-else
@@ -35,6 +36,7 @@
         aria-hidden="true"
       ></i>
       {{ $t(action.label) }}
+      <slot />
     </button>
   </li>
 </template>

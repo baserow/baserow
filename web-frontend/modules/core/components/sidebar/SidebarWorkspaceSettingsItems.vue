@@ -7,7 +7,16 @@
       role="separator"
     ></li>
     <WorkspaceActionItem v-if="canListMembers" :action="actions.members" />
-    <WorkspaceActionItem :action="actions.aiProviders" />
+    <WorkspaceActionItem :action="actions.integrations">
+      <Badge
+        tag="span"
+        size="small"
+        color="cyan"
+        class="sidebar-workspace-menu__badge"
+      >
+        {{ $t('sidebar.new') }}
+      </Badge>
+    </WorkspaceActionItem>
     <component
       :is="component"
       v-for="(component, index) in extensions"

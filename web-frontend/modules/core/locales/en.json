@@ -221,6 +221,8 @@
     "addNewWorkspace": "Add new workspace",
     "workspaceActions": "{workspace} actions",
     "inviteOthers": "Invite others",
+    "integrations": "Integrations",
+    "new": "New",
     "members": "Members",
     "logoff": "Log out",
     "errorNoWorkspace": "You don’t have any workspaces.",
