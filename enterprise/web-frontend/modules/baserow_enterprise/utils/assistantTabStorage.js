@@ -5,7 +5,7 @@ const CHAT_UUID_KEY = 'baserow.assistant.chatUuid'
 const PANEL_OPEN_KEY = 'baserow.assistant.panelOpen'
 const ONBOARDING_RUN_ID_KEY = 'baserow.assistant.onboardingRunId'
 
-let tabId = null
+const inMemory = { [TAB_ID_KEY]: null, [ONBOARDING_RUN_ID_KEY]: null }
 
 function read(key) {
   try {
@@ -25,20 +25,29 @@ function write(key, value) {
   } catch {}
 }
 
-function leaveTabIdForNextPage() {
-  write(TAB_ID_KEY, tabId)
+/**
+ * A duplicated tab copies sessionStorage, so what must stay with one tab lives
+ * in memory and is stored only once its page goes away: during a reload, and
+ * for as long as the tab shows another site. A tab duplicated meanwhile gets
+ * the same values.
+ */
+function leaveForNextPage() {
+  for (const [key, value] of Object.entries(inMemory)) {
+    write(key, value)
+  }
 }
 
-function takeTabIdFromPreviousPage() {
-  tabId = read(TAB_ID_KEY) || tabId
-  write(TAB_ID_KEY, null)
+function takeFromPreviousPage() {
+  for (const key of Object.keys(inMemory)) {
+    inMemory[key] = read(key) || inMemory[key]
+    write(key, null)
+  }
 }
 
-// Duplicated tabs copy sessionStorage, so the id is stored only between pages.
 if (import.meta.client) {
-  takeTabIdFromPreviousPage()
-  window.addEventListener('pagehide', leaveTabIdForNextPage)
-  window.addEventListener('pageshow', takeTabIdFromPreviousPage)
+  takeFromPreviousPage()
+  window.addEventListener('pagehide', leaveForNextPage)
+  window.addEventListener('pageshow', takeFromPreviousPage)
 }
 
 /**
@@ -46,8 +55,8 @@ if (import.meta.client) {
  *   follows only the tab that sent the message.
  */
 export function getTabId() {
-  tabId ??= uuid()
-  return tabId
+  inMemory[TAB_ID_KEY] ??= uuid()
+  return inMemory[TAB_ID_KEY]
 }
 
 /**
@@ -77,12 +86,12 @@ export function storePanelOpen(open) {
 
 /**
  * @returns {string|null} The run the onboarding handed over to this tab,
- *   whose first table opens once the run is done.
+ *   whose first table opens once the run is done, also after a reload.
  */
-export function getStoredOnboardingRunId() {
-  return read(ONBOARDING_RUN_ID_KEY)
+export function getOnboardingRunId() {
+  return inMemory[ONBOARDING_RUN_ID_KEY]
 }
 
-export function storeOnboardingRunId(runId) {
-  write(ONBOARDING_RUN_ID_KEY, runId)
+export function setOnboardingRunId(runId) {
+  inMemory[ONBOARDING_RUN_ID_KEY] = runId
 }

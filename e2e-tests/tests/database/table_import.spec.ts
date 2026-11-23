@@ -322,9 +322,10 @@ test.describe("Table import job restore after reload", () => {
       { timeout: 15000 }
     );
 
-    // After reload, navigate back to the table and reopen the import modal
-    await page.getByTitle("ExistingImportDb").click();
-    await page.getByText("Target").click();
+    // Reloading the table keeps it selected and its database expanded.
+    await expect(page).toHaveURL(
+      new RegExp(`/database/${existingDb.id}/table/${table.id}(?:/|$)`)
+    );
 
     // Wait for the job store to pick up the (intercepted) running job.
     await page.waitForFunction(

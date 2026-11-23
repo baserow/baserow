@@ -10,12 +10,11 @@
         </p>
       </div>
     </div>
-    <div class="sidebar__new-wrapper sidebar__new-wrapper--separator">
-      <a
-        v-if="$hasPermission('create_workspace')"
-        class="sidebar__new"
-        @click="$refs.createWorkspaceModal.show()"
-      >
+    <div
+      v-if="$hasPermission('create_workspace')"
+      class="sidebar__new-wrapper sidebar__new-wrapper--separator"
+    >
+      <a class="sidebar__new" @click="$refs.createWorkspaceModal.show()">
         <i class="sidebar__new-icon iconoir-plus"></i>
         {{ $t('sidebar.createWorkspace') }}
       </a>

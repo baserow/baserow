@@ -54,10 +54,7 @@ def scopes_to_q_filter(scopes: List[ActionScopeStr]):
     then a Q which matches all actions will be returned.
     """
 
-    q = Q()
-    for scope_str in scopes:
-        q |= Q(scope=scope_str)
-    return q
+    return Q(scope__in=scopes) if scopes else Q()
 
 
 class OneActionHasErrorAndCannotBeRedone(Exception):

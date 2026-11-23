@@ -3,6 +3,7 @@ from typing import Any
 
 from drf_spectacular.extensions import OpenApiSerializerExtension
 from drf_spectacular.plumbing import force_instance
+from drf_spectacular.utils import extend_schema_serializer
 from rest_framework import serializers
 
 from baserow_enterprise.assistant.models import AssistantChat, AssistantChatPrediction
@@ -135,6 +136,7 @@ class AssistantDecideApprovalsRequestSerializer(serializers.Serializer):
     tab_id = serializers.CharField(default="", allow_blank=True, max_length=64)
 
 
+@extend_schema_serializer(deprecate_fields=["status"])
 class AssistantChatSerializer(serializers.ModelSerializer):
     chat_id = serializers.IntegerField(
         source="id",

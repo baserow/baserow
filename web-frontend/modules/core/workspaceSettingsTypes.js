@@ -2,6 +2,12 @@ import { SettingsType } from '@baserow/modules/core/settingsTypes'
 import AIProviderWorkspaceSettings from '@baserow/modules/core/components/workspace/AIProviderWorkspaceSettings'
 import SnapshotsWorkspaceSettings from '@baserow/modules/core/components/workspace/SnapshotsWorkspaceSettings'
 
+export function getEnabledWorkspaceSettings(registry, workspace) {
+  return registry
+    .getOrderedList('workspaceSettings')
+    .filter((setting) => setting.isEnabled(workspace) === true)
+}
+
 export class GenerativeAIWorkspaceSettingsType extends SettingsType {
   static getType() {
     return 'generative-ai'

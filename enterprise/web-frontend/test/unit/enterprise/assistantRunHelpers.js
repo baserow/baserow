@@ -1,10 +1,12 @@
 import { vi } from 'vitest'
 import { TestApp } from '@baserow/test/helpers/testApp'
+import { setOnboardingRunId } from '@baserow_enterprise/utils/assistantTabStorage'
 
 export function createRunsTestApp() {
   vi.clearAllMocks()
   vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
   sessionStorage.clear()
+  setOnboardingRunId(null)
   const testApp = new TestApp()
   testApp.authenticate({ id: 1, first_name: 'Test' })
   const realtime = testApp.getApp().$realtime

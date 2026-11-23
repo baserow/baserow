@@ -1,14 +1,18 @@
 <template>
-  <div class="badge" :class="classes">
+  <component :is="tag" class="badge" :class="classes">
     <i v-if="indicator" class="badge__indicator"></i>
     <span class="badge__label"><slot /></span>
-  </div>
+  </component>
 </template>
 
 <script>
 export default {
   name: 'Badge',
   props: {
+    tag: {
+      type: String,
+      default: 'div',
+    },
     /**
      * The color scheme of the badge
      * Possible values are: `cyan` | `green` | `yellow` | `red` | `magenta` | `purple` | `neutral`
@@ -46,6 +50,16 @@ export default {
       default: false,
     },
     /**
+     * The visual style of the badge: `filled` or `outline`.
+     */
+    variant: {
+      type: String,
+      default: 'filled',
+      validator(value) {
+        return ['filled', 'outline'].includes(value)
+      },
+    },
+    /**
      * The size of the badge
      * Possible values are: `regular` | `small` | `large`
      */
@@ -72,6 +86,7 @@ export default {
         [`badge--${this.color}`]: this.color,
         [`badge--${this.size}`]: this.size,
         [`badge--rounded`]: this.rounded,
+        'badge--outline': this.variant === 'outline',
         [`badge--bold`]: this.bold,
       }
       return classObj

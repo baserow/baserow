@@ -1,10 +1,6 @@
 <template>
-  <SidebarApplication
-    :workspace="workspace"
-    :application="application"
-    @selected="selected"
-  >
-    <template v-if="isAppSelected(application)" #body>
+  <SidebarApplication :workspace="workspace" :application="application">
+    <template #body>
       <ul class="tree__subs">
         <SidebarItem
           v-for="table in orderedTables"
@@ -41,7 +37,7 @@
           )
         "
         class="tree__sub-add"
-        data-highlight="create-table"
+        :data-highlight="`create-table-${application.id}`"
         @click="$refs.createTableModal.show()"
       >
         <i class="tree__sub-add-icon iconoir-plus"></i>
@@ -53,7 +49,6 @@
 </template>
 
 <script>
-import { mapGetters } from 'vuex'
 import { notifyIf } from '@baserow/modules/core/utils/error'
 import SidebarItem from '@baserow/modules/database/components/sidebar/SidebarItem'
 import SidebarApplication from '@baserow/modules/core/components/sidebar/SidebarApplication'
@@ -89,16 +84,8 @@ export default {
           .isJobPartOfApplication(job, this.application)
       )
     },
-    ...mapGetters({ isAppSelected: 'application/isSelected' }),
   },
   methods: {
-    async selected(application) {
-      try {
-        await this.$store.dispatch('application/select', application)
-      } catch (error) {
-        notifyIf(error, 'workspace')
-      }
-    },
     async orderTables(order, oldOrder) {
       try {
         await this.$store.dispatch('table/order', {

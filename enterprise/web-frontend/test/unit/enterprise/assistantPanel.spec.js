@@ -73,6 +73,38 @@ describe('AssistantPanel', () => {
     expect(document.activeElement.className).toBe('assistant__input-textarea')
   })
 
+  test.each([
+    [
+      'typed in the panel',
+      async (wrapper) => {
+        await wrapper.find('.assistant__input-textarea').setValue('Build it')
+        await wrapper.find('.assistant__send-button').trigger('click')
+      },
+    ],
+    [
+      'typed somewhere else',
+      () => store.dispatch('assistant/setPendingPrompt', 'Build it'),
+    ],
+  ])(
+    'a prompt %s goes back into the input when the run limit refuses it',
+    async (_, sendPrompt) => {
+      service.sendMessage.mockRejectedValue(
+        Object.assign(new Error('Refused'), {
+          response: { status: 429 },
+          handler: { isTooManyRequests: () => true },
+        })
+      )
+      const wrapper = await testApp.mount(AssistantPanel, {
+        props: { workspace },
+      })
+      await sendPrompt(wrapper)
+      await flushPromises()
+      expect(wrapper.find('.assistant__input-textarea').element.value).toBe(
+        'Build it'
+      )
+    }
+  )
+
   test('drops a pending prompt when the workspace changes before it starts', async () => {
     const { wrapper } = await mountWithRunningChat()
     const dispatch = store.dispatch.bind(store)

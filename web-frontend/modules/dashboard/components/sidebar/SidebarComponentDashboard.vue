@@ -6,9 +6,7 @@
       :application="application"
       :highlighted="isAppSelected(application)"
       @selected="selected"
-    >
-      <template v-if="isAppSelected(application)" #body></template>
-    </SidebarApplication>
+    />
   </div>
 </template>
 
