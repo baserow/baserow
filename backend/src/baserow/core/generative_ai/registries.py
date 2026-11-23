@@ -55,7 +55,6 @@ class GenerativeAIModelConfiguration:
 
 _DEFAULT_MODEL_CONFIGURATION = GenerativeAIModelConfiguration()
 
-# Groq and Mistral SDKs still use httpx, the others httpx2.
 _TRANSPORT_ERRORS = (httpx.TransportError, httpx2.TransportError)
 
 
