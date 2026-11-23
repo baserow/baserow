@@ -71,6 +71,11 @@
             />
           </template>
         </div>
+        <AssistantApprovalCard
+          v-for="approval in message.approvals || []"
+          :key="approval.id"
+          :approval="approval"
+        />
         <div v-if="outcomeKey(message)" class="assistant__message-run-outcome">
           {{ $t(outcomeKey(message)) }}
         </div>
@@ -113,6 +118,7 @@ import ChatTyping from '@baserow/modules/core/components/chat/ChatTyping'
 import ChatMessageFooter from '@baserow/modules/core/components/chat/ChatMessageFooter'
 import AssistantMessageSources from './AssistantMessageSources'
 import AssistantMessageActions from './AssistantMessageActions'
+import AssistantApprovalCard from './AssistantApprovalCard'
 import { runOutcomeKey } from '@baserow_enterprise/utils/assistant'
 
 export default {
@@ -124,6 +130,7 @@ export default {
     ChatMessageFooter,
     AssistantMessageSources,
     AssistantMessageActions,
+    AssistantApprovalCard,
   },
   props: {
     messages: { type: Array, default: () => [] },

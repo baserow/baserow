@@ -80,6 +80,7 @@ def _routes_for(
 
 @cache
 def _tool_routes() -> dict[str, _ToolRoute]:
+    from .agent.tools import TOOL_FUNCTIONS as agent_tools
     from .automation.tools import TOOL_FUNCTIONS as automation_tools
     from .builder.tools import TOOL_FUNCTIONS as application_tools
     from .core.tools import (
@@ -108,6 +109,7 @@ def _tool_routes() -> dict[str, _ToolRoute]:
     automation_mode = frozenset({AgentMode.AUTOMATION})
     dashboard_mode = frozenset({AgentMode.DASHBOARD})
     explain_mode = frozenset({AgentMode.EXPLAIN})
+    agent_mode = frozenset({AgentMode.AGENT})
 
     database_tools = [*TOOL_FUNCTIONS, *ROW_COMMENT_FUNCTIONS]
     database_reads = [
@@ -141,6 +143,7 @@ def _tool_routes() -> dict[str, _ToolRoute]:
             automation_mode | explain_mode,
         ),
         **_routes_for(dashboard_tools, AgentMode.DASHBOARD, dashboard_mode),
+        **_routes_for(agent_tools, AgentMode.AGENT, agent_mode),
         **_routes_for(
             dashboard_reads,
             AgentMode.DASHBOARD,

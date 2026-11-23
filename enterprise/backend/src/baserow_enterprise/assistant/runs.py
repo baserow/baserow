@@ -1,5 +1,7 @@
 from dataclasses import dataclass
-from typing import Any, TypedDict
+from typing import Any, NotRequired, TypedDict
+
+from pydantic_ai import DeferredToolResults
 
 from baserow.core.chat_runs.constants import ChatRunErrorCode
 
@@ -22,6 +24,8 @@ class AssistantRunContext(TypedDict):
     ui_context: dict[str, Any]
     origin_tab_id: str
     generate_title: bool
+    resume_message_id: NotRequired[int]
+    """The AI message whose paused run this run continues, once decided."""
 
 
 @dataclass(frozen=True)
@@ -34,3 +38,14 @@ class AssistantRunResult:
     trace_id: str | None = None
     title: str | None = None
     onboarding_target: dict[str, Any] | None = None
+    paused: dict[str, Any] | None = None
+    """The paused run and its held calls, when the run waits for approval."""
+
+
+@dataclass(frozen=True)
+class AssistantResume:
+    """A paused run to continue with the owner's decisions on its held calls."""
+
+    messages_json: bytes
+    deferred_tool_results: DeferredToolResults
+    mode: str

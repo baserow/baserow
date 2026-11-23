@@ -1,6 +1,7 @@
 from django.urls import path
 
 from .views import (
+    AssistantChatApprovalsView,
     AssistantChatMessageFeedbackView,
     AssistantChatsView,
     AssistantChatView,
@@ -19,6 +20,11 @@ urlpatterns = [
         "chat/<uuid:chat_uuid>/cancel/",
         AssistantChatView.as_view(),
         name="cancel_message",
+    ),
+    path(
+        "chat/<uuid:chat_uuid>/approvals/",
+        AssistantChatApprovalsView.as_view(),
+        name="decide_approvals",
     ),
     path(
         "chat/",

@@ -20,3 +20,11 @@ class AssistantConfiguredModelNotAvailableError(AssistantModelNotSupportedError)
 
 class AssistantChatMessagePredictionDoesNotExist(AssistantException):
     pass
+
+
+class AssistantChatWaitingForApproval(AssistantException):
+    """Raised when a message is sent while Kuma waits for an approval decision."""
+
+
+class AssistantToolApprovalNotPending(AssistantException):
+    """Raised when an approval is decided already or isn't waiting in the chat."""

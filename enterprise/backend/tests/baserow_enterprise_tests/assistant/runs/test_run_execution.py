@@ -1,4 +1,5 @@
 import asyncio
+import json
 import threading
 from unittest.mock import MagicMock
 
@@ -12,8 +13,10 @@ from pydantic_ai.messages import (
     ModelRequest,
     ModelResponse,
     TextPart,
+    ToolReturnPart,
     UserPromptPart,
 )
+from pydantic_ai.models.function import DeltaToolCall
 from pytest_mock import MockerFixture
 
 from baserow.config.db_routers import get_db_alias
@@ -302,3 +305,72 @@ def test_tools_run_with_the_context_of_the_sending_request(
     action = Action.objects.get(type=CreateApplicationActionType.type)
     assert action.session == run.context["client_session_id"]
     assert str(action.action_group) == run.context["action_group_id"]
+
+
+@pytest.mark.django_db(transaction=True)
+def test_a_resumed_run_that_pauses_again_resumes_with_only_its_new_decision(
+    assistant_run, enterprise_data_fixture, kuma_model, mocker, fast_journal
+):
+    from baserow.contrib.agent.models import AgentApplication
+    from baserow_enterprise.assistant.deps import AgentMode
+    from baserow_enterprise.assistant.models import AssistantToolApproval
+
+    mocker.patch(
+        "baserow_enterprise.assistant.assistant._mode_for_ui_context",
+        return_value=AgentMode.AGENT,
+    )
+    mocker.patch.object(ChatRunHandler, "_enqueue")
+    run = assistant_run(content="Build two Agents")
+    chat = AssistantChat.objects.get(id=run.chat_id)
+    identity = enterprise_data_fixture.create_identity(workspace=chat.workspace)
+    answers = []
+
+    async def stream(messages, info):
+        returns = {
+            part.tool_call_id: part.content
+            for message in messages
+            if isinstance(message, ModelRequest)
+            for part in message.parts
+            if isinstance(part, ToolReturnPart)
+        }
+        if "call-2" in returns:
+            answers.append(returns["call-2"])
+            yield "Created Bot 1 only."
+            return
+        call_id = "call-2" if "call-1" in returns else "call-1"
+        setup = {
+            "name": f"Bot {call_id[-1]}",
+            "run_as_identity_id": identity.id,
+            "allowed_tools": ["list_tables", "create_tables"],
+        }
+        yield {
+            0: DeltaToolCall(
+                name="apply_agent_setup",
+                json_args=json.dumps({"thought": "t", "setup": setup}),
+                tool_call_id=call_id,
+            )
+        }
+
+    kuma_model(stream)
+    execute_chat_run(str(run.id))
+    handler = AssistantHandler()
+    ui_context = UIContext.model_validate(run.context["ui_context"])
+
+    for decision in (
+        {"approved": True},
+        {"approved": False, "reason": "One is enough"},
+    ):
+        pending = AssistantToolApproval.objects.get(
+            message__chat=chat, status="pending"
+        )
+        run, _ = handler.decide_approvals(
+            chat.user, chat, [{"id": pending.id, **decision}], ui_context, ""
+        )
+        execute_chat_run(str(run.id))
+
+    run.refresh_from_db()
+    assert run.status == ChatRunStatus.COMPLETED
+    assert run.outcome["content"] == "Created Bot 1 only."
+    assert "One is enough" in answers[0]
+    agents = AgentApplication.objects.filter(workspace=chat.workspace)
+    assert list(agents.values_list("name", flat=True)) == ["Bot 1"]

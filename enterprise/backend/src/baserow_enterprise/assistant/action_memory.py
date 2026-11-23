@@ -36,6 +36,7 @@ _MUTATION_PREFIXES = (
     "setup_",
     "set_",
     "move_",
+    "apply_",
 )
 _MUTATION_RESULT_PREFIXES = (
     "created_",

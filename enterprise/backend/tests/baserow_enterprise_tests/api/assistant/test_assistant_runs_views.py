@@ -313,6 +313,7 @@ def test_a_reloaded_chat_shows_how_each_answer_ended(api_client, member):
         "sources": ["https://baserow.io/docs"],
         "can_submit_feedback": True,
         "human_sentiment": None,
+        "approvals": [],
         "run_status": "failed",
         "error_code": "interrupted",
         "onboarding_target": None,

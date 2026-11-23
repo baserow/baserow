@@ -2,7 +2,13 @@
   <div class="assistant__input">
     <div class="assistant__input-status" :class="{ 'is-running': isRunning }">
       <i class="iconoir-sparks assistant__input-status-icon"></i>
-      <span v-if="!isRunning" class="assistant__status-message">
+      <span
+        v-if="!isRunning && isWaitingForApproval"
+        class="assistant__status-message"
+      >
+        {{ $t('assistant.waitingForApproval') }}
+      </span>
+      <span v-else-if="!isRunning" class="assistant__status-message">
         {{ $t('assistantInputMessage.statusWaiting') }}
       </span>
       <span v-else class="assistant__status-message">
@@ -26,12 +32,11 @@
         <button
           class="assistant__send-button"
           :class="{
-            'assistant__send-button--disabled':
-              (!currentMessage.trim() && !isRunning) || isCancelling,
+            'assistant__send-button--disabled': sendDisabled,
             'assistant__send-button--is-running': isRunning,
             'assistant__send-button--is-cancelling': isCancelling,
           }"
-          :disabled="(!currentMessage.trim() && !isRunning) || isCancelling"
+          :disabled="sendDisabled"
           :title="
             isRunning
               ? $t('assistantInputMessage.stop')
@@ -73,6 +78,10 @@ export default {
       type: String,
       default: '',
     },
+    isWaitingForApproval: {
+      type: Boolean,
+      default: false,
+    },
   },
   data() {
     return {
@@ -80,6 +89,13 @@ export default {
       minRows: 1,
       maxRows: 6,
     }
+  },
+  computed: {
+    /** Like an Agent's conversation, the chat waits for a pending change's decision. */
+    sendDisabled() {
+      if (this.isRunning) return this.isCancelling
+      return !this.currentMessage.trim() || this.isWaitingForApproval
+    },
   },
   mounted() {
     this.calculateLineHeight()
@@ -116,7 +132,7 @@ export default {
     },
     sendMessage() {
       const message = this.currentMessage.trim()
-      if (!message || this.isRunning) return
+      if (!message || this.isRunning || this.isWaitingForApproval) return
 
       this.$emit('send-message', message)
 

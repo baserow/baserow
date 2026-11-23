@@ -285,4 +285,57 @@ describe('AssistantMessageList', () => {
     expect(wrapper.findAll('button[aria-label="action.copy"]')).toHaveLength(2)
     expect(wrapper.find('[aria-busy="true"]').exists()).toBe(false)
   })
+
+  test('decides a held change from its card and goes back to pending when saving fails', async () => {
+    const store = testApp.store
+    const chatId = await store.dispatch('assistant/createChat')
+    const held = answer({
+      id: 8,
+      content: 'I need your approval before I make this change.',
+      approvals: [
+        {
+          id: 3,
+          status: 'pending',
+          reason: '',
+          title: 'Create the Agent "Triage"',
+          changes: ['Let the Agent use create_rows without asking first'],
+        },
+      ],
+    })
+    store.commit('assistant/SET_MESSAGES', [held])
+    expect(store.getters['assistant/isWaitingForApproval']).toBe(true)
+    service.decideApprovals = vi
+      .fn()
+      .mockRejectedValueOnce(new Error('offline'))
+      .mockResolvedValue({ run: null, chat_id: 1 })
+    const wrapper = await testApp.mount(AssistantMessageList, {
+      props: { messages: store.getters['assistant/messages'] },
+    })
+    expect(wrapper.get('.assistant-approval__change').text()).toBe(
+      'Let the Agent use create_rows without asking first'
+    )
+
+    const buttons = () => wrapper.findAll('.assistant-approval__actions button')
+    await buttons()[1].trigger('click')
+    await wrapper.get('.assistant-approval__reason').setValue(' Not that table ')
+    await buttons()[0].trigger('click')
+    await flushPromises()
+    expect(service.decideApprovals).toHaveBeenLastCalledWith(
+      chatId,
+      [{ id: 3, approved: false, reason: 'Not that table' }],
+      expect.anything(),
+      expect.anything()
+    )
+    expect(store.getters['assistant/messages'][0].approvals[0].status).toBe(
+      'pending'
+    )
+
+    await buttons()[0].trigger('click')
+    await flushPromises()
+    expect(store.getters['assistant/messages'][0].approvals[0]).toMatchObject({
+      status: 'rejected',
+      reason: 'Not that table',
+    })
+    expect(store.getters['assistant/isWaitingForApproval']).toBe(false)
+  })
 })

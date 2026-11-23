@@ -55,12 +55,13 @@ Ambiguous terms — pick by context, confirm only if truly unclear:
 
 BASEROW_KNOWLEDGE = """\
 <baserow_knowledge>
-Workspace → Databases, Applications, Automations, Dashboards
+Workspace → Databases, Applications, Automations, Dashboards, Agents
 Database → Tables → Fields (30+ types, link_row for relations) + Views (grid, form, kanban, calendar, gallery, timeline) + Rows
 Application → Pages → Elements + Data Sources + Actions
 Shared elements: Headers/footers live on a shared page and appear on ALL pages. ONLY put site-wide navigation in them (menus, logo, links). NEVER put page-specific content inside headers/footers.
 Automation → Workflows → Trigger + Action/Router/Iterator nodes (use $formula: followed by a description for dynamic values)
 Dashboard → Widgets: summary (one aggregated field), chart and pie chart (series, optionally grouped by a field) over a table or view
+Agent → Instructions + the tools it may use (tools that change data can ask first) + triggers that start it + actions. Build and edit one with the agent tools, and test it in a test conversation, which shows the Agent's own work; creating rows yourself does not test it.
 </baserow_knowledge>
 """
 

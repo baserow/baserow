@@ -176,6 +176,12 @@ class AgentConversation(
     # The list indexes lead with the agent, so reads never need one on trashed.
     trashed = models.BooleanField(default=False, db_default=False)
     pinned = models.BooleanField(default=False, db_default=False)
+    is_test = models.BooleanField(
+        default=False,
+        db_default=False,
+        help_text="Whether Kuma started the conversation to test the Agent. Every "
+        "tool that changes data, and every action, asks first in it.",
+    )
 
     @property
     def is_shared(self) -> bool:

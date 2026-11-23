@@ -1,3 +1,4 @@
+import json
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
@@ -7,6 +8,7 @@ from django.utils import translation
 
 from asgiref.sync import sync_to_async
 from loguru import logger
+from pydantic_ai import DeferredToolResults, ToolDenied
 
 from baserow.api.sessions import (
     set_client_undo_redo_action_group_id,
@@ -29,13 +31,19 @@ from .model_profiles import (
     check_lm_ready_or_raise,
     resolve_assistant_model,
 )
-from .models import AssistantChat, AssistantChatMessage, AssistantChatPrediction
+from .models import (
+    AssistantChat,
+    AssistantChatMessage,
+    AssistantChatPrediction,
+    AssistantToolApproval,
+)
 from .operations import ChatAssistantChatOperationType
 from .runs import (
     ASSISTANT_RUN_TYPE,
     ERROR_ACCESS_LOST,
     ERROR_MODEL_UNAVAILABLE,
     NOTHING_RAN_ERROR_CODES,
+    AssistantResume,
     AssistantRunResult,
 )
 from .telemetry import AssistantTraceOutcome, PosthogTracingCallback
@@ -74,6 +82,7 @@ class RestoredRun:
     human_message: AssistantChatMessage
     ui_context: UIContext
     model_profile: ResolvedAssistantModelProfile
+    resume: AssistantResume | None = None
 
 
 class AssistantChatRunType(ChatRunType):
@@ -167,6 +176,7 @@ class AssistantChatRunType(ChatRunType):
                 restored.human_message.content,
                 restored.ui_context,
                 run.context["generate_title"],
+                restored.resume,
             )
 
     def _restore(self, run: ChatRun) -> RestoredRun:
@@ -205,6 +215,43 @@ class AssistantChatRunType(ChatRunType):
             human_message=human_message,
             ui_context=ui_context,
             model_profile=model_profile,
+            resume=self._resume_of(chat, run),
+        )
+
+    def _resume_of(self, chat: AssistantChat, run: ChatRun) -> AssistantResume | None:
+        """
+        :param chat: The run's chat.
+        :param run: A run, which continues a paused one once its calls are decided.
+        :return: The paused run's messages with the owner's decisions, or None for
+            a run that answers a new message. An approved call carries the digest
+            it was approved with, so the tool checks it still makes the same change.
+        """
+
+        message_id = run.context.get("resume_message_id")
+        if message_id is None:
+            return None
+        message = chat.messages.get(id=message_id)
+        paused = message.artifacts["paused"]
+        approvals: dict[str, bool | ToolDenied] = {}
+        metadata: dict[str, dict[str, Any]] = {}
+        # A resumed run can pause again on the same message, so only the calls
+        # held by this pause are answered; earlier ones were already resumed.
+        held = message.approvals.filter(tool_call_id__in=paused["tool_call_ids"])
+        for approval in held:
+            if approval.status == AssistantToolApproval.Status.APPROVED:
+                approvals[approval.tool_call_id] = True
+                metadata[approval.tool_call_id] = {"tool_key": approval.tool_key}
+            else:
+                note = "The user rejected this change, so it was not made."
+                if approval.reason:
+                    note += f" Their reason: {approval.reason}"
+                approvals[approval.tool_call_id] = ToolDenied(note)
+        return AssistantResume(
+            messages_json=json.dumps(paused["messages"]).encode(),
+            deferred_tool_results=DeferredToolResults(
+                approvals=approvals, metadata=metadata
+            ),
+            mode=paused["mode"],
         )
 
     def persist_outcome(self, run: ChatRun, outcome: ChatRunOutcome) -> dict[str, Any]:
@@ -404,18 +451,47 @@ class AssistantChatRunType(ChatRunType):
             artifacts["onboarding_target"] = result.onboarding_target
         if status != ChatRunStatus.COMPLETED:
             artifacts["run"] = {"status": str(status), "error_code": error_code}
-        ai_message = AssistantChatMessage.objects.create(
-            chat=chat,
-            role=AssistantChatMessage.Role.AI,
-            content=result.text,
-            artifacts=artifacts,
-            action_group_id=run.context["action_group_id"],
-        )
-        AssistantChatPrediction.objects.create(
-            human_message=human_message,
-            ai_response=ai_message,
-            prediction={"answer": result.text, "posthog_trace_id": trace_id},
-        )
+        if result.paused is not None:
+            artifacts["paused"] = {
+                "messages": result.paused["messages"],
+                "mode": result.paused["mode"],
+                "tool_call_ids": [
+                    approval["tool_call_id"] for approval in result.paused["approvals"]
+                ],
+            }
+        prediction = {"answer": result.text, "posthog_trace_id": trace_id}
+        resumed_id = run.context.get("resume_message_id")
+        if resumed_id is not None:
+            # A continued run finishes the answer whose run paused, so its card stays.
+            ai_message = AssistantChatMessage.objects.select_for_update().get(
+                id=resumed_id, chat=chat
+            )
+            ai_message.content = result.text
+            ai_message.artifacts = artifacts
+            ai_message.save(update_fields=["content", "artifacts", "updated_on"])
+            AssistantChatPrediction.objects.filter(ai_response=ai_message).update(
+                prediction=prediction
+            )
+        else:
+            ai_message = AssistantChatMessage.objects.create(
+                chat=chat,
+                role=AssistantChatMessage.Role.AI,
+                content=result.text,
+                artifacts=artifacts,
+                action_group_id=run.context["action_group_id"],
+            )
+            AssistantChatPrediction.objects.create(
+                human_message=human_message,
+                ai_response=ai_message,
+                prediction=prediction,
+            )
+        if result.paused is not None:
+            AssistantToolApproval.objects.bulk_create(
+                [
+                    AssistantToolApproval(message=ai_message, **approval)
+                    for approval in result.paused["approvals"]
+                ]
+            )
 
         chat.message_history = result.message_history
         update_fields = ["message_history", "updated_on"]

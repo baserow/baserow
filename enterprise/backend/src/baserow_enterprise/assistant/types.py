@@ -157,6 +157,13 @@ class AiMessage(AiMessageChunk):
             "'DISLIKE', or None if no sentiment has been submitted."
         ),
     )
+    approvals: list[dict[str, Any]] = Field(
+        default_factory=list,
+        description=(
+            "The changes Kuma held for the user's approval, with each one's id, "
+            "status, title and the changes it makes."
+        ),
+    )
     run_status: Optional[str] = Field(
         default=None,
         description="How the run that wrote this message ended, when it didn't complete.",

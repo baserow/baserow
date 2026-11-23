@@ -11,7 +11,10 @@ from contextlib import ExitStack, contextmanager
 from types import ModuleType
 from typing import Any, TypeVar
 
-from pydantic_ai import Agent
+from django.conf import settings
+from django.test import override_settings
+
+from pydantic_ai import Agent, DeferredToolRequests, DeferredToolResults
 from pydantic_ai._utils import run_until_complete  # noqa: PLC2701
 from pydantic_ai.exceptions import UnexpectedModelBehavior, UsageLimitExceeded
 from pydantic_ai.messages import ModelRequest, ModelResponse, RetryPromptPart
@@ -308,6 +311,52 @@ def ensure_worker_safe() -> None:
 
 _Result = TypeVar("_Result")
 
+# How many approval cards in a row one case may pause on before it gives up.
+MAX_APPROVAL_ROUNDS = 5
+
+
+async def _run_approving_each_card(
+    prompt: str, **run_kwargs: Any
+) -> tuple[Any, list[dict], int]:
+    """
+    Run ``main_agent`` and approve every card it pauses on, as a user who clicks
+    Approve would, resuming the run with the digest each card carries.
+
+    :param prompt: The user's message.
+    :param run_kwargs: What ``run_agent_with_model`` takes besides the prompt.
+    :return: The last run's result, each card's tool name, title and changes, and
+        the model requests of every run together.
+    """
+
+    result = await run_agent_with_model(main_agent, prompt, **run_kwargs)
+    approvals: list[dict] = []
+    requests = result.usage.requests
+    for _ in range(MAX_APPROVAL_ROUNDS):
+        held = result.output
+        if not isinstance(held, DeferredToolRequests):
+            break
+        metadata = {}
+        for call in held.approvals:
+            call_metadata = held.metadata.get(call.tool_call_id) or {}
+            approvals.append(
+                {"tool_name": call.tool_name, **call_metadata.get("details", {})}
+            )
+            metadata[call.tool_call_id] = {
+                "tool_key": call_metadata.get("tool_key", "")
+            }
+        result = await run_agent_with_model(
+            main_agent,
+            None,
+            message_history=result.all_messages(),
+            deferred_tool_results=DeferredToolResults(
+                approvals={call.tool_call_id: True for call in held.approvals},
+                metadata=metadata,
+            ),
+            **run_kwargs,
+        )
+        requests += result.usage.requests
+    return result, approvals, requests
+
 
 async def _run_with_timeout(
     coro: Coroutine[Any, Any, _Result],
@@ -362,8 +411,10 @@ def run_case(
     ensure_worker_safe()
     load_all()
     fixtures = make_fixtures()
+    flags = [*settings.FEATURE_FLAGS, *case.feature_flags]
     try:
-        return _run_scenario(case, model, fixtures)
+        with override_settings(FEATURE_FLAGS=flags):
+            return _run_scenario(case, model, fixtures)
     finally:
         fixtures.remove_added_licence()
 
@@ -400,10 +451,9 @@ def _run_scenario(
             Agent.using_thread_executor(executor),
             ToolManager.parallel_execution_mode("sequential"),
         ):
-            result = run_until_complete(
+            result, approvals, request_count = run_until_complete(
                 _run_with_timeout(
-                    run_agent_with_model(
-                        main_agent,
+                    _run_approving_each_card(
                         case.prompt,
                         deps=ctx.deps,
                         model=ctx.model,
@@ -432,14 +482,16 @@ def _run_scenario(
 
     tool_error_count, tool_error_hint = count_tool_errors(result)
     output = EvalRunOutput(
-        answer=result.output,
+        # A run still waiting for approval after the last round has no answer.
+        answer=result.output if isinstance(result.output, str) else "",
         messages=format_message_history(result),
         tool_calls=get_tool_call_sequence(result),
         tool_error_count=tool_error_count,
         tool_error_hint=tool_error_hint,
         sources=list(ctx.deps.sources),
-        request_count=result.usage.requests,
+        request_count=request_count,
         duration_s=duration_s,
+        approvals=approvals,
     )
 
     budget_check = CheckResult(

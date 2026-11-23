@@ -508,12 +508,19 @@ APPLICATION = AgentMode.APPLICATION
 AUTOMATION = AgentMode.AUTOMATION
 DASHBOARD = AgentMode.DASHBOARD
 EXPLAIN = AgentMode.EXPLAIN
+AGENT = AgentMode.AGENT
 EVERYWHERE = frozenset(AgentMode)
 
 # Adding a tool must fail here, so its reach is a decision and not a default.
 TOOL_VISIBILITY: dict[str, frozenset[AgentMode]] = {
     "add_element_action_field_mapping": frozenset({APPLICATION}),
     "add_nodes": frozenset({AUTOMATION}),
+    "apply_agent_setup": frozenset({AGENT}),
+    "get_agent": frozenset({AGENT}),
+    "get_agent_test_result": frozenset({AGENT}),
+    "list_agent_tools": frozenset({AGENT}),
+    "list_agents": frozenset({AGENT}),
+    "test_agent": frozenset({AGENT}),
     "ask_user": EVERYWHERE,
     "create_element_actions": frozenset({APPLICATION}),
     "create_database": frozenset({DATABASE}),

@@ -9,6 +9,7 @@ renamed ``Element.order`` to ``Element.compat_order`` while
 raised ``AttributeError``.
 """
 
+import json
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Any, Callable
@@ -31,6 +32,10 @@ from baserow.core.graph.types import GraphPointPosition
 from baserow.core.models import Workspace
 from baserow.core.prosemirror.utils import prosemirror_doc_from_plain_text
 from baserow.core.tools import ToolContext
+from baserow_enterprise.assistant.tools.agent.tools import (
+    list_agent_tools,
+    list_agents,
+)
 from baserow_enterprise.assistant.tools.automation.tools import (
     list_nodes,
     list_workflows,
@@ -505,6 +510,17 @@ def _check_list_workflows(result: Any, seed: SeededWorkspace) -> None:
     assert [w["id"] for w in result["workflows"]] == [seed.workflow.id]
 
 
+def _check_list_agents(result: Any) -> None:
+    assert result == {"agents": []}
+    json.dumps(result)
+
+
+def _check_list_agent_tools(result: Any) -> None:
+    assert result["trigger_types"][-1] == "periodic"
+    assert all(not tool["deactivated"] for tool in result["tools"])
+    json.dumps(result)
+
+
 def _check_list_widgets(result: Any, seed: SeededWorkspace) -> None:
     assert_items(
         result["widgets"],
@@ -668,6 +684,16 @@ READ_TOOL_CASES: list[ReadToolCase] = [
         _check_list_nodes,
     ),
     ReadToolCase(
+        "list_agents",
+        lambda ctx, s: list_agents(ctx, thought="contract"),
+        lambda result, s: _check_list_agents(result),
+    ),
+    ReadToolCase(
+        "list_agent_tools",
+        lambda ctx, s: list_agent_tools(ctx, thought="contract"),
+        lambda result, s: _check_list_agent_tools(result),
+    ),
+    ReadToolCase(
         "list_widgets",
         lambda ctx, s: list_widgets(
             ctx, dashboard_id=s.dashboard.id, thought="contract"
@@ -720,9 +746,14 @@ def test_read_tool_contract(case: ReadToolCase, seed: SeededWorkspace) -> None:
 _WRITE = "Mutating tool; its ORM round-trip is covered by the per-domain write tests."
 _LLM = "Needs a live model call, so it cannot run deterministically here."
 _CONTROL = "Control-flow only; serializes no ORM entity."
+_AGENT = "Needs an Agent; covered by test_assistant_agent_tools."
 
 EXEMPT_TOOLS: dict[str, str] = {
     "switch_mode": _CONTROL,
+    "get_agent": _AGENT,
+    "apply_agent_setup": _AGENT,
+    "test_agent": _AGENT,
+    "get_agent_test_result": _AGENT,
     "navigate": _CONTROL,
     "ask_user": _CONTROL,
     "load_row_tools": _CONTROL,

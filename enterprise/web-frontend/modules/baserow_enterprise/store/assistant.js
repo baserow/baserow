@@ -632,6 +632,66 @@ export const actions = {
     return { outcome: SEND_OUTCOME.FAILED, runId: null }
   },
 
+  /**
+   * Approves or rejects the changes Kuma waits on, then follows the run that
+   * continues the answer once none is left undecided. The card shows the
+   * decision at once and goes back to pending when the request fails.
+   *
+   * @param {Array<{id: number, approved: boolean, reason?: string}>} decisions
+   */
+  async decideApprovals({ commit, dispatch, getters, state }, decisions) {
+    const chat = getters.currentChat
+    const message = state.messages.find((m) =>
+      (m.approvals || []).some((a) => a.id === decisions[0]?.id)
+    )
+    if (!chat || !message) return
+    const setStatuses = (statusOf) =>
+      commit('UPDATE_MESSAGE', {
+        id: message.id,
+        updates: {
+          approvals: message.approvals.map((approval) => ({
+            ...approval,
+            ...statusOf(approval),
+          })),
+        },
+      })
+    const byId = new Map(decisions.map((d) => [d.id, d]))
+    setStatuses((approval) =>
+      byId.has(approval.id)
+        ? {
+            status: byId.get(approval.id).approved ? 'approved' : 'rejected',
+            reason: byId.get(approval.id).reason || '',
+          }
+        : {}
+    )
+    commit('UPDATE_CHAT', { id: chat.id, updates: { running: true } })
+    try {
+      const { run, chat_id: chatId } = await assistant(
+        this.$client
+      ).decideApprovals(chat.id, decisions, getters.uiContext, getTabId())
+      if (run) {
+        await dispatch(
+          'chatRuns/follow',
+          {
+            runId: run.id,
+            runType: ASSISTANT_RUN_TYPE,
+            chatId,
+            context: { chatUuid: chat.id },
+            attach: true,
+          },
+          { root: true }
+        )
+      }
+    } catch (error) {
+      setStatuses((approval) =>
+        byId.has(approval.id) ? { status: 'pending', reason: '' } : {}
+      )
+      throw error
+    } finally {
+      commit('UPDATE_CHAT', { id: chat.id, updates: { running: false } })
+    }
+  },
+
   async sendMessage({ dispatch }, { message, workspace }) {
     const { outcome, runId } = await dispatch('startRun', {
       message,
@@ -687,6 +747,12 @@ export const actions = {
 
 export const getters = {
   currentChatId: (state) => state.currentChatId,
+
+  /** Whether Kuma waits for the user to approve or reject a change. */
+  isWaitingForApproval: (state) =>
+    state.messages.some((message) =>
+      (message.approvals || []).some((a) => a.status === 'pending')
+    ),
 
   pendingPrompt: (state) => state.pendingPrompt,
 

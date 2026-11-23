@@ -52,7 +52,7 @@ def list_builders(
     WHEN to use: You need to find databases, applications, automations, or dashboards in the workspace. Call this before creating builders to avoid duplicates.
     WHAT it does: Lists the builders the user can access, optionally filtered by type, one page at a time (20 by default).
     RETURNS: Dict of builders grouped by type, each with id, name, type. _info says when more pages follow.
-    DO NOT USE when: You already know the builder ID you need.
+    DO NOT USE when: You already know the builder ID you need, or you look for an Agent: list_agents lists those.
     """
 
     ctx.deps.tool_helpers.update_status(
@@ -125,9 +125,15 @@ def search_workspace(
 
     ctx.deps.tool_helpers.update_status(_("Searching the workspace..."))
 
-    return shared_search.search_workspace(
+    result = shared_search.search_workspace(
         ctx.deps.tool_context(), query=query, types=types, page=page, size=size
     )
+    if types and not result["results"]:
+        result["next_steps"] = (
+            "Nothing of those types matches. Search again with types null before "
+            "telling the user it doesn't exist: it may be another kind of item."
+        )
+    return result
 
 
 def list_audit_log(
@@ -351,13 +357,16 @@ def create_builder(
 def switch_mode(
     ctx: RunContext[AssistantDeps],
     mode: Annotated[
-        Literal["database", "application", "automation", "dashboard", "explain"],
+        Literal[
+            "database", "application", "automation", "dashboard", "agent", "explain"
+        ],
         Field(
             description=(
                 "Target mode: 'database' for table/field/view/row ops, "
                 "'application' for page/element/data-source ops, "
                 "'automation' for workflow/node ops, "
                 "'dashboard' for widget ops, "
+                "'agent' to build, edit or test Agents, "
                 "'explain' for answering Baserow questions."
             )
         ),

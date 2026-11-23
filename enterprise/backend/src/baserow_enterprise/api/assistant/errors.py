@@ -1,4 +1,8 @@
-from rest_framework.status import HTTP_400_BAD_REQUEST, HTTP_404_NOT_FOUND
+from rest_framework.status import (
+    HTTP_400_BAD_REQUEST,
+    HTTP_404_NOT_FOUND,
+    HTTP_409_CONFLICT,
+)
 
 ERROR_ASSISTANT_CHAT_DOES_NOT_EXIST = (
     "ERROR_ASSISTANT_CHAT_DOES_NOT_EXIST",
@@ -38,4 +42,16 @@ ERROR_CANNOT_SUBMIT_MESSAGE_FEEDBACK = (
     "ERROR_CANNOT_SUBMIT_MESSAGE_FEEDBACK",
     HTTP_400_BAD_REQUEST,
     "This message cannot be submitted for feedback because it has no associated prediction.",
+)
+
+ERROR_ASSISTANT_CHAT_WAITING_FOR_APPROVAL = (
+    "ERROR_ASSISTANT_CHAT_WAITING_FOR_APPROVAL",
+    HTTP_409_CONFLICT,
+    "Kuma is waiting for you to approve or reject a change in this chat.",
+)
+
+ERROR_ASSISTANT_TOOL_APPROVAL_NOT_PENDING = (
+    "ERROR_ASSISTANT_TOOL_APPROVAL_NOT_PENDING",
+    HTTP_400_BAD_REQUEST,
+    "The change was already decided or isn't waiting in this chat.",
 )

@@ -1,0 +1,9 @@
+{
+    "type": "feature",
+    "message": "Kuma can build, edit and test Agents, and asks for approval before widening what an Agent can do",
+    "issue_origin": "github",
+    "issue_number": null,
+    "domain": "core",
+    "bullet_points": [],
+    "created_at": "2026-11-23"
+}
