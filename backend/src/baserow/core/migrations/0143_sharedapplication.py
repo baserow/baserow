@@ -7,7 +7,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('core', '0141_ai_provider_excluded_workspaces'),
+        ('core', '0144_identity_definition'),
     ]
 
     operations = [
