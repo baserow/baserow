@@ -4,6 +4,7 @@ from typing import Any, Dict, Iterable
 
 from django.contrib.auth.models import AbstractUser
 
+from celery.exceptions import SoftTimeLimitExceeded
 from loguru import logger
 from rest_framework import serializers
 
@@ -34,7 +35,7 @@ from baserow.core.exceptions import (
 )
 from baserow.core.feature_flags import FF_USER_TEMPLATES, feature_flag_is_enabled
 from baserow.core.handler import CoreHandler
-from baserow.core.jobs.constants import JOB_CANCELLED
+from baserow.core.jobs.constants import JOB_CANCELLED, JOB_FAILED
 from baserow.core.jobs.exceptions import JobCancelled
 from baserow.core.jobs.handler import JobHandler
 from baserow.core.jobs.models import JobQuerySet
@@ -465,11 +466,16 @@ class CreateUserTemplateJobType(JobType):
         is locked first, so that a cancellation either lands before, and is noticed
         here, or waits for the commit and is refused by `is_cancellable`. The state
         is read from the locked row, because a progress update of this job can
-        overwrite the cancelled state in the cache.
+        overwrite the cancelled state in the cache. A job the cleanup of stuck jobs
+        already marked failed isn't committed either, because the sweep may already
+        be deleting what it left.
         """
 
-        if JobHandler.lock_job(job).state == JOB_CANCELLED:
+        state = JobHandler.lock_job(job).state
+        if state == JOB_CANCELLED:
             raise JobCancelled()
+        if state == JOB_FAILED:
+            raise SoftTimeLimitExceeded()
         # The root is revision 1 of a created template.
         job.template_id = revision.root_id or revision.id
         job.revision = revision

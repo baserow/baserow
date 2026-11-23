@@ -18,16 +18,10 @@ def test_cleanup_task_removes_templates_before_the_sweep():
             "delete_content_of_unfinished_jobs",
             calls.delete_content_of_unfinished_jobs,
         ),
-        patch.object(
-            UserTemplateHandler,
-            "delete_files_of_removed_templates",
-            calls.delete_files_of_removed_templates,
-        ),
     ):
         delete_orphaned_user_template_workspaces()
 
     assert [call[0] for call in calls.mock_calls] == [
         "delete_marked_templates",
         "delete_content_of_unfinished_jobs",
-        "delete_files_of_removed_templates",
     ]

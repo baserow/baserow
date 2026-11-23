@@ -59,14 +59,30 @@ def _create_storage_dir_if_missing_and_open(storage_location, storage=None) -> B
         return storage.open(storage_location, "wb")
 
 
+def storage_lists_by_prefix(storage: Storage) -> bool:
+    """
+    Whether `iter_storage_names_with_prefixes` lists the storage once per prefix
+    instead of reading a folder once for all the prefixes.
+
+    :param storage: The storage to list.
+    :return: True for the supported cloud storages.
+    """
+
+    from storages.backends.azure_storage import AzureStorage
+    from storages.backends.gcloud import GoogleCloudStorage
+    from storages.backends.s3 import S3Storage
+
+    return isinstance(storage, (S3Storage, GoogleCloudStorage, AzureStorage))
+
+
 def iter_storage_names_with_prefixes(
     storage: Storage, folder: str, name_prefixes: Collection[str]
 ) -> Iterator[str]:
     """
-    Yields the names of the stored files in the folder whose file name starts with
-    one of the prefixes. Local disk reads the folder once for all the prefixes;
-    cloud storages list each prefix on their side. An unknown storage yields
-    nothing.
+    Yields the names of the stored files directly in the folder whose file name
+    starts with one of the prefixes. Local disk reads the folder once for all the
+    prefixes; cloud storages list each prefix on their side. An unknown storage
+    yields nothing.
 
     :param storage: The storage to list.
     :param folder: The folder, e.g. `user_files`.
@@ -77,6 +93,7 @@ def iter_storage_names_with_prefixes(
     from storages.backends.azure_storage import AzureStorage
     from storages.backends.gcloud import GoogleCloudStorage
     from storages.backends.s3 import S3Storage
+    from storages.utils import clean_name
 
     name_prefixes = tuple(name_prefixes)
     if not name_prefixes:
@@ -93,16 +110,19 @@ def iter_storage_names_with_prefixes(
             pass
         return
 
-    if not isinstance(storage, (S3Storage, GoogleCloudStorage, AzureStorage)):
+    if not storage_lists_by_prefix(storage):
         logger.warning(
             f"Listing files by prefix isn't supported by {type(storage).__name__}."
         )
         return
 
-    location = storage.location.strip("/")
-    root = f"{location}/" if location else ""
     for name_prefix in name_prefixes:
-        prefix = f"{root}{folder}/{name_prefix}"
+        relative = f"{folder}/{name_prefix}"
+        if isinstance(storage, AzureStorage):
+            prefix = storage._get_valid_path(relative)
+        else:
+            prefix = storage._normalize_name(clean_name(relative))
+        root = prefix[: -len(relative)]
         if isinstance(storage, S3Storage):
             paginator = storage.connection.meta.client.get_paginator("list_objects_v2")
             pages = paginator.paginate(Bucket=storage.bucket_name, Prefix=prefix)
@@ -117,4 +137,6 @@ def iter_storage_names_with_prefixes(
             )
 
         for key in keys:
-            yield key[len(root) :]
+            name = key[len(root) :]
+            if "/" not in name[len(folder) + 1 :]:
+                yield name

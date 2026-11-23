@@ -6,7 +6,9 @@ from unittest.mock import patch
 from django.db import transaction
 
 import pytest
+from celery.exceptions import SoftTimeLimitExceeded
 from freezegun import freeze_time
+from storages.backends.gcloud import GoogleCloudStorage
 
 from baserow.contrib.builder.data_sources.models import DataSource
 from baserow.contrib.builder.elements.models import ChoiceElement
@@ -693,21 +695,29 @@ def test_create_user_template_job_cancelled_while_creating_the_template(data_fix
     assert_no_copy_left(source["workspace"])
 
 
-def test_create_user_template_job_cancelled_right_before_the_commit(data_fixture):
+def fail_by_the_watchdog(job):
+    CreateUserTemplateJob.objects.filter(id=job.id).update(state=JOB_FAILED)
+
+
+@pytest.mark.parametrize(
+    "stop,state",
+    [(JobHandler.cancel_job, JOB_CANCELLED), (fail_by_the_watchdog, JOB_FAILED)],
+)
+def test_create_user_template_job_stopped_right_before_the_commit(
+    data_fixture, stop, state
+):
     source = create_source(data_fixture)
     save_template = CreateUserTemplateJobType._save_template
 
-    def cancel_before_saving(self, job, template):
+    def stop_before_saving(self, job, template):
         # After the last progress report, before the job is locked.
-        JobHandler.cancel_job(CreateUserTemplateJob.objects.get())
+        stop(CreateUserTemplateJob.objects.get())
         save_template(self, job, template)
 
-    with patch.object(
-        CreateUserTemplateJobType, "_save_template", cancel_before_saving
-    ):
+    with patch.object(CreateUserTemplateJobType, "_save_template", stop_before_saving):
         job = start_job(source["user"], source["workspace"], [source["database"]])
 
-    assert job.state == JOB_CANCELLED
+    assert job.state == state
     assert job.template_id is None
     assert_no_copy_left(source["workspace"])
 
@@ -1001,6 +1011,56 @@ def test_sweep_reads_each_file_folder_once_for_all_killed_jobs(data_fixture):
     prefixes = tuple(map(template_file_prefix, workspace_ids))
     assert not [path for path in stored_paths() if path.name.startswith(prefixes)]
     assert_files_kept(kept)
+
+
+def test_sweep_on_cloud_storage_holds_back_only_the_workspace_it_cant_list(
+    data_fixture,
+):
+    user = data_fixture.create_user()
+    denied, cleaned, cut_off = [
+        create_unfinished_job(data_fixture, user, state=JOB_FAILED) for _ in range(3)
+    ]
+    out_of_time = True
+
+    def list_cloud_storage(storage, folder, name_prefixes):
+        (name_prefix,) = name_prefixes
+        if name_prefix == template_file_prefix(denied.template_workspace_id):
+            raise OSError("Access denied.")
+        if out_of_time and name_prefix == template_file_prefix(
+            cut_off.template_workspace_id
+        ):
+            raise SoftTimeLimitExceeded()
+        return iter(())
+
+    def sweep():
+        with (
+            patch(
+                "baserow.core.user_templates.handler.get_default_storage",
+                return_value=GoogleCloudStorage(bucket_name="bucket"),
+            ),
+            patch(
+                "baserow.core.user_templates.handler.iter_storage_names_with_prefixes",
+                side_effect=list_cloud_storage,
+            ),
+        ):
+            UserTemplateHandler().delete_content_of_unfinished_jobs()
+
+    with pytest.raises(SoftTimeLimitExceeded):
+        sweep()
+
+    cleaned.refresh_from_db()
+    assert cleaned.archive_name == ""
+    assert cleaned.template_workspace_id is None
+    assert Workspace.objects.filter(id=cut_off.template_workspace_id).exists()
+
+    out_of_time = False
+    sweep()
+
+    for job in (denied, cut_off):
+        job.refresh_from_db()
+    assert cut_off.template_workspace_id is None
+    assert Workspace.objects.filter(id=denied.template_workspace_id).exists()
+    assert get_default_storage().exists(denied.archive_name)
 
 
 def test_sweep_keeps_content_of_a_template_and_running_jobs(data_fixture):

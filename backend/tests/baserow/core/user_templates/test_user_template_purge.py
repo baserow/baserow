@@ -23,6 +23,7 @@ from baserow.core.models import (
     Application,
     InstallTemplateJob,
     Template,
+    UserFile,
     Workspace,
 )
 from baserow.core.storage import get_default_storage
@@ -37,7 +38,10 @@ from baserow.core.user_templates.models import (
     DownloadUserTemplateJob,
     UserTemplateContentToDelete,
 )
-from baserow.core.user_templates.tasks import delete_orphaned_user_template_workspaces
+from baserow.core.user_templates.tasks import (
+    delete_files_of_removed_user_templates,
+    delete_orphaned_user_template_workspaces,
+)
 from tests.baserow.core.user_templates.utils import (
     ICON,
     assert_files_kept,
@@ -229,22 +233,23 @@ def test_sweep_deletes_files_of_removed_templates(data_fixture):
         *upload_images("red"),
     ]
     not_a_template_file = data_fixture.create_user_file(unique="tplnotaworkspaceid")
-    delete_template_files = UserFileHandler.delete_template_files
+    refused = UserFile.objects.template_files(broken_id).order_by("id").first()
+    delete_user_file_from_storage = UserFileHandler.delete_user_file_from_storage
 
-    def fail_for_broken(handler, workspace_id, *args, **kwargs):
-        if workspace_id == broken_id:
+    def refuse_one_file(handler, user_file, *args, **kwargs):
+        if user_file.id == refused.id:
             raise ValueError("Storage unavailable.")
-        delete_template_files(handler, workspace_id, *args, **kwargs)
+        return delete_user_file_from_storage(handler, user_file, *args, **kwargs)
 
     with patch.object(
         UserFileHandler,
-        "delete_template_files",
+        "delete_user_file_from_storage",
         autospec=True,
-        side_effect=fail_for_broken,
+        side_effect=refuse_one_file,
     ):
-        delete_orphaned_user_template_workspaces()
+        delete_files_of_removed_user_templates()
 
-    assert len(live_template_files(broken_id)) == 2
+    assert live_template_files(broken_id) == {refused}
     assert_template_files_deleted(removed_id)
     assert_files_kept(kept)
     not_a_template_file.refresh_from_db()

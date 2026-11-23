@@ -56,6 +56,7 @@ from baserow.core.registries import ImportExportConfig, application_type_registr
 from baserow.core.storage import (
     get_default_storage,
     iter_storage_names_with_prefixes,
+    storage_lists_by_prefix,
 )
 from baserow.core.trash.handler import TrashHandler
 from baserow.core.user.exceptions import UserNotFound
@@ -2066,18 +2067,19 @@ class UserTemplateHandler:
         ):
             delete_template_archive_file(archive_name)
 
-    def _delete_stored_template_files(self, workspace_ids: Set[int]) -> Set[int]:
+    def _delete_stored_template_files(
+        self, workspace_ids: Set[int], storage: Storage
+    ) -> Set[int]:
         """
         Deletes the stored files and thumbnails of the template workspaces, also
         those without a row, which an unfinished job can leave. It lists the
-        storage, reading each folder once for all the workspaces, so only the sweep
-        calls it.
+        storage, so only the sweep calls it.
 
         :param workspace_ids: The ids of the template workspaces.
+        :param storage: The storage holding the files.
         :return: The ids of the workspaces whose files couldn't all be deleted.
         """
 
-        storage = get_default_storage()
         workspace_ids_by_prefix = {
             template_file_prefix(workspace_id): workspace_id
             for workspace_id in workspace_ids
@@ -2337,6 +2339,11 @@ class UserTemplateHandler:
 
         A cancelled job is only cleaned up once its worker can't be running anymore,
         because the worker notices the cancellation late and cleans up itself.
+
+        On local disk each folder is read once for all the workspaces. A cloud
+        storage lists by name prefix, so each workspace is listed, deleted and
+        retired before the next one: a workspace that can't be listed only holds
+        back itself, and what was done before the time limit stays done.
         """
 
         from baserow.core.user_templates.models import (
@@ -2371,8 +2378,44 @@ class UserTemplateHandler:
                 "workspace_id", flat=True
             )
         )
-        # Before the workspaces are deleted, which unsets them on the jobs.
-        not_deleted = self._delete_stored_template_files(workspace_ids)
+        self._delete_content_of_jobs(
+            [job for job in jobs if job.template_workspace_id not in workspace_ids],
+            [
+                content
+                for content in contents
+                if content.workspace_id not in workspace_ids
+            ],
+            set(),
+        )
+
+        storage = get_default_storage()
+        if storage_lists_by_prefix(storage):
+            groups = [{workspace_id} for workspace_id in sorted(workspace_ids)]
+        else:
+            groups = [workspace_ids]
+        for group in groups:
+            # Before the workspaces are deleted, which unsets them on the jobs.
+            not_deleted = self._delete_stored_template_files(group, storage)
+            self._delete_content_of_jobs(
+                [job for job in jobs if job.template_workspace_id in group],
+                [content for content in contents if content.workspace_id in group],
+                not_deleted,
+            )
+
+    def _delete_content_of_jobs(
+        self, jobs: List, contents: List, not_deleted: Set[int]
+    ) -> None:
+        """
+        Deletes the workspaces and archives of unfinished create jobs and tracked
+        contents, except those of the workspaces whose stored files couldn't all be
+        deleted.
+
+        :param jobs: The unfinished create jobs.
+        :param contents: The tracked contents.
+        :param not_deleted: The ids of the workspaces to keep.
+        """
+
+        from baserow.core.user_templates.models import CreateUserTemplateJob
 
         for job in jobs:
             if job.template_workspace_id in not_deleted:
@@ -2382,6 +2425,8 @@ class UserTemplateHandler:
                 self.delete_content_without_template(
                     job.template_workspace_id, job.archive_name
                 )
+            except SoftTimeLimitExceeded:
+                raise
             except Exception:
                 logger.exception(
                     f"Deleting the content of create user template job {job.id} failed."
@@ -2399,7 +2444,7 @@ class UserTemplateHandler:
         Deletes the template files whose template workspace no longer exists,
         which the templates removed before their files were deleted with them
         left. A failure is logged, so that it doesn't stop deleting the rest, and
-        the next sweep retries it.
+        the next run retries it.
         """
 
         workspace_ids = (
@@ -2424,7 +2469,7 @@ class UserTemplateHandler:
         )
         for workspace_id in workspace_ids:
             try:
-                self.delete_content_without_template(workspace_id, "")
+                UserFileHandler().delete_template_files(workspace_id)
             except SoftTimeLimitExceeded:
                 raise
             except Exception:

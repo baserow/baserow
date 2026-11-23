@@ -466,6 +466,11 @@ variables to reduce their size. When using these docker compose files make sure 
 `AWS_`, `GS_` or `AZURE_` env vars you wish to use have been added to the
 `x-backend-variables` section.
 
+Each Baserow installation needs its own bucket or container, or its own location in it
+(`AWS_LOCATION`, `GS_LOCATION` or `AZURE_LOCATION`). This includes a staging copy made
+from a production database: Baserow deletes template files by name, so two installations
+sharing the same location can delete each other's files.
+
 #### CORS Issues
 
 When using a 3rd party file storage service which is serving files from another

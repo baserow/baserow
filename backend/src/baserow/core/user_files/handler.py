@@ -607,8 +607,10 @@ class UserFileHandler:
         """
         Deletes the stored files of a user template workspace and their
         thumbnails, and marks their rows deleted. The rows of a batch are marked
-        once its files are gone, so a deletion cut off by an error goes on from
-        where it stopped when it runs again.
+        once its files are gone, so a deletion cut off goes on from where it
+        stopped when it runs again. A file the storage refuses to delete keeps its
+        row unmarked and doesn't stop the others; the first error is raised once
+        the rest are deleted.
 
         :param workspace_id: The id of the user template workspace.
         :param storage: The storage holding the files.
@@ -620,12 +622,27 @@ class UserFileHandler:
             .filter(deleted_at__isnull=True)
             .order_by("id")
         )
-        while batch := list(user_files[:TEMPLATE_FILE_DELETION_BATCH_SIZE]):
+        failed_ids = []
+        first_error = None
+        while batch := list(
+            user_files.exclude(id__in=failed_ids)[:TEMPLATE_FILE_DELETION_BATCH_SIZE]
+        ):
+            deleted_ids = []
             for user_file in batch:
-                self.delete_user_file_from_storage(user_file, storage)
-            UserFile.objects.filter(id__in=[f.id for f in batch]).update(
+                try:
+                    self.delete_user_file_from_storage(user_file, storage)
+                except SoftTimeLimitExceeded:
+                    raise
+                except Exception as error:
+                    failed_ids.append(user_file.id)
+                    first_error = first_error or error
+                else:
+                    deleted_ids.append(user_file.id)
+            UserFile.objects.filter(id__in=deleted_ids).update(
                 deleted_at=timezone.now()
             )
+        if first_error is not None:
+            raise first_error
 
     def export_user_file(
         self,

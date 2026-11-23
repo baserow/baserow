@@ -14,17 +14,18 @@ from baserow.core.storage import iter_storage_names_with_prefixes
 NAME_PREFIX = "tpl0000000012"
 PREFIX = f"user_files/{NAME_PREFIX}"
 NAMES = ["user_files/tpl0000000012_a.png", "user_files/tpl0000000012_b.png"]
+NESTED = "user_files/tpl0000000012/c.png"
 
 
 def listed_blobs(prefix):
     if prefix != f"media/{PREFIX}":
         return []
-    return [SimpleNamespace(name=f"media/{name}") for name in NAMES]
+    return [SimpleNamespace(name=f"media/{name}") for name in NAMES + [NESTED]]
 
 
 def file_system_storage(tmp_path):
     storage = FileSystemStorage(location=tmp_path)
-    for name in NAMES + ["user_files/tpl0000000120_c.png", "user_files/d.png"]:
+    for name in NAMES + ["user_files/tpl0000000120_c.png", "user_files/d.png", NESTED]:
         storage.save(name, ContentFile(b""))
     return storage
 
@@ -50,7 +51,10 @@ def s3_storage(tmp_path):
     )
     stubber.add_response(
         "list_objects_v2",
-        {"Contents": [{"Key": f"media/{NAMES[1]}"}], "IsTruncated": False},
+        {
+            "Contents": [{"Key": f"media/{NAMES[1]}"}, {"Key": f"media/{NESTED}"}],
+            "IsTruncated": False,
+        },
         {**params, "ContinuationToken": "next"},
     )
     stubber.activate()
@@ -63,9 +67,9 @@ def google_cloud_storage(tmp_path):
     return storage
 
 
-def azure_storage(tmp_path):
+def azure_storage(tmp_path, location="media"):
     storage = AzureStorage(
-        account_name="account", azure_container="container", location="media"
+        account_name="account", azure_container="container", location=location
     )
     storage._client = SimpleNamespace(
         list_blobs=lambda name_starts_with: listed_blobs(name_starts_with)
@@ -88,6 +92,12 @@ def azure_storage(tmp_path):
         (s3_storage, "user_files", [NAME_PREFIX], NAMES),
         (google_cloud_storage, "user_files", [NAME_PREFIX], NAMES),
         (azure_storage, "user_files", [NAME_PREFIX], NAMES),
+        (
+            lambda tmp_path: azure_storage(tmp_path, ".media"),
+            "user_files",
+            [NAME_PREFIX],
+            NAMES,
+        ),
         (lambda tmp_path: InMemoryStorage(), "user_files", [NAME_PREFIX], []),
     ],
 )

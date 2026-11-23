@@ -33,6 +33,7 @@ from .user.tasks import (
     share_onboarding_details_with_baserow,
 )
 from .user_templates.tasks import (
+    delete_files_of_removed_user_templates,
     delete_orphaned_user_template_workspaces,
     setup_periodic_user_template_tasks,
 )
@@ -74,5 +75,6 @@ __all__ = [
     "clean_up_stale_last_viewed_items",
     "setup_periodic_last_viewed_tasks",
     "delete_orphaned_user_template_workspaces",
+    "delete_files_of_removed_user_templates",
     "setup_periodic_user_template_tasks",
 ]
