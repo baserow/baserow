@@ -7,12 +7,14 @@ the chat owner's approval, like an Agent's ask first calls.
 import hashlib
 import json
 import time
+from collections.abc import Iterator
+from contextlib import contextmanager
 from typing import Annotated, Any, Literal
 from uuid import UUID, uuid4
 
 from django.db import transaction
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ValidationError
 from pydantic_ai import RunContext
 from pydantic_ai.exceptions import ApprovalRequired
 
@@ -20,18 +22,30 @@ from baserow.contrib.agent.action_tools.actions import (
     CreateAgentActionActionType,
     UpdateAgentActionActionType,
 )
+from baserow.contrib.agent.action_tools.exceptions import (
+    AgentActionLimitReached,
+    AgentActionTypeNotAvailable,
+)
 from baserow.contrib.agent.action_tools.service import AgentActionService
 from baserow.contrib.agent.actions import (
     CreateAgentConversationActionType,
     UpdateAgentConfigurationActionType,
 )
 from baserow.contrib.agent.application_types import AgentApplicationType
+from baserow.contrib.agent.exceptions import (
+    AgentNotReady,
+    AgentRunAsSubjectDoesNotExist,
+)
 from baserow.contrib.agent.models import AgentMessage, AgentReplyStatus
 from baserow.contrib.agent.registries import agent_tool_type_registry
 from baserow.contrib.agent.service import AgentService
 from baserow.contrib.agent.triggers.actions import (
     CreateAgentTriggerActionType,
     UpdateAgentTriggerActionType,
+)
+from baserow.contrib.agent.triggers.exceptions import (
+    AgentTriggerNoAccess,
+    AgentTriggerTypeNotAvailable,
 )
 from baserow.contrib.agent.triggers.service import AgentTriggerService
 from baserow.contrib.agent.triggers.trigger_types import ROWS_TRIGGER_TYPES
@@ -40,6 +54,7 @@ from baserow.core.formula.literals import wrap_static_string
 from baserow.core.identities.actions import CreateIdentityActionType
 from baserow.core.identities.handler import IdentityHandler
 from baserow.core.models import Workspace
+from baserow.core.services.exceptions import ServiceMisconfigured
 from baserow.core.subjects import UserSubjectType
 from baserow.core.tools import ToolContext
 from baserow.core.tools.applications import (
@@ -47,6 +62,7 @@ from baserow.core.tools.applications import (
     update_application,
     visible_applications,
 )
+from baserow.core.tools.errors import format_validation_error
 from baserow_enterprise.assistant.deps import AssistantDeps
 from baserow_enterprise.assistant.tools.shared import ToolInputError
 from baserow_enterprise.assistant.tools.toolset import AssistantFunctionToolset
@@ -65,6 +81,56 @@ CHANGED_SINCE_APPROVAL = (
     "user approved. Read the Agent again with get_agent and propose the change "
     "again; the user approves the new version."
 )
+
+
+@contextmanager
+def _readable_errors() -> Iterator[None]:
+    """
+    Turn the Agent's own refusals into errors the model can explain or act on,
+    instead of exceptions that end Kuma's run.
+
+    :raises ToolInputError: For each refusal of the Agent's services.
+    """
+
+    try:
+        yield
+    except AgentNotReady as exc:
+        raise ToolInputError(
+            "The Agent isn't ready to reply: it needs instructions and an "
+            "enabled model.",
+            hint="Read get_agent for what is missing and set it with "
+            "apply_agent_setup; models come from list_agent_tools. If no model is "
+            "enabled, tell the user to enable one in the workspace's generative AI "
+            "settings.",
+        ) from exc
+    except AgentTriggerNoAccess as exc:
+        raise ToolInputError(
+            "The Agent's identity can't read what this trigger watches.",
+            hint="Run the Agent as an identity with access to the table, or "
+            "watch a table it can read.",
+        ) from exc
+    except AgentTriggerTypeNotAvailable as exc:
+        raise ToolInputError(
+            f"The trigger type {exc} isn't available for this Agent.",
+            hint="Use a trigger type from list_agent_tools.",
+        ) from exc
+    except (AgentActionTypeNotAvailable, AgentActionLimitReached) as exc:
+        message = (
+            str(exc)
+            if isinstance(exc, AgentActionLimitReached)
+            else f"The action type {exc} isn't available for this Agent."
+        )
+        raise ToolInputError(message) from exc
+    except AgentRunAsSubjectDoesNotExist as exc:
+        raise ToolInputError(
+            "The identity to run as does not exist in this workspace or is trashed.",
+            hint="Use an identity from get_agent or list_agents, or create one "
+            "with new_identity.",
+        ) from exc
+    except ServiceMisconfigured as exc:
+        raise ToolInputError(str(exc)) from exc
+    except ValidationError as exc:
+        raise ToolInputError(format_validation_error(exc)) from exc
 
 
 class NewIdentity(BaseModel):
@@ -554,7 +620,7 @@ def apply_agent_setup(
         approved_key = (ctx.tool_call_metadata or {}).get("tool_key")
         if approved_key != key:
             return {"changed": False, "error": CHANGED_SINCE_APPROVAL}
-    with transaction.atomic():
+    with _readable_errors(), transaction.atomic():
         agent = _apply(user, workspace, agent, setup, ask_first)
     after = _read_setup(user, agent)
     return {
@@ -594,15 +660,16 @@ def test_agent(
     """
 
     agent = _agent(ctx, agent_id)
-    result = CreateAgentConversationActionType.do(
-        ctx.deps.user,
-        agent.id,
-        uuid4(),
-        uuid4(),
-        prompt,
-        is_test=True,
-        title=f"{TEST_TITLE_PREFIX}{prompt}",
-    )
+    with _readable_errors():
+        result = CreateAgentConversationActionType.do(
+            ctx.deps.user,
+            agent.id,
+            uuid4(),
+            uuid4(),
+            prompt,
+            is_test=True,
+            title=f"{TEST_TITLE_PREFIX}{prompt}",
+        )
     return {
         "agent_id": agent.id,
         "conversation_uuid": str(result.conversation.uuid),

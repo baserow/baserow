@@ -21,6 +21,10 @@ from baserow_enterprise.assistant.tools.agent.tools import (
     apply_agent_setup,
     get_agent,
 )
+from baserow_enterprise.assistant.tools.agent.tools import (
+    test_agent as start_agent_test,
+)
+from baserow_enterprise.assistant.tools.shared import ToolInputError
 from baserow_enterprise.assistant.types import UIContext
 
 from .utils import make_test_ctx
@@ -343,3 +347,42 @@ def test_editing_an_agent_renames_it(data_fixture):
         _ctx(user, workspace), AgentSetup(name="New"), thought="t", agent_id=agent.id
     )
     assert not unchanged["changed"]
+
+
+@pytest.mark.django_db
+def test_testing_an_agent_that_isnt_ready_returns_an_error_to_kuma(data_fixture):
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    agent = data_fixture.create_agent_application(workspace=workspace)
+
+    with pytest.raises(ToolInputError, match="isn't ready"):
+        start_agent_test(_ctx(user, workspace), agent.id, "Hi", thought="t")
+
+
+@pytest.mark.django_db
+def test_a_too_long_agent_name_returns_an_error_to_kuma(data_fixture):
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+
+    with pytest.raises(ToolInputError, match="at most 160"):
+        apply_agent_setup(
+            _ctx(user, workspace), AgentSetup(name="a" * 161), thought="t"
+        )
+
+
+@pytest.mark.django_db
+def test_a_refused_trigger_returns_an_error_to_kuma(data_fixture, settings):
+    settings.INTEGRATIONS_PERIODIC_MINUTE_MIN = 5
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    ctx = _ctx(user, workspace)
+
+    setup = AgentSetup(
+        name="Digest",
+        add_triggers=[
+            {"type": "periodic", "schedule": {"interval": "MINUTE", "minute": 1}}
+        ],
+    )
+    with pytest.raises(ToolInputError, match="minute"):
+        apply_agent_setup(ctx, setup, thought="t")
+    assert not AgentApplication.objects.filter(workspace=workspace).exists()
