@@ -10,6 +10,7 @@ from pydantic import BaseModel as PydanticBaseModel
 from pydantic import Field
 from pydantic_ai import Agent, RunContext
 
+from baserow.core.db import with_usable_db_connection
 from baserow.core.generative_ai.lifecycle import run_agent_with_model
 from baserow_enterprise.assistant.deps import AssistantDeps
 from baserow_enterprise.assistant.model_profiles import DOCUMENTATION
@@ -244,6 +245,7 @@ async def _search_user_docs_impl(
     """
 
     @sync_to_async
+    @with_usable_db_connection
     def _search(question: str) -> list[KnowledgeBaseChunk]:
         """Load the documentation chunks matching a question.
 
