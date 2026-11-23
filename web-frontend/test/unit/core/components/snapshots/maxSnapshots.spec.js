@@ -63,6 +63,32 @@ describe('MaxSnapshots', () => {
     expect(wrapper.text()).toContain('maxSnapshots.descriptionDefault')
   })
 
+  test.each([
+    [null, 0, 0, 'maxSnapshots.sourceWorkspace - 0'],
+    [null, 2, 2, 'maxSnapshots.sourceWorkspace - 2'],
+    [0, 0, 2, null],
+    [2, 2, 2, null],
+  ])(
+    'shows the saved source for maximum %s, effective %s and default %s',
+    async (maximum, effective, workspaceDefault, label) => {
+      const wrapper = await mountComponent({
+        max_snapshots: maximum,
+        effective_max_snapshots: effective,
+        default_max_snapshots: workspaceDefault,
+      })
+
+      const source = wrapper.find('.max-snapshots__source')
+      expect(source.exists()).toBe(label !== null)
+      if (label !== null) {
+        expect(source.text()).toBe(label)
+      }
+      expect(wrapper.find('.max-snapshots__source--inherited').exists()).toBe(
+        maximum === null
+      )
+      expect(wrapper.find('form').exists()).toBe(false)
+    }
+  )
+
   test('shows a validation error instead of going past the allowance', async () => {
     const wrapper = await mountComponent()
 

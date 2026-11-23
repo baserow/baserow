@@ -25,8 +25,13 @@
   color: $palette-neutral-1200;
 }
 
-.max-snapshots__description {
+.max-snapshots__description,
+.max-snapshots__source {
   color: $palette-neutral-900;
+}
+
+.max-snapshots__source--inherited {
+  color: $palette-blue-700;
 }
 
 .max-snapshots__value {

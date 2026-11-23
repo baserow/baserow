@@ -609,6 +609,7 @@
   },
   "maxSnapshots": {
     "title": "Max snapshots",
+    "sourceWorkspace": "Inherited from workspace (default: {count}).",
     "change": "Change",
     "descriptionNone": "No snapshots can be taken while it's 0.",
     "descriptionDefault": "Up to {count}, the workspace default. Once it's reached, a new snapshot replaces the oldest unprotected one.",

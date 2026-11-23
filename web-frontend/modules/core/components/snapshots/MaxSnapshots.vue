@@ -6,6 +6,16 @@
         <div class="max-snapshots__description">
           {{ description }}
         </div>
+        <div
+          v-if="usage.max_snapshots === null"
+          class="max-snapshots__source max-snapshots__source--inherited"
+        >
+          {{
+            $t('maxSnapshots.sourceWorkspace', {
+              count: usage.default_max_snapshots,
+            })
+          }}
+        </div>
       </div>
       <template v-if="!editing">
         <span class="max-snapshots__value">{{
