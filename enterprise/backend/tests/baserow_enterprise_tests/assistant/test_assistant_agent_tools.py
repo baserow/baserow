@@ -322,3 +322,24 @@ def test_kuma_continues_only_once_every_held_call_is_decided(data_fixture, mocke
         handler.decide_approvals(
             user, chat, [{"id": first.id, "approved": True}], ui_context, ""
         )
+
+
+@pytest.mark.django_db
+def test_editing_an_agent_renames_it(data_fixture):
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    agent = data_fixture.create_agent_application(workspace=workspace, name="Old")
+
+    result = apply_agent_setup(
+        _ctx(user, workspace), AgentSetup(name="New"), thought="t", agent_id=agent.id
+    )
+
+    agent.refresh_from_db()
+    assert agent.name == "New"
+    assert result["changed"] and result["setup"]["name"] == "New"
+    assert result["previous_setup"]["name"] == "Old"
+
+    unchanged = apply_agent_setup(
+        _ctx(user, workspace), AgentSetup(name="New"), thought="t", agent_id=agent.id
+    )
+    assert not unchanged["changed"]

@@ -42,7 +42,11 @@ from baserow.core.identities.handler import IdentityHandler
 from baserow.core.models import Workspace
 from baserow.core.subjects import UserSubjectType
 from baserow.core.tools import ToolContext
-from baserow.core.tools.applications import create_application, visible_applications
+from baserow.core.tools.applications import (
+    create_application,
+    update_application,
+    visible_applications,
+)
 from baserow_enterprise.assistant.deps import AssistantDeps
 from baserow_enterprise.assistant.tools.shared import ToolInputError
 from baserow_enterprise.assistant.tools.toolset import AssistantFunctionToolset
@@ -408,6 +412,8 @@ def _apply(user, workspace, agent, setup: AgentSetup, ask_first) -> Any:
             if provider:
                 values["provider_type"] = provider
                 values["model_identifier"] = model
+    elif setup.name is not None:
+        update_application(_tool_ctx(user, workspace), agent, name=setup.name)
     if values:
         UpdateAgentConfigurationActionType.do(user, agent.id, **values)
     for spec in setup.add_triggers:
@@ -550,11 +556,12 @@ def apply_agent_setup(
             return {"changed": False, "error": CHANGED_SINCE_APPROVAL}
     with transaction.atomic():
         agent = _apply(user, workspace, agent, setup, ask_first)
+    after = _read_setup(user, agent)
     return {
-        "changed": True,
+        "changed": after != current,
         "created": current is None,
         "previous_setup": current,
-        "setup": _read_setup(user, agent),
+        "setup": after,
         "next_steps": "Tell the user what the Agent does now, naming any trigger "
         "or action that is turned off; credentials for actions are entered in the "
         "Agent's Configuration. Offer a test: test_agent runs the Agent in a test "
