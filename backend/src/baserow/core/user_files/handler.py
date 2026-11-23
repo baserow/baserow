@@ -18,6 +18,7 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 from django.db.models import QuerySet
 from django.utils.http import parse_header_parameters
 
+from celery.exceptions import SoftTimeLimitExceeded
 from loguru import logger
 from requests.exceptions import RequestException
 
@@ -411,6 +412,8 @@ class UserFileHandler:
                 user_file.image_height = image.height
             except IOError:
                 pass  # Not an image
+            except SoftTimeLimitExceeded:
+                raise
             except Exception as exc:
                 logger.warning(
                     f"Failed to generate thumbnails for user file of type "

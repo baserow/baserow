@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Imports that run out of time while making image thumbnails now stop with a timeout error",
+    "issue_origin": "github",
+    "issue_number": 6447,
+    "domain": "core",
+    "bullet_points": [],
+    "created_at": "2026-11-19"
+}
