@@ -452,6 +452,23 @@ def _identity_label(workspace: Workspace, identity_id: int) -> str:
     return f'the identity "{identity.first_name}" with the {role} role'
 
 
+# The card shows this much of new instructions; longer ones are cut at a word.
+CARD_EXCERPT_LENGTH = 500
+
+
+def _excerpt(text: str) -> str:
+    """
+    :param text: Text to show on an approval card, such as new instructions.
+    :return: The text on one line, cut at a word with an ellipsis when longer
+        than the card shows.
+    """
+
+    text = " ".join(text.split())
+    if len(text) <= CARD_EXCERPT_LENGTH:
+        return text
+    return text[:CARD_EXCERPT_LENGTH].rsplit(" ", 1)[0] + "…"
+
+
 def _runs_alone_and_changes_data(
     current: dict[str, Any], setup: AgentSetup, ask_first: list[str] | None
 ) -> bool:
@@ -550,7 +567,7 @@ def _widening_changes(
     ):
         changes.append(
             "Change the instructions of an Agent that runs by itself and changes "
-            "data without asking"
+            f'data without asking, to: "{_excerpt(setup.instructions)}"'
         )
     if setup.web_fetch_enabled and not (current or {}).get("web_fetch_enabled"):
         changes.append("Let the Agent open web pages")

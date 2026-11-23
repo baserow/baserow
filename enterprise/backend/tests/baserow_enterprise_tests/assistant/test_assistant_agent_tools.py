@@ -672,7 +672,7 @@ def test_new_instructions_wait_for_approval_on_an_agent_that_runs_alone(
 
     metadata = _held(_ctx(user, workspace), {"instructions": "New"}, agent.id)
 
-    assert metadata["details"]["changes"] == [INSTRUCTIONS_CARD]
+    assert metadata["details"]["changes"] == [f'{INSTRUCTIONS_CARD}, to: "New"']
 
 
 @pytest.mark.django_db
@@ -692,3 +692,21 @@ def test_new_instructions_apply_at_once_when_the_agent_cant_change_data_alone(
     )
 
     assert result["setup"]["instructions"] == "New"
+
+
+@pytest.mark.django_db
+def test_the_instructions_card_shows_the_new_instructions(data_fixture):
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    agent = _agent_that_may_run_alone(data_fixture, workspace, True)
+    ctx = _ctx(user, workspace)
+    short = "Close stale tickets.\nNever delete rows."
+    long = "Close each stale ticket. " * 100
+
+    [short_line] = _held(ctx, {"instructions": short}, agent.id)["details"]["changes"]
+    [long_line] = _held(ctx, {"instructions": long}, agent.id)["details"]["changes"]
+
+    assert short_line.endswith('to: "Close stale tickets. Never delete rows."')
+    excerpt = long_line.split('to: "', 1)[1]
+    assert excerpt.startswith("Close each stale ticket. Close each")
+    assert excerpt.endswith('ticket.…"') and len(excerpt) < 510
