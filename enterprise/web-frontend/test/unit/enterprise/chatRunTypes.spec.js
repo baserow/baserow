@@ -214,13 +214,13 @@ describe('Kuma HTTP record adapter', () => {
   )
 
   test('cancelled onboarding clears its saved target without opening it', async () => {
-    storeOnboardingRunId('run-1')
+    setOnboardingRunId('run-1')
     await applySnapshot(store, {
       status: 'cancelled',
       message: { ...created, run_status: 'cancelled' },
     })
     expect(navigated).toEqual([])
-    expect(getStoredOnboardingRunId()).toBeNull()
+    expect(getOnboardingRunId()).toBeNull()
   })
 
   test('a completed onboarding run opens its target in an open panel', async () => {

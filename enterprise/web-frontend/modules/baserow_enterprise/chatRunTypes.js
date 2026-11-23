@@ -193,7 +193,7 @@ export class AssistantChatRunType extends ChatRunType {
 
   openOnboardingTable(follower) {
     if (isStopping(follower) || follower.view.status === RUN_STATUS.CANCELLED) {
-      storeOnboardingRunId(null)
+      setOnboardingRunId(null)
       return
     }
     const message = follower.view.message
