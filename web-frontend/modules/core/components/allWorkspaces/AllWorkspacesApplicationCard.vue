@@ -31,13 +31,12 @@
       <ButtonIcon
         class="item-card__more"
         icon="baserow-icon-more-vertical"
-        @click.stop="
-          $refs.context.toggle($event.currentTarget, 'bottom', 'right', 0)
-        "
+        @click.stop="toggleContext($event.currentTarget)"
       ></ButtonIcon>
 
       <component
         :is="getApplicationContextComponent(application)"
+        v-if="contextRequested || bundleLoaded"
         ref="context"
         :application="application"
         :workspace="workspace"
@@ -48,6 +47,9 @@
 </template>
 
 <script>
+import { nextTick } from 'vue'
+import { isApplicationBundleLoaded } from '@baserow/modules/core/utils/applicationBundles'
+import { notifyIf } from '@baserow/modules/core/utils/error'
 import application from '@baserow/modules/core/mixins/application'
 import ItemCard from '@baserow/modules/core/components/ItemCard'
 import SearchHighlight from '@baserow/modules/core/components/SearchHighlight'
@@ -90,9 +92,13 @@ export default {
     return {
       editing: false,
       saving: false,
+      contextRequested: false,
     }
   },
   computed: {
+    bundleLoaded() {
+      return isApplicationBundleLoaded(this.$nuxt, this.application.type)
+    },
     showEditable() {
       return this.highlight === '' || this.editing || this.saving
     },
@@ -115,6 +121,19 @@ export default {
     },
   },
   methods: {
+    /** Initialize the application's controls only when its menu is opened. */
+    async toggleContext(target) {
+      try {
+        if (!this.bundleLoaded) {
+          await this.$registry.get('application', this.application.type).load()
+          this.contextRequested = true
+          await nextTick()
+        }
+        this.$refs.context.toggle(target, 'bottom', 'right', 0)
+      } catch (error) {
+        notifyIf(error, 'application')
+      }
+    },
     select() {
       // Clicking inside the name while it's being renamed inline must not
       // open the application.

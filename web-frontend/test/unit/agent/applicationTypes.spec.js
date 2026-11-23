@@ -40,10 +40,16 @@ describe('AgentApplicationType', () => {
     }
   )
 
-  test('creates agents with the setup wizard and others with the core modal', () => {
-    expect(makeType().type.getCreateModalComponent()).toBe(AgentCreateModal)
+  test('creates agents with the setup wizard and others with the core modal', async () => {
     expect(
-      new DatabaseApplicationType({ app: {} }).getCreateModalComponent()
+      await new AgentApplicationType({
+        app: useNuxtApp(),
+      }).getCreateModalComponent()
+    ).toBe(AgentCreateModal)
+    expect(
+      await new DatabaseApplicationType({ app: {} })
+        .getCreateModalComponent()
+        .__asyncLoader()
     ).toBe(CreateApplicationModal)
   })
 

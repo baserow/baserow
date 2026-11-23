@@ -17,8 +17,6 @@ export default defineNuxtModule({
     const { resolve } = createResolver(import.meta.url)
 
     addPlugin(resolve('./plugin.js'))
-    addPlugin(resolve('./plugins/realtime.js'))
-
     addRouteMiddleware({
       name: 'selectAgentApplication',
       path: resolve('./middleware/selectAgentApplication.js'),

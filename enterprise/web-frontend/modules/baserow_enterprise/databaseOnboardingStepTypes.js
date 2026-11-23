@@ -1,5 +1,5 @@
+import { getFeatureComponent } from '@baserow/modules/core/utils/featureBundles'
 import { DatabaseOnboardingStepType } from '@baserow/modules/database/databaseOnboardingStepTypes'
-import AIDatabaseOnboardingForm from '@baserow_enterprise/components/onboarding/AIDatabaseOnboardingForm'
 
 /**
  * AI-assisted database onboarding step type. Only visible when an LLM model is
@@ -20,7 +20,11 @@ export class AIDatabaseOnboardingStepType extends DatabaseOnboardingStepType {
   }
 
   getComponent() {
-    return AIDatabaseOnboardingForm
+    return getFeatureComponent(
+      this.app,
+      'onboarding',
+      'AIDatabaseOnboardingForm'
+    )
   }
 
   hasNameInput() {

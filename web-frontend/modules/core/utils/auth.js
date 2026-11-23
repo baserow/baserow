@@ -2,7 +2,6 @@ import { isSecureURL } from '@baserow/modules/core/utils/string'
 import { pageFinished } from '@baserow/modules/core/utils/routing'
 import { getCookieName } from '@baserow/modules/core/utils/cookie'
 import { jwtDecode } from 'jwt-decode'
-import tldjs from 'tldjs'
 import { useCookie, useRuntimeConfig, nextTick } from '#imports'
 import {
   USER_SOURCE_COOKIE_TOKEN_NAME,
@@ -53,12 +52,13 @@ export const setToken = (
  * @param {*} configuration: the configuration object with the sameSite key
  * @returns
  */
-export const setUserSessionCookie = (
+export const setUserSessionCookie = async (
   appOrContext,
   signedUserSession,
   key = userSessionCookieName,
   configuration = { sameSite: null }
 ) => {
+  const { default: tldjs } = await import('tldjs')
   const { runWithContext } = appOrContext
   return runWithContext(() => {
     const config = useRuntimeConfig()

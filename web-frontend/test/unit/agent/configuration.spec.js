@@ -82,6 +82,7 @@ describe('Agent configuration', () => {
     testApp.mock.onGet('/agent/10/triggers/').reply(200, [periodicTrigger()])
     const wrapper = await mount()
     await openSection(wrapper, 'agent.whenItRuns')
+    await vi.dynamicImportSettled()
     await flushPromises()
 
     expect(wrapper.find('.agent-trigger-card form').exists()).toBe(true)

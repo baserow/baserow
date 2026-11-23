@@ -36,6 +36,7 @@ vi.mock('@baserow/modules/core/utils/auth', async (importOriginal) => ({
 }))
 
 const providerRegistry = {
+  get: () => ({ prepareResult: async () => {} }),
   getAll: () => [new WidgetDataProviderType({ app: {} })],
 }
 
@@ -518,6 +519,31 @@ describe('Dashboard application store', () => {
       1: { result: 'first' },
       2: { result: 'second' },
     })
+  })
+
+  test('waits for result formatting dependencies before publishing dashboard data', async () => {
+    const dashboardState = createDashboardState()
+    dashboardState.dataSources = [
+      { id: 1, type: 'local_baserow_aggregate_rows' },
+    ]
+    const prepared = deferred()
+    const prepareResult = vi.fn(() => prepared.promise)
+    DataSourceService.mockReturnValue({
+      dispatch: vi.fn().mockResolvedValue({ data: { result: '30' } }),
+    })
+    const dispatch = actions.dispatchDataSource.call(
+      {
+        $client: {},
+        $registry: { ...providerRegistry, get: () => ({ prepareResult }) },
+      },
+      { state: dashboardState, commit: applyCommit(dashboardState) },
+      1
+    )
+    await vi.waitFor(() => expect(prepareResult).toHaveBeenCalledOnce())
+    expect(dashboardState.data[1]).toEqual({})
+    prepared.resolve()
+    await dispatch
+    expect(dashboardState.data[1]).toEqual({ result: '30' })
   })
 
   test('ignores an obsolete dispatch response for the same data source', async () => {

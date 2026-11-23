@@ -1,10 +1,9 @@
+import { getFeatureComponent } from '@baserow/modules/core/utils/featureBundles'
 import { nextTick } from 'vue'
 import { OnboardingType } from '@baserow/modules/core/onboardingTypes'
 import { DatabaseOnboardingType } from '@baserow/modules/database/onboardingTypes'
-import DatabaseAppLayoutPreview from '@baserow/modules/database/components/onboarding/DatabaseAppLayoutPreview'
+
 import { pageFinished } from '@baserow/modules/core/utils/routing.js'
-import AIPromptStep from '@baserow_enterprise/components/onboarding/AIPromptStep'
-import AssistantOnboardingMessage from '@baserow_enterprise/components/assistant/AssistantOnboardingMessage.vue'
 import { AIDatabaseOnboardingStepType } from '@baserow_enterprise/databaseOnboardingStepTypes'
 import {
   storeOnboardingRunId,
@@ -21,11 +20,15 @@ export class AIPromptOnboardingType extends OnboardingType {
   }
 
   getFormComponent() {
-    return AIPromptStep
+    return getFeatureComponent(this.app, 'onboarding', 'AIPromptStep')
   }
 
   getPreviewComponent() {
-    return DatabaseAppLayoutPreview
+    return getFeatureComponent(
+      this.app,
+      'onboarding',
+      'DatabaseAppLayoutPreview'
+    )
   }
 
   condition(data) {
@@ -51,7 +54,10 @@ export class AIPromptOnboardingType extends OnboardingType {
       }),
     ].join(' ')
 
-    callback(null, AssistantOnboardingMessage)
+    callback(
+      null,
+      getFeatureComponent(this.app, 'onboarding', 'AssistantOnboardingMessage')
+    )
     return await this.handOff(message, workspace)
   }
 

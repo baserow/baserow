@@ -37,10 +37,13 @@
 </template>
 
 <script>
-import AddElementZone from '@baserow/modules/builder/components/elements/AddElementZone'
+import {
+  ElementPreview,
+  AddElementZone,
+  AddElementModal,
+} from '@baserow/modules/builder/components/editorRendering'
+
 import containerElement from '@baserow/modules/builder/mixins/containerElement'
-import AddElementModal from '@baserow/modules/builder/components/elements/AddElementModal'
-import ElementPreview from '@baserow/modules/builder/components/elements/ElementPreview'
 import PageElement from '@baserow/modules/builder/components/page/PageElement'
 
 export default {

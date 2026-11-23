@@ -1,17 +1,11 @@
 <template>
   <component
     :is="serviceType.adhocHeaderComponent"
-    v-if="dataSource"
+    v-if="dataSource && hasRefinements"
     class="collection-element__header margin-bottom-1"
-    :sortable-properties="
-      elementType.adhocSortableProperties(element, dataSource)
-    "
-    :filterable-properties="
-      elementType.adhocFilterableProperties(element, dataSource)
-    "
-    :searchable-properties="
-      elementType.adhocSearchableProperties(element, dataSource)
-    "
+    :sortable-properties="sortableProperties"
+    :filterable-properties="filterableProperties"
+    :searchable-properties="searchableProperties"
     @filters-changed="$emit('filters-changed', $event)"
     @sortings-changed="$emit('sortings-changed', $event)"
     @search-changed="$emit('search-changed', $event)"
@@ -29,6 +23,37 @@ export default {
   },
   emits: ['filters-changed', 'search-changed', 'sortings-changed'],
   computed: {
+    hasRefinements() {
+      return (
+        this.sortableProperties.length ||
+        this.filterableProperties.length ||
+        this.searchableProperties.length
+      )
+    },
+    sortableProperties() {
+      return this.dataSource
+        ? this.elementType.adhocSortableProperties(
+            this.element,
+            this.dataSource
+          )
+        : []
+    },
+    filterableProperties() {
+      return this.dataSource
+        ? this.elementType.adhocFilterableProperties(
+            this.element,
+            this.dataSource
+          )
+        : []
+    },
+    searchableProperties() {
+      return this.dataSource
+        ? this.elementType.adhocSearchableProperties(
+            this.element,
+            this.dataSource
+          )
+        : []
+    },
     sharedPage() {
       return this.$store.getters['page/getSharedPage'](this.builder)
     },

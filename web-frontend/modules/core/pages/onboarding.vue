@@ -138,6 +138,7 @@ import error from '@baserow/modules/core/mixins/error'
 import jobProgress from '@baserow/modules/core/mixins/jobProgress'
 
 definePageMeta({
+  featureBundle: 'onboarding',
   middleware: ['settings', 'authenticated', 'redirectCompletedOnboarding'],
 })
 
@@ -237,8 +238,16 @@ export default {
       if (this.stepIndex === this.steps.length - 1) {
         await this.complete()
       } else {
-        this.stepIndex++
-        this.afterStepChange()
+        const nextIndex = this.stepIndex + 1
+        try {
+          // Mount the real form after its dependencies load: the page calls its
+          // validation/back-navigation methods through $refs, including KeepAlive.
+          await this.steps[nextIndex].load()
+          this.stepIndex = nextIndex
+          this.afterStepChange()
+        } catch (error) {
+          notifyIf(error)
+        }
       }
     },
     /**
