@@ -1,68 +1,358 @@
-.snapshots-modal__name-input {
-  margin-right: 20px;
+// One type scale: 20px for the heading, 14px for section titles and 13px with a
+// 20px line height for everything else. Spacing steps are 4, 8, 12, 16 and 20px.
+.snapshots-modal {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  line-height: 20px;
 }
 
-.snapshots-modal__snapshot {
+.snapshots-modal__header {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding-right: 32px;
+}
+
+.snapshots-modal__header-icon {
+  flex: none;
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+  background-color: $palette-neutral-100;
+  color: $palette-neutral-1200;
+}
+
+.snapshots-modal__header-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.snapshots-modal__title {
+  @extend %ellipsis;
+
+  margin: 0;
+  font-size: 20px;
+  line-height: 28px;
+  font-weight: 600;
+  color: $palette-neutral-1200;
+}
+
+.snapshots-modal__intro {
+  margin: 4px 0 0;
+  color: $palette-neutral-900;
+}
+
+.snapshots-modal__usage {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 16px;
+  border: 1px solid $palette-neutral-200;
+  border-radius: 6px;
+  background-color: $palette-neutral-25;
+}
+
+.snapshots-modal__usage-head {
   display: flex;
   justify-content: space-between;
-  align-items: center;
+  font-weight: 500;
+}
 
-  &:not(:last-child) {
-    margin-bottom: 20px;
+.snapshots-modal__usage-count {
+  font-weight: 400;
+  color: $palette-neutral-900;
+  font-variant-numeric: tabular-nums;
+}
+
+.snapshots-modal__usage-bar {
+  height: 6px;
+  border-radius: 3px;
+  background-color: $palette-neutral-200;
+  overflow: hidden;
+}
+
+.snapshots-modal__usage-fill {
+  height: 100%;
+  background-color: $palette-blue-700;
+}
+
+.snapshots-modal__usage-fill--full {
+  background-color: $palette-red-600;
+}
+
+.snapshots-modal__usage-warning {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  color: $palette-red-800;
+
+  i {
+    flex: none;
+    margin-top: 2px;
   }
+}
+
+.snapshots-modal__replaces {
+  margin-top: 4px;
+}
+
+.snapshots-modal__card-actions {
+  margin-top: 12px;
+}
+
+.snapshots-modal__confirm-replace {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 12px;
+  padding: 12px;
+  border-radius: 6px;
+  background-color: $palette-yellow-50;
+
+  span {
+    flex: 1 1 100%;
+  }
+}
+
+.snapshots-modal__card {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  padding: 20px;
+  border: 1px solid $palette-neutral-200;
+  border-radius: 8px;
+}
+
+.snapshots-modal__card-icon {
+  flex: none;
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+  background-color: $palette-neutral-100;
+  color: $palette-neutral-900;
+}
+
+.snapshots-modal__card-icon--error {
+  background-color: $palette-red-50;
+  color: $palette-red-800;
+}
+
+.snapshots-modal__card-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.snapshots-modal__form {
+  margin-top: 16px;
+}
+
+.snapshots-modal__card-title {
+  margin: 0;
+  font-size: 14px;
+  line-height: 20px;
+  font-weight: 600;
+  color: $palette-neutral-1200;
+}
+
+.snapshots-modal__card-description {
+  margin-top: 4px;
+  color: $palette-neutral-900;
+
+  &:empty {
+    display: none;
+  }
+}
+
+.snapshots-modal__raise-warning {
+  margin: 8px 0 0;
+}
+
+.snapshots-modal__name-input {
+  margin-right: 8px;
+}
+
+.snapshots-modal__progress {
+  margin-right: 8px;
 }
 
 .snapshots-modal__cancel-button {
   position: static;
   margin-top: 10px;
-  color: $color-error-500 !important;
-}
-
-.snapshots-modal__info {
-  min-height: 36px;
-  flex-grow: 1;
-  display: flex;
-  align-items: center;
+  color: $palette-red-800 !important;
 }
 
 .snapshots-modal__list {
-  border-top: 1px solid #d9dbde;
-  padding-top: 30px;
-  margin-top: 30px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
 }
 
-.snapshots-modal__list--loading {
-  margin: auto;
+.snapshots-modal__list-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
 }
 
-.snapshots-modal__name {
-  font-weight: 600;
-  padding-bottom: 5px;
+.snapshots-modal__filter {
+  flex: none;
+
+  // The segments share the width equally, so it fits the longest label.
+  width: 280px;
 }
 
-.snapshots-modal__detail {
-  color: $color-neutral-500;
+.snapshots-modal__list-count {
+  font-weight: 400;
+  color: $palette-neutral-900;
 }
 
-.snapshots-modal__actions a {
-  display: inline-block;
-  margin-left: 20px;
+.snapshots-modal__loading {
+  margin: 20px auto;
 }
 
-.snapshots-modal__delete {
-  color: $color-error-500;
+// A row is 65px tall: 12px padding above and below, two 20px lines and its 1px
+// border. About five rows show before the list scrolls.
+.snapshots-modal__rows {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-height: 5 * 65px;
+  overflow-y: auto;
+  border: 1px solid $palette-neutral-200;
+  border-radius: 8px;
 }
 
-.snapshots-modal__restore--loading {
-  color: transparent;
-  position: relative;
-  cursor: wait;
+.snapshots-modal__row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
 
-  &::after {
-    content: ' ';
-    margin-left: -7px;
-
-    @include loading(14px);
-    @include absolute(0, auto, auto, 50%);
+  &:not(:last-child) {
+    border-bottom: 1px solid $palette-neutral-200;
   }
+}
+
+.snapshots-modal__row--confirm {
+  background-color: $palette-red-50;
+
+  &:first-child {
+    border-radius: 8px 8px 0 0;
+  }
+
+  &:last-child {
+    border-radius: 0 0 8px 8px;
+  }
+
+  &:only-child {
+    border-radius: 8px;
+  }
+}
+
+.snapshots-modal__row-avatar {
+  flex: none;
+  width: 32px;
+  height: 32px;
+  border-radius: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 600;
+  background-color: $palette-neutral-200;
+  color: $palette-neutral-1200;
+}
+
+.snapshots-modal__row-avatar--automatic {
+  font-size: 16px;
+  background-color: $palette-blue-50;
+  color: $palette-blue-700;
+}
+
+.snapshots-modal__row-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.snapshots-modal__row-name {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  font-weight: 500;
+  color: $palette-neutral-1200;
+}
+
+.snapshots-modal__row-name-text {
+  @extend %ellipsis;
+}
+
+.snapshots-modal__row-protected {
+  flex: none;
+  color: $palette-green-800;
+}
+
+.snapshots-modal__row-meta {
+  @extend %ellipsis;
+
+  color: $palette-neutral-900;
+}
+
+.snapshots-modal__row-progress-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.snapshots-modal__row-restored {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  color: $palette-green-900;
+}
+
+.snapshots-modal__empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 24px;
+  border: 1px dashed $palette-neutral-400;
+  border-radius: 8px;
+  text-align: center;
+  color: $palette-neutral-900;
+}
+
+.snapshots-modal__empty-icon {
+  font-size: 22px;
+}
+
+.snapshots-modal__empty-title {
+  @extend %ellipsis;
+
+  max-width: 100%;
+  margin-top: 4px;
+  font-size: 14px;
+  font-weight: 600;
+  color: $palette-neutral-1200;
+}
+
+.snapshots-modal__footer {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: $palette-neutral-900;
 }

@@ -286,7 +286,10 @@ from baserow.core.snapshots.operations import (
     CreateSnapshotApplicationOperationType,
     DeleteApplicationSnapshotOperationType,
     ListSnapshotsApplicationOperationType,
+    ReadWorkspaceSnapshotSettingsOperationType,
     RestoreApplicationSnapshotOperationType,
+    UpdateApplicationMaxSnapshotsOperationType,
+    UpdateWorkspaceSnapshotSettingsOperationType,
 )
 from baserow.core.trash.operations import (
     EmptyApplicationTrashOperationType,
@@ -692,6 +695,9 @@ default_roles[ADMIN_ROLE_UID].extend(
         RestoreApplicationSnapshotOperationType,
         ListSnapshotsApplicationOperationType,
         DeleteApplicationSnapshotOperationType,
+        UpdateApplicationMaxSnapshotsOperationType,
+        ReadWorkspaceSnapshotSettingsOperationType,
+        UpdateWorkspaceSnapshotSettingsOperationType,
         RestoreDomainOperationType,
         ListWorkspaceAuditLogEntriesOperationType,
         ReadRoleViewOperationType,

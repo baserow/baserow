@@ -49,7 +49,7 @@ export default {
     registeredSettings() {
       return this.$registry
         .getOrderedList('workspaceSettings')
-        .filter((settings) => settings.isEnabled() === true)
+        .filter((settings) => settings.isEnabled(this.workspace) === true)
     },
     settingPageComponent() {
       const active = Object.values(

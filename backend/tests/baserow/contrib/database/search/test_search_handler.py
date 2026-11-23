@@ -560,6 +560,8 @@ def test_update_search_data(data_fixture):
 
 @pytest.mark.django_db(transaction=True)
 def test_creating_a_snapshot_doesnt_schedule_search_updates(data_fixture):
+    """Snapshot creation skips search updates; restoration schedules them."""
+
     user = data_fixture.create_user()
     table = data_fixture.create_database_table(user=user)
     text_field = data_fixture.create_text_field(table=table)
@@ -579,7 +581,10 @@ def test_creating_a_snapshot_doesnt_schedule_search_updates(data_fixture):
         "baserow.contrib.database.search.handler.SearchHandler.schedule_update_search_data"
     ) as mock:
         handler = SnapshotHandler()
-        snapshot = handler.create(table.database_id, user, "Test snapshot")
+        table.database.max_snapshots = 1
+        table.database.save(update_fields=["max_snapshots"])
+        with transaction.atomic():
+            snapshot = handler.create(table.database_id, user, "Test snapshot")
         handler.perform_create(snapshot, Progress(100))
         assert mock.call_count == 0
 

@@ -29,6 +29,15 @@ export class ApplicationType extends Registerable {
   }
 
   /**
+   * Describes the permissions included when taking a snapshot of this application.
+   */
+  getSnapshotPermissionDescription() {
+    return this.app.$i18n.t('applicationSnapshotPermissions.description', {
+      applicationTypeName: this.getName().toLowerCase(),
+    })
+  }
+
+  /**
    * The label of a link that opens an application of this type, like "View
    * database". A string per type, so that translators decide on the case.
    */

@@ -23,7 +23,10 @@ import {
   DeleteAccountSettingsType,
   TwoFactorAuthSettingsType,
 } from '@baserow/modules/core/settingsTypes'
-import { GenerativeAIWorkspaceSettingsType } from '@baserow/modules/core/workspaceSettingsTypes'
+import {
+  GenerativeAIWorkspaceSettingsType,
+  SnapshotsWorkspaceSettingsType,
+} from '@baserow/modules/core/workspaceSettingsTypes'
 import {
   OpenAIModelType,
   OllamaModelType,
@@ -229,6 +232,10 @@ export default defineNuxtPlugin({
     registry.register(
       'workspaceSettings',
       new GenerativeAIWorkspaceSettingsType(context)
+    )
+    registry.register(
+      'workspaceSettings',
+      new SnapshotsWorkspaceSettingsType(context)
     )
 
     registry.register('generativeAIModel', new OpenAIModelType(context))
