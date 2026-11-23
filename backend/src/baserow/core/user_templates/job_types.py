@@ -3,7 +3,6 @@ from functools import partial
 from typing import Any, Dict, Iterable
 
 from django.contrib.auth.models import AbstractUser
-from django.db import transaction
 
 from loguru import logger
 from rest_framework import serializers
@@ -41,6 +40,7 @@ from baserow.core.jobs.handler import JobHandler
 from baserow.core.jobs.models import JobQuerySet
 from baserow.core.jobs.registries import JobType
 from baserow.core.user.exceptions import UserNotFound
+from baserow.core.user.handler import UserHandler
 from baserow.core.user_templates.actions import (
     CreateUserTemplateActionType,
     UpdateUserTemplateActionType,
@@ -243,10 +243,9 @@ class CreateUserTemplateJobType(JobType):
         waits for it and counts it.
         """
 
-        with transaction.atomic():
-            if not UserTemplateHandler().lock_user(job.user, no_key=True):
-                raise UserNotFound("The user was deleted.")
-            super().can_schedule_or_raise(job)
+        if not UserHandler().lock_user(job.user):
+            raise UserNotFound("The user was deleted.")
+        super().can_schedule_or_raise(job)
 
     def transaction_atomic_context(self, job: CreateUserTemplateJob):
         """

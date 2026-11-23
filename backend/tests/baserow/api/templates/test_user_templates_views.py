@@ -20,7 +20,7 @@ from rest_framework.test import APIClient
 
 from baserow.core.admin.users.handler import UserAdminHandler
 from baserow.core.models import Template, TemplateCategory
-from baserow.core.user_templates.handler import UserTemplateHandler
+from baserow.core.user.handler import UserHandler
 from baserow.core.user_templates.job_types import CreateUserTemplateJobType
 from baserow.core.user_templates.models import CreateUserTemplateJob
 from tests.baserow.core.user_templates.utils import create_template, queued
@@ -1066,7 +1066,7 @@ def test_create_user_template_job_for_a_user_deleted_meanwhile(data_fixture):
     workspace = data_fixture.create_workspace(user=user)
     database = data_fixture.create_database_application(workspace=workspace)
 
-    with patch.object(UserTemplateHandler, "lock_user", return_value=False):
+    with patch.object(UserHandler, "lock_user", return_value=False):
         response = create_job(APIClient(), token, workspace, [database])
 
     assert response.status_code == HTTP_400_BAD_REQUEST

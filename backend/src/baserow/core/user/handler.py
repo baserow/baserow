@@ -839,6 +839,18 @@ class UserHandler:
         delete_qs = UserLogEntry.objects.filter(timestamp__lt=cutoff)
         delete_qs._raw_delete(using=router.db_for_write(delete_qs.model))
 
+    def lock_user(self, user: AbstractUser) -> bool:
+        """
+        Locks the row of the user until the end of the transaction. It's a
+        `FOR NO KEY UPDATE`, so rows that reference the user can still be saved
+        meanwhile.
+
+        :param user: The user to lock.
+        :return: Whether the user still exists.
+        """
+
+        return User.objects.select_for_update(no_key=True).filter(id=user.id).exists()
+
     def schedule_user_deletion(self, user: AbstractUser):
         """
         Schedules the user account deletion. The user is flagged as `to_be_deleted` and

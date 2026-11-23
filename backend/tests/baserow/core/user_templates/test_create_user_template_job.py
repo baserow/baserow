@@ -505,7 +505,7 @@ def test_create_user_template_job_is_not_started_for_a_deleted_user(data_fixture
     job = CreateUserTemplateJob(user=user)
     type(user).objects.filter(id=user.id).delete()
 
-    with pytest.raises(UserNotFound):
+    with pytest.raises(UserNotFound), transaction.atomic():
         CreateUserTemplateJobType().can_schedule_or_raise(job)
 
 
