@@ -651,9 +651,16 @@ export const actions = {
         batch.started = true
         const { values, originalValues, request } = batch
         try {
-          await WidgetService($client).update(widgetId, values)
+          const { data } = await WidgetService($client).update(widgetId, values)
           if (updates.get(widgetId) === batch) updates.delete(widgetId)
           if (isDashboardRequestCurrent(state, request)) {
+            // Server normalization can populate copied filter conditions. Apply
+            // it before callers open the editor, without overwriting newer edits.
+            if (
+              state.widgetSaveGenerations[widgetId] === batch.saveGeneration
+            ) {
+              applyWidgetUpdate(context, $registry, { widgetId, values: data })
+            }
             const widget = state.widgets.find(
               (widget) => widget.id === widgetId
             )
@@ -727,7 +734,7 @@ export const actions = {
   },
   async updateDataSource(
     { state, commit, dispatch },
-    { dataSourceId, values, widget }
+    { dataSourceId, values, widget, linkFilterWidgetId = null }
   ) {
     const { $client, $registry } = this
     const previousTableId = state.dataSources.find(
@@ -742,10 +749,12 @@ export const actions = {
 
     let data
     try {
-      const response = await DataSourceService($client).update(
-        dataSourceId,
-        values
-      )
+      const response = await DataSourceService($client).update(dataSourceId, {
+        ...values,
+        ...(linkFilterWidgetId == null
+          ? {}
+          : { link_filter_widget_id: linkFilterWidgetId }),
+      })
       data = response.data
     } catch (error) {
       if (isDataSourceMutationCurrent(state, request)) {
@@ -1007,7 +1016,14 @@ export const actions = {
     }
     return dataSourcesData
   },
-  async createWidget({ state, dispatch }, { dashboard, widget }) {
+  /**
+   * Create a widget and select it, unless `select` is false: an editor adding
+   * a widget from another widget's settings keeps working on that one.
+   */
+  async createWidget(
+    { state, dispatch },
+    { dashboard, widget, select = true }
+  ) {
     const { $client } = this
     const request = {
       dashboardId: dashboard.id,
@@ -1024,7 +1040,7 @@ export const actions = {
     if (!isDashboardRequestCurrent(state, request)) {
       return createdWidget
     }
-    dispatch('selectWidget', createdWidget.id)
+    if (select) dispatch('selectWidget', createdWidget.id)
     // The POST above is the creation boundary. Refreshing related client state must
     // never turn a persisted widget into an apparent creation failure.
     await refreshAfterWidgetCreation(dispatch, dashboard)

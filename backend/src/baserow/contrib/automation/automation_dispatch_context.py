@@ -50,6 +50,8 @@ class AutomationDispatchContext(DispatchContext):
         # being dispatched. Everywhere else the node has no result yet.
         self.current_node: Optional[AutomationActionNode] = None
         self.current_node_result: Optional[Dict] = None
+        # Reads the nodes of the workflow once, for the test run data it stores.
+        self._node_access = None
 
         if current_iterations:
             # The keys are strings due to JSON serialization by Celery. We need
@@ -82,6 +84,21 @@ class AutomationDispatchContext(DispatchContext):
         new_context.current_node = self.current_node
         new_context.current_node_result = self.current_node_result
         return new_context
+
+    def get_sample_data_table_ids(self, service) -> Optional[List[int]]:
+        """
+        The tables of the node of the service and of the nodes it reads, directly
+        or not, with those their own test run data was built from.
+        """
+
+        from baserow.contrib.automation.nodes.access import AutomationNodeAccess
+
+        if self._node_access is None:
+            self._node_access = AutomationNodeAccess(None)
+        node = self._node_access.node_of_service(self.workflow, service)
+        if node is None:
+            return None
+        return sorted(self._node_access.sample_table_ids(node))
 
     def get_iteration_path(self, node):
         """

@@ -33,29 +33,86 @@ class DisplayWidgetTypeMixin:
         ):
             return updated_widget
 
-        for widget in WidgetHandler().get_widgets_for_update(
-            instance.dashboard, base_queryset=Widget.objects_and_trash.all()
-        ):
-            widget = widget.specific
+        from .filter_setup import (
+            build_new_widget_link,
+            get_matching_targets,
+        )
+
+        table_id = getattr(source.service.specific, "table_id", None)
+        filter_widgets = [
+            widget.specific
+            for widget in WidgetHandler().get_widgets_for_update(
+                instance.dashboard, base_queryset=Widget.objects_and_trash.all()
+            )
+            if widget.get_type().is_filter_widget
+        ]
+        # Looked up once for all the filters, and only when one needs them.
+        lookups = {}
+
+        def get_table_widget_ids():
+            if "widgets" not in lookups:
+                lookups["widgets"] = [
+                    widget.id
+                    for widget, target_source in get_matching_targets(
+                        instance.dashboard, table_id
+                    )
+                    # All widgets sharing this source still have old-table
+                    # conditions; none can be a template for the new table.
+                    if target_source.id != source.id
+                ]
+            return lookups["widgets"]
+
+        for widget in filter_widgets:
             filter_type = widget.get_type()
-            if not filter_type.is_filter_widget:
-                continue
             links = filter_type.get_target_filters(widget)
             updated = deepcopy(links)
             originals = []
+            # Copy this filter's conditions from the first widget on the new
+            # table, independently of its conditions on other tables. A filter
+            # that asked for the widget links it even without conditions.
+            asked = widget.id == kwargs.get("link_filter_widget_id")
+            default = None
+            if (
+                table_id
+                and not widget.trashed
+                and (asked or getattr(widget, "apply_to_new_widgets", False))
+            ):
+                default = build_new_widget_link(instance, links, get_table_widget_ids())
+                if default is None and asked:
+                    default = {
+                        "target_widget_id": instance.id,
+                        "enabled": True,
+                        "empty_behavior": "apply_nothing",
+                        "group": {
+                            "filter_type": "AND",
+                            "filters": [],
+                            "filter_groups": [],
+                        },
+                    }
             for link, replacement in zip(links, updated):
                 if link["target_widget_id"] != instance.id:
                     continue
-                replacement["group"] = {
-                    "filter_type": "AND",
-                    "filters": [],
-                    "filter_groups": [],
-                }
-                replacement["empty_behavior"] = "apply_nothing"
                 replacement.pop("alternative_group", None)
+                if default:
+                    replacement.update(
+                        {**default, "enabled": link.get("enabled", True)}
+                    )
+                else:
+                    replacement["group"] = {
+                        "filter_type": "AND",
+                        "filters": [],
+                        "filter_groups": [],
+                    }
+                    replacement["empty_behavior"] = "apply_nothing"
                 if link != replacement:
                     originals.append(link)
-            if originals:
+            if default and not any(
+                link["target_widget_id"] == instance.id for link in links
+            ):
+                updated.append(default)
+                # Undo removes the link again, as there was none.
+                originals.append({"target_widget_id": instance.id, "_absent": True})
+            if originals or len(updated) != len(links):
                 updated_data_source.original_filter_links.setdefault(
                     str(widget.id), []
                 ).extend(originals)
@@ -265,18 +322,25 @@ class FilterWidgetTypeMixin:
         )
         if "target_filters" not in restoration_data:
             return changed
+        entries = restoration_data["target_filters"]
+        # Besides replaced links, a source change records the links it added
+        # (`_absent`).
+        absent = {
+            entry["target_widget_id"] for entry in entries if entry.get("_absent")
+        }
         replacements = {
-            link["target_widget_id"]: link
-            for link in restoration_data["target_filters"]
+            entry["target_widget_id"]: entry
+            for entry in entries
+            if "target_widget_id" in entry and not entry.get("_absent")
         }
         self.set_target_filters(
             instance,
             [
                 replacements.get(link["target_widget_id"], link)
                 for link in self.get_target_filters(instance)
+                if link["target_widget_id"] not in absent
             ],
         )
-
         return True
 
     def formula_generator(self, instance):

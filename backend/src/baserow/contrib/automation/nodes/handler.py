@@ -750,7 +750,7 @@ class AutomationNodeHandler:
 
         if simulate_until_node and simulate_until_node.id == node.id:
             service = node.service.specific
-            service.refresh_from_db(fields=["sample_data"])
+            service.refresh_from_db(fields=["sample_data", "sample_data_table_ids"])
             automation_node_updated.send(self, user=None, node=node)
             return True
 
@@ -795,6 +795,35 @@ class AutomationNodeHandler:
             node=node,
             node_history=node_history,
         )
+
+    def _dispatch_table_ids(
+        self, node: AutomationNode, simulated: bool = False, replayed: bool = False
+    ) -> List[int]:
+        """
+        The tables a dispatch of the node reads, kept with its history entry. The
+        nodes of the workflow are read once per task, through the node cache.
+
+        :param simulated: Whether the dispatch is part of a test run, where the
+            nodes it reads answer with their stored test run data, so the tables
+            that data was built from are kept too.
+        :param replayed: Whether the node answers with its stored test run data,
+            as the nodes before the tested one do in a test run. The tables that
+            data was built from are kept too, whatever the node reads now.
+        """
+
+        from baserow.contrib.automation.nodes.access import AutomationNodeAccess
+
+        access = AutomationNodeAccess(None).add_nodes(
+            self.get_nodes(node.workflow), all_of_workflow=True
+        )
+        table_ids = (
+            access.sample_table_ids(node)
+            if simulated
+            else access.dispatch_table_ids(node)
+        )
+        if replayed:
+            table_ids |= set(node.service.specific.sample_data_table_ids or ())
+        return sorted(table_ids)
 
     @baserow_trace(tracer)
     def dispatch_node(
@@ -895,6 +924,12 @@ class AutomationNodeHandler:
             started_on=timezone.now(),
             attempt=attempt,
             iteration_path=iteration_path,
+            read_table_ids=self._dispatch_table_ids(
+                node,
+                simulated=simulate_until_node is not None,
+                replayed=simulate_until_node is not None
+                and node.id != simulate_until_node.id,
+            ),
         )
 
         node_type: Type[AutomationActionNodeType] = node.get_type()
@@ -1174,6 +1209,7 @@ class AutomationNodeHandler:
             "node__workflow", "workflow_history"
         ).get(id=node_history_id)
         deferred_history = history_handler.get_workflow_history(deferred_history_id)
+        self._add_deferred_table_ids(node_history, deferred_history)
         workflow_response = (
             None
             if timed_out
@@ -1214,6 +1250,37 @@ class AutomationNodeHandler:
             dispatch_result,
             current_iterations,
         )
+
+    def _add_deferred_table_ids(
+        self,
+        node_history: AutomationNodeHistory,
+        deferred_history: AutomationWorkflowHistory,
+    ) -> None:
+        """
+        Adds the tables the nodes of the run a node waited for read to those of
+        the node's history entry, as its result holds what that run answered.
+        """
+
+        from baserow.contrib.automation.nodes.access import AutomationNodeAccess
+
+        child_table_ids = set()
+        access = AutomationNodeAccess(None, include_trashed=True)
+        for child_history in AutomationNodeHistory.objects.filter(
+            workflow_history=deferred_history
+        ).select_related("node__workflow"):
+            if child_history.read_table_ids is not None:
+                child_table_ids |= set(child_history.read_table_ids)
+            else:
+                # Written before the tables were kept: what the node reads now.
+                child_table_ids |= access.dispatch_table_ids(child_history.node)
+        own_table_ids = (
+            set(node_history.read_table_ids)
+            if node_history.read_table_ids is not None
+            else set(self._dispatch_table_ids(node_history.node))
+        )
+        if not child_table_ids <= own_table_ids or node_history.read_table_ids is None:
+            node_history.read_table_ids = sorted(own_table_ids | child_table_ids)
+            node_history.save(update_fields=["read_table_ids"])
 
     def resume_pending_node(
         self, node_history_id: int

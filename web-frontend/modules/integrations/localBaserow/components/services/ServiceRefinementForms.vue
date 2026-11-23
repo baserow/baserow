@@ -265,6 +265,11 @@ export default {
     Tab,
     FormGroup,
   },
+  inject: {
+    // Open each refinement below its button, instead of to its left as in the
+    // sidebar, where there is no room on the right.
+    refinementsBelowButtons: { default: false },
+  },
   props: {
     values: {
       type: Object,
@@ -377,6 +382,10 @@ export default {
     },
     openContextWithContent(contentType, targetElement) {
       const contextRef = `${contentType}Context`
+      if (this.refinementsBelowButtons) {
+        this.$refs[contextRef].toggle(targetElement, 'bottom', 'left', 4, 0)
+        return
+      }
       const horizontalOffset = this.getContextHorizontalOffset(contentType)
       this.$refs[contextRef].toggle(
         targetElement,

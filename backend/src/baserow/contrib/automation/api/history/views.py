@@ -21,6 +21,7 @@ from baserow.contrib.automation.api.history.serializers import (
 )
 from baserow.contrib.automation.api.workflows.serializers import (
     AutomationWorkflowHistorySerializer,
+    workflow_history_context,
 )
 from baserow.contrib.automation.history.exceptions import (
     AutomationNodeHistoryDoesNotExist,
@@ -30,6 +31,7 @@ from baserow.contrib.automation.history.exceptions import (
     AutomationWorkflowHistoryNotRunning,
 )
 from baserow.contrib.automation.history.service import AutomationHistoryService
+from baserow.contrib.automation.nodes.access import AutomationNodeAccess
 
 AUTOMATION_HISTORY_TAG = "Automation history"
 
@@ -67,12 +69,17 @@ class AutomationNodeHistoriesView(APIView):
         node_histories = service.get_node_histories(request.user, workflow_history_id)
         edge_labels = service.get_edge_labels(request.user, node_histories)
         destinations = service.get_destination_labels(request.user, node_histories)
+        node_histories = list(node_histories)
+        # The nodes of a run are those of the workflow it ran, trashed or not.
+        run_workflow = node_histories[0].node.workflow if node_histories else None
         serializer = AutomationNodeHistorySerializer(
             node_histories,
             many=True,
             context={
                 "edge_labels": edge_labels,
                 "destinations": destinations,
+                "node_access": AutomationNodeAccess(request.user, include_trashed=True),
+                "run_workflow": run_workflow,
             },
         )
         return Response(serializer.data)
@@ -131,7 +138,10 @@ class CancelAutomationWorkflowHistoryView(APIView):
         workflow_history = AutomationHistoryService().request_cancellation(
             request.user, workflow_history_id
         )
-        serializer = AutomationWorkflowHistorySerializer(workflow_history)
+        serializer = AutomationWorkflowHistorySerializer(
+            workflow_history,
+            context=workflow_history_context(request.user, [workflow_history]),
+        )
         return Response(serializer.data)
 
 
@@ -175,5 +185,10 @@ class AutomationNodeResultView(APIView):
         node_result = AutomationHistoryService().get_node_history_result(
             request.user, node_history_id
         )
-        serializer = AutomationNodeResultSerializer(node_result)
+        serializer = AutomationNodeResultSerializer(
+            node_result,
+            context={
+                "node_access": AutomationNodeAccess(request.user, include_trashed=True)
+            },
+        )
         return Response(serializer.data)

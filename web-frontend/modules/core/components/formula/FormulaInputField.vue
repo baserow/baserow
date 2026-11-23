@@ -434,6 +434,7 @@ export default {
         'formula-input-field--focused':
           !this.disabled && !this.readOnly && this.isFocused,
         'formula-input-field--disabled': this.disabled,
+        'formula-input-field--read-only': this.readOnly,
         'formula-input-field--error': this.isFormulaInvalid,
         'formula-input-field--formula-empty': this.isFormulaEmpty,
       }

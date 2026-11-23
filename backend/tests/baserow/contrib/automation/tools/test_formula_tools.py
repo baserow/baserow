@@ -4,10 +4,12 @@ import re
 
 import pytest
 
+from baserow.contrib.automation.nodes.access import formula_reads
 from baserow.contrib.automation.tools.formulas import (
     InvalidAutomationFormula,
     check_automation_formula,
     check_output_paths,
+    previous_node_paths,
     resolve_node_refs,
 )
 from baserow.core.formula.literals import needs_formula, wrap_static_string
@@ -248,3 +250,60 @@ def test_a_quote_escaped_in_a_string_literal_doesnt_end_it():
     assert resolve_node_refs(formula, {"x": 7}) == (
         "concat('it\\'s get(\\'previous_node.x', get('previous_node.7.0.id'))"
     )
+
+
+@pytest.mark.parametrize(
+    "formula",
+    [
+        "get('previous_node.5.field_1')",
+        "get('previous_node[5].field_1')",
+        "GET('previous_node.5.field_1')",
+        "get(('previous_node.5.field_1'))",
+        "get( 'previous_node.5.field_1' )",
+        'get("previous_node.5.field_1")',
+        "concat('a', get('previous_node.5.field_1'))",
+    ],
+)
+def test_the_nodes_a_formula_reads_are_the_same_for_every_check(formula):
+    """
+    The check of paths against the nodes outputs and the check of the nodes a
+    formula reads find the same reads, however the path is written.
+    """
+
+    assert formula_reads([formula]).node_ids == {5}
+    ((_, _, node, rest),) = previous_node_paths(formula)
+    assert (node, rest) == ("5", ("field_1",))
+
+    with pytest.raises(InvalidAutomationFormula, match="Node 5 is not in this"):
+        check_output_paths("subject", formula, lambda node_id: None)
+
+
+@pytest.mark.parametrize(
+    "formula, node_ids",
+    [
+        ("get('current_iteration.5.item.x')", {5}),
+        ("get('current_iteration[5].item.x')", {5}),
+        ("get('previous_node.5.0.x') + get('previous_node.6.0.x')", {5, 6}),
+        ("get('previous_node.x.0.x')", set()),
+        ("get('past.5.0.x')", set()),
+        ("concat('previous_node.5.x')", set()),
+    ],
+)
+def test_the_nodes_a_formula_reads_through_any_provider(formula, node_ids):
+    assert formula_reads([formula]).node_ids == node_ids
+
+
+def test_a_path_a_formula_builds_can_read_any_node():
+    assert formula_reads(["get(concat('previous_node.', 5, '.x'))"]).any_node is True
+    assert previous_node_paths("get(concat('previous_node.', 5, '.x'))") == []
+
+
+@pytest.mark.parametrize(
+    "formula, resolved",
+    [
+        ("get('previous_node[o].0.id')", "get('previous_node[5].0.id')"),
+        ("GET(('previous_node.o.0.id'))", "GET(('previous_node.5.0.id'))"),
+    ],
+)
+def test_node_refs_are_resolved_however_the_path_is_written(formula, resolved):
+    assert resolve_node_refs(formula, {"o": 5}) == resolved

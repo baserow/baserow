@@ -2,6 +2,7 @@ from datetime import date, datetime
 from typing import Any, Dict, List, Optional
 from uuid import UUID
 
+from django.db import transaction
 from django.db.models import Prefetch
 
 from rest_framework import serializers
@@ -40,12 +41,17 @@ from baserow.contrib.database.fields.models import (
 from baserow.contrib.database.fields.registries import field_type_registry
 from baserow.contrib.database.fields.utils import get_field_id_from_field_key
 from baserow.contrib.database.rows.operations import ReadDatabaseRowOperationType
+from baserow.contrib.database.table.cache import invalidate_table_in_model_cache
 from baserow.contrib.database.table.exceptions import TableDoesNotExist
 from baserow.contrib.database.table.handler import TableHandler
 from baserow.contrib.database.views.exceptions import ViewDoesNotExist
 from baserow.contrib.database.views.handler import ViewHandler
 from baserow.contrib.database.views.registries import view_type_registry
 from baserow.core.db import specific_iterator, specific_queryset
+from baserow.core.deferred_callbacks import (
+    is_deferred_callback_context_active,
+    register_deferred_callback,
+)
 from baserow.core.handler import CoreHandler
 from baserow.core.models import Template
 from baserow.core.utils import ChildProgressBuilder
@@ -378,6 +384,49 @@ class LocalBaserowTableDataSyncType(DataSyncType):
     def import_serialized(
         self, table, serialized_values, id_mapping, import_export_config
     ):
+        if (
+            serialized_values["source_table_id"] in id_mapping["database_tables"]
+            or import_export_config.keeps_unmapped_references
+        ):
+            data_sync = self._import_data_sync(
+                table, serialized_values, id_mapping, import_export_config
+            )
+            if data_sync is None:
+                self._unlock_fields(table)
+            return data_sync
+
+        # Unlocked until the data sync exists: if the import fails before that, the
+        # table must stay a regular editable table, not locked fields with no sync.
+        fields = list(table.field_set.all())
+        self._unlock_fields(table)
+
+        def import_data_sync():
+            with transaction.atomic():
+                data_sync = self._import_data_sync(
+                    table, serialized_values, id_mapping, import_export_config
+                )
+                if data_sync is not None:
+                    Field.objects.bulk_update(
+                        fields, ["read_only", "immutable_type", "immutable_properties"]
+                    )
+                    invalidate_table_in_model_cache(table.id)
+            return data_sync
+
+        if is_deferred_callback_context_active():
+            register_deferred_callback(import_data_sync)
+            return None
+
+        return import_data_sync()
+
+    def _unlock_fields(self, table):
+        table.field_set.all().update(
+            read_only=False, immutable_type=False, immutable_properties=False
+        )
+        invalidate_table_in_model_cache(table.id)
+
+    def _import_data_sync(
+        self, table, serialized_values, id_mapping, import_export_config
+    ):
         serialized_copy = serialized_values.copy()
         # Always unset the authorized user for security reasons. This is okay because
         # the first user to sync the data sync table will become the authorized user.
@@ -385,13 +434,18 @@ class LocalBaserowTableDataSyncType(DataSyncType):
         source_table_id = serialized_copy["source_table_id"]
 
         if source_table_id in id_mapping["database_tables"]:
-            # If the source table exists in the mapping, it means that it was
-            # included in the export. In that case, we want to use that one as source
-            # table instead of the existing one.
+            # A source view that wasn't copied is never cleared: syncing without its
+            # filters would copy rows and fields the view excluded.
+            view_id = serialized_copy.get("source_table_view_id")
+            if view_id is not None:
+                new_view_id = id_mapping.get("database_views", {}).get(view_id)
+                if new_view_id is not None:
+                    serialized_copy["source_table_view_id"] = new_view_id
+                elif not import_export_config.keeps_unmapped_references:
+                    return None
             serialized_copy["source_table_id"] = id_mapping["database_tables"][
                 source_table_id
             ]
-            serialized_copy["authorized_user_id"] = None
             data_sync = super().import_serialized(
                 table, serialized_copy, id_mapping, import_export_config
             )
@@ -406,24 +460,27 @@ class LocalBaserowTableDataSyncType(DataSyncType):
                     if new_field_id is None:
                         continue
                     data_sync_property.key = f"field_{new_field_id}"
+                    mapping = (data_sync_property.metadata or {}).get(
+                        "select_options_mapping"
+                    )
+                    if mapping:
+                        options = id_mapping.get("database_field_select_options", {})
+                        data_sync_property.metadata["select_options_mapping"] = {
+                            str(options.get(int(source), source)): target
+                            for source, target in mapping.items()
+                        }
                     properties_to_update.append(data_sync_property)
-            DataSyncSyncedProperty.objects.bulk_update(properties_to_update, ["key"])
+            DataSyncSyncedProperty.objects.bulk_update(
+                properties_to_update, ["key", "metadata"]
+            )
 
             return data_sync
 
-        if import_export_config.is_duplicate:
-            # When duplicating the database or table, and it doesn't exist in the
-            # id_mapping, then the source table is inside the same database or in
-            # another workspace. In that case, we want to keep using the same.
+        if import_export_config.keeps_unmapped_references:
             return super().import_serialized(
                 table, serialized_copy, id_mapping, import_export_config
             )
 
-        # If the source table doesn't exist in the mapping, and we're not
-        # duplicating, then it's not possible to preserve the data sync. We'll then
-        # transform the fields to editable fields, keep the data, and keep the table
-        # as regular table.
-        table.field_set.all().update(
-            read_only=False, immutable_type=False, immutable_properties=False
-        )
+        # Any other copy, template installs included, can't rely on the source table
+        # id, so the table stays a regular table with editable fields and its data.
         return None

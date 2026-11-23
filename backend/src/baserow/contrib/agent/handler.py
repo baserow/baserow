@@ -208,9 +208,7 @@ class AgentHandler:
             and with_tools
             and self._get_web_search_tool(agent, False) is not None,
             web_fetch_enabled=agent.web_fetch_enabled,
-            available_trigger_types=AgentTriggerHandler().available_trigger_types(
-                agent
-            ),
+            available_trigger_types=AgentTriggerHandler().available_trigger_types(),
             available_action_types=AgentActionHandler().available_action_types(agent),
             max_actions=settings.BASEROW_AGENT_MAX_ACTIONS_PER_AGENT,
             max_queued_trigger_runs=settings.AGENT_TRIGGER_MAX_QUEUED_RUNS,

@@ -1,4 +1,4 @@
-"""Collect service properties used by dashboard widgets."""
+"""Collect table context properties used by dashboard widgets."""
 
 from baserow.core.cache import global_cache
 from baserow.core.utils import merge_dicts_no_duplicates
@@ -8,7 +8,7 @@ WIDGET_PROPERTIES_LOCK_TIMEOUT_SECONDS = 60
 
 
 def get_dashboard_used_property_names(widgets):
-    """Ask each widget type for the service properties used by its formulas."""
+    """Ask each widget type for the table context properties used by its formulas."""
     result = {}
     for widget in widgets:
         result = merge_dicts_no_duplicates(

@@ -710,3 +710,46 @@ def test_0139_discards_legacy_agents_without_converting_references(
     assert not TrashEntry.objects.filter(id=trash.id).exists()
     action.delete()
     workspace.delete()
+
+
+@pytest.mark.once_per_day_in_ci
+def test_0142_sets_max_snapshots_of_applications_with_snapshots(
+    migrator, teardown_table_metadata
+):
+    old_state = migrator.migrate(_core_migration_targets("0141_ai_provider_excluded_workspaces"))
+    ContentType = old_state.apps.get_model("contenttypes", "ContentType")
+    Workspace = old_state.apps.get_model("core", "Workspace")
+    Application = old_state.apps.get_model("core", "Application")
+    Snapshot = old_state.apps.get_model("core", "Snapshot")
+    content_type = ContentType.objects.get_for_model(Application)
+
+    workspace = Workspace.objects.create(name="Workspace")
+
+    def create_application(name, **kwargs):
+        return Application.objects.create(
+            name=name, order=1, content_type=content_type, **kwargs
+        )
+
+    with_snapshots = create_application("With snapshots", workspace=workspace)
+    without_snapshots = create_application("Without snapshots", workspace=workspace)
+    for mark_for_deletion in [False, False, True]:
+        Snapshot.objects.create(
+            name="Snapshot",
+            snapshot_from_application=with_snapshots,
+            snapshot_to_application=create_application("Copy"),
+            mark_for_deletion=mark_for_deletion,
+        )
+    # Not copied yet, so it doesn't count.
+    Snapshot.objects.create(name="Snapshot", snapshot_from_application=with_snapshots)
+
+    new_state = migrator.migrate(
+        _core_migration_targets("0142_max_snapshots_and_protection")
+    )
+    NewApplication = new_state.apps.get_model("core", "Application")
+    NewSnapshot = new_state.apps.get_model("core", "Snapshot")
+    NewWorkspace = new_state.apps.get_model("core", "Workspace")
+
+    assert NewApplication.objects.get(id=with_snapshots.id).max_snapshots == 2
+    assert NewApplication.objects.get(id=without_snapshots.id).max_snapshots is None
+    assert NewWorkspace.objects.get(id=workspace.id).default_max_snapshots == 0
+    assert set(NewSnapshot.objects.values_list("protected", flat=True)) == {True}

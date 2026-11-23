@@ -686,9 +686,35 @@ export class LocalBaserowDeleteRowServiceType extends WorkflowActionServiceTypeM
   }
 }
 
-export class LocalBaserowRowsSignalTriggerServiceType extends TriggerServiceTypeMixin(
+export class LocalBaserowTableSignalTriggerServiceType extends TriggerServiceTypeMixin(
   LocalBaserowTableServiceType
 ) {
+  /**
+   * The message naming a service of this type after its table, with a
+   * `{tableName}` placeholder, or null when the type has none.
+   */
+  get defaultNameTemplate() {
+    return null
+  }
+
+  /**
+   * @param {object|null} service The trigger service.
+   * @param {object} formChoices What its form chooses from: the `databases`
+   *   with the tables it may watch.
+   * @returns {string} The name with the service's table, or the type's name
+   *   while the table is unknown.
+   */
+  getDefaultName(service, { databases = [] } = {}) {
+    const table = databases
+      .flatMap((database) => database.tables)
+      .find(({ id }) => id === service?.table_id)
+    return table && this.defaultNameTemplate
+      ? this.app.$i18n.t(this.defaultNameTemplate, { tableName: table.name })
+      : this.name
+  }
+}
+
+export class LocalBaserowRowsSignalTriggerServiceType extends LocalBaserowTableSignalTriggerServiceType {
   returnsList(service) {
     return true
   }
@@ -714,30 +740,6 @@ export class LocalBaserowRowsSignalTriggerServiceType extends TriggerServiceType
       }
     }
     return super.getErrorMessage({ service })
-  }
-
-  /**
-   * The message naming a service of this type after its table, with a
-   * `{tableName}` placeholder, or null when the type has none.
-   */
-  get defaultNameTemplate() {
-    return null
-  }
-
-  /**
-   * @param {object|null} service The trigger service.
-   * @param {object} formChoices What its form chooses from: the `databases`
-   *   with the tables it may watch.
-   * @returns {string} The name with the service's table, or the type's name
-   *   while the table is unknown.
-   */
-  getDefaultName(service, { databases = [] } = {}) {
-    const table = databases
-      .flatMap((database) => database.tables)
-      .find(({ id }) => id === service?.table_id)
-    return table && this.defaultNameTemplate
-      ? this.app.$i18n.t(this.defaultNameTemplate, { tableName: table.name })
-      : this.name
   }
 }
 

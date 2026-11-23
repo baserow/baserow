@@ -34,6 +34,7 @@ export class ChartWidgetType extends DataSourceWidgetType {
     return [
       {
         name: this.app.$i18n.t('chartWidget.bar'),
+        description: this.app.$i18n.t('chartWidget.barDescription'),
         createWidgetImage: ChartBarWidgetSvg,
         type: this,
         params: {
@@ -43,6 +44,7 @@ export class ChartWidgetType extends DataSourceWidgetType {
       },
       {
         name: this.app.$i18n.t('chartWidget.line'),
+        description: this.app.$i18n.t('chartWidget.lineDescription'),
         createWidgetImage: ChartLineWidgetSvg,
         type: this,
         params: {
@@ -111,6 +113,7 @@ export class PieChartWidgetType extends ChartWidgetType {
     return [
       {
         name: this.app.$i18n.t('pieChartWidget.pie'),
+        description: this.app.$i18n.t('pieChartWidget.pieDescription'),
         createWidgetImage: ChartPieWidgetSvg,
         type: this,
         params: {
@@ -120,6 +123,7 @@ export class PieChartWidgetType extends ChartWidgetType {
       },
       {
         name: this.app.$i18n.t('pieChartWidget.doughnut'),
+        description: this.app.$i18n.t('pieChartWidget.doughnutDescription'),
         createWidgetImage: ChartDonutWidgetSvg,
         type: this,
         params: {

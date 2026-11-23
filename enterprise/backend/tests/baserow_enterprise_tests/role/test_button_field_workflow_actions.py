@@ -163,3 +163,48 @@ def test_the_schema_is_there_for_a_table_the_editor_can_read(
     (action,) = response.json()
     assert action["service"]["table_accessible"] is True
     assert action["service"]["schema"] is not None
+
+
+@override_settings(DEBUG=True)
+@pytest.mark.django_db
+def test_an_editor_with_a_role_on_one_view_is_not_shown_the_schema_of_the_table(
+    data_fixture, enterprise_data_fixture, api_client
+):
+    """The schema names the fields of the table, which listing them is needed
+    for, so a role on a view of the table is not enough."""
+
+    admin = data_fixture.create_user()
+    editor, editor_token = enterprise_data_fixture.create_user_and_token()
+    workspace = data_fixture.create_workspace(users=[admin, editor])
+    secret_database = data_fixture.create_database_application(
+        user=admin, workspace=workspace
+    )
+    secret_table = data_fixture.create_database_table(
+        user=admin, database=secret_database
+    )
+    data_fixture.create_text_field(table=secret_table, name="Salary")
+    view = data_fixture.create_grid_view(table=secret_table)
+    button_field = _button_with_an_action_targeting(
+        data_fixture, admin, workspace, secret_table
+    )
+
+    RoleAssignmentHandler().assign_role(
+        editor, workspace, role=Role.objects.get(uid="BUILDER")
+    )
+    RoleAssignmentHandler().assign_role(
+        editor, workspace, role=Role.objects.get(uid="NO_ACCESS"), scope=secret_table
+    )
+    RoleAssignmentHandler().assign_role(
+        editor, workspace, role=Role.objects.get(uid="VIEWER"), scope=view.view_ptr
+    )
+
+    response = api_client.get(
+        f"/api/database/field/{button_field.id}/workflow_actions/",
+        HTTP_AUTHORIZATION=f"JWT {editor_token}",
+    )
+
+    assert response.status_code == 200
+    (action,) = response.json()
+    assert action["service"]["table_accessible"] is False
+    assert action["service"]["schema"] is None
+    assert "Salary" not in response.content.decode()

@@ -37,7 +37,10 @@ export class SettingsType extends Registerable {
     throw new Error('The component of a settings type must be set.')
   }
 
-  isEnabled() {
+  /**
+   * Whether the settings type is shown. Workspace settings types get the workspace.
+   */
+  isEnabled(workspace = null) {
     return true
   }
 

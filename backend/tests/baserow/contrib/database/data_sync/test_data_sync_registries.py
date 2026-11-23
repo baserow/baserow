@@ -47,7 +47,8 @@ END:VCALENDAR"""
 
 @pytest.mark.django_db
 @responses.activate
-def test_import_export_data_sync(data_fixture):
+@pytest.mark.parametrize("exported_before_property_metadata", [False, True])
+def test_import_export_data_sync(data_fixture, exported_before_property_metadata):
     responses.add(
         responses.GET,
         "https://baserow.io/ical.ics",
@@ -75,6 +76,9 @@ def test_import_export_data_sync(data_fixture):
     database_type = application_type_registry.get("database")
     config = ImportExportConfig(include_permission_data=True)
     serialized = database_type.export_serialized(database, config)
+    if exported_before_property_metadata:
+        for serialized_property in serialized["tables"][0]["data_sync"]["properties"]:
+            del serialized_property["metadata"]
 
     imported_workspace = data_fixture.create_workspace()
     imported_workspace_user = data_fixture.create_user_workspace(

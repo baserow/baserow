@@ -251,6 +251,10 @@ msgstr ""
 msgid "Code"
 msgstr ""
 
+#: src/baserow_enterprise/automation/nodes/node_types.py:97
+msgid "Row comment is posted"
+msgstr ""
+
 #: src/baserow_enterprise/builder/elements/element_types.py:69
 msgid "Auth form"
 msgstr ""

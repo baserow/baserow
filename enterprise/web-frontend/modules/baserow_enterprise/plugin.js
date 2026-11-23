@@ -111,6 +111,7 @@ import {
   DateDependencyPaidFeature,
   FieldLevelPermissionsPaidFeature,
   RBACPaidFeature,
+  RowCommentTriggerPaidFeature,
   SSOPaidFeature,
   SupportPaidFeature,
   SemanticSearchPaidFeature,
@@ -138,8 +139,13 @@ import {
   CoreCodeActionNodeType,
   CoreXLSFileReaderActionNodeType,
   LocalBaserowSemanticSearchActionNodeType,
+  LocalBaserowRowCommentPostedTriggerNodeType,
 } from '@baserow_enterprise/automation/nodeTypes'
-import { LocalBaserowSemanticSearchServiceType } from '@baserow_enterprise/integrations/localBaserow/serviceTypes'
+import { RowCommentPostedAgentTriggerType } from '@baserow_enterprise/agent/agentTriggerTypes'
+import {
+  LocalBaserowSemanticSearchServiceType,
+  LocalBaserowRowCommentPostedTriggerServiceType,
+} from '@baserow_enterprise/integrations/localBaserow/serviceTypes'
 import { SemanticSearchFieldFormAdvancedSettingType } from '@baserow_enterprise/fieldFormAdvancedSettingTypes'
 import {
   AISemanticSearchFieldType,
@@ -273,6 +279,18 @@ export default defineNuxtPlugin({
       )
       $registry.register('node', new CoreCodeActionNodeType(context))
     }
+    $registry.register(
+      'service',
+      new LocalBaserowRowCommentPostedTriggerServiceType(context)
+    )
+    $registry.register(
+      'node',
+      new LocalBaserowRowCommentPostedTriggerNodeType(context)
+    )
+    $registry.register(
+      'agentTriggerType',
+      new RowCommentPostedAgentTriggerType(context)
+    )
     $registry.register('service', new CoreXLSFileReaderServiceType(context))
     $registry.register(
       'workflowAction',
@@ -390,6 +408,7 @@ export default defineNuxtPlugin({
     $registry.register('paidFeature', new SSOPaidFeature(context))
     $registry.register('paidFeature', new AuditLogPaidFeature(context))
     $registry.register('paidFeature', new RBACPaidFeature(context))
+    $registry.register('paidFeature', new RowCommentTriggerPaidFeature(context))
     $registry.register('paidFeature', new DataSyncPaidFeature(context))
     $registry.register('paidFeature', new CoBrandingPaidFeature(context))
     $registry.register('paidFeature', new AdvancedWebhooksPaidFeature(context))

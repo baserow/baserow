@@ -139,7 +139,7 @@ raw id, or `.get(id, id)`, is not allowed.
 | Premium | `LocalBaserowGroupedAggregateRowsUserServiceType.create_instance_from_serialized` keeps series, group by and sort field ids when no field was copied | to do | WAB |
 | Enterprise | `LocalBaserowUserSourceType.deserialize_property` keeps `table_id` and field ids when no table was copied | to do | WAB |
 | Dashboard | `DashboardDataSourceHandler.import_data_source` uses `IntegrationHandler.get_integration_for_import` with `keep_unmapped=False`, clearing unmapped integrations | done | WAB |
-| Enterprise | `LocalBaserowTableDataSyncType.import_serialized` must clear an unmapped source table and remap or clear `source_table_view_id` | to do | core/database |
+| Enterprise | `LocalBaserowTableDataSyncType.import_serialized` imports no data sync, leaving a plain editable table, when the source table or the `source_table_view_id` view was not copied; a database duplicate keeps them, staying synced to the original | done | core/database |
 | Integrations | `CoreStartWorkflowServiceType.import_workflow_id` refuses a workflow outside `import_workspace_id` | done | WAB |
 
 Button field row actions use the Local Baserow service types above and follow them.

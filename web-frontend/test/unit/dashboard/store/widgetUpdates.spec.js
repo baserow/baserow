@@ -72,6 +72,21 @@ test('merges pending fields and resolves every caller after the combined save', 
   })
 })
 
+test('makes server-copied conditions available before the save resolves', async () => {
+  const target = { target_widget_id: 20, group: { filters: [] } }
+  const copied = {
+    ...target,
+    group: { filters: [{ field: 7, type: 'contains', value: 'Customer' }] },
+  }
+  patch.mockResolvedValueOnce({ data: { id: 1, target_filters: [copied] } })
+  const save = update({ target_filters: [target] }, { target_filters: [] })
+  await vi.advanceTimersByTimeAsync(1000)
+  await save
+  expect(store.state.dashboardApplication.widgets[0].target_filters).toEqual([
+    copied,
+  ])
+})
+
 test('keeps the latest value when the same field changes repeatedly', async () => {
   const first = update({ title: 'Countries' }, { title: 'Country' })
   const second = update({ title: 'Regions' }, { title: 'Countries' })
@@ -171,7 +186,35 @@ test('does not merge a new edit into a request already sent to the server', asyn
     { title: 'Regions' },
   ])
   expect(firstDone).not.toHaveBeenCalled()
-  finishFirst({ data: {} })
+  finishFirst({ data: { id: 1, title: 'Countries' } })
   await first
   expect(firstDone).toHaveBeenCalledOnce()
+  expect(store.state.dashboardApplication.widgets[0].title).toBe('Regions')
 })
+
+test.each([null, 1])(
+  'source updates forward only the requested filter exclusion (%s)',
+  async (linkFilterWidgetId) => {
+    store.commit('dashboardApplication/SET_DATA_SOURCES', [
+      { id: 7, table_id: 3 },
+    ])
+    patch.mockResolvedValue({ data: { id: 7, table_id: 3, field_id: 4 } })
+    store.$client.post = vi.fn().mockResolvedValue({ data: { result: 2 } })
+    store.$registry.getAll = () => ({})
+    store.$config = { public: {} }
+    await store.dispatch('dashboardApplication/updateDataSource', {
+      dataSourceId: 7,
+      values: { field_id: 4 },
+      linkFilterWidgetId,
+    })
+    expect(patch).toHaveBeenCalledWith('/dashboard/data-sources/7/', {
+      field_id: 4,
+      ...(linkFilterWidgetId == null
+        ? {}
+        : { link_filter_widget_id: linkFilterWidgetId }),
+    })
+    expect(
+      store.getters['dashboardApplication/getDataSourceById'](7)
+    ).not.toHaveProperty('link_filter_widget_id')
+  }
+)

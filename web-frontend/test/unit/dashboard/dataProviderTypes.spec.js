@@ -114,7 +114,7 @@ test('new filter types supply their own formula schema', () => {
 })
 
 test('dropdown options expose source metadata in the selected dashboard', async () => {
-  const { DashboardDataSourceContextDataProviderType } =
+  const { DashboardTableContextDataProviderType } =
     await import('@baserow/modules/dashboard/dataProviderTypes')
   const store = testApp.store
   const contextSchema = {
@@ -177,7 +177,7 @@ test('dropdown options expose source metadata in the selected dashboard', async 
       },
     },
   ])
-  const provider = new DashboardDataSourceContextDataProviderType({
+  const provider = new DashboardTableContextDataProviderType({
     app: {
       $store: store,
       $registry: store.$registry,
@@ -187,10 +187,22 @@ test('dropdown options expose source metadata in the selected dashboard', async 
   const context = { storePrefix: 'template/' }
   expect(provider.getNodes(context)).toMatchSnapshot()
   expect(
-    provider.getDataChunk(context, ['2', 'field_10', '*', 'value'])
+    provider.getDataChunk(context, ['114', 'field_10', '*', 'value'])
   ).toEqual(['Europe', 'Americas'])
   expect(provider.getDataSchema({})).toEqual({ type: 'object', properties: {} })
-  expect(provider.isValid(['2', 'field_10', '*', 'value'])).toBe(true)
+  expect(provider.isValid(['114', 'field_10', '*', 'value'])).toBe(true)
+  // Removing the original widget's source keeps the saved table path valid.
+  store.commit('template/dashboardApplication/SET_DATA_SOURCES', [
+    {
+      id: 99,
+      table_id: 114,
+      context_data_schema: contextSchema,
+      context_data: { field_10: [{ value: 'Europe' }, { value: 'Americas' }] },
+    },
+  ])
+  expect(
+    provider.getDataChunk(context, ['114', 'field_10', '*', 'value'])
+  ).toEqual(['Europe', 'Americas'])
   expect(provider.isValid(['2'])).toBe(false)
   expect(provider.isValid(['invalid', 'field_10'])).toBe(false)
 })

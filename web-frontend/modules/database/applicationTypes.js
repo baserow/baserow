@@ -41,6 +41,10 @@ export class DatabaseApplicationType extends ApplicationType {
     return i18n.t('applicationType.databases')
   }
 
+  getSnapshotPermissionDescription() {
+    return this.app.$i18n.t('databaseSnapshotPermissions.description')
+  }
+
   getViewLabel() {
     const { $i18n: i18n } = this.app
     return i18n.t('applicationType.viewDatabase')

@@ -1,0 +1,83 @@
+// The max snapshots of an application in the snapshots modal: how many snapshots it keeps,
+// and the form to change it.
+.max-snapshots {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 12px 16px;
+  border: 1px solid $palette-neutral-200;
+  border-radius: 6px;
+}
+
+.max-snapshots__main {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.max-snapshots__body {
+  flex: 1;
+  min-width: 0;
+}
+
+.max-snapshots__title {
+  font-weight: 500;
+  color: $palette-neutral-1200;
+}
+
+.max-snapshots__description,
+.max-snapshots__source {
+  color: $palette-neutral-900;
+}
+
+.max-snapshots__source--inherited {
+  color: $palette-blue-700;
+}
+
+.max-snapshots__value {
+  flex: none;
+  min-width: 24px;
+  font-size: 20px;
+  line-height: 28px;
+  font-weight: 600;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  color: $palette-neutral-1200;
+}
+
+.max-snapshots__form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.max-snapshots__input {
+  width: 80px;
+}
+
+.max-snapshots__hint {
+  color: $palette-neutral-900;
+}
+
+.max-snapshots__error {
+  color: $palette-red-800;
+}
+
+.max-snapshots__warning {
+  margin: 0;
+}
+
+.max-snapshots__confirm {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 12px;
+  border-radius: 6px;
+  background-color: $palette-red-50;
+
+  span {
+    flex: 1 1 100%;
+  }
+}

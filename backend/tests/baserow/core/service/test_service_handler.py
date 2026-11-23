@@ -94,7 +94,10 @@ def test_update_service_table_clears_sample_data(data_fixture):
     other_table = data_fixture.create_database_table(user=user, database=database)
     sample_data = {"data": {"id": 1, "Name": "Acme"}}
     service = data_fixture.create_local_baserow_get_row_service(
-        integration=integration, table=table, sample_data=sample_data
+        integration=integration,
+        table=table,
+        sample_data=sample_data,
+        sample_data_table_ids=[table.id],
     )
     service_type = service_type_registry.get("local_baserow_get_row")
 
@@ -104,10 +107,12 @@ def test_update_service_table_clears_sample_data(data_fixture):
     )
     service.refresh_from_db()
     assert service.sample_data == sample_data
+    assert service.sample_data_table_ids == [table.id]
 
     ServiceHandler().update_service(service_type, service, table=other_table)
     service.refresh_from_db()
     assert service.sample_data is None
+    assert service.sample_data_table_ids is None
 
 
 @pytest.mark.django_db

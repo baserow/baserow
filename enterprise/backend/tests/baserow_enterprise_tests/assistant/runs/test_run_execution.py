@@ -38,7 +38,11 @@ from baserow_enterprise.assistant.chat_run_type import AssistantChatRunType
 from baserow_enterprise.assistant.exceptions import AssistantModelNotSupportedError
 from baserow_enterprise.assistant.handler import AssistantHandler
 from baserow_enterprise.assistant.history import unfinished_answer
-from baserow_enterprise.assistant.models import AssistantChat, AssistantChatPrediction
+from baserow_enterprise.assistant.models import (
+    AssistantChat,
+    AssistantChatPrediction,
+    KnowledgeBaseChunk,
+)
 from baserow_enterprise.assistant.runs import (
     CHAT_TITLE_EVENT,
     ERROR_ACCESS_LOST,
@@ -55,6 +59,7 @@ from baserow_enterprise_tests.assistant.runs.utils import (
     ai_message,
     create_a_database,
     history_texts,
+    terminate_the_run_thread_connection,
     traces,
 )
 
@@ -512,3 +517,42 @@ def test_a_resumed_answer_keeps_the_sources_found_before_the_pause(
     assert message.content == "Bot is ready."
     assert message.artifacts["sources"] == ["https://baserow.io/a"]
     assert "paused" not in message.artifacts
+
+
+@pytest.mark.django_db(transaction=True)
+def test_the_docs_search_survives_a_dropped_run_connection(
+    assistant_run, kuma_model, mocker
+):
+    handler = "baserow_enterprise.assistant.tools.search_user_docs.handler"
+    mocker.patch(f"{handler}.KnowledgeBaseHandler.can_search", return_value=True)
+    mocker.patch(
+        f"{handler}.KnowledgeBaseHandler.search",
+        side_effect=lambda question, limit: KnowledgeBaseChunk.objects.all(),
+    )
+    run = assistant_run(content="How do I create a view?")
+    answers: list[str] = []
+
+    async def ask_the_docs(messages, info):
+        answers.extend(
+            str(part.content)
+            for message in messages
+            if isinstance(message, ModelRequest)
+            for part in message.parts
+            if isinstance(part, ToolReturnPart)
+        )
+        if answers:
+            yield "The documentation has nothing on views."
+            return
+        await sync_to_async(terminate_the_run_thread_connection)()
+        yield {
+            0: DeltaToolCall(
+                name="search_user_docs",
+                json_args='{"question": "Views?", "thought": "Check the docs"}',
+                tool_call_id="call-1",
+            )
+        }
+
+    kuma_model(ask_the_docs)
+    execute_chat_run(str(run.id))
+
+    assert "Nothing found in the documentation." in answers[0]

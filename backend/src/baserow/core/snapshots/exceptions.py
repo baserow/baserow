@@ -31,3 +31,51 @@ class SnapshotNameNotUnique(Exception):
     """
     Raise when a snapshot name is not unique per application.
     """
+
+
+class MaxSnapshotsIsZero(Exception):
+    """
+    Raised when creating a snapshot of an application that keeps no snapshots.
+    """
+
+
+class MaxSnapshotsFullOfProtected(Exception):
+    """
+    Raised when creating a snapshot of an application that is at its max snapshots, and
+    every snapshot it holds is protected, so none can be replaced.
+    """
+
+
+class MaxSnapshotsExceedsAllowance(Exception):
+    """
+    Raised when raising a max would reserve more than the workspace's snapshot
+    allowance.
+    """
+
+
+class MaxSnapshotsAboveLimit(Exception):
+    """
+    Raised when a max is above `BASEROW_MAX_SNAPSHOTS_PER_APPLICATION`.
+    """
+
+
+class MaxSnapshotsBelowProtected(Exception):
+    """
+    Raised when lowering a max below the number of protected snapshots an
+    application holds.
+    """
+
+
+class MaxSnapshotsChangeDeletesSnapshots(Exception):
+    """
+    Raised when lowering a max would delete snapshots, and the deletion wasn't
+    confirmed.
+    """
+
+    def __init__(self, count: int, *args):
+        self.count = count
+        super().__init__(
+            f"Lowering the max snapshots deletes {count} snapshot(s). Confirm the "
+            f"deletion.",
+            *args,
+        )

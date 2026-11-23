@@ -723,7 +723,9 @@ class BackgroundAssistant(Assistant):
         self._onboarding_target: dict[str, Any] | None = None
         self._tool_executor = ToolExecutor()
         super().__init__(chat, model_profile=model_profile)
-        self._toolset = ShieldedToolset(self._toolset, self._tool_executor)
+        self._toolset = ShieldedToolset(
+            self._toolset, self._tool_executor, before_call=journal.raise_if_stopping
+        )
 
     def _build_tool_helpers(self) -> ToolHelpers:
         """

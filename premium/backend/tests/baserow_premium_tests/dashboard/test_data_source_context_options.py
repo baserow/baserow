@@ -8,7 +8,7 @@ from baserow.contrib.dashboard.api.public.serializers import (
 )
 from baserow.contrib.dashboard.application_types import DashboardApplicationType
 from baserow.contrib.dashboard.data_providers import (
-    DashboardDataSourceContextDataProviderType,
+    DashboardTableContextDataProviderType,
 )
 from baserow.contrib.dashboard.data_sources.handler import DashboardDataSourceHandler
 from baserow.contrib.dashboard.widgets.models import TextFilterWidget
@@ -82,10 +82,10 @@ def test_every_table_source_exposes_all_field_options(
             source, referenced_option_fields=[category.db_column]
         )["context_data"]
     )
-    provider = DashboardDataSourceContextDataProviderType()
+    provider = DashboardTableContextDataProviderType()
     assert provider.extract_properties(
-        [str(source.id), category.db_column, "*", "value"]
-    ) == {service.id: [category.db_column]}
+        [str(table.id), category.db_column, "*", "value"]
+    ) == {f"table_{table.id}": [category.db_column]}
     assert service_type.import_context_path(
         [category.db_column, "*", "value"], {"database_fields": {category.id: 999}}
     ) == ["field_999", "*", "value"]
@@ -99,7 +99,7 @@ def test_every_table_source_exposes_all_field_options(
 def test_aggregate_option_formulas_remap_when_dashboard_is_copied(
     premium_data_fixture, service_name
 ):
-    """Option references keep their source and field when an aggregate is duplicated."""
+    """Option references keep their table and field when an aggregate is duplicated."""
     fixture = premium_data_fixture
     user = fixture.create_user()
     dashboard = fixture.create_dashboard_application(user=user)
@@ -124,7 +124,7 @@ def test_aggregate_option_formulas_remap_when_dashboard_is_copied(
         title="Category",
         mode="dropdown",
         options=BaserowFormulaObject.create(
-            f"get('data_source_context.{source.id}.{category.db_column}.*.value')"
+            f"get('table_context.{table.id}.{category.db_column}.*.value')"
         ),
     )
     mapping = {
@@ -137,7 +137,6 @@ def test_aggregate_option_formulas_remap_when_dashboard_is_copied(
         dashboard.workspace, kind.export_serialized(dashboard, config), config, mapping
     )
     copied_owner = TextFilterWidget.objects.get(dashboard=copied)
-    copied_source = mapping["dashboard_data_sources"][source.id]
     assert copied_owner.options == BaserowFormulaObject.create(
-        f"get('data_source_context.{copied_source}.{category.db_column}.*.value')"
+        f"get('table_context.{table.id}.{category.db_column}.*.value')"
     )

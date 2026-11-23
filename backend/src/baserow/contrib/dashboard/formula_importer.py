@@ -19,8 +19,8 @@ logger = logging.getLogger(__name__)
 class DashboardFormulaImporter(BaserowFormulaImporter):
     """
     This visitor is used to import formulas in the dashboard services. It updates the
-    paths of the `get()` function calls to reflect the new IDs of the data sources,
-    fields, and other objects referenced in the formula.
+    paths of the `get()` function calls to reflect the new IDs of the tables,
+    fields, widgets, and other objects referenced in the formula.
     """
 
     def get_data_provider_type_registry(self):
@@ -35,12 +35,12 @@ def import_formula(
     """
     When a formula is used in a service, it must be migrated when we import it because
     it could contain IDs referencing other objects. For example, the formula
-    `get('data_source.2.field_25)` references the data source with ID `2`
+    `get('table_context.2.field_25')` references the table with ID `2`
     and the field with Id `25`.
     In order to update the Id a special process must be applied:
 
     ```
-    from baserow.contrib.builder.formula_importer import import_formula
+    from baserow.contrib.dashboard.formula_importer import import_formula
     ...
 
     # Later in your code

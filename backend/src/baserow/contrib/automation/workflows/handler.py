@@ -689,7 +689,14 @@ class AutomationWorkflowHandler:
 
             workflow_instance.get_graph().migrate_graph(id_mapping)
 
-        return [i[0] for i in imported_workflows]
+        from baserow.contrib.automation.nodes.backfill import (
+            fill_imported_workflows_table_ids,
+        )
+
+        workflows = [i[0] for i in imported_workflows]
+        # An export made before the tables of the test run data were kept.
+        fill_imported_workflows_table_ids(workflows)
+        return workflows
 
     def import_workflow(
         self,
