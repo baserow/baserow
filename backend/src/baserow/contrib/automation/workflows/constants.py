@@ -13,6 +13,9 @@ class WorkflowState(models.TextChoices):
 
 
 WORKFLOW_DIRTY_CACHE_KEY = "wa_workflow_dirty_{}"
+# How long a test run copy can be reused after it's made, unless the workflow
+# changes first. Past that, the next test run makes a new copy.
+WORKFLOW_TEST_CLONE_REUSE_SECONDS = 24 * 60 * 60
 
 # The stall sweep resolves at most this many runs per pass, oldest first. A full
 # batch means more remain, and the next pass takes them.
