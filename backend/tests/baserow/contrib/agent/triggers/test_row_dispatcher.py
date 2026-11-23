@@ -267,7 +267,7 @@ def test_rows_of_a_table_the_identity_cannot_read_never_start_after_a_table_swit
 
     trigger.refresh_from_db()
     assert not AgentConversation.objects.exists()
-    assert trigger.last_skipped_reason == "no_access"
+    assert trigger.last_skipped_reason == ""
 
 
 @pytest.mark.django_db
@@ -298,7 +298,7 @@ def test_a_pending_table_event_keeps_its_source_table(
         assert opening_messages() == ["1"]
     else:
         assert not opening_messages()
-        assert trigger.last_skipped_reason == "no_access"
+        assert trigger.last_skipped_reason == ""
 
 
 @pytest.mark.django_db

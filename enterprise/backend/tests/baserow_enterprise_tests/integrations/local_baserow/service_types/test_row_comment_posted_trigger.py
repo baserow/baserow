@@ -11,6 +11,7 @@ from baserow.contrib.agent.triggers.handler import AgentTriggerHandler
 from baserow.contrib.agent.triggers.service import AgentTriggerService
 from baserow.contrib.agent.triggers.tasks import start_trigger_conversations
 from baserow.contrib.automation.api.nodes.serializers import AutomationNodeSerializer
+from baserow.contrib.automation.nodes.handler import AutomationNodeHandler
 from baserow.contrib.automation.workflows.handler import AutomationWorkflowHandler
 from baserow.core.ai_provider.models import AIProviderConfig, AIProviderModel
 from baserow.core.chat_runs.handler import ChatRunHandler
@@ -162,15 +163,19 @@ def test_automation_reports_comment_access_for_its_integration(
 def test_automation_reports_a_trashed_setup_instead_of_comment_access(
     scenario, enterprise_data_fixture, trash, error
 ):
-    workflow = publish(enterprise_data_fixture, scenario, only_when_mentioned=False)
-    trigger = workflow.get_original().get_trigger().specific
-    service = trigger.service.specific
+    workflow = publish(
+        enterprise_data_fixture, scenario, only_when_mentioned=False
+    ).get_original()
+    service = workflow.get_trigger().service.specific
     item = service.integration if trash == "integration" else service.table
     TrashHandler.trash(scenario.ctx.user, scenario.ctx.workspace, None, item)
-    trigger.refresh_from_db()
-    assert AutomationNodeSerializer(trigger).data["service"]["context_data"] is None
-    with pytest.raises(ServiceImproperlyConfiguredDispatchException, match=error):
-        trigger.get_type().raise_if_misconfigured(trigger)
+    # The node list loads a trashed integration as None, the foreign key as trashed.
+    [listed] = AutomationNodeHandler().get_nodes(workflow, with_cache=False)
+    for trigger in (listed, workflow.get_trigger().specific):
+        data = AutomationNodeSerializer(trigger).data
+        assert data["service"]["context_data"] is None
+        with pytest.raises(ServiceImproperlyConfiguredDispatchException, match=error):
+            trigger.get_type().raise_if_misconfigured(trigger)
 
 
 def test_agent_uses_the_current_run_identity_for_mentions_and_comment_access(
@@ -211,9 +216,9 @@ def test_agent_uses_the_current_run_identity_for_mentions_and_comment_access(
     trigger_id, _, firings, _, can_read, source_id = queued.call_args.args
     assert source_id == scenario.tasks.id
     assert trigger_id == trigger.id and can_read
-    assert firings[0][0].endswith(
-        f"Anna commented on row {scenario.task_rows[0].id} in table {scenario.tasks.id}: Please review\n@Reviewer"
-    )
+    assert firings[0][0].endswith("\n```")
+    assert '"user_name": "Anna"' in firings[0][0]
+    assert '"text": "Please review\\n@Reviewer"' in firings[0][0]
     queued.reset_mock()
     agent.run_as_subject_id = other.id
     agent.save(update_fields=["run_as_subject_id"])
@@ -274,7 +279,7 @@ def test_comments_posted_by_identities_trigger_nothing(
     dispatch.assert_called_once()
 
 
-def test_an_unlicensed_agent_trigger_can_only_be_renamed_or_replaced(
+def test_an_unlicensed_agent_trigger_can_only_be_renamed_restored_or_replaced(
     scenario, enterprise_data_fixture
 ):
     fixture = enterprise_data_fixture
@@ -311,6 +316,11 @@ def test_an_unlicensed_agent_trigger_can_only_be_renamed_or_replaced(
     host.update_trigger(scenario.ctx.user, agent.id, trigger.id, name="Renamed")
     trigger.refresh_from_db()
     assert trigger.enabled and trigger.name == "Renamed"
+
+    host.delete_trigger(scenario.ctx.user, agent.id, trigger.id)
+    TrashHandler.restore_item(scenario.ctx.user, "agent_trigger", trigger.id)
+    restored = AgentTriggerHandler().get_trigger(trigger.id)
+    assert restored.enabled and not restored.service.trashed
 
     replaced = host.update_trigger(
         scenario.ctx.user, agent.id, trigger.id, service_type_name="periodic"

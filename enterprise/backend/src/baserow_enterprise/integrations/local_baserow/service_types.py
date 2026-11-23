@@ -717,20 +717,21 @@ class LocalBaserowRowCommentPostedTriggerServiceType(
         The integration's subject, which reads the table's comments for the
         trigger, whether or not it may.
 
-        :param service: The trigger service.
+        :param service: The trigger service, with a table.
         :param workspace: The workspace the trigger runs in.
         :raises ServiceImproperlyConfiguredDispatchException: When the table or
-            the integration is missing or trashed, or no subject can act.
+            the integration is trashed, or no subject can act.
         :return: The subject the trigger reads the comments as.
         """
 
-        if service.table is None:
-            raise ServiceImproperlyConfiguredDispatchException("No table is selected.")
         if TrashHandler.item_has_a_trashed_parent(service.table, check_item_also=True):
             raise ServiceImproperlyConfiguredDispatchException(
                 "The selected table is trashed."
             )
-        if service.integration_id and service.integration.trashed:
+        # A list load sets a trashed integration to None and keeps its id.
+        if service.integration_id and (
+            service.integration is None or service.integration.trashed
+        ):
             raise ServiceImproperlyConfiguredDispatchException(
                 "The integration is trashed."
             )

@@ -107,6 +107,9 @@ describe('Row comment posted trigger', () => {
     expect(wrapper.emitted('values-changed').at(-1)).toEqual([
       { only_when_mentioned: false },
     ])
+    // Without workspace access the server refuses the save.
+    await wrapper.setProps({ formChoicesError: 'Set workspace access' })
+    expect(wrapper.get('input[type="checkbox"]').element.disabled).toBe(true)
   })
 
   test('the table field explains a missing comment permission and clears the warning once granted', async () => {

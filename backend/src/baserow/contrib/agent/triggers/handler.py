@@ -134,7 +134,7 @@ class AgentTriggerHandler:
         :param type_name: The service type of the trigger.
         :raises AgentTriggerTypeNotAvailable: When the type isn't offered or the
             workspace's license locks it, so no trigger of it may be created,
-            edited, armed or fired.
+            edited or fired.
         """
 
         if not self.is_type_usable(agent, type_name):
@@ -381,15 +381,19 @@ class AgentTriggerHandler:
 
     def arm(self, trigger: AgentTrigger) -> None:
         """
-        Make the trigger's service receive real events from now on.
+        Make the trigger's service receive real events from now on. A type the
+        workspace's license locks is armed too, so a restored trigger is as it
+        was: the license is checked when a trigger is edited and when it fires.
 
         :param trigger: The trigger whose service is armed, with its Agent.
-        :raises AgentTriggerTypeNotAvailable: When the type isn't available.
+        :raises AgentTriggerTypeNotAvailable: When the instance doesn't offer the
+            type.
         """
 
         service = trigger.service.specific
         service_type = service.get_type()
-        self.check_type_usable(trigger.agent, service_type.type)
+        if service_type.type not in self.available_trigger_types():
+            raise AgentTriggerTypeNotAvailable(service_type.type)
         service_type.arm(service)
 
     def message_without_text(

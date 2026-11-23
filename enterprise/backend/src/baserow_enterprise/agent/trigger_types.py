@@ -1,5 +1,6 @@
 from typing import Any
 
+from baserow.contrib.agent.triggers.data_providers import trigger_data_as_text
 from baserow.contrib.agent.triggers.registries import AgentTriggerType
 from baserow_enterprise.integrations.local_baserow.models import (
     LocalBaserowRowCommentPosted,
@@ -16,7 +17,4 @@ class RowCommentPostedAgentTriggerType(AgentTriggerType):
     def get_event_text(
         self, service: LocalBaserowRowCommentPosted, event_payload: dict[str, Any]
     ) -> str:
-        return (
-            f"{event_payload['user_name']} commented on row {event_payload['row_id']} "
-            f"in table {event_payload['table_id']}: {event_payload['text']}"
-        )
+        return trigger_data_as_text(event_payload)

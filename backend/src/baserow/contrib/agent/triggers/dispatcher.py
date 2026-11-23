@@ -255,7 +255,7 @@ class AgentTriggerDispatcher:
     ) -> None:
         """
         Apply the rules of a trigger to each firing of one event, in order, if the
-        trigger still has the service that fired and still can run: start or
+        trigger still watches what fired and still can run: start or
         queue each conversation and tell the readers, or record why a firing was
         skipped. An event the agent's run identity couldn't read when it
         happened, or can't read now, is recorded as skipped: the identity may
@@ -279,11 +279,11 @@ class AgentTriggerDispatcher:
                 trigger = self._lock(trigger_id)
                 if (
                     trigger is None
-                    or not self._has_service(trigger, service_id)
+                    or not self._still_watches(trigger, service_id, source_id)
                     or not self._is_runnable(trigger)
                 ):
                     return
-                if not can_read or not self._can_read_event(trigger, source_id):
+                if not can_read or not self._can_read(trigger):
                     self._record_skip(trigger, AgentTrigger.SkipReason.NO_ACCESS)
                     return
                 for content, failure in firings:
@@ -294,38 +294,32 @@ class AgentTriggerDispatcher:
             logger.exception("Could not start agent trigger {}.", trigger_id)
             exception_capturer(e)
 
-    def _has_service(self, trigger: AgentTrigger, service_id: int) -> bool:
+    def _still_watches(
+        self, trigger: AgentTrigger, service_id: int, source_id: int | None
+    ) -> bool:
         """
-        Whether the trigger still has the service its firings were resolved
-        from. A builder who replaced it changed what the trigger watches, so the
-        firings are dropped without recording a skip the new service didn't cause.
+        Whether the trigger still has the service its firings were resolved from
+        and that service still watches the event's source. A builder who replaced
+        the service or pointed it elsewhere changed what the trigger watches, so
+        the firings are dropped without recording a skip the new setup didn't
+        cause.
 
-        :param trigger: The locked trigger.
+        :param trigger: The locked trigger, with its service.
         :param service_id: The id of the service the firings were resolved from.
-        :return: True when the trigger's service is still that one.
-        """
-
-        if trigger.service_id == service_id:
-            return True
-        logger.debug(
-            "Agent trigger {} skipped: its service {} was replaced.",
-            trigger.id,
-            service_id,
-        )
-        return False
-
-    def _can_read_event(self, trigger: AgentTrigger, source_id: int | None) -> bool:
-        """
-        :param trigger: The locked trigger, with its agent, workspace and service.
         :param source_id: What the service watched when the event fired, if any.
-        :return: Whether the service still watches the event's source and the
-            agent's run identity may now read it.
+        :return: True when the trigger watches what fired.
         """
 
         service = trigger.service.specific
-        if service.get_type().get_event_source_id(service) != source_id:
-            return False
-        return self._can_read(trigger)
+        if (
+            trigger.service_id == service_id
+            and service.get_type().get_event_source_id(service) == source_id
+        ):
+            return True
+        logger.debug(
+            "Agent trigger {} skipped: it no longer watches what fired.", trigger.id
+        )
+        return False
 
     def _can_read(self, trigger: AgentTrigger) -> bool:
         """
