@@ -100,7 +100,7 @@ describe('TextFilterWidgetSettings', () => {
       multiple: false,
       default_value: '',
       options: {
-        formula: "get('data_source_context.1.field_10.*.value')",
+        formula: "get('table_context.1.field_10.*.value')",
         mode: 'advanced',
       },
     }

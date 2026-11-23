@@ -101,8 +101,8 @@ class WidgetDataProviderType(DataProviderType):
         ]
 
 
-class DashboardDataSourceContextDataProviderType(DataProviderType):
-    type = "data_source_context"
+class DashboardTableContextDataProviderType(DataProviderType):
+    type = "table_context"
 
     def is_valid(self, path, validation_context=None):
         """Allow table metadata only when this dashboard has a source for it."""
@@ -152,7 +152,7 @@ class DashboardDataSourceContextDataProviderType(DataProviderType):
 
 dashboard_options_data_provider_registry = DataProviderTypeRegistry()
 dashboard_options_data_provider_registry.register(
-    DashboardDataSourceContextDataProviderType()
+    DashboardTableContextDataProviderType()
 )
 
 # Extraction handles references from both runtime and option formulas without
@@ -160,5 +160,5 @@ dashboard_options_data_provider_registry.register(
 dashboard_property_data_provider_registry = DataProviderTypeRegistry()
 dashboard_property_data_provider_registry.register(WidgetDataProviderType())
 dashboard_property_data_provider_registry.register(
-    DashboardDataSourceContextDataProviderType()
+    DashboardTableContextDataProviderType()
 )

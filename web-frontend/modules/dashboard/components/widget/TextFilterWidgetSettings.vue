@@ -216,7 +216,7 @@
           allow-node-selection="value"
           :placeholder="$t('textFilterWidget.filterValuesPlaceholder')"
           :model-value="widget.options || {}"
-          :data-providers-allowed="['data_source_context']"
+          :data-providers-allowed="['table_context']"
           @input="updateSetting('options', $event)"
         />
       </FormGroup>

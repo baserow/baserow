@@ -63,9 +63,9 @@ export class WidgetDataProviderType extends DataProviderType {
   }
 }
 
-export class DashboardDataSourceContextDataProviderType extends DataProviderType {
+export class DashboardTableContextDataProviderType extends DataProviderType {
   static getType() {
-    return 'data_source_context'
+    return 'table_context'
   }
 
   get name() {

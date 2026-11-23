@@ -1175,7 +1175,7 @@ def context_options(data_fixture, filter_dashboard):
     source.save()
     widget.mode = "dropdown"
     widget.options = BaserowFormulaObject.create(
-        f"get('data_source_context.{source.service.specific.table_id}.field_{field.id}.*.value')"
+        f"get('table_context.{source.service.specific.table_id}.field_{field.id}.*.value')"
     )
     widget.save()
     return field
@@ -1227,7 +1227,7 @@ def test_option_context_formula_scope_and_import(
     for path in [
         "table.1.*.field_1",
         "widget_data.1",
-        "data_source_context.invalid.field_1",
+        "table_context.invalid.field_1",
     ]:
         assert (
             api_client.patch(
@@ -1250,7 +1250,7 @@ def test_option_context_formula_scope_and_import(
     )
     assert (
         result["formula"]
-        == f"get('data_source_context.{source.service.specific.table_id}.field_5678.*.value')"
+        == f"get('table_context.{source.service.specific.table_id}.field_5678.*.value')"
     )
 
 
@@ -1296,11 +1296,11 @@ def test_context_provider_collects_nested_references_without_evaluating(
     properties = extract_formula_properties(
         [
             BaserowFormulaObject.create(
-                f"concat(get('data_source_context.{source.service.specific.table_id}.field_886.*.value'), "
-                f"get('data_source_context.{source.service.specific.table_id}.field_887.*.value'))"
+                f"concat(get('table_context.{source.service.specific.table_id}.field_886.*.value'), "
+                f"get('table_context.{source.service.specific.table_id}.field_887.*.value'))"
             ),
             BaserowFormulaObject.create(
-                f"get('data_source_context.{source.service.specific.table_id}.field_888.*.value')",
+                f"get('table_context.{source.service.specific.table_id}.field_888.*.value')",
                 mode="raw",
             ),
         ],
@@ -1381,7 +1381,7 @@ def test_public_context_uses_formulas_declared_by_other_widget_types(
         data_fixture.create_summary_widget(
             dashboard=dashboard,
             data_source=source,
-            description=f"get('data_source_context.{source.service.specific.table_id}.{referenced.db_column}.*.value')",
+            description=f"get('table_context.{source.service.specific.table_id}.{referenced.db_column}.*.value')",
         )
     response = api_client.get(
         reverse("api:dashboard:public:info", kwargs={"slug": dashboard.slug})
@@ -1484,7 +1484,7 @@ def test_public_property_cache_reuses_widgets_and_invalidates_changes(
         field=field, value="Updated options", color="blue"
     )
     widget.options = BaserowFormulaObject.create(
-        f"get('data_source_context.{source.service.specific.table_id}.{field.db_column}.*.value')"
+        f"get('table_context.{source.service.specific.table_id}.{field.db_column}.*.value')"
     )
     widget.save(update_fields=["options"])
     response = api_client.get(url)
@@ -1592,10 +1592,10 @@ def test_dispatch_validates_every_registered_data_provider(filter_dashboard, val
 
 def test_context_property_extraction_is_independent_of_sources():
     from baserow.contrib.dashboard.data_providers import (
-        DashboardDataSourceContextDataProviderType,
+        DashboardTableContextDataProviderType,
     )
 
-    provider = DashboardDataSourceContextDataProviderType()
+    provider = DashboardTableContextDataProviderType()
     assert provider.extract_properties(["123", "field_456", "*", "value"]) == {
         "table_123": ["field_456"]
     }
@@ -1630,7 +1630,7 @@ def test_option_formula_validation_checks_dashboard_ownership(
     ]:
         payload = {
             "options": BaserowFormulaObject.create(
-                f"get('data_source_context.{table_id}.{context_options.db_column}.*.value')"
+                f"get('table_context.{table_id}.{context_options.db_column}.*.value')"
             )
         }
         if create:
@@ -1737,7 +1737,7 @@ def test_dropdown_selection_labels_in_runtime_and_stored_conditions(
         multiple=multiple,
         default_value=[] if multiple else "",
         options=BaserowFormulaObject.create(
-            f"get('data_source_context.{source.service.specific.table_id}.{field.db_column}.*.value')"
+            f"get('table_context.{source.service.specific.table_id}.{field.db_column}.*.value')"
         ),
         target_filters=[] if stored else links,
     )
@@ -2011,5 +2011,5 @@ def test_table_options_survive_original_widget_deletion(
     ] == ["Europe", "Americas"]
     assert (
         widget.options["formula"]
-        == f"get('data_source_context.{table.id}.{context_options.db_column}.*.value')"
+        == f"get('table_context.{table.id}.{context_options.db_column}.*.value')"
     )

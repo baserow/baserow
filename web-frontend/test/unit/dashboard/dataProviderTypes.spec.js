@@ -114,7 +114,7 @@ test('new filter types supply their own formula schema', () => {
 })
 
 test('dropdown options expose source metadata in the selected dashboard', async () => {
-  const { DashboardDataSourceContextDataProviderType } =
+  const { DashboardTableContextDataProviderType } =
     await import('@baserow/modules/dashboard/dataProviderTypes')
   const store = testApp.store
   const contextSchema = {
@@ -177,7 +177,7 @@ test('dropdown options expose source metadata in the selected dashboard', async 
       },
     },
   ])
-  const provider = new DashboardDataSourceContextDataProviderType({
+  const provider = new DashboardTableContextDataProviderType({
     app: {
       $store: store,
       $registry: store.$registry,

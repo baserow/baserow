@@ -96,7 +96,7 @@ describe('TextFilterWidget', () => {
       mode: 'dropdown',
       default_value: '',
       options: {
-        formula: "get('data_source_context.9.field_10.*.value')",
+        formula: "get('table_context.9.field_10.*.value')",
         mode: 'advanced',
       },
     }
@@ -138,7 +138,7 @@ describe('TextFilterWidget', () => {
       mode: 'dropdown',
       default_value: '',
       options: {
-        formula: "get('data_source_context.9.field_10.*.value')",
+        formula: "get('table_context.9.field_10.*.value')",
         mode: 'advanced',
       },
     }
@@ -172,7 +172,7 @@ describe('TextFilterWidget', () => {
       ...widget,
       mode: 'dropdown',
       options: {
-        formula: "get('data_source_context.999.field_10.*.value')",
+        formula: "get('table_context.999.field_10.*.value')",
         mode: 'advanced',
       },
     }

@@ -3,7 +3,7 @@
 exports[`dropdown options expose source metadata in the selected dashboard 1`] = `
 {
   "icon": "iconoir-question-mark",
-  "identifier": "data_source_context",
+  "identifier": "table_context",
   "name": "dashboardDataProviderType.tableContext",
   "nodes": [
     {

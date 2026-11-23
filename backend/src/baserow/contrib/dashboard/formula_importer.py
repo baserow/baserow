@@ -35,7 +35,7 @@ def import_formula(
     """
     When a formula is used in a service, it must be migrated when we import it because
     it could contain IDs referencing other objects. For example, the formula
-    `get('data_source_context.2.field_25')` references the table with ID `2`
+    `get('table_context.2.field_25')` references the table with ID `2`
     and the field with Id `25`.
     In order to update the Id a special process must be applied:
 
