@@ -7,15 +7,12 @@
       role="separator"
     ></li>
     <WorkspaceActionItem v-if="canListMembers" :action="actions.members" />
-    <WorkspaceActionItem :action="actions.integrations">
-      <Badge
-        tag="span"
-        size="small"
-        color="cyan"
-        class="sidebar-workspace-menu__badge"
-      >
-        {{ $t('sidebar.new') }}
-      </Badge>
+    <WorkspaceActionItem
+      v-for="tab in actions.settingsTabs"
+      :key="tab.type"
+      :action="tab"
+    >
+      {{ tab.name }}
     </WorkspaceActionItem>
     <component
       :is="component"

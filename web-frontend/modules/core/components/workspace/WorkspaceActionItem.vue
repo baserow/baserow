@@ -16,8 +16,7 @@
         :class="action.icon"
         aria-hidden="true"
       ></i>
-      {{ $t(action.label) }}
-      <slot />
+      <slot>{{ $t(action.label) }}</slot>
     </NuxtLink>
     <button
       v-else
@@ -35,8 +34,7 @@
         :class="action.icon"
         aria-hidden="true"
       ></i>
-      {{ $t(action.label) }}
-      <slot />
+      <slot>{{ $t(action.label) }}</slot>
     </button>
   </li>
 </template>

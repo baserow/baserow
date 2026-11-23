@@ -64,6 +64,7 @@
 
 <script>
 import context from '@baserow/modules/core/mixins/context'
+import { getEnabledWorkspaceSettings } from '@baserow/modules/core/workspaceSettingsTypes'
 import { notifyIf } from '@baserow/modules/core/utils/error'
 import ExportWorkspaceModal from '@baserow/modules/core/components/export/ExportWorkspaceModal.vue'
 import ImportWorkspaceModal from '@baserow/modules/core/components/import/ImportWorkspaceModal.vue'
@@ -136,13 +137,14 @@ export default {
               run: () => this.openModal('settingsModal'),
             }
           : null,
-        integrations: this.canUpdate
-          ? {
-              icon: 'iconoir-puzzle',
-              label: 'sidebar.integrations',
-              run: () => this.openModal('settingsModal', 'generative-ai'),
-            }
-          : null,
+        settingsTabs: this.canUpdate
+          ? getEnabledWorkspaceSettings(this.$registry).map((setting) => ({
+              type: setting.type,
+              name: setting.getName(),
+              icon: setting.iconClass,
+              run: () => this.openModal('settingsModal', setting.type),
+            }))
+          : [],
         members: {
           icon: 'baserow-icon-team',
           label: 'workspaceContext.members',

@@ -30,6 +30,7 @@
 
 <script>
 import modal from '@baserow/modules/core/mixins/modal'
+import { getEnabledWorkspaceSettings } from '@baserow/modules/core/workspaceSettingsTypes'
 
 export default {
   name: 'WorkspaceSettingsModal',
@@ -47,21 +48,16 @@ export default {
   },
   computed: {
     registeredSettings() {
-      return this.$registry
-        .getOrderedList('workspaceSettings')
-        .filter((settings) => settings.isEnabled() === true)
+      return getEnabledWorkspaceSettings(this.$registry)
     },
     settingPageComponent() {
-      const active = Object.values(
-        this.$registry.getAll('workspaceSettings')
-      ).find((setting) => setting.type === this.page)
-      return active ? active.getComponent() : null
+      return this.registeredSettings
+        .find((setting) => setting.type === this.page)
+        ?.getComponent()
     },
   },
   mounted() {
-    this.setPage(
-      Object.values(this.$registry.getOrderedList('workspaceSettings'))[0].type
-    )
+    this.setPage(this.registeredSettings[0]?.type)
   },
   methods: {
     setPage(page) {
@@ -71,14 +67,7 @@ export default {
       return this.page === page
     },
     show(page = null, ...args) {
-      if (page === null) {
-        const settings = Object.values(
-          this.$registry.getAll('workspaceSettings')
-        )
-        this.page = settings.length > 0 ? settings[0].type : ''
-      } else {
-        this.page = page
-      }
+      this.setPage(page ?? this.registeredSettings[0]?.type)
       return modal.methods.show.call(this, ...args)
     },
   },
