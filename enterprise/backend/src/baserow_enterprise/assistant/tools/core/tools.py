@@ -128,7 +128,8 @@ def search_workspace(
     result = shared_search.search_workspace(
         ctx.deps.tool_context(), query=query, types=types, page=page, size=size
     )
-    if types and not result["results"]:
+    # Past the first page, no results only means the earlier pages had them all.
+    if types and page == 1 and not result["results"]:
         result["next_steps"] = (
             "Nothing of those types matches. Search again with types null before "
             "telling the user it doesn't exist: it may be another kind of item."
