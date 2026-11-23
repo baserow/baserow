@@ -535,7 +535,33 @@ def test_exported_identity_roles_need_permission_to_read_them(
         return agent.get_type().export_serialized(agent, config)
 
     assert export(admin)["run_as_identity_roles"] == [[database.id, "VIEWER"]]
-    assert "run_as_identity_roles" not in export(builder)
+    # Left out, so an install gives no access rather than the tools' defaults.
+    assert export(builder)["run_as_identity_roles"] == []
+
+
+@pytest.mark.django_db(transaction=True)
+def test_an_application_with_table_roles_isnt_exported(enterprise_data_fixture, admin):
+    source = enterprise_data_fixture.create_workspace(user=admin)
+    crm = enterprise_data_fixture.create_database_application(workspace=source)
+    ops = enterprise_data_fixture.create_database_application(workspace=source)
+    salaries = enterprise_data_fixture.create_database_table(database=crm)
+    identity = enterprise_data_fixture.create_identity(
+        workspace=source, role_uid="NO_ACCESS"
+    )
+    handler = RoleAssignmentHandler()
+    for scope in (crm.application_ptr, ops.application_ptr):
+        handler.assign_role(
+            identity, source, role=Role.objects.get(uid="EDITOR"), scope=scope
+        )
+    handler.assign_role(
+        identity, source, role=Role.objects.get(uid="NO_ACCESS"), scope=salaries
+    )
+    agent = make_agent(enterprise_data_fixture, source, "Helper", WRITE_TOOLS, identity)
+
+    (serialized,) = export_for_template([agent])
+
+    # Editor on all of the CRM would reach the table the identity can't.
+    assert serialized["run_as_identity_roles"] == [[ops.id, "EDITOR"]]
 
 
 @pytest.mark.django_db(transaction=True)
@@ -884,4 +910,5 @@ def test_the_roles_of_an_agent_waiting_for_an_identity_need_permission_to_read_t
 
     assert export(None)["run_as_identity_roles"] == [[database.id, "VIEWER"]]
     assert export(admin)["run_as_identity_roles"] == [[database.id, "VIEWER"]]
-    assert "run_as_identity_roles" not in export(builder)
+    # Left out, so an install gives no access rather than the tools' defaults.
+    assert export(builder)["run_as_identity_roles"] == []

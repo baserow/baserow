@@ -74,12 +74,12 @@ class CreateScopedIdentityActionType(ActionType):
     description = ActionTypeDescription(
         _("Create identity with access to some applications"),
         _(
-            'Identity "%(identity_name)s" (%(identity_id)s) created with access to '
-            "only the applications %(application_ids)s"
+            'Identity "%(identity_name)s" (%(identity_id)s) created without '
+            "workspace access"
         ),
         WORKSPACE_ACTION_CONTEXT,
     )
-    analytics_params = ["workspace_id", "identity_id", "application_ids"]
+    analytics_params = ["workspace_id", "identity_id"]
 
     @dataclasses.dataclass
     class Params:
@@ -87,7 +87,6 @@ class CreateScopedIdentityActionType(ActionType):
         workspace_name: str
         identity_id: int
         identity_name: str
-        application_ids: list[int]
 
     @classmethod
     def do(
@@ -102,7 +101,8 @@ class CreateScopedIdentityActionType(ActionType):
         """
         Creates an identity without workspace access that can reach only the given
         applications, and records who did it. See
-        `IdentityService.create_scoped_identity`.
+        `IdentityService.create_scoped_identity`. Its roles on the applications are
+        recorded by their own action.
 
         :return: The newly created identity.
         """
@@ -122,7 +122,6 @@ class CreateScopedIdentityActionType(ActionType):
                 workspace.name,
                 identity.id,
                 identity.first_name,
-                [application.id for application in applications],
             ),
             scope=cls.scope(workspace.id),
             workspace=workspace,

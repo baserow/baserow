@@ -13,8 +13,10 @@ from baserow.core.handler import CoreHandler
 from baserow.core.identities.exceptions import IdentityCannotBeScoped
 from baserow.core.identities.handler import IdentityHandler
 from baserow.core.identities.registries import IdentityExtensionType
-from baserow.core.models import Application, User
+from baserow.core.models import Application, User, Workspace
+from baserow.core.object_scopes import ApplicationObjectScopeType
 from baserow.core.operations import UpdateApplicationOperationType
+from baserow.core.registries import object_scope_type_registry
 from baserow.core.types import PermissionCheck
 from baserow_enterprise.features import RBAC, TEAMS
 from baserow_enterprise.role.actions import BatchAssignRoleActionType
@@ -226,10 +228,10 @@ class EnterpriseIdentityExtensionType(IdentityExtensionType):
     def get_application_roles(self, identity, user=None):
         """
         Exports the roles of an identity without workspace access on single
-        applications. Nothing is
-        exported for an identity with workspace access, whose application roles
-        alone don't say what it can reach, or when the exporting user may not read
-        its roles. The roles an exporting user may not read are left out.
+        applications. Nothing is exported for an identity with workspace access,
+        whose application roles alone don't say what it can reach. The roles an exporting user may not
+        read, and those on an application with roles on its tables or views, are
+        left out, so the new identity never gets more than the exported one.
         """
 
         workspace = IdentityHandler().get_workspace(identity)
@@ -238,25 +240,54 @@ class EnterpriseIdentityExtensionType(IdentityExtensionType):
             or IdentityHandler.get_role_uid(identity) != NO_ACCESS_ROLE_UID
         ):
             return None
+        identity_assignments = RoleAssignment.objects.filter(
+            workspace=workspace,
+            subject_type=ContentType.objects.get_for_model(User),
+            subject_id=identity.id,
+        )
+        application_type = ContentType.objects.get_for_model(Application)
         assignments = list(
-            RoleAssignment.objects.filter(
-                workspace=workspace,
-                subject_type=ContentType.objects.get_for_model(User),
-                subject_id=identity.id,
-                scope_type=ContentType.objects.get_for_model(Application),
-                role__uid__in=SCOPED_IDENTITY_ROLE_UIDS,
+            identity_assignments.filter(
+                scope_type=application_type, role__uid__in=SCOPED_IDENTITY_ROLE_UIDS
             )
             .order_by("scope_id")
             .values_list("scope_id", "role__uid")
         )
+        # A role on a table or view of an application changes what the role on the
+        # application gives, so such an application is left out and the new
+        # identity gets no access to it, rather than more than the template's.
+        refined = self._applications_with_narrower_roles(
+            identity_assignments.exclude(scope_type=application_type)
+        )
+        assignments = [role for role in assignments if role[0] not in refined]
         if user is not None:
-            readable = self.filter_readable_application_roles(
+            # Roles the user may not read are left out, so the new identity gets
+            # no access to their applications.
+            assignments = self.filter_readable_application_roles(
                 assignments, user, workspace
             )
-            if assignments and not readable:
-                return None
-            assignments = readable
         return [[scope_id, role_uid] for scope_id, role_uid in assignments]
+
+    def _applications_with_narrower_roles(self, assignments) -> set[int]:
+        """
+        :param assignments: Role assignments on scopes other than an application.
+        :return: The ids of the applications that contain one of their scopes.
+        """
+
+        application_scope_type = object_scope_type_registry.get(
+            ApplicationObjectScopeType.type
+        )
+        application_ids = set()
+        for assignment in assignments.prefetch_related("scope"):
+            scope = assignment.scope
+            if scope is None or isinstance(scope, Workspace):
+                continue
+            application = object_scope_type_registry.get_parent(
+                scope, at_scope_type=application_scope_type
+            )
+            if application is not None:
+                application_ids.add(application.id)
+        return application_ids
 
     def filter_readable_application_roles(self, roles, user, workspace):
         """Keeps the roles on applications of the workspace whose roles the user may read."""

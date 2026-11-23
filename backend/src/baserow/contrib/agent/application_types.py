@@ -133,12 +133,10 @@ class AgentApplicationType(ApplicationType):
             user = import_export_config.exported_by
             if user is None:
                 return roles
-            readable = (
-                identity_extension_type_registry.filter_readable_application_roles(
-                    roles, user, application.workspace
-                )
+            # Left out, the new identity gets no access to their applications.
+            return identity_extension_type_registry.filter_readable_application_roles(
+                roles, user, application.workspace
             )
-            return None if roles and not readable else readable
         resolution = AgentHandler().resolve_run_as_subject(
             application.run_as_subject_type,
             application.run_as_subject_id,

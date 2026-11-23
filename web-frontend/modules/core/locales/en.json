@@ -727,7 +727,7 @@
     "noWorkspaceAskInvite": "You aren't a member of any workspace. A template is installed into a workspace, so you will need to be invited to a workspace by an administrator first.",
     "createWorkspace": "Create workspace",
     "createIdentities": "Create an identity for each Agent",
-    "createIdentitiesHint": "It can reach only this template's other applications, with the roles its Agent had in the template, or else builder access if its tools change data and viewer access otherwise."
+    "createIdentitiesHint": "It gets no access to the rest of the workspace. On this template's other applications, it gets the roles its Agent had in the template, or else builder access if its tools change data and viewer access otherwise."
   },
   "templateDetails": {
     "back": "Back to Templates",
