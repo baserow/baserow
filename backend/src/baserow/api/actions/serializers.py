@@ -7,10 +7,18 @@ from rest_framework import serializers
 from baserow.api.mixins import UnknownFieldRaisesExceptionSerializerMixin
 from baserow.core.action.models import Action
 from baserow.core.action.registries import ActionScopeStr, action_scope_registry
+from baserow.core.action.scopes import ApplicationActionScopeType
 
 
 def get_action_scopes_request_serializer() -> Type[serializers.Serializer]:
-    attrs = {}
+    attrs = {
+        "applications": serializers.ListField(
+            child=serializers.IntegerField(min_value=1),
+            allow_empty=False,
+            required=False,
+            help_text="IDs of additional applications whose actions can be undone or redone.",
+        ),
+    }
 
     for scope_type in action_scope_registry.get_all():
         attrs[scope_type.type] = scope_type.get_request_serializer_field()
@@ -54,7 +62,10 @@ def get_undo_request_serializer() -> Type[serializers.Serializer]:
         @property
         def data(self) -> List[ActionScopeStr]:
             scope_list = []
-            for scope_type_str, scope_value in self.validated_data["scopes"].items():
+            scopes = self.validated_data["scopes"].copy()
+            for application_id in scopes.pop("applications", []):
+                scope_list.append(ApplicationActionScopeType.value(application_id))
+            for scope_type_str, scope_value in scopes.items():
                 if scope_value:
                     scope_type = action_scope_registry.get(scope_type_str)
                     scope_str = scope_type.valid_serializer_value_to_scope_str(

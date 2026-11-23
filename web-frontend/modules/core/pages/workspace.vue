@@ -1,43 +1,7 @@
 <template>
   <div v-if="workspaceExists">
     <div class="dashboard__header" ph-autocapture="dashboard-header">
-      <div class="dashboard__header-left">
-        <h1
-          ref="contextLink"
-          class="dashboard__workspace-name"
-          @click="
-            $refs.context.toggle($refs.contextLink, 'bottom', 'left', -14)
-          "
-        >
-          <div class="dashboard__workspace-name-text">
-            <Editable
-              ref="rename"
-              :value="selectedWorkspace.name"
-              @change="renameWorkspace(selectedWorkspace, $event)"
-            >
-            </Editable>
-          </div>
-          <i class="dashboard__workspace-name-icon iconoir-nav-arrow-down"></i>
-        </h1>
-        <SkeletonBlock
-          v-if="loading && dashboardWorkspacePlanBadge.length > 0"
-          width="80px"
-          height="20px"
-        ></SkeletonBlock>
-        <component
-          :is="component"
-          v-for="(component, index) in dashboardWorkspacePlanBadge"
-          v-else
-          :key="index"
-          :workspace="selectedWorkspace"
-          :component-arguments="workspaceComponentArguments"
-        ></component>
-      </div>
-      <WorkspaceContext
-        ref="context"
-        :workspace="selectedWorkspace"
-        @rename="enableRename()"
-      ></WorkspaceContext>
+      <h1 class="dashboard__title">{{ $t('sidebar.overview') }}</h1>
       <div class="dashboard__header-right">
         <SkeletonBlock
           v-if="loading && dashboardWorkspaceRowUsageComponent.length > 0"
@@ -53,44 +17,26 @@
           :component-arguments="workspaceComponentArguments"
           @workspace-updated="workspaceUpdated($event)"
         ></component>
-        <div class="dashboard__header-actions">
-          <SkeletonBlock
-            v-if="!permissionsLoaded"
-            width="100px"
-            height="32px"
-          ></SkeletonBlock>
-          <span
-            v-else-if="canCreateCreateApplication"
-            ref="createApplicationContextLink"
-          >
-            <Button
-              icon="iconoir-plus"
-              tag="a"
-              @click="
-                $refs.createApplicationContext.toggle(
-                  $refs.createApplicationContextLink
-                )
-              "
-              >{{ $t('dashboard.addNew') }}</Button
-            >
-          </span>
-          <span
-            ref="workspaceContextLink"
+        <SkeletonBlock
+          v-if="!permissionsLoaded"
+          width="100px"
+          height="32px"
+        ></SkeletonBlock>
+        <span
+          v-else-if="canCreateCreateApplication"
+          ref="createApplicationContextLink"
+        >
+          <Button
+            icon="iconoir-plus"
+            tag="a"
             @click="
-              $refs.context.toggle(
-                $refs.workspaceContextLink,
-                'bottom',
-                'right',
-                4
+              $refs.createApplicationContext.toggle(
+                $refs.createApplicationContextLink
               )
             "
+            >{{ $t('dashboard.addNew') }}</Button
           >
-            <ButtonIcon
-              type="secondary"
-              icon="baserow-icon-more-vertical"
-            ></ButtonIcon>
-          </span>
-        </div>
+        </span>
       </div>
     </div>
     <div
@@ -289,10 +235,8 @@ import { usePageAsyncData } from '@baserow/modules/core/composables/usePageAsync
 
 import { StoreItemLookupError } from '@baserow/modules/core/errors'
 
-import WorkspaceContext from '@baserow/modules/core/components/workspace/WorkspaceContext'
 import CreateApplicationContext from '@baserow/modules/core/components/application/CreateApplicationContext'
 import RecentlyViewed from '@baserow/modules/core/components/recentlyViewed/RecentlyViewed'
-import editWorkspace from '@baserow/modules/core/mixins/editWorkspace'
 import TemplateModal from '@baserow/modules/core/components/template/TemplateModalSwitch'
 import DashboardHelp from '@baserow/modules/core/components/dashboard/DashboardHelp'
 
@@ -306,10 +250,6 @@ definePageMeta({
     'impersonate',
     'workspacesAndApplications',
   ],
-})
-
-defineOptions({
-  mixins: [editWorkspace],
 })
 
 const route = useRoute()
@@ -329,12 +269,8 @@ const selectedWorkspace = ref(
 const workspaceComponentArguments = ref({})
 
 // refs used in template
-const context = ref(null)
-const contextLink = ref(null)
 const createApplicationContext = ref(null)
-const workspaceContextLink = ref(null)
 const createApplicationContextLink2 = ref(null)
-const rename = ref(null)
 const templateModal = ref(null)
 
 async function fetchWorkspaceExtraData(workspace) {
@@ -419,7 +355,7 @@ watchEffect(() => {
 })
 
 useHead(() => ({
-  title: $i18n.t('dashboard.title'),
+  title: $i18n.t('sidebar.overview'),
 }))
 
 const getAllOfWorkspace = (ws) =>
@@ -441,12 +377,6 @@ const dashboardHelpComponents = computed(() =>
 const dashboardWorkspaceRowUsageComponent = computed(() =>
   Object.values($registry.getAll('plugin'))
     .map((p) => p.getDashboardWorkspaceRowUsageComponent())
-    .filter((c) => c !== null)
-)
-
-const dashboardWorkspacePlanBadge = computed(() =>
-  Object.values($registry.getAll('plugin'))
-    .map((p) => p.getDashboardWorkspacePlanBadge())
     .filter((c) => c !== null)
 )
 

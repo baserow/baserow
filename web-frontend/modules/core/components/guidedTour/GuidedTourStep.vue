@@ -157,7 +157,7 @@ export default {
   async mounted() {
     const updatePosition = () => {
       const rect = this.$el.getBoundingClientRect()
-      this.$el.style['max-height'] = `calc(100vh - ${rect.top - 12}px)`
+      this.$el.style.setProperty('--guided-tour-top', `${rect.top}px`)
     }
 
     // Delay the position update to the next tick to let the Context content

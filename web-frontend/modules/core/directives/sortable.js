@@ -90,7 +90,6 @@ export default {
 
       indicator = document.createElement('div')
       indicator.classList.add('sortable-position-indicator')
-      parent.insertBefore(indicator, parent.firstChild)
     }
     el.addEventListener('mousedown', el.mousedownEvent)
   },
@@ -137,6 +136,7 @@ export default {
         Math.abs(event.clientY - el.sortableStartClientY) > 3
       ) {
         el.sortableMoved = true
+        parent.insertBefore(indicator, parent.firstChild)
       } else {
         return
       }
@@ -269,6 +269,15 @@ export default {
     setTimeout(() => {
       window.removeEventListener('click', preventOtherClickEvent, true)
     })
+
+    if (
+      el.parentElement !== parent ||
+      el.closest('[inert]') ||
+      el.getClientRects().length === 0 ||
+      getComputedStyle(el).visibility !== 'visible'
+    ) {
+      return
+    }
 
     const oldOrder = [...parent.childNodes]
       .filter((e) => e.nodeType === 1)

@@ -42,6 +42,7 @@ export default {
   data() {
     return {
       stepIndex: 0,
+      showRequestId: 0,
     }
   },
   computed: {
@@ -125,18 +126,27 @@ export default {
       this.show()
     },
     async show() {
-      const step = this.allSteps[this.stepIndex]
+      const requestId = ++this.showRequestId
+      const step = this.currentStep
       await this.$nextTick()
+      if (requestId !== this.showRequestId || !this.$refs.highlight) {
+        return
+      }
       await step.beforeShow(this.getParent())
       await this.$nextTick()
-      this.$refs.highlight.show(step.selectors)
+      // A sidebar transition can finish after the user leaves this step.
+      if (requestId === this.showRequestId) {
+        this.$refs.highlight?.show(step.selectors)
+      }
+    },
+    async hide() {
+      this.showRequestId++
+      await this.currentStep.afterShow()
+      this.$refs.highlight?.hide()
+      this.stepIndex = 0
     },
     async stop() {
-      const step = this.allSteps[this.stepIndex]
-      await step.afterShow()
-
-      this.$refs.highlight.hide()
-      this.stepIndex = 0
+      await this.hide()
       await this.$store.dispatch('guidedTour/stop')
     },
     async finish() {
@@ -147,11 +157,7 @@ export default {
         return await this.stop()
       }
 
-      const step = this.allSteps[this.stepIndex]
-      await step.afterShow()
-
-      this.$refs.highlight.hide()
-      this.stepIndex = 0
+      await this.hide()
 
       try {
         const completed = this.activeGuidedTours

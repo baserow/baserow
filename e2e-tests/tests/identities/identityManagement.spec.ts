@@ -135,7 +135,7 @@ test("identity lifecycle updates another session and keeps Members human-only @e
       `workspaces/users/workspace/${workspace.id}/`
     );
     expect(members.data.map((member) => member.email)).toEqual([user.email]);
-    // The Members heading/sidebar intentionally count humans + identities;
+    // The Members heading intentionally counts humans + identities;
     // the rows and API above are the human-only membership boundary.
 
     await page.locator(".tabs__link").filter({ hasText: "Identities" }).click();
@@ -144,9 +144,10 @@ test("identity lifecycle updates another session and keeps Members human-only @e
     await expect(identityRow(page, renamedName)).toHaveCount(0);
     await expect(identityRow(observer, renamedName)).toHaveCount(0);
 
+    await page.getByRole("button", { name: "Settings", exact: true }).click();
     await page
-      .locator(".sidebar__item-name")
-      .filter({ hasText: /^\s*Trash\s*$/ })
+      .locator(".sidebar-workspace-menu")
+      .getByRole("button", { name: "View trash", exact: true })
       .click();
     const entry = page
       .locator(".modal__wrapper:visible .trash-entry")
