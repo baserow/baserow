@@ -70,7 +70,7 @@ class BatchAssignRoleActionType(ActionType):
         user,
         new_role_assignments: List[NewRoleAssignment],
         workspace: Workspace,
-        check_permissions: bool = True,
+        check_role_permissions: bool = True,
     ) -> List[Optional[RoleAssignment]]:
         """
         Apply the given role assignments in an action.
@@ -78,8 +78,9 @@ class BatchAssignRoleActionType(ActionType):
         :param user: The user who do the action.
         :param new_role_assignments: A list a new role assignments. A role assignment is
             a triplet of (subject, role, scope).
-        :param check_permissions: False only when the caller checked a narrower
-            permission itself, like creating an identity scoped to applications.
+        :param check_role_permissions: False only when the caller checked a narrower
+            permission itself, like creating an identity scoped to applications. The
+            licence, subjects and scopes are checked either way.
         :return: The result role assignment object related to the new_role_assignment.
             If the role has been deleted the value is None instead of a role assignment.
         """
@@ -95,14 +96,12 @@ class BatchAssignRoleActionType(ActionType):
             workspace, user_and_scope_set
         )
 
-        if check_permissions:
-            role_assignments = role_assignment_handler.assign_role_batch_for_user(
-                user, workspace, new_role_assignments
-            )
-        else:
-            role_assignments = role_assignment_handler.assign_role_batch(
-                workspace, new_role_assignments
-            )
+        role_assignments = role_assignment_handler.assign_role_batch_for_user(
+            user,
+            workspace,
+            new_role_assignments,
+            check_role_permissions=check_role_permissions,
+        )
 
         # Build the list of assignment tuples we want to save in the action
         param_assignments = []

@@ -1248,6 +1248,7 @@ class RoleAssignmentHandler:
         user: AbstractUser,
         workspace: Workspace,
         new_role_assignments: List[NewRoleAssignment],
+        check_role_permissions: bool = True,
     ) -> List[Optional[RoleAssignment]]:
         """
         Assign multiple roles to multiple users at once. This method do all the Licence
@@ -1257,6 +1258,9 @@ class RoleAssignmentHandler:
         :param workspace: The workspace in which the role assignments take place.
         :param new_role_assignments: A list of triplet (subject, role_uid, scope) for
             each assignment the user wants to do.
+        :param check_role_permissions: False to skip checking that the user may
+            change the roles of each scope, when the caller checked a narrower
+            permission itself.
         :raise SubjectNotExist: If at least one of the subjects is not member of the
             workspace.
         :raise SubjectUnsupported: If at least one of the subjects is unsupported by
@@ -1321,13 +1325,13 @@ class RoleAssignmentHandler:
                 raise ScopeNotExist()
 
         # Do we have the permission to change roles for all scopes
-        user_permission_for_scopes = CoreHandler().check_multiple_permissions(
-            permission_to_check,
-            workspace=workspace,
-        )
-
-        if not all(user_permission_for_scopes.values()):
-            raise PermissionDenied()
+        if check_role_permissions:
+            user_permission_for_scopes = CoreHandler().check_multiple_permissions(
+                permission_to_check,
+                workspace=workspace,
+            )
+            if not all(user_permission_for_scopes.values()):
+                raise PermissionDenied()
 
         return self.assign_role_batch(workspace, new_role_assignments)
 

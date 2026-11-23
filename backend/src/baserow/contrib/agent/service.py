@@ -6,8 +6,9 @@ from django.db.models import F, QuerySet
 
 from loguru import logger
 
-from baserow.core.exceptions import PermissionDenied
+from baserow.core.exceptions import PermissionDenied, PermissionException
 from baserow.core.handler import CoreHandler
+from baserow.core.identities.exceptions import IdentityCannotBeScoped
 from baserow.core.identities.handler import IdentityHandler
 from baserow.core.identities.service import IdentityService
 from baserow.core.models import Application, Workspace
@@ -277,6 +278,14 @@ class AgentService:
                         run_as_subject_type=UserSubjectType.type,
                         run_as_subject_id=identity.id,
                     )
+            except (PermissionException, IdentityCannotBeScoped) as error:
+                # Expected when the installer can't change an application, or the
+                # template's roles can't be given.
+                logger.warning(
+                    "Not creating the identity of the installed Agent {}: {}",
+                    agent.id,
+                    repr(error),
+                )
             except Exception:
                 logger.exception(
                     "Could not create the identity of the installed Agent {}.",

@@ -10,6 +10,7 @@ from rest_framework.exceptions import ValidationError
 
 from baserow.core.action.registries import action_type_registry
 from baserow.core.handler import CoreHandler
+from baserow.core.identities.exceptions import IdentityCannotBeScoped
 from baserow.core.identities.handler import IdentityHandler
 from baserow.core.identities.registries import IdentityExtensionType
 from baserow.core.models import Application, User
@@ -147,7 +148,9 @@ class EnterpriseIdentityExtensionType(IdentityExtensionType):
         # A new identity has no access with roles. Scoping one that has more would
         # leave it access to the whole workspace.
         if IdentityHandler.get_role_uid(identity) != NO_ACCESS_ROLE_UID:
-            raise ValidationError("Only an identity without access can be scoped.")
+            raise IdentityCannotBeScoped(
+                "Only an identity without access can be scoped."
+            )
         # Roles on applications are stored for the base model, which the role
         # endpoints resolve the `application` scope to.
         scopes = list(
@@ -185,10 +188,12 @@ class EnterpriseIdentityExtensionType(IdentityExtensionType):
             NewRoleAssignment(identity, role_by_uid[role_uids[scope.id]], scope)
             for scope in scopes
         ]
-        if assignments:
-            action_type_registry.get_by_type(BatchAssignRoleActionType).do(
-                user, assignments, workspace, check_permissions=False
-            )
+        if not assignments:
+            # Without a role, it could reach none of the applications.
+            raise IdentityCannotBeScoped("None of the roles can be given.")
+        action_type_registry.get_by_type(BatchAssignRoleActionType).do(
+            user, assignments, workspace, check_role_permissions=False
+        )
 
     def get_application_roles(self, identity, user=None):
         """

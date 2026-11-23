@@ -57,6 +57,8 @@ class IdentityExtensionType(Instance):
         :param roles: The role uid to give on each application, by application id,
             as returned by `get_application_roles` for another identity. When given,
             the applications without one get no role.
+        :raises IdentityCannotBeScoped: If the identity already has more access, or
+            it would get no role at all.
         """
 
         raise NotImplementedError()
