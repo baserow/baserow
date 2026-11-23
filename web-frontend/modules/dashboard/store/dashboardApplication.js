@@ -8,6 +8,10 @@ import { getToken, setToken } from '@baserow/modules/core/utils/auth'
 import { ConcurrentPriorityTaskQueue } from '@baserow/modules/core/utils/queue'
 import debounce from 'lodash/debounce'
 import isEqual from 'lodash/isEqual'
+import {
+  createPendingWidget,
+  PENDING_WIDGET_ID,
+} from '@baserow/modules/dashboard/utils/widgetGridLayout'
 import { WidgetValueUpdate } from '@baserow/modules/dashboard/utils/widgetValueUpdate'
 
 export const state = () => ({
@@ -1035,22 +1039,35 @@ export const actions = {
       dashboardId: dashboard.id,
       dashboardGeneration: state.dashboardGeneration,
     }
-    const { data: widgetData } = await WidgetService($client).create(
-      dashboard.id,
-      widget
-    )
+    if (reveal) {
+      const type = this.$registry.get('dashboardWidget', widget.type)
+      commit(
+        'SET_NEW_WIDGET',
+        createPendingWidget(widget, state.widgets, type.initialGridSize)
+      )
+    }
+    let widgetData
+    try {
+      const { data } = await WidgetService($client).create(dashboard.id, widget)
+      widgetData = data
+    } catch (error) {
+      if (reveal && isDashboardRequestCurrent(state, request)) {
+        commit('SET_NEW_WIDGET', null)
+      }
+      throw error
+    }
     if (!isDashboardRequestCurrent(state, request)) {
       return widgetData
+    }
+    if (reveal) {
+      dispatch('enterEditMode')
+      commit('SET_NEW_WIDGET', widgetData)
     }
     const createdWidget = await dispatch('handleNewWidgetCreated', widgetData)
     if (!isDashboardRequestCurrent(state, request)) {
       return createdWidget
     }
     if (select) dispatch('selectWidget', createdWidget.id)
-    if (reveal) {
-      dispatch('enterEditMode')
-      commit('SET_NEW_WIDGET', createdWidget)
-    }
     // The POST above is the creation boundary. Refreshing related client state must
     // never turn a persisted widget into an apparent creation failure.
     await refreshAfterWidgetCreation(dispatch, dashboard)
@@ -1215,7 +1232,9 @@ export const getters = {
     return state.loading
   },
   isEmpty(state) {
-    return state.widgets.length === 0
+    return (
+      state.widgets.length === 0 && state.newWidget?.id !== PENDING_WIDGET_ID
+    )
   },
   getWidgetById: (state, getters) => (widgetId) => {
     return state.widgets.find((widget) => widget.id === widgetId)

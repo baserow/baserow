@@ -14,6 +14,10 @@ export class ChartWidgetType extends DataSourceWidgetType {
     return 'chart'
   }
 
+  get initialGridSize() {
+    return { width: 6, height: 9 }
+  }
+
   get name() {
     return this.app.$i18n.t('chartWidget.name')
   }
@@ -99,6 +103,10 @@ export class ChartWidgetType extends DataSourceWidgetType {
 export class PieChartWidgetType extends ChartWidgetType {
   static getType() {
     return 'pie_chart'
+  }
+
+  get initialGridSize() {
+    return { width: 3, height: 9 }
   }
 
   get name() {

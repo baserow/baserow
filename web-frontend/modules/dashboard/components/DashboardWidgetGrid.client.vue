@@ -62,8 +62,19 @@
         @move="startInteraction"
         @resize="updateResizeState"
       >
+        <div
+          v-if="layoutItem.i === PENDING_WIDGET_ID"
+          class="dashboard-widget"
+          role="status"
+          aria-busy="true"
+          :aria-label="
+            $t('dashboard.creatingWidget', { name: newWidget?.title })
+          "
+        >
+          <SkeletonBlock height="100%" />
+        </div>
         <DashboardWidget
-          v-if="getWidget(layoutItem)"
+          v-else-if="getWidget(layoutItem)"
           :widget="getWidget(layoutItem)"
           :dashboard="dashboard"
           :store-prefix="storePrefix"
@@ -84,6 +95,7 @@ import DashboardWidgetGridLoading from '@baserow/modules/dashboard/components/Da
 import { dimensionMixin } from '@baserow/modules/core/mixins/dimensions'
 import {
   DASHBOARD_GRID_COLUMNS,
+  PENDING_WIDGET_ID,
   createWidgetGridLayout,
   getWidgetGridItemConstraints,
   resizeWidgetGridLayout,
@@ -127,6 +139,7 @@ export default {
       placingFrames: [],
       resizeState: null,
       DASHBOARD_GRID_COLUMNS,
+      PENDING_WIDGET_ID,
       gridGap: GRID_GAP,
       gridRowHeight: GRID_ROW_HEIGHT,
     }
@@ -138,16 +151,22 @@ export default {
       }
       return this.dimensions.width >= 700 ? 2 : 1
     },
-    widgets() {
+    newWidget() {
       return this.$store.getters[
-        `${this.storePrefix}dashboardApplication/getWidgets`
+        `${this.storePrefix}dashboardApplication/getNewWidget`
       ]
     },
-    placedNewWidgetId() {
-      const id =
+    widgets() {
+      const widgets =
         this.$store.getters[
-          `${this.storePrefix}dashboardApplication/getNewWidget`
-        ]?.id
+          `${this.storePrefix}dashboardApplication/getWidgets`
+        ]
+      return this.newWidget?.id === PENDING_WIDGET_ID
+        ? [...widgets, this.newWidget]
+        : widgets
+    },
+    placedNewWidgetId() {
+      const id = this.newWidget?.id
       // Wait until the grid has painted the card at its final coordinates.
       return this.isLayoutReady &&
         this.widgetsById[id] &&
@@ -174,7 +193,12 @@ export default {
       )
     },
     canManipulateLayout() {
-      return this.isEditMode && this.canUpdateLayout && !this.isPersisting
+      return (
+        this.isEditMode &&
+        this.canUpdateLayout &&
+        !this.isPersisting &&
+        !this.layout.some((item) => item.i === PENDING_WIDGET_ID)
+      )
     },
   },
   watch: {
@@ -184,10 +208,12 @@ export default {
         if (id == null) return
         const item = this.$refs.grid.getItem(id)
         item.wrapper.scrollIntoView({ block: 'nearest', inline: 'nearest' })
-        this.$store.commit(
-          `${this.storePrefix}dashboardApplication/SET_NEW_WIDGET`,
-          null
-        )
+        if (id !== PENDING_WIDGET_ID) {
+          this.$store.commit(
+            `${this.storePrefix}dashboardApplication/SET_NEW_WIDGET`,
+            null
+          )
+        }
       },
     },
     columns() {

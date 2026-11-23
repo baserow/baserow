@@ -133,6 +133,38 @@ describe('dashboardApplication store', () => {
     })
   })
 
+  test('removes a failed creation preview and allows retrying on the empty dashboard', async () => {
+    const url = `/dashboard/${dashboardId}/widgets/`
+    const create = () =>
+      store.dispatch('dashboardApplication/createWidget', {
+        dashboard: { id: dashboardId },
+        widget: { type: 'summary', title: 'Summary' },
+        reveal: true,
+      })
+    mock.onPost(url).replyOnce(500)
+    const rejected = create()
+    expect(store.getters['dashboardApplication/getNewWidget']).toMatchObject({
+      title: 'Summary',
+      grid_x: 0,
+      grid_y: 0,
+      grid_width: 2,
+      grid_height: 4,
+    })
+    expect(store.getters['dashboardApplication/isEmpty']).toBe(false)
+    expect(store.getters['dashboardApplication/getWidgets']).toHaveLength(0)
+    await expect(rejected).rejects.toThrow()
+    expect(store.getters['dashboardApplication/getNewWidget']).toBeNull()
+    expect(store.getters['dashboardApplication/isEmpty']).toBe(true)
+
+    mock.onPost(url).replyOnce(200, createdWidget)
+    await create()
+    expect(store.getters['dashboardApplication/getNewWidget'].id).toBe(
+      createdWidget.id
+    )
+    expect(store.getters['dashboardApplication/getWidgets']).toHaveLength(1)
+    expect(store.getters['dashboardApplication/isEditMode']).toBe(true)
+  })
+
   test('realtime adds a widget created elsewhere without selecting it', async () => {
     mock.onGet(`/dashboard/${dashboardId}/widgets/`).reply(200, [createdWidget])
     await events.widget_created(

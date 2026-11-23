@@ -68,6 +68,71 @@ test("keeps unconfigured widgets visible while creating another widget", async (
   }
 });
 
+test("reveals the new widget while its creation request is pending", async ({
+  page,
+  workspacePage,
+}) => {
+  await page.setViewportSize({ width: 1920, height: 640 });
+  const dashboard = await createDashboard(
+    "Adding a widget",
+    workspacePage.workspace
+  );
+  const widgets = [];
+  for (let i = 0; i < 3; i++) {
+    widgets.push(
+      await createSummaryWidget(dashboard, `Existing widget ${i + 1}`)
+    );
+  }
+  await updateDashboardWidgetLayout(
+    dashboard,
+    widgets.map((widget, i) => ({
+      id: widget.id,
+      grid_x: 0,
+      grid_y: i * 6,
+      grid_width: 6,
+      grid_height: 6,
+    }))
+  );
+  await page.goto(
+    `${baserowConfig.PUBLIC_WEB_FRONTEND_URL}/dashboard/${dashboard.id}`
+  );
+  await page.getByText("Edit mode", { exact: true }).click();
+  await expect(
+    page.getByTestId(`dashboard-widget-${widgets[2].id}`)
+  ).not.toBeInViewport();
+
+  const url = `**/api/dashboard/${dashboard.id}/widgets/`;
+  let releaseCreation!: () => void;
+  const pending = new Promise<void>((resolve) => {
+    releaseCreation = resolve;
+  });
+  await page.route(url, async (route) => {
+    if (route.request().method() === "POST") await pending;
+    await route.continue();
+  });
+  try {
+    await page.getByRole("button", { name: "Add widget", exact: true }).click();
+    await page.getByRole("button", { name: "Summary", exact: true }).click();
+    const preview = page.getByRole("status", { name: "Adding Summary…" });
+    await expect(preview).toBeInViewport({ ratio: 0.95 });
+    const box = await preview.boundingBox();
+    const response = page.waitForResponse(
+      (response) =>
+        response.request().method() === "POST" &&
+        response.url().endsWith(`/dashboard/${dashboard.id}/widgets/`)
+    );
+    releaseCreation();
+    const widget = await (await response).json();
+    const card = page.getByTestId(`dashboard-widget-${widget.id}`);
+    await expect(preview).toHaveCount(0);
+    await expect(card).toBeInViewport({ ratio: 0.95 });
+    await expect.poll(() => card.boundingBox()).toEqual(box);
+  } finally {
+    releaseCreation();
+    await page.unrouteAll({ behavior: "wait" });
+  }
+});
+
 for (const width of [1920, 1200, 900]) {
   test(`keeps loading widgets at their final size and position at ${width}px`, async ({
     page,

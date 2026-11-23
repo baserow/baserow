@@ -1,4 +1,5 @@
 export const DASHBOARD_GRID_COLUMNS = 6
+export const PENDING_WIDGET_ID = 'pending'
 
 const FALLBACK_GRID_LAYOUT = {
   min_width: 1,
@@ -67,6 +68,29 @@ function firstAvailableRow(layout, item, minimumY = 0) {
   }
 
   return candidate.y
+}
+
+/** Preview the first available position while the server creates the widget. */
+export function createPendingWidget(widget, widgets, { width, height }) {
+  const layout = widgets.map(getCanonicalLayoutItem)
+  let bestX = 0
+  let bestY = Infinity
+  for (let x = 0; x <= DASHBOARD_GRID_COLUMNS - width; x++) {
+    const y = firstAvailableRow(layout, { x, w: width, h: height })
+    if (y < bestY) {
+      bestX = x
+      bestY = y
+      if (y === 0) break
+    }
+  }
+  return {
+    ...widget,
+    id: PENDING_WIDGET_ID,
+    grid_x: bestX,
+    grid_y: bestY,
+    grid_width: width,
+    grid_height: height,
+  }
 }
 
 /**

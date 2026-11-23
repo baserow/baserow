@@ -26,6 +26,11 @@ export class WidgetType extends Registerable {
     }
   }
 
+  /** Size of the creation preview, in dashboard grid units. */
+  get initialGridSize() {
+    return { width: 3, height: 9 }
+  }
+
   get name() {
     return null
   }
@@ -186,6 +191,10 @@ export class DataSourceWidgetType extends WidgetType {
 export class SummaryWidgetType extends DataSourceWidgetType {
   static getType() {
     return 'summary'
+  }
+
+  get initialGridSize() {
+    return { width: 2, height: 4 }
   }
 
   get name() {
@@ -362,6 +371,10 @@ export class TextFilterWidgetType extends FilterWidgetType {
   }
   static getType() {
     return 'text_filter'
+  }
+
+  get initialGridSize() {
+    return { width: 2, height: 2 }
   }
 
   get name() {
