@@ -14,6 +14,7 @@ import {
   choose,
   deferredReply,
   mockIntegrations,
+  mockAgentIntegrations,
 } from './helpers'
 
 const formula = (value = '') => ({
@@ -491,7 +492,7 @@ describe('Agent action editor', () => {
       ...clone(agentData),
       id: 11,
     })
-    testApp.mock.onGet('application/11/integrations/').reply(200, [])
+    mockAgentIntegrations(testApp, otherAgent.id)
     testApp.mock
       .onGet('/agent/11/actions/')
       .reply(200, [emailAction({ id: 2, name: 'other_agent_tool' })])

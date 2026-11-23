@@ -246,6 +246,12 @@ class BasePolymorphicSerializer(serializers.Serializer):
     def is_valid(self, *args, **kwargs):
         valid = super().is_valid(*args, **kwargs)
 
+        # `run_validation` already checked the data with the serializer of its
+        # type. When that failed, `self.data` is empty, and checking it again
+        # would replace the real errors with "required" ones.
+        if not valid:
+            return False
+
         try:
             if self.partial and self.instance:
                 instance_type = self.get_type_from_instance(self.instance)
