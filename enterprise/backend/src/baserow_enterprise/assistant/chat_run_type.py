@@ -505,6 +505,9 @@ class AssistantChatRunType(ChatRunType):
             artifacts["run"] = {"status": str(status), "error_code": error_code}
         if result.paused is not None:
             artifacts["paused"] = {
+                # The continuing run answers this message. Kept here, as the
+                # answer's prediction can be deleted while the card waits.
+                "human_message_id": human_message.id,
                 "messages": result.paused["messages"],
                 "mode": result.paused["mode"],
                 "tool_call_ids": [

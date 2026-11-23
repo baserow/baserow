@@ -264,6 +264,7 @@ def _waiting_chat(data_fixture):
         content="I need your approval",
         artifacts={
             "paused": {
+                "human_message_id": human.id,
                 "messages": [],
                 "mode": "agent",
                 "tool_call_ids": ["call-0", "call-1"],
@@ -488,3 +489,27 @@ def test_kuma_says_a_new_agent_isnt_ready_when_no_model_is_enabled(
     assert "Offer a test" not in result["next_steps"]
     assert result["setup"]["readiness"] != "ready"
     assert "model_identifier" in result["setup"]["readiness_errors"]
+
+
+@pytest.mark.django_db
+def test_a_waiting_card_can_be_decided_after_its_prediction_is_deleted(
+    data_fixture, mocker
+):
+    start = mocker.patch(
+        "baserow_enterprise.assistant.handler.ChatRunHandler.start_run"
+    )
+    user, workspace, chat, approvals, ui_context = _waiting_chat(data_fixture)
+    handler = AssistantHandler()
+    handler.delete_predictions(older_than_days=0)
+    assert not AssistantChatPrediction.objects.filter(ai_response__chat=chat).exists()
+
+    handler.decide_approvals(
+        user,
+        chat,
+        [{"id": approval.id, "approved": True} for approval in approvals],
+        ui_context,
+        "",
+    )
+
+    human = chat.messages.get(role=AssistantChatMessage.Role.HUMAN)
+    assert start.call_args.args[4]["human_message_id"] == human.id

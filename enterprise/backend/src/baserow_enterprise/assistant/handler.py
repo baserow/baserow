@@ -370,12 +370,8 @@ class AssistantHandler:
                 )
             if pending:
                 return None, None
-            human_message = (
-                AssistantChatPrediction.objects.select_related("human_message")
-                .get(ai_response=message)
-                .human_message
-            )
-            human_message_id = human_message.id
+            human_message_id = message.artifacts["paused"]["human_message_id"]
+            human_message = chat.messages.get(id=human_message_id)
             serialized = assistant_message_payload(human_message)
             context: AssistantRunContext = {
                 "human_message_id": human_message_id,
