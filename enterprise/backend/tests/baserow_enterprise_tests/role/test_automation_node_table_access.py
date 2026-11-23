@@ -2287,6 +2287,72 @@ def test_answers_of_a_workflow_deleted_before_the_fill_are_shown_to_nobody(
 
 
 @pytest.mark.django_db
+@pytest.mark.parametrize("deleted", ["table", "workflow"])
+def test_answers_of_a_started_workflow_that_lost_a_step_before_the_fill_are_hidden(
+    api_client, enterprise_data_fixture, workflow_on_a_secret_table, deleted
+):
+    """
+    The step lost its table, or the workflow it started, in the started workflow,
+    after it ran there for the start step.
+    """
+
+    fixture = enterprise_data_fixture
+    admin, workflow, trigger, admin_token, restricted_token, _ = (
+        workflow_on_a_secret_table
+    )
+    other, rows = _workflow_answering_with_the_secret_rows(admin, workflow, trigger)
+    middle, _, middle_start, _ = _workflow_starting(fixture, admin, other)
+    _, _, start, _ = _workflow_starting(fixture, admin, middle)
+    entry = _start_history_before_the_upgrade(fixture, start)
+    lost = rows if deleted == "table" else middle_start
+    child_run = fixture.create_automation_workflow_history(
+        workflow=lost.workflow, original_workflow=lost.workflow
+    )
+    fixture.create_automation_node_result(
+        node_history=fixture.create_automation_node_history(
+            workflow_history=child_run, node=lost, read_table_ids=None
+        ),
+        result=SECRET_ROWS["results"],
+    )
+    workspace = workflow.automation.workspace
+    if deleted == "table":
+        table = trigger.service.specific.table
+        TrashHandler.trash(admin, workspace, table.database, table)
+        TrashHandler.permanently_delete(table)
+    else:
+        TrashHandler.trash(admin, workspace, workflow.automation, other)
+        TrashHandler.permanently_delete(other)
+
+    _fill()
+
+    for token in (restricted_token, admin_token):
+        assert _result_as(api_client, entry, token) is None
+
+
+@pytest.mark.django_db
+def test_a_dispatch_of_a_node_not_reading_a_start_step_costs_no_queries_for_them(
+    django_assert_num_queries, workflow_on_a_secret_table
+):
+    admin, workflow, trigger, _, _, _ = workflow_on_a_secret_table
+    handler = AutomationNodeHandler()
+    action = _add_row_nodes(
+        admin, workflow, trigger, [trigger.service.specific.table_id]
+    )
+    handler._dispatch_table_ids(action)  # Warms the caches.
+    with CaptureQueriesContext(connection) as without_starts:
+        handler._dispatch_table_ids(action)
+
+    other, _ = _workflow_answering_with_the_secret_rows(admin, workflow, trigger)
+    start = _add_node(admin, workflow, "start_workflow", action)
+    start.service.specific.workflow = other
+    start.service.specific.save()
+    handler._dispatch_table_ids(action)  # Warms the caches.
+
+    with django_assert_num_queries(len(without_starts)):
+        handler._dispatch_table_ids(action)
+
+
+@pytest.mark.django_db
 def test_run_results_built_from_a_table_deleted_before_the_fill_are_shown_to_nobody(
     api_client, workflow_on_a_secret_table, test_run_nodes
 ):

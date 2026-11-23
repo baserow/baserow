@@ -101,12 +101,29 @@ def fill_workflow_table_ids(workflow) -> None:
     """
 
     from baserow.contrib.automation.history.models import AutomationNodeHistory
-    from baserow.contrib.automation.nodes.access import AutomationNodeAccess
+    from baserow.contrib.automation.nodes.access import (
+        AutomationNodeAccess,
+        started_nodes,
+    )
     from baserow.core.services.models import Service
 
     access = AutomationNodeAccess(None, include_trashed=True)
     nodes = list(access.nodes_of_workflow(workflow).values())
-    lost_nodes = _lost_table_nodes(nodes)
+    # A start step answers with what the nodes of the workflows it starts read,
+    # so one of them that lost its table or workflow is lost for it too.
+    started = started_nodes(nodes)
+    lost_started = _lost_table_nodes(
+        list(
+            {
+                other.id: other for others in started.values() for other in others
+            }.values()
+        )
+    )
+    lost_nodes = _lost_table_nodes(nodes) | {
+        node_id
+        for node_id, others in started.items()
+        if any(other.id in lost_started for other in others)
+    }
     sample_table_ids, history_table_ids = {}, {}
     for node in nodes:
         read_ids = {node.id} | {other.id for other in access.read_nodes(node)}

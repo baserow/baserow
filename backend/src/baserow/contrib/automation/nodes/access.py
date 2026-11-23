@@ -321,20 +321,23 @@ class AutomationNodeAccess:
         starts, as its result holds what that workflow answered.
         """
 
-        if node.id not in self._table_ids:
-            # The started workflows of every node of the workflow are read at
-            # once, so more of them don't cost more queries.
-            nodes = [
-                other
-                for other in self._workflow_nodes.get(node.workflow_id, {}).values()
-                if other.id not in self._table_ids
-            ]
-            nodes = nodes if node in nodes else [node, *nodes]
-            started = started_table_ids(nodes)
-            for other in nodes:
-                self._table_ids[other.id] = node_table_ids(other) | started.get(
-                    other.id, set()
-                )
+        if node.id in self._table_ids:
+            return self._table_ids[node.id]
+        if _started_workflow_id(node) is None:
+            self._table_ids[node.id] = node_table_ids(node)
+            return self._table_ids[node.id]
+        # The workflows started by the nodes of the workflow are read at once, so
+        # more start steps don't cost more queries.
+        nodes = [node] + [
+            other
+            for other in self._workflow_nodes.get(node.workflow_id, {}).values()
+            if other.id != node.id
+            and other.id not in self._table_ids
+            and _started_workflow_id(other) is not None
+        ]
+        started = started_table_ids(nodes)
+        for other in nodes:
+            self._table_ids[other.id] = node_table_ids(other) | started[other.id]
         return self._table_ids[node.id]
 
     def node_of_service(self, workflow, service: Service) -> Optional[AutomationNode]:
@@ -481,19 +484,15 @@ def _nodes_of_workflows(workflow_ids: set[int]) -> list[AutomationNode]:
     return nodes
 
 
-def started_table_ids(nodes: Iterable[AutomationNode]) -> dict[int, set[int]]:
+def started_nodes(nodes: Iterable[AutomationNode]) -> dict[int, list[AutomationNode]]:
     """
-    For the nodes that start a workflow, the tables of the nodes of that workflow,
-    of its draft and its published versions, and of the workflows they start in
-    turn, as their response can hold the data of any of them. The workflows of a
+    For the nodes that start a workflow, the nodes of that workflow, of its draft
+    and its published versions, and of the workflows they start in turn, trashed
+    too, as their response can hold the data of any of them. The workflows of a
     level of starts are read together, so the queries only grow with how deep the
     starts go.
 
-    This is what a node may hold before it runs. Once the run it started answers,
-    `AutomationNodeHandler._add_deferred_table_ids` adds what that run read, which
-    can also be a table deleted since.
-
-    :return: The tables by ID of the node, for the nodes that start a workflow.
+    :return: The nodes by ID of the node, for the nodes that start a workflow.
     """
 
     from baserow.contrib.automation.workflows.models import AutomationWorkflow
@@ -504,8 +503,8 @@ def started_table_ids(nodes: Iterable[AutomationNode]) -> dict[int, set[int]]:
         if workflow_id is not None:
             targets[node.id] = workflow_id
 
-    # The tables of each started workflow and the workflows it starts itself.
-    tables: dict[int, set[int]] = {}
+    # The nodes of each started workflow and the workflows it starts itself.
+    of_workflow: dict[int, list[AutomationNode]] = {}
     starts: dict[int, set[int]] = {}
     to_read = set(targets.values())
     while to_read:
@@ -519,25 +518,45 @@ def started_table_ids(nodes: Iterable[AutomationNode]) -> dict[int, set[int]]:
             for target in {workflow_id, published_from_id} & to_read:
                 versions.setdefault(workflow_id, set()).add(target)
         for target in to_read:
-            tables[target], starts[target] = set(), set()
+            of_workflow[target], starts[target] = [], set()
         for node in _nodes_of_workflows(set(versions)):
             for target in versions[node.workflow_id]:
-                tables[target] |= node_table_ids(node)
+                of_workflow[target].append(node)
                 started = _started_workflow_id(node)
                 if started is not None:
                     starts[target].add(started)
-        to_read = set().union(*starts.values()) - tables.keys()
+        to_read = set().union(*starts.values()) - of_workflow.keys()
 
     result = {}
     for node_id, target in targets.items():
-        visited, to_visit, table_ids = {target}, [target], set()
+        visited, to_visit, found = {target}, [target], []
         while to_visit:
             workflow_id = to_visit.pop()
-            table_ids |= tables[workflow_id]
+            found.extend(of_workflow[workflow_id])
             for started in starts[workflow_id] - visited:
                 visited.add(started)
                 to_visit.append(started)
-        result[node_id] = table_ids
+        result[node_id] = found
+    return result
+
+
+def started_table_ids(nodes: Iterable[AutomationNode]) -> dict[int, set[int]]:
+    """
+    The tables of the `started_nodes` of the nodes, for every node, empty for
+    those that don't start a workflow.
+
+    This is what a node may hold before it runs. Once the run it started answers,
+    `AutomationNodeHandler._add_deferred_table_ids` adds what that run read, which
+    can also be a table deleted since.
+    """
+
+    nodes = list(nodes)
+    started = started_nodes(nodes)
+    result = {}
+    for node in nodes:
+        result[node.id] = set()
+        for other in started.get(node.id, ()):
+            result[node.id] |= node_table_ids(other)
     return result
 
 
