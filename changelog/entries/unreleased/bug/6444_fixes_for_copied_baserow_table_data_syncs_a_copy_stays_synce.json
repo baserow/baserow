@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Fixes for copied Baserow table data syncs: a copy stays synced whatever the database order and keeps its select options",
+    "issue_origin": "github",
+    "issue_number": 6444,
+    "domain": "database",
+    "bullet_points": [],
+    "created_at": "2026-11-19"
+}

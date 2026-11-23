@@ -1,4 +1,9 @@
+import json
+from io import BytesIO
+from pathlib import Path
+
 from django.core.files.storage import Storage
+from django.test import override_settings
 
 from baserow.core.handler import CoreHandler
 from baserow.core.import_export.handler import ImportExportHandler
@@ -74,6 +79,30 @@ class ImportExportWorkspaceFixtures:
     ):
         export_path = self.export_workspace_applications_file(applications)
         return self.import_workspace_applications_file(export_path, application_ids)
+
+    def install_applications_as_template(self, applications, templates_dir):
+        """
+        Writes the applications as an official template file and installs it into a
+        new workspace of another user.
+        """
+
+        workspace = applications[0].workspace
+        exported = CoreHandler().export_workspace_applications(
+            workspace, BytesIO(), ImportExportConfig(include_permission_data=False)
+        )
+        application_ids = {app.id for app in applications}
+        template_apps = [app for app in exported if app["id"] in application_ids]
+        template = self.create_template()
+        Path(templates_dir, f"{template.slug}.json").write_text(
+            json.dumps({"export": template_apps})
+        )
+        user = self.create_user()
+        target_workspace = self.create_workspace(user=user)
+        with override_settings(APPLICATION_TEMPLATES_DIR=str(templates_dir)):
+            imported, _ = CoreHandler().install_template(
+                user, target_workspace, template
+            )
+        return imported
 
     def disable_import_signature_verification(self):
         core_settings = CoreHandler().get_settings()

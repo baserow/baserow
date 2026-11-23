@@ -1,4 +1,3 @@
-import json
 from io import BytesIO
 
 import pytest
@@ -51,27 +50,6 @@ def _create_builder_reading_a_table(data_fixture):
         "builder": builder,
         "service": service,
     }
-
-
-def _install_as_template(data_fixture, settings, tmpdir, applications):
-    """
-    Writes the applications as an official template file, like one written on
-    another installation, and installs it into a new workspace of another user.
-    """
-
-    config = ImportExportConfig(include_permission_data=False)
-    workspace = applications[0].workspace
-    exported = CoreHandler().export_workspace_applications(workspace, BytesIO(), config)
-    application_ids = {app.id for app in applications}
-    template_apps = [app for app in exported if app["id"] in application_ids]
-    tmpdir.join("unmapped-references.json").write(json.dumps({"export": template_apps}))
-    settings.APPLICATION_TEMPLATES_DIR = str(tmpdir)
-    template = data_fixture.create_template(slug="unmapped-references")
-
-    user = data_fixture.create_user()
-    target_workspace = data_fixture.create_workspace(user=user)
-    imported, _ = CoreHandler().install_template(user, target_workspace, template)
-    return imported
 
 
 def _imported_service(applications):
@@ -189,11 +167,13 @@ def test_import_to_workspace_without_the_database_clears_the_references_to_it(
 @pytest.mark.import_export_workspace
 @pytest.mark.django_db(transaction=True)
 def test_template_install_without_the_database_clears_the_references_to_it(
-    data_fixture, settings, tmpdir, use_tmp_media_root
+    data_fixture, tmpdir, use_tmp_media_root
 ):
     source = _create_builder_reading_a_table(data_fixture)
 
-    imported = _install_as_template(data_fixture, settings, tmpdir, [source["builder"]])
+    imported = data_fixture.install_applications_as_template(
+        [source["builder"]], tmpdir
+    )
 
     # A template install is a duplicate, but the ids in the file come from the
     # installation it was written on, so they aren't kept.
@@ -207,7 +187,7 @@ def test_template_install_without_the_database_clears_the_references_to_it(
 @pytest.mark.import_export_workspace
 @pytest.mark.django_db(transaction=True)
 def test_template_install_clears_a_field_mapping_to_a_field_outside_it(
-    data_fixture, settings, tmpdir, use_tmp_media_root
+    data_fixture, tmpdir, use_tmp_media_root
 ):
     # Like some shipped templates, the file holds the database of the action's
     # table, but one field mapping names a field that isn't part of it. The field
@@ -237,7 +217,9 @@ def test_template_install_clears_a_field_mapping_to_a_field_outside_it(
         page=page, element=element, event=EventTypes.CLICK.value, service=service
     )
 
-    imported = _install_as_template(data_fixture, settings, tmpdir, [database, builder])
+    imported = data_fixture.install_applications_as_template(
+        [database, builder], tmpdir
+    )
 
     [imported_builder] = [app for app in imported if isinstance(app.specific, Builder)]
     [imported_database] = [
