@@ -485,7 +485,9 @@ def test_a_resumed_run_that_never_starts_keeps_the_paused_runs_calls_in_history(
     assert _tool_call_ids(chat.message_history) == ["call-1"]
     assert history_texts(resumed)[-1] == unfinished_answer("")
     message = chat.messages.get(id=resumed.context["resume_message_id"])
-    assert message.content == "I need your approval before I make this change."
+    # The cards are decided, so the message no longer asks for approval; the
+    # run's note says why nothing followed.
+    assert message.content == ""
     assert message.artifacts["run"]["error_code"] == ChatRunErrorCode.NOT_STARTED
 
 

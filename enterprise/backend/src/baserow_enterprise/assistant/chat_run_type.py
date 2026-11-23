@@ -521,8 +521,8 @@ class AssistantChatRunType(ChatRunType):
             ai_message = AssistantChatMessage.objects.select_for_update().get(
                 id=resumed_id, chat=chat
             )
-            # A run that stopped before writing keeps the paused run's text.
-            ai_message.content = result.text or ai_message.content
+            # The paused text asks for approval, which is given by now.
+            ai_message.content = result.text
             ai_message.artifacts = _merge_resumed_artifacts(
                 ai_message.artifacts, artifacts
             )
