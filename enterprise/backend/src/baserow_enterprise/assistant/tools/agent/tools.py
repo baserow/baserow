@@ -52,6 +52,7 @@ from baserow.contrib.agent.triggers.exceptions import (
 from baserow.contrib.agent.triggers.service import AgentTriggerService
 from baserow.contrib.agent.triggers.trigger_types import ROWS_TRIGGER_TYPES
 from baserow.contrib.database.table.models import Table
+from baserow.contrib.integrations.mcp.models import MCPServerTool
 from baserow.core.datetime import get_timezones
 from baserow.core.formula.literals import wrap_static_string
 from baserow.core.identities.actions import CreateIdentityActionType
@@ -451,6 +452,47 @@ def _identity_label(workspace: Workspace, identity_id: int) -> str:
     return f'the identity "{identity.first_name}" with the {role} role'
 
 
+def _runs_alone_and_changes_data(
+    current: dict[str, Any], setup: AgentSetup, ask_first: list[str] | None
+) -> bool:
+    """
+    New instructions steer what such an Agent does to data with nobody watching,
+    so only then is a change to them approved.
+
+    :param current: The Agent's setup now.
+    :param setup: The proposed change.
+    :param ask_first: The ask first tools the change saves, or None to keep them.
+    :return: Whether, after the change, a turned on trigger starts the Agent and
+        it has a tool, action or MCP tool that changes data without asking first.
+    """
+
+    enabled_after = {t["trigger_id"]: t["enabled"] for t in current["triggers"]}
+    enabled_after.update({c.trigger_id: c.enabled for c in setup.update_triggers})
+    if not any(enabled_after.values()) and not any(
+        trigger.enabled for trigger in setup.add_triggers
+    ):
+        return False
+    allowed = (
+        setup.allowed_tools
+        if setup.allowed_tools is not None
+        else current["allowed_tools"]
+    )
+    asking = set(ask_first if ask_first is not None else current["ask_first_tools"])
+    if any(_changes_data(name) and name not in asking for name in allowed):
+        return True
+    # Actions are added turned off, so only the Agent's current ones count.
+    if any(a["enabled"] and not a["ask_first"] for a in current["actions"]):
+        return True
+    return MCPServerTool.objects.filter(
+        integration__application_id=current["agent_id"],
+        integration__trashed=False,
+        enabled=True,
+        removed=False,
+        changes_data=True,
+        ask_first=False,
+    ).exists()
+
+
 def _widening_changes(
     workspace: Workspace,
     current: dict[str, Any] | None,
@@ -500,6 +542,16 @@ def _widening_changes(
         for name in setup.allowed_tools:
             if _changes_data(name) and name in asking and name not in before_allowed:
                 changes.append(f"Let the Agent use {name}, asking first")
+    if (
+        current is not None
+        and setup.instructions is not None
+        and setup.instructions != current["instructions"]
+        and _runs_alone_and_changes_data(current, setup, ask_first)
+    ):
+        changes.append(
+            "Change the instructions of an Agent that runs by itself and changes "
+            "data without asking"
+        )
     if setup.web_fetch_enabled and not (current or {}).get("web_fetch_enabled"):
         changes.append("Let the Agent open web pages")
     for trigger in setup.add_triggers:
@@ -831,7 +883,7 @@ def apply_agent_setup(
 
     WHEN to use: The user asks to build, change or revert an Agent. Put every part of the request in one call so the user approves it once.
     HOW: Read list_agent_tools first; for an edit read get_agent. Grant the read tools the Agent needs to find its data, such as list_tables and list_rows, next to any tool that changes it. Default to read-only tools, and make tools that change data ask first unless the user says otherwise. Turn a trigger on when the user says when the Agent runs, such as "when a row is created"; otherwise add it turned off. Never ask for API keys, passwords or SMTP credentials: actions are added turned off for the user to configure.
-    APPROVAL: A change that creates an identity, grants a tool that changes data, turns off ask first, turns on web fetch or turns on a trigger waits for the user's approval in the chat. Do not ask for permission in text: call the tool, and the user sees an approval card.
+    APPROVAL: A change that creates an identity, grants a tool that changes data, turns off ask first, turns on web fetch, turns on a trigger, or changes the instructions of an Agent that runs by itself and changes data without asking waits for the user's approval in the chat. Do not ask for permission in text: call the tool, and the user sees an approval card.
     REVERT: To undo a change, call this tool with the revert.setup of that change's result, and tell the user what its revert.cannot_undo lists: added triggers and actions are only turned off, and a created Agent or identity stays.
     RETURNS: The Agent's setup before and after the change, and how to revert it.
     """

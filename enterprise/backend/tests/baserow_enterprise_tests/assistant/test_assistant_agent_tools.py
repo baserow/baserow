@@ -618,3 +618,77 @@ def test_waiting_for_a_test_reply_stops_when_kuma_is_cancelled(data_fixture, moc
     with pytest.raises(asyncio.CancelledError):
         get_agent_test_result(ctx, agent.id, conversation.uuid, thought="t")
     assert clock[0] == 1
+
+
+INSTRUCTIONS_CARD = (
+    "Change the instructions of an Agent that runs by itself and changes data "
+    "without asking"
+)
+
+
+def _agent_that_may_run_alone(data_fixture, workspace, trigger_on, changes_with="tool"):
+    """
+    An Agent with a trigger, and a way to change data without asking first:
+    a built-in tool, an action, an MCP tool, or none.
+    """
+
+    from baserow.contrib.integrations.mcp.models import MCPServerTool
+
+    identity = data_fixture.create_identity(workspace=workspace)
+    agent = data_fixture.create_agent_application(
+        workspace=workspace, instructions="Old"
+    )
+    AgentHandler().update_configuration(
+        agent,
+        run_as_subject_type="auth.User",
+        run_as_subject_id=identity.id,
+        allowed_tools=["list_tables", "create_tables"],
+        ask_first_tools=[] if changes_with == "tool" else ["create_tables"],
+    )
+    data_fixture.create_agent_trigger(agent=agent, enabled=trigger_on)
+    if changes_with == "action":
+        data_fixture.create_agent_action(agent=agent, enabled=True)
+    if changes_with == "mcp":
+        server = data_fixture.create_mcp_server_integration(application=agent)
+        MCPServerTool.objects.create(
+            integration=server,
+            name="send",
+            definition_hash="h",
+            enabled=True,
+            changes_data=True,
+            ask_first=False,
+        )
+    return agent
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("changes_with", ["tool", "action", "mcp"])
+def test_new_instructions_wait_for_approval_on_an_agent_that_runs_alone(
+    data_fixture, changes_with
+):
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    agent = _agent_that_may_run_alone(data_fixture, workspace, True, changes_with)
+
+    metadata = _held(_ctx(user, workspace), {"instructions": "New"}, agent.id)
+
+    assert metadata["details"]["changes"] == [INSTRUCTIONS_CARD]
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("trigger_on,changes_with", [(False, "tool"), (True, None)])
+def test_new_instructions_apply_at_once_when_the_agent_cant_change_data_alone(
+    data_fixture, trigger_on, changes_with
+):
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    agent = _agent_that_may_run_alone(data_fixture, workspace, trigger_on, changes_with)
+
+    result = apply_agent_setup(
+        _ctx(user, workspace),
+        AgentSetup(instructions="New"),
+        thought="t",
+        agent_id=agent.id,
+    )
+
+    assert result["setup"]["instructions"] == "New"
