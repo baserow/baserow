@@ -13,7 +13,7 @@
     "noWorkspaceAccess": "No workspace access",
     "runAsHelper": "Sees and changes only what {name} may. Anyone who can chat with the agent can read what {name} can read.",
     "noWorkspaceAccessHelper": "The agent can’t read or change anything in this workspace.",
-    "templatePreviewHint": "Install this template to chat with the agent and pick the identity it works as.",
+    "templatePreviewHint": "Install this template to chat with the agent. The install can create the identity it works as, or you pick one afterwards.",
     "templatePreviewLoadError": "The agent couldn’t be loaded.",
     "templatePreviewNoTools": "This agent doesn’t use workspace tools.",
     "templatePreviewNoTriggers": "This agent only runs when someone sends it a message.",

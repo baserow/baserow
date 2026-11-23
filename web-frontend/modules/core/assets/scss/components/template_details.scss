@@ -167,4 +167,15 @@
   font-size: 13px;
   line-height: 20px;
   color: $palette-neutral-900;
+
+  .checkbox__label {
+    white-space: normal;
+  }
+}
+
+.template-install__identities-hint {
+  margin: 4px 0 0 24px;
+  font-size: 12px;
+  line-height: 18px;
+  color: $palette-neutral-700;
 }

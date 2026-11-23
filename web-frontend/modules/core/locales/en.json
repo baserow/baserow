@@ -726,7 +726,8 @@
     "noWorkspace": "A template is installed into a workspace. Create a workspace first, then install the template into it.",
     "noWorkspaceAskInvite": "You aren't a member of any workspace. A template is installed into a workspace, so you will need to be invited to a workspace by an administrator first.",
     "createWorkspace": "Create workspace",
-    "createIdentities": "Create an identity for each Agent with access only to this template's applications"
+    "createIdentities": "Create an identity for each Agent",
+    "createIdentitiesHint": "It can reach only this template's other applications, with the roles its Agent had in the template, or else builder access if its tools change data and viewer access otherwise."
   },
   "templateDetails": {
     "back": "Back to Templates",
@@ -860,7 +861,7 @@
     "noticeTitle": "What is not copied",
     "noticeSecrets": "Most passwords, tokens and API keys of integrations and data syncs.",
     "noticePasswords": "Values of password fields in your tables, including the passwords of your application users.",
-    "noticePeople": "People: collaborator field values, role assignments and the user that automatic AI field updates run as.",
+    "noticePeople": "People: collaborator field values, the user that automatic AI field updates run as, and role assignments, except the roles of an Agent's identity on the copied applications.",
     "noticePersonalViews": "Personal views.",
     "noticeReferences": "Connections to databases that are not included. Data sources, filters and triggers using them need to be set up again.",
     "noticeRest": "Everything else is shared as it is.",

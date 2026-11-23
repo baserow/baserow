@@ -35,6 +35,9 @@
         <Checkbox v-model="createIdentities">
           {{ $t('templateInstall.createIdentities') }}
         </Checkbox>
+        <p class="template-install__identities-hint">
+          {{ $t('templateInstall.createIdentitiesHint') }}
+        </p>
       </div>
     </template>
     <div class="template-install__actions">
@@ -256,9 +259,9 @@ const selectedWorkspace = computed(
 const createIdentities = ref(false)
 
 /**
- * Whether an identity with access to only the installed databases can be created
- * for each installed Agent. That takes roles, and the permissions to create
- * identities and assign their roles, which the backend checks again.
+ * Whether an identity with access to only the template's other applications can
+ * be created for each installed Agent. That takes roles, and the permission to
+ * create such identities, which the backend checks again.
  */
 const canCreateIdentities = computed(() => {
   const workspace = selectedWorkspace.value
@@ -270,8 +273,6 @@ const canCreateIdentities = computed(() => {
     .map((application) => $registry.get('application', application.type))
   return (
     types.some((type) => type.createsIdentityOnInstall()) &&
-    // The identity gets access to the other applications only.
-    types.some((type) => !type.createsIdentityOnInstall()) &&
     Object.values($registry.getAll('plugin')).some((plugin) =>
       plugin.canCreateScopedIdentities(workspace)
     )

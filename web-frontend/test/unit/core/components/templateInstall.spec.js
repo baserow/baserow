@@ -697,14 +697,14 @@ describe('TemplateInstall', () => {
       expect(option(wrapper).exists()).toBe(false)
     })
 
-    test('is hidden for a template with only Agents', async () => {
+    test('is shown for a template with only Agents', async () => {
       signIn()
       registerPlugin()
       const wrapper = await testApp.mount(TemplateInstall, {
         props: { template, applications: [agent] },
       })
 
-      expect(option(wrapper).exists()).toBe(false)
+      expect(option(wrapper).exists()).toBe(true)
     })
 
     test('is shown for a template with an Agent and any other application', async () => {
