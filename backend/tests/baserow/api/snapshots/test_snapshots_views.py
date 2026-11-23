@@ -154,7 +154,7 @@ def test_create_snapshot_without_room(api_client, data_fixture, settings):
     assert response.status_code == HTTP_400_BAD_REQUEST
     assert response.json()["error"] == "ERROR_MAX_SNAPSHOTS_FULL_OF_PROTECTED"
 
-    settings.BASEROW_MAX_SNAPSHOTS_PER_GROUP = 0
+    settings.BASEROW_MAX_SNAPSHOTS_PER_WORKSPACE = 0
     response = create(full)
     assert response.status_code == HTTP_400_BAD_REQUEST
     assert response.json()["error"] == "ERROR_MAXIMUM_SNAPSHOTS_REACHED"
@@ -162,7 +162,7 @@ def test_create_snapshot_without_room(api_client, data_fixture, settings):
 
 @pytest.mark.django_db
 def test_create_snapshot_raising_the_max_snapshots(api_client, data_fixture, settings):
-    settings.BASEROW_MAX_SNAPSHOTS_PER_GROUP = 3
+    settings.BASEROW_MAX_SNAPSHOTS_PER_WORKSPACE = 3
     user, token = data_fixture.create_user_and_token()
     workspace = data_fixture.create_workspace(user=user)
     no_max_snapshots = data_fixture.create_database_application(workspace=workspace)
@@ -673,7 +673,7 @@ def test_get_current_snapshot_job_cancelled(api_client, data_fixture):
 
 @pytest.mark.django_db
 def test_get_snapshot_usage(api_client, data_fixture, settings):
-    settings.BASEROW_MAX_SNAPSHOTS_PER_GROUP = 5
+    settings.BASEROW_MAX_SNAPSHOTS_PER_WORKSPACE = 5
     user, token = data_fixture.create_user_and_token()
     workspace = data_fixture.create_workspace(user=user)
     application = data_fixture.create_database_application(workspace=workspace)
@@ -711,7 +711,7 @@ def test_get_snapshot_usage(api_client, data_fixture, settings):
 
 @pytest.mark.django_db
 def test_get_snapshot_usage_without_limit(api_client, data_fixture, settings):
-    settings.BASEROW_MAX_SNAPSHOTS_PER_GROUP = -1
+    settings.BASEROW_MAX_SNAPSHOTS_PER_WORKSPACE = -1
     user, token = data_fixture.create_user_and_token()
     application = data_fixture.create_database_application(user=user)
     url = reverse("api:snapshots:usage", kwargs={"application_id": application.id})
@@ -738,7 +738,7 @@ def test_get_snapshot_usage_outside_the_workspace(api_client, data_fixture):
 
 @pytest.mark.django_db
 def test_update_application_max_snapshots(api_client, data_fixture, settings):
-    settings.BASEROW_MAX_SNAPSHOTS_PER_GROUP = 4
+    settings.BASEROW_MAX_SNAPSHOTS_PER_WORKSPACE = 4
     user, token = data_fixture.create_user_and_token()
     workspace = data_fixture.create_workspace(user=user)
     application = data_fixture.create_database_application(workspace=workspace)
@@ -834,7 +834,7 @@ def test_update_application_max_snapshots_outside_the_workspace(
 
 @pytest.mark.django_db
 def test_workspace_snapshot_settings(api_client, data_fixture, settings):
-    settings.BASEROW_MAX_SNAPSHOTS_PER_GROUP = 10
+    settings.BASEROW_MAX_SNAPSHOTS_PER_WORKSPACE = 10
     settings.BASEROW_MAX_SNAPSHOTS_PER_APPLICATION = 3
     user, token = data_fixture.create_user_and_token()
     workspace = data_fixture.create_workspace(user=user)

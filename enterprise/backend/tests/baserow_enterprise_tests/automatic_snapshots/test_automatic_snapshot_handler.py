@@ -308,7 +308,7 @@ def test_create_automatic_snapshot_exits_when_the_license_is_gone(
 
 
 @pytest.mark.django_db(transaction=True)
-@override_settings(BASEROW_MAX_SNAPSHOTS_PER_GROUP=0)
+@override_settings(BASEROW_MAX_SNAPSHOTS_PER_WORKSPACE=0)
 def test_create_automatic_snapshot_records_disabled_snapshots(
     enterprise_data_fixture, enable_enterprise
 ):

@@ -54,7 +54,7 @@ class SnapshotQuotaHandler:
         its applications can keep together. A negative value means there is no
         limit, and 0 means snapshots are disabled. A plugin can set it per
         workspace, for example from its plan, otherwise it's
-        `BASEROW_MAX_SNAPSHOTS_PER_GROUP`.
+        `BASEROW_MAX_SNAPSHOTS_PER_WORKSPACE`.
 
         :param workspace: The workspace for which to get the allowance.
         """
@@ -63,7 +63,7 @@ class SnapshotQuotaHandler:
             allowance = plugin.get_snapshot_allowance(workspace)
             if allowance is not None:
                 return allowance
-        return settings.BASEROW_MAX_SNAPSHOTS_PER_GROUP
+        return settings.BASEROW_MAX_SNAPSHOTS_PER_WORKSPACE
 
     def get_max_snapshots_limit(self) -> Optional[int]:
         """
