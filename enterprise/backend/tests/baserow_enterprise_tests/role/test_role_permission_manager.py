@@ -6,6 +6,9 @@ from django.test.utils import CaptureQueriesContext
 import pytest
 from tqdm import tqdm
 
+from baserow.contrib.agent.operations import (
+    ContinueAgentTriggeredConversationOperationType,
+)
 from baserow.contrib.database.fields.operations import (
     ReadFieldOperationType,
     SubmitAnonymousFieldValuesOperationType,
@@ -1513,6 +1516,8 @@ def test_all_operations_are_in_at_least_one_default_role(data_fixture):
         MarkNotificationAsReadOperationType.type,
         WriteFieldValuesOperationType.type,
         SubmitAnonymousFieldValuesOperationType.type,
+        # Roles never see it: participation rules or the core manager decide it
+        ContinueAgentTriggeredConversationOperationType.type,
     ]
 
     all_ops_in_roles = set()

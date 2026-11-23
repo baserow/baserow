@@ -2,6 +2,7 @@ from django.contrib.auth.models import AbstractUser
 from django.db import transaction
 from django.dispatch import Signal, receiver
 
+from baserow.contrib.agent.models import AgentApplication
 from baserow.contrib.database.fields.models import Field
 from baserow.core.models import Workspace
 from baserow.core.registries import object_scope_type_registry, subject_type_registry
@@ -30,6 +31,7 @@ role_assignment_updated = Signal()
 role_assignment_deleted = Signal()
 
 field_permissions_updated = Signal()
+agent_participation_rule_updated = Signal()
 
 
 NO_ACCESS_ROLES = [NO_ACCESS_ROLE_UID, NO_ROLE_LOW_PRIORITY_ROLE_UID]
@@ -142,5 +144,21 @@ def notify_users_about_updated_field_permissions(
                 "allow_in_forms": allow_in_forms,
             },
             getattr(user, "web_socket_id", None),
+        )
+    )
+
+
+@receiver(agent_participation_rule_updated)
+def agent_participation_rule_updated_event(
+    sender, agent: AgentApplication, **kwargs
+) -> None:
+    """Tell the workspace's members to reload what they may do with the agent."""
+
+    workspace = agent.workspace
+    member_ids = list(workspace.workspaceuser_set.values_list("user_id", flat=True))
+    transaction.on_commit(
+        lambda: broadcast_to_users.delay(
+            member_ids,
+            {"type": "permissions_updated", "workspace_id": workspace.id},
         )
     )

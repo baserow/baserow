@@ -32,6 +32,30 @@
     "createRowCommentsDoneCount": "Posted {count} comment | Posted {count} comments",
     "createRowCommentsDoneCountTable": "Posted {count} comment in {table} | Posted {count} comments in {table}"
   },
+  "agentPermissions": {
+    "section": "Permissions",
+    "sectionDescription": "Who can chat, approve tools and continue triggered chats.",
+    "chat": "Who can chat",
+    "approve": "Who can approve tool calls",
+    "continue": "Who can continue triggered conversations",
+    "managePeople": "Manage people and teams ({count})",
+    "loadError": "Couldn’t load agent permissions.",
+    "EDITOR": "Editors and higher",
+    "CUSTOM": "Specific users or teams",
+    "NOBODY": "Nobody",
+    "EVERYONE": "Everyone in the workspace",
+    "default": "Default",
+    "loading": "Loading…",
+    "chooseSubjects": "Choose at least one person or team for “{setting}”.",
+    "unlicensedNote": "Without Advanced or Enterprise, every member can chat and approve tool calls, and nobody can continue conversations started by triggers."
+  },
+  "agentPermissionSubjects": {
+    "accessNote": "Changes apply immediately. People and team members need Editor access or higher on this agent.",
+    "canEdit": "Selected people and teams",
+    "noSelectedSubjects": "Choose at least one person or team.",
+    "addPeopleOrTeams": "Add people or teams",
+    "searchPlaceholder": "Search people or teams"
+  },
   "clientHandler": {
     "cannotDisableAllAuthProvidersTitle": "Last enabled provider",
     "cannotDisableAllAuthProvidersDescription": "It is not possible to disable or delete last enabled provider."

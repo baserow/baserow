@@ -412,9 +412,18 @@ class BaserowEnterpriseConfig(AppConfig):
 
         from baserow.core.registries import permission_manager_type_registry
 
+        from .agent_permissions.permission_manager import (
+            AgentParticipationPermissionManagerType,
+        )
         from .field_permissions.permission_manager import FieldPermissionManagerType
         from .role.permission_manager import RolePermissionManagerType
 
+        permission_manager_type_registry.unregister(
+            AgentParticipationPermissionManagerType.type
+        )
+        permission_manager_type_registry.register(
+            AgentParticipationPermissionManagerType()
+        )
         permission_manager_type_registry.register(FieldPermissionManagerType())
         permission_manager_type_registry.register(RolePermissionManagerType())
 
@@ -463,9 +472,13 @@ class BaserowEnterpriseConfig(AppConfig):
 
         from baserow.core.registries import serialization_processor_registry
         from baserow_enterprise.structure_types import (
+            AgentParticipationSerializationProcessorType,
             RoleAssignmentSerializationProcessorType,
         )
 
+        serialization_processor_registry.register(
+            AgentParticipationSerializationProcessorType()
+        )
         serialization_processor_registry.register(
             RoleAssignmentSerializationProcessorType()
         )

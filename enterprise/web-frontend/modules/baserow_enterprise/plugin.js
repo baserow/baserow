@@ -14,6 +14,7 @@ import {
 } from '@baserow_enterprise/adminTypes'
 import authProviderAdminStore from '@baserow_enterprise/store/authProviderAdmin'
 import assistantStore from '@baserow_enterprise/store/assistant'
+import { PermissionsAgentConfigurationSectionType } from '@baserow_enterprise/agentConfigurationSectionTypes'
 import { AssistantChatRunType } from '@baserow_enterprise/chatRunTypes'
 import {
   storeChatUuid,
@@ -175,6 +176,10 @@ export default defineNuxtPlugin({
     const context = { app: nuxtApp }
 
     $registry.register('plugin', new EnterprisePlugin(context))
+    $registry.register(
+      'agentConfigurationSection',
+      new PermissionsAgentConfigurationSectionType(context)
+    )
     $registry.register(
       'aiProviderModelFeature',
       new KumaAIProviderModelFeatureType(context)

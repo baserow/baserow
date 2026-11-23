@@ -5,11 +5,18 @@ import { flushPromises } from '@vue/test-utils'
 import Context from '@baserow/modules/core/components/Context'
 import { chooseFromMenu } from './helpers'
 
+// The viewer's own private conversation, which they may manage.
+const own = {
+  owner: { id: 1, name: 'Me' },
+  participants: [{ id: 1, name: 'Me' }],
+}
+
 describe('Agent conversation list', () => {
   let testApp, form
 
   beforeEach(() => {
     testApp = new TestApp()
+    testApp.authenticate({ id: 1, first_name: 'Me' })
   })
 
   afterEach(async () => {
@@ -19,7 +26,7 @@ describe('Agent conversation list', () => {
   })
 
   test('activates conversations and shared actions without submitting an enclosing form', async () => {
-    const conversation = { uuid: 'saved', title: 'Saved conversation' }
+    const conversation = { ...own, uuid: 'saved', title: 'Saved conversation' }
     const wrapper = await testApp.mount(AgentConversationList, {
       props: {
         items: [conversation],
@@ -48,7 +55,7 @@ describe('Agent conversation list', () => {
   })
 
   test('retains focus and selection while existing rows load or reorder', async () => {
-    const saved = { uuid: 'saved', title: 'Saved conversation' }
+    const saved = { ...own, uuid: 'saved', title: 'Saved conversation' }
     const draft = { uuid: 'draft', title: '', local: true }
     const wrapper = await testApp.mount(AgentConversationList, {
       props: { items: [saved, draft], selected: 'saved', hasMore: true },
@@ -170,7 +177,7 @@ describe('Agent conversation list', () => {
     testApp.mount(AgentConversationList, {
       props: { items, canUpdate: true, canDelete: true },
     })
-  const saved = { uuid: 'saved', title: 'Saved conversation' }
+  const saved = { ...own, uuid: 'saved', title: 'Saved conversation' }
 
   test('offers a menu only for saved conversations and cancels a rename on Escape', async () => {
     const wrapper = await mountList([
@@ -216,7 +223,7 @@ describe('Agent conversation list', () => {
   })
 
   test('keeps the row being renamed in place until the rename ends', async () => {
-    const other = { uuid: 'other', title: 'Other conversation' }
+    const other = { ...own, uuid: 'other', title: 'Other conversation' }
     const wrapper = await mountList([other, saved])
     const rows = () =>
       wrapper.findAll('.agent-conversations__row').map(({ element }) => element)

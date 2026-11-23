@@ -35,6 +35,7 @@ import {
   unavailableModel,
   useFakeTimers,
   warning,
+  viewer,
   withoutConfiguration,
   workspace,
   conversationsPage,
@@ -967,6 +968,30 @@ describe('Agent conversations', () => {
     expect(wrapper.find('.agent-conversations__private').exists()).toBe(false)
   })
 
+  test('asks whether to leave a conversation others take part in, or delete it', async () => {
+    const chat = {
+      ...conversation('chat', 'Chat'),
+      participants: [viewer, { id: 2, name: 'Ada' }],
+    }
+    mockConversations(testApp, conversationsPage([chat]))
+    testApp.mock
+      .onPost('/agent/10/conversations/chat/leave/')
+      .reply(200, { trashed: false })
+    const wrapper = await mount()
+
+    await chooseFromMenu(wrapper, 'Chat', 'action.delete')
+    expect(testApp.mock.history.delete).toHaveLength(0)
+    Array.from(document.querySelectorAll('.modal__box button'))
+      .find((button) => button.textContent.trim() === 'agent.deleteForMe')
+      .click()
+    await flushPromises()
+
+    expect(testApp.mock.history.post.map(({ url }) => url)).toEqual([
+      '/agent/10/conversations/chat/leave/',
+    ])
+    expect(conversationTitles(wrapper)).toEqual([])
+  })
+
   test("names others' messages in a shared conversation and tells a Viewer they can't reply", async () => {
     allowed.value = (operation) =>
       withoutConfiguration(operation) && !operation.includes('create')
@@ -1010,8 +1035,10 @@ describe('Agent conversations', () => {
     )
   })
 
-  test('shows a shared conversation without a composer, with its trigger start card', async () => {
-    allowed.value = withoutConfiguration
+  test('shows a triggered conversation without a composer to who may not continue it, with its trigger start card', async () => {
+    allowed.value = (operation) =>
+      withoutConfiguration(operation) &&
+      operation !== 'agent_application.continue_triggered_conversation'
     mockConversations(
       testApp,
       conversationsPage([sharedConversation('digest', 'Daily digest')])

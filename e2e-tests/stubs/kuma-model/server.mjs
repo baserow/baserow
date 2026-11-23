@@ -41,7 +41,24 @@ function nextAnswer(body) {
       : { toolCall: toolCall(MODEL_CHECK_TOOL, { value: "e2e" }) };
   }
   const lastUser = messages.findLast((message) => message.role === "user");
-  const prompt = lastUser ? textOf(lastUser) : "";
+  // A shared conversation opens each message with a line naming its sender.
+  const prompt = lastUser
+    ? textOf(lastUser).replace(/^\[[^\]\n]*\]\n/, "")
+    : "";
+  if (
+    prompt === "Create a support database." &&
+    tools.includes("create_database")
+  ) {
+    const result = messages.at(-1);
+    if (result?.role === "tool") {
+      return {
+        text: textOf(result).includes("created_database")
+          ? "The support database is ready."
+          : "I could not create the support database.",
+      };
+    }
+    return { toolCall: toolCall("create_database", { name: "Support" }) };
+  }
   const script = prompt.match(SCRIPT);
   const rowsHold = prompt.match(ROWS_HOLD);
   if (rowsHold && !script) {
@@ -79,7 +96,7 @@ function nextAnswer(body) {
   return {
     words: Array.from(
       { length: Number(wordCount) },
-      (_, index) => `word${index + 1}`,
+      (_, index) => `word${index + 1}`
     ),
   };
 }
@@ -114,7 +131,7 @@ async function stream(res, answer) {
       chunk({
         role: "assistant",
         tool_calls: [{ index: 0, ...answer.toolCall }],
-      }),
+      })
     );
     send(chunk({}, "tool_calls"));
   } else {
@@ -122,7 +139,7 @@ async function stream(res, answer) {
     for (const [index, part] of parts.entries()) {
       if (res.destroyed) return;
       send(
-        chunk({ role: "assistant", content: index === 0 ? part : ` ${part}` }),
+        chunk({ role: "assistant", content: index === 0 ? part : ` ${part}` })
       );
       if (answer.words) await sleep(WORD_DELAY_MS);
     }
@@ -154,7 +171,7 @@ function respond(res, answer) {
         },
       ],
       usage: USAGE,
-    }),
+    })
   );
 }
 

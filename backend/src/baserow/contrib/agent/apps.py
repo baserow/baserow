@@ -11,6 +11,7 @@ class AgentConfig(AppConfig):
             application_type_registry,
             last_viewed_item_type_registry,
             operation_type_registry,
+            permission_manager_type_registry,
         )
         from baserow.core.search.registries import workspace_search_registry
         from baserow.core.services.registries import service_type_registry
@@ -36,6 +37,8 @@ class AgentConfig(AppConfig):
             CreateAgentMessageActionType,
             DecideAgentToolApprovalsActionType,
             DeleteAgentConversationActionType,
+            LeaveAgentConversationActionType,
+            RequestAgentApprovalActionType,
             ShareAgentConversationActionType,
             UpdateAgentConfigurationActionType,
             UpdateAgentConversationActionType,
@@ -44,6 +47,8 @@ class AgentConfig(AppConfig):
         from .chat_run_type import AgentChatRunType
         from .last_viewed_types import AgentLastViewedItemType
         from .operations import (
+            ApproveAgentToolCallsOperationType,
+            ContinueAgentTriggeredConversationOperationType,
             CreateAgentConversationOperationType,
             CreateAgentMessageOperationType,
             DeleteAgentConversationOperationType,
@@ -51,6 +56,9 @@ class AgentConfig(AppConfig):
             ReadAgentConversationsOperationType,
             RestoreAgentConversationOperationType,
             UpdateAgentConversationOperationType,
+        )
+        from .permission_manager import (
+            AgentParticipationPermissionManagerType,
         )
         from .registries import (
             agent_data_provider_type_registry,
@@ -98,18 +106,25 @@ class AgentConfig(AppConfig):
             ReadAgentConversationsOperationType,
             CreateAgentConversationOperationType,
             CreateAgentMessageOperationType,
+            ApproveAgentToolCallsOperationType,
+            ContinueAgentTriggeredConversationOperationType,
             ReadAgentConfigurationOperationType,
             UpdateAgentConversationOperationType,
             DeleteAgentConversationOperationType,
             RestoreAgentConversationOperationType,
         ):
             operation_type_registry.register(operation())
+        permission_manager_type_registry.register(
+            AgentParticipationPermissionManagerType()
+        )
         for action in (
             CreateAgentConversationActionType,
             CreateAgentMessageActionType,
             DecideAgentToolApprovalsActionType,
             UpdateAgentConversationActionType,
             ShareAgentConversationActionType,
+            RequestAgentApprovalActionType,
+            LeaveAgentConversationActionType,
             DeleteAgentConversationActionType,
             UpdateAgentConfigurationActionType,
             CreateAgentTriggerActionType,

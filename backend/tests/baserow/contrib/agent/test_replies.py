@@ -547,6 +547,31 @@ def test_a_message_or_a_name_cannot_pass_for_another_sender():
 
 @pytest.mark.django_db
 @pytest.mark.parametrize(
+    "shared,asked_approver,names_senders",
+    [(False, False, False), (False, True, True), (True, False, True)],
+)
+def test_senders_are_named_once_several_people_can_write(
+    data_fixture, configured_agent, shared, asked_approver, names_senders
+):
+    owner, approver = data_fixture.create_user(), data_fixture.create_user()
+    agent = configured_agent(user=owner)
+    conversation = data_fixture.create_agent_conversation(
+        user=owner, agent=agent, shared=shared
+    )
+    if asked_approver:
+        conversation.participants.add(approver)
+    data_fixture.create_agent_message(conversation=conversation, sender=owner)
+    reply = data_fixture.create_agent_message(
+        conversation=conversation, sender=owner, role="assistant", status="queued"
+    )
+
+    request = AgentHandler().get_reply_request(AgentHandler().get_reply(reply.id))
+
+    assert request.names_senders is names_senders
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
     "identity_state,unavailable",
     [
         ("unset", False),
@@ -1289,7 +1314,7 @@ def test_a_shared_reply_is_followed_by_members_and_stopped_with_agent_update_acc
 
 
 @pytest.mark.django_db
-def test_the_person_a_shared_reply_answers_stops_it_without_agent_update_access(
+def test_the_person_a_shared_reply_answers_stops_it_whoever_resumed_it(
     data_fixture, configured_agent, mocker
 ):
     sender = data_fixture.create_user()
@@ -1310,6 +1335,11 @@ def test_the_person_a_shared_reply_answers_stops_it_without_agent_update_access(
         },
     )
 
+    assert AgentChatRunType().can_cancel(sender, run)
+    assert not AgentChatRunType().can_cancel(member, run)
+    # A decision resumes the reply as the person who made it.
+    ChatRun.objects.filter(id=run.id).update(created_by=member)
+    run.refresh_from_db()
     assert AgentChatRunType().can_cancel(sender, run)
     assert not AgentChatRunType().can_cancel(member, run)
 

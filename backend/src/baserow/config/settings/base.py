@@ -1856,6 +1856,7 @@ PERMISSION_MANAGERS = [
     "allow_public_builder",
     "member",
     "token",
+    "agent_participation",
     "write_field_values",
     "role",
     "basic",

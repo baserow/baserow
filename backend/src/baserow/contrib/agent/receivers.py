@@ -1,5 +1,6 @@
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import AbstractUser
+from django.db.models import Exists, OuterRef
 from django.db.models.signals import post_delete, pre_delete
 from django.dispatch import receiver
 
@@ -24,15 +25,24 @@ def agent_loaded_mark_last_viewed(
 @receiver(pre_delete, sender=User)
 def delete_owned_conversations(sender, instance: AbstractUser, **kwargs) -> None:
     """
-    Delete the user's private conversations with their trash entries, which would
-    otherwise lose their owner and show private titles in everyone's trash.
+    Delete the private conversations nobody else takes part in, and the user's
+    trashed private ones, with their trash entries, which would otherwise lose
+    their owner and show private titles in everyone's trash.
 
     :param sender: The user model.
     :param instance: The user being deleted.
     """
 
     AgentConversation.objects_and_trash.filter(
-        owner_user=instance, shared=False
+        owner_user=instance, shared=False, trashed=True
+    ).delete()
+    memberships = AgentConversation.participants.through.objects.filter(
+        agentconversation_id=OuterRef("pk")
+    )
+    AgentConversation.objects_and_trash.filter(
+        Exists(memberships.filter(user=instance)),
+        ~Exists(memberships.exclude(user=instance)),
+        shared=False,
     ).delete()
     TrashEntry.objects.filter(
         trash_item_type=AgentConversationTrashableItemType.type,

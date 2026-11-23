@@ -71,7 +71,7 @@ class AgentChatRunType(ChatRunType):
         """
 
         return AgentService().can_cancel_conversation_run(
-            user, run.chat_id, run.created_by_id
+            user, run.chat_id, run.context["reply_id"]
         )
 
     def can_follow_chat(self, user: AbstractUser, chat_id: int) -> bool:
@@ -99,7 +99,10 @@ class AgentChatRunType(ChatRunType):
         return await AgentResponder(request, journal, model, model_settings).answer()
 
     def _prepare(self, run: ChatRun) -> tuple[AgentReplyRequest, Model, dict]:
-        request = AgentService().prepare_reply(run.context["reply_id"])
+        request = AgentService().prepare_reply(
+            run.context["reply_id"],
+            approver_id=run.context.get("approver_id"),
+        )
         return (request, *create_reply_model(request))
 
     def persist_outcome(self, run: ChatRun, outcome: ChatRunOutcome) -> dict | None:
@@ -160,7 +163,7 @@ class AgentChatRunType(ChatRunType):
             return None
         conversation = reply.conversation
         agent_conversation_activity.send(self, conversation=conversation, user=None)
-        if conversation.trigger_id is not None:
+        if reply.unattended and conversation.trigger_id is not None:
             trigger_id = conversation.trigger_id
             # Before the commit, this run still counts against the workspace limit.
             transaction.on_commit(

@@ -324,6 +324,9 @@ def test_the_last_two_decisions_arriving_together_resume_the_reply_once(
         resumed = sorted(decision.result(timeout=10) for decision in decisions)
 
     assert resumed == [False, True]
-    assert ChatRun.objects.get().context == {"reply_id": reply.id}
+    assert ChatRun.objects.get().context == {
+        "reply_id": reply.id,
+        "approver_id": user.id,
+    }
     reply.refresh_from_db()
     assert reply.status == "running"

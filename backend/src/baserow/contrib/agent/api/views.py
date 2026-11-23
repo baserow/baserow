@@ -30,13 +30,14 @@ from baserow.contrib.agent.actions import (
     CreateAgentMessageActionType,
     DecideAgentToolApprovalsActionType,
     DeleteAgentConversationActionType,
+    LeaveAgentConversationActionType,
+    RequestAgentApprovalActionType,
     ShareAgentConversationActionType,
     UpdateAgentConfigurationActionType,
     UpdateAgentConversationActionType,
 )
 from baserow.contrib.agent.exceptions import (
     AgentConversationDoesNotExist,
-    AgentConversationReadOnly,
     AgentConversationWaitingForApproval,
     AgentMessageConflict,
     AgentNotReady,
@@ -61,7 +62,6 @@ from baserow.core.service import CoreService
 from .errors import (
     ERROR_AGENT_BUSY,
     ERROR_AGENT_CONVERSATION_DOES_NOT_EXIST,
-    ERROR_AGENT_CONVERSATION_READ_ONLY,
     ERROR_AGENT_CONVERSATION_WAITING_FOR_APPROVAL,
     ERROR_AGENT_MESSAGE_CONFLICT,
     ERROR_AGENT_NOT_READY,
@@ -76,15 +76,18 @@ from .serializers import (
     AgentConversationsQuerySerializer,
     AgentConversationsResponseSerializer,
     AgentConversationUpdateSerializer,
+    AgentConversationUserSerializer,
     AgentMessageCreatedSerializer,
     AgentMessageCreateSerializer,
     AgentMessagePagination,
     AgentMessageSerializer,
+    AgentOptionsQueryParamsSerializer,
     AgentPendingReplySerializer,
-    AgentRunAsIdentitiesQueryParamsSerializer,
     AgentRunAsOptionSerializer,
     AgentToolDecisionsSerializer,
     AgentToolSerializer,
+    LeaveAgentConversationSerializer,
+    RequestAgentApprovalSerializer,
     get_listed_conversation_context,
 )
 
@@ -97,7 +100,6 @@ AGENT_ID_PATH_PARAMETER = OpenApiParameter(
 AGENT_EXCEPTIONS = {
     ApplicationDoesNotExist: ERROR_APPLICATION_DOES_NOT_EXIST,
     AgentConversationDoesNotExist: ERROR_AGENT_CONVERSATION_DOES_NOT_EXIST,
-    AgentConversationReadOnly: ERROR_AGENT_CONVERSATION_READ_ONLY,
     AgentNotReady: ERROR_AGENT_NOT_READY,
     AgentMessageConflict: ERROR_AGENT_MESSAGE_CONFLICT,
     AgentRunAsSubjectDoesNotExist: ERROR_AGENT_RUN_AS_SUBJECT_DOES_NOT_EXIST,
@@ -127,7 +129,6 @@ MESSAGE_WRITE_ERRORS = {
     409: get_error_schema(
         [
             "ERROR_AGENT_MESSAGE_CONFLICT",
-            "ERROR_AGENT_CONVERSATION_READ_ONLY",
             "ERROR_AGENT_CONVERSATION_WAITING_FOR_APPROVAL",
             "ERROR_CHAT_RUN_IN_PROGRESS",
         ]
@@ -301,7 +302,7 @@ class AgentConfigurationView(RealtimeRecoveryPrimaryReadMixin, APIView):
 
 class AgentRunAsIdentitiesView(RealtimeRecoveryPrimaryReadMixin, APIView):
     @extend_schema(
-        parameters=[AGENT_ID_PATH_PARAMETER, AgentRunAsIdentitiesQueryParamsSerializer],
+        parameters=[AGENT_ID_PATH_PARAMETER, AgentOptionsQueryParamsSerializer],
         tags=["Agent applications"],
         operation_id="list_agent_run_as_identities",
         description="Lists active workspace identities selectable for this Agent. "
@@ -312,9 +313,7 @@ class AgentRunAsIdentitiesView(RealtimeRecoveryPrimaryReadMixin, APIView):
         },
     )
     @map_exceptions(AGENT_EXCEPTIONS)
-    @validate_query_parameters(
-        AgentRunAsIdentitiesQueryParamsSerializer, return_validated=True
-    )
+    @validate_query_parameters(AgentOptionsQueryParamsSerializer, return_validated=True)
     def get(self, request: Request, agent_id: int, query_params: dict) -> Response:
         """Return paginated choices authorized in this Agent's application scope."""
 
@@ -369,9 +368,10 @@ class AgentConversationsView(RealtimeRecoveryPrimaryReadMixin, APIView):
         tags=["Agent applications"],
         operation_id="list_agent_conversations",
         description=(
-            "Lists the authenticated user's own private conversations with the agent "
-            "and the shared ones, pinned first, then most recently active within each "
-            "group. Each includes its number of tool calls waiting for a decision."
+            "Lists the private conversations with the agent the authenticated user "
+            "takes part in and the shared ones, pinned first, then most recently "
+            "active within each group. Each includes its number of tool calls "
+            "waiting for a decision."
         ),
         parameters=[
             AGENT_ID_PATH_PARAMETER,
@@ -563,6 +563,103 @@ class ShareAgentConversationView(APIView):
             ShareAgentConversationActionType
         ).do(request.user, agent_id, conversation_uuid)
         return Response(_serialize_conversation(conversation))
+
+
+class AgentApproversView(APIView):
+    @extend_schema(
+        tags=["Agent applications"],
+        operation_id="list_agent_approver_candidates",
+        description=(
+            "Lists the workspace members the owner of a private conversation may ask "
+            "to decide the held tool calls of its waiting reply: those who may "
+            "approve tool calls and don't take part yet. Empty when no reply waits. "
+            "The count only goes one past the members listed so far when more "
+            "follow."
+        ),
+        parameters=[AGENT_ID_PATH_PARAMETER, AgentOptionsQueryParamsSerializer],
+        responses={
+            200: get_example_pagination_serializer_class(
+                AgentConversationUserSerializer
+            ),
+            400: get_error_schema(["ERROR_QUERY_PARAMETER_VALIDATION"]),
+            **CONVERSATION_READ_ERRORS,
+        },
+    )
+    @map_exceptions(AGENT_EXCEPTIONS)
+    @validate_query_parameters(AgentOptionsQueryParamsSerializer, return_validated=True)
+    def get(
+        self,
+        request: Request,
+        agent_id: int,
+        conversation_uuid: UUID,
+        query_params: dict,
+    ) -> Response:
+        """Lists the members who may be asked to approve, a page at a time."""
+
+        paginator = PageNumberPagination(limit_page_size=100)
+        # One more than the page shows whether another page follows.
+        limit = query_params["page"] * paginator.get_page_size(request) + 1
+        candidates = AgentService().list_approver_candidates(
+            request.user, agent_id, conversation_uuid, query_params["search"], limit
+        )
+        page = paginator.paginate_queryset(candidates, request, view=self)
+        return paginator.get_paginated_response(
+            AgentConversationUserSerializer(page, many=True).data
+        )
+
+    @extend_schema(
+        tags=["Agent applications"],
+        operation_id="request_agent_approval",
+        description=(
+            "Adds members to a private conversation of the authenticated owner so "
+            "they can decide the held tool calls of its waiting reply. They keep "
+            "seeing its history and future messages."
+        ),
+        parameters=[AGENT_ID_PATH_PARAMETER, CLIENT_SESSION_ID_SCHEMA_PARAMETER],
+        request=RequestAgentApprovalSerializer,
+        responses={
+            200: AgentConversationSerializer,
+            400: get_error_schema(["ERROR_REQUEST_BODY_VALIDATION"]),
+            409: get_error_schema(["ERROR_AGENT_TOOL_APPROVAL_NOT_PENDING"]),
+            **CONVERSATION_READ_ERRORS,
+        },
+    )
+    @map_exceptions(AGENT_EXCEPTIONS)
+    @validate_body(RequestAgentApprovalSerializer, return_validated=True)
+    def post(
+        self, request: Request, agent_id: int, conversation_uuid: UUID, data: dict
+    ) -> Response:
+        """Adds members who may approve to a private conversation."""
+
+        conversation = action_type_registry.get_by_type(
+            RequestAgentApprovalActionType
+        ).do(request.user, agent_id, conversation_uuid, **data)
+        return Response(_serialize_conversation(conversation))
+
+
+class LeaveAgentConversationView(APIView):
+    @extend_schema(
+        tags=["Agent applications"],
+        operation_id="leave_agent_conversation",
+        description=(
+            "Removes the authenticated owner from their private conversation, which "
+            "those they asked to approve keep. Without anyone else in it, moves it "
+            "to the trash instead."
+        ),
+        parameters=[AGENT_ID_PATH_PARAMETER, CLIENT_SESSION_ID_SCHEMA_PARAMETER],
+        request=None,
+        responses={200: LeaveAgentConversationSerializer, **CONVERSATION_READ_ERRORS},
+    )
+    @map_exceptions(AGENT_EXCEPTIONS)
+    def post(
+        self, request: Request, agent_id: int, conversation_uuid: UUID
+    ) -> Response:
+        """Leaves a private conversation of the authenticated owner."""
+
+        conversation = action_type_registry.get_by_type(
+            LeaveAgentConversationActionType
+        ).do(request.user, agent_id, conversation_uuid)
+        return Response(LeaveAgentConversationSerializer(conversation).data)
 
 
 class AgentMessagesView(RealtimeRecoveryPrimaryReadMixin, APIView):

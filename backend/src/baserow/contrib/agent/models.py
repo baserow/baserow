@@ -159,8 +159,8 @@ class AgentConversation(
     TrashableModelMixin, BigAutoFieldMixin, CreatedAndUpdatedOnMixin, models.Model
 ):
     """
-    A conversation with an agent: private to the user who started it, or shared
-    with everyone who may read the agent's conversations. A trigger's always is.
+    A conversation with an agent: private to its participants, or shared with
+    everyone who may read the agent's conversations. A trigger's always is.
     """
 
     agent = models.ForeignKey(
@@ -194,16 +194,20 @@ class AgentConversation(
     )
     shared = models.BooleanField(default=False, db_default=False)
     started_by_trigger = models.BooleanField(default=False, db_default=False)
+    # Who sees a private conversation: its owner and whom they asked to approve.
+    participants = models.ManyToManyField(
+        settings.AUTH_USER_MODEL, related_name="participating_agent_conversations"
+    )
 
     @property
     def pending_count_user_ids(self) -> list[int] | None:
         """
         :return: The users whose pending count the conversation's held calls add
-            to: its owner, or None for everyone who may read the agent when it's
-            shared, since those who may decide them depends on their role.
+            to: its participants, or None for everyone who may read the agent when
+            it's shared, since those who may decide them depends on their role.
         """
 
-        return None if self.shared else [self.owner_user_id]
+        return None if self.shared else [user.id for user in self.participants.all()]
 
     class Meta:
         ordering = ("-pinned", "-updated_on", "-id")
@@ -259,6 +263,8 @@ class AgentMessage(BigAutoFieldMixin, CreatedAndUpdatedOnMixin, models.Model):
     sender = models.ForeignKey(
         settings.AUTH_USER_MODEL, null=True, on_delete=models.SET_NULL, related_name="+"
     )
+    # Whether a trigger asked for the reply, which a deleted sender can't tell.
+    unattended = models.BooleanField(default=False, db_default=False)
     # Only the agent's replies have one.
     status = models.CharField(
         max_length=16, choices=AgentReplyStatus.choices, null=True
@@ -289,7 +295,7 @@ class AgentMessage(BigAutoFieldMixin, CreatedAndUpdatedOnMixin, models.Model):
 
 
 class AgentToolApproval(BigAutoFieldMixin, models.Model):
-    """A held tool call of a reply, waiting for or decided by the owner."""
+    """A held tool call of a reply and its approval decision."""
 
     class Status(models.TextChoices):
         PENDING = "pending"
