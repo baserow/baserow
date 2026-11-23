@@ -529,9 +529,7 @@ export function useAgentTriggers(agent, getRunAs = () => null) {
   )
   watch(() => {
     const runAs = getRunAs()
-    return [runAs?.type, runAs?.id, runAs?.name, getRunAsStatus(runAs)].join(
-      ':'
-    )
+    return [runAs?.type, runAs?.id, getRunAsStatus(runAs)].join(':')
   }, fetchTriggerTypes)
   onBeforeUnmount(flushScheduledSaves)
 

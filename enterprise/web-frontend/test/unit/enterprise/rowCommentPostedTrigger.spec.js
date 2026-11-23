@@ -172,6 +172,7 @@ describe('Row comment posted trigger', () => {
         editable: true,
         expanded: true,
         runAsActive: true,
+        runAsName: 'Triage agent',
         typeOptions: { form_choices: { databases } },
         availableTypes: [type],
       },
@@ -183,6 +184,9 @@ describe('Row comment posted trigger', () => {
     const modal = card.getComponent(PaidFeaturesModal)
     const opened = vi.spyOn(modal.vm.$refs.modal, 'show')
 
+    expect(card.get('label.checkbox').text()).toBe(
+      'Only trigger when Triage agent is mentioned'
+    )
     expect(card.get('[role="switch"]').attributes('aria-checked')).toBe('true')
     expect(card.findAll('.agent-trigger-card__section[inert]')).toHaveLength(3)
     expect(

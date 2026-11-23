@@ -7,6 +7,10 @@ export class RowCommentPostedAgentTriggerType extends AgentTriggerType {
     return LocalBaserowRowCommentPostedTriggerServiceType.getType()
   }
 
+  getFormProps({ runAsName }) {
+    return { mentionName: runAsName }
+  }
+
   getDefaultMessage() {
     return sentenceWithTriggerData(
       this.app.$i18n.t('rowCommentTrigger.message', {

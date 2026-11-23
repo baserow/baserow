@@ -25,6 +25,16 @@ export class AgentTriggerType extends Registerable {
   }
 
   /**
+   * @param {object} context What the Agent offers its service form.
+   * @param {string} context.runAsName The name of the identity the Agent acts
+   *   as, or '' when it has none it can act as.
+   * @returns {object} The props the service form takes from the Agent.
+   */
+  getFormProps({ runAsName }) {
+    return {}
+  }
+
+  /**
    * @returns {object|null} The opening message formula of a new trigger, or
    *   null for the one every trigger type can have.
    */

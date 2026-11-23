@@ -1005,11 +1005,14 @@ class TriggerServiceTypeMixin(ABC):
     ) -> dict | None:
         """
         What the service's form may choose from when a consumer configures it for
-        a subject, such as the tables the subject can read.
+        a subject, such as the tables the subject can read. Only data the server
+        must decide belongs here, named like the API; values a host already knows
+        reach the form through the host.
 
         :param subject: The subject the consumer acts as, or None for none.
         :param workspace: The workspace the consumer acts in.
-        :return: The form's props by name, or None when it needs nothing.
+        :return: The choices by name, which hosts pass to the form as the props of
+            the same name, or None when it needs nothing.
         """
 
         return None

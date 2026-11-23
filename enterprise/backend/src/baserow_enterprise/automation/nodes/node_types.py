@@ -1,5 +1,7 @@
 from django.utils.translation import gettext_lazy as _
 
+from loguru import logger
+
 from baserow.contrib.automation.nodes.node_types import (
     AutomationActionNodeType,
     AutomationTriggerNodeType,
@@ -132,7 +134,12 @@ class LocalBaserowRowCommentPostedTriggerNodeType(
         workspace = trigger.workflow.get_original().automation.workspace
         try:
             subject = self._get_comment_reader(service, workspace)
-        except ServiceImproperlyConfiguredDispatchException:
+        except ServiceImproperlyConfiguredDispatchException as error:
+            logger.debug(
+                "Row comment trigger of workflow {} skipped a comment: {}",
+                trigger.workflow_id,
+                error,
+            )
             return None
         payload = event_payload(service) if callable(event_payload) else event_payload
         if not service_type.matches_event(service, subject, payload):

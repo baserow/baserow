@@ -119,7 +119,8 @@ class AgentTriggersView(RealtimeRecoveryPrimaryReadMixin, APIView):
         operation_id="create_agent_trigger",
         description=(
             "Adds a trigger of one of the configuration's available_trigger_types "
-            "to the agent, with initial values for its service. A configured "
+            "that the workspace's license covers to the agent, with initial "
+            "values for its service. A configured "
             "service starts receiving events right away. Requires permission to "
             "update the agent and read its configuration."
         ),

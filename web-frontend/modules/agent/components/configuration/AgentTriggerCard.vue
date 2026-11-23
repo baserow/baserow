@@ -339,6 +339,8 @@ const props = defineProps({
   typesVersion: { type: Number, default: 0 },
   /** Whether the Agent acts as a workspace identity that is available. */
   runAsActive: Boolean,
+  /** The name of the identity the Agent acts as, or '' when it isn't available. */
+  runAsName: { type: String, default: '' },
   /** The trigger types the Agent's configuration offers, to change to. */
   availableTypes: { type: Array, default: () => [] },
 })
@@ -385,12 +387,11 @@ const needsWorkspaceAccess = computed(
 )
 // Passed only when set, so a form that doesn't take a prop gets no attribute.
 const hostedFormProps = computed(() => {
-  const hiddenFormFields = agentTriggerTypeOf(
-    $registry,
-    props.trigger.type
-  )?.hiddenFormFields
+  const agentTriggerType = agentTriggerTypeOf($registry, props.trigger.type)
+  const hiddenFormFields = agentTriggerType?.hiddenFormFields
   return {
     ...formChoices.value,
+    ...agentTriggerType?.getFormProps({ runAsName: props.runAsName }),
     ...(hiddenFormFields?.length ? { hiddenFormFields } : {}),
     ...(needsWorkspaceAccess.value
       ? { formChoicesError: t('agent.triggerSetWorkspaceAccess') }

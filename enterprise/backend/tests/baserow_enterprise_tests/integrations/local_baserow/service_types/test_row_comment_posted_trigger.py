@@ -203,12 +203,6 @@ def test_agent_uses_the_current_run_identity_for_mentions_and_comment_access(
     )
     queued = mocker.patch.object(start_trigger_conversations, "delay")
     assert trigger.on_overlap == "wait"
-    options = next(
-        option
-        for option in host.list_trigger_types(scenario.ctx.user, agent.id)
-        if option.type == TYPE
-    )
-    assert options.form_choices["mentionName"] == "Reviewer"
     post(scenario, text="@Reviewer")
     post(scenario, other)
     queued.assert_not_called()

@@ -702,14 +702,6 @@ class LocalBaserowRowCommentPostedTriggerServiceType(
     class SerializedDict(LocalBaserowTableSignalTriggerServiceType.SerializedDict):
         only_when_mentioned: bool
 
-    def get_form_choices(
-        self, subject: Subject | None, workspace: Workspace
-    ) -> dict[str, Any]:
-        return {
-            **super().get_form_choices(subject, workspace),
-            "mentionName": subject.first_name if subject else "",
-        }
-
     def get_comment_reader(
         self, service: LocalBaserowRowCommentPosted, workspace: Workspace
     ) -> Subject:
