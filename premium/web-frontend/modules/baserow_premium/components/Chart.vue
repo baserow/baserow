@@ -224,6 +224,11 @@ export default {
   },
   beforeUnmount() {
     this.chartResizeObserver?.disconnect()
+    // vue-chartjs retains this instance in nextTick callbacks. Its unmount
+    // hook destroys the canvas before those callbacks run, so cancel further
+    // updates on this retiring instance while leaving its normal cleanup intact.
+    const chart = this.$refs.chart?.chart
+    if (chart) chart.update = () => {}
   },
   methods: {
     observeChartContainer() {
