@@ -547,3 +547,37 @@ def test_reverting_a_change_puts_back_what_it_can_and_says_what_stays(
     assert revert["cannot_undo"] == [
         f'the trigger "{trigger["name"]}" stays, turned off'
     ]
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "schedule,error",
+    [
+        ({"interval": "MINUTE", "minute": 0}, "must be 1 or more"),
+        ({"interval": "DAY", "timezone": "PST"}, "not a timezone"),
+    ],
+)
+def test_a_schedule_that_cant_be_saved_is_refused_before_the_card(
+    data_fixture, schedule, error
+):
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    setup = AgentSetup(
+        name="Digest",
+        add_triggers=[{"type": "periodic", "enabled": True, "schedule": schedule}],
+    )
+
+    with pytest.raises(ToolInputError, match=error):
+        apply_agent_setup(_ctx(user, workspace), setup, thought="t")
+
+
+def test_a_schedule_every_minute_reads_in_the_singular():
+    from baserow_enterprise.assistant.tools.agent.tools import _describe_schedule
+
+    assert (
+        _describe_schedule({"interval": "MINUTE", "minute": 1, "timezone": "UTC"})
+        == "every minute"
+    )
+    assert _describe_schedule(
+        {"interval": "MINUTE", "minute": 5, "timezone": "UTC"}
+    ) == ("every 5 minutes")

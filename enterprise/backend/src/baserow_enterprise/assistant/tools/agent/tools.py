@@ -12,6 +12,7 @@ from contextlib import contextmanager
 from typing import Annotated, Any, Literal
 from uuid import UUID, uuid4
 
+from django.conf import settings
 from django.db import transaction
 
 from pydantic import BaseModel, Field, ValidationError
@@ -51,6 +52,7 @@ from baserow.contrib.agent.triggers.exceptions import (
 from baserow.contrib.agent.triggers.service import AgentTriggerService
 from baserow.contrib.agent.triggers.trigger_types import ROWS_TRIGGER_TYPES
 from baserow.contrib.database.table.models import Table
+from baserow.core.datetime import get_timezones
 from baserow.core.formula.literals import wrap_static_string
 from baserow.core.identities.actions import CreateIdentityActionType
 from baserow.core.identities.handler import IdentityHandler
@@ -298,9 +300,9 @@ def _describe_schedule(schedule: dict[str, Any]) -> str:
 
     interval = schedule.get("interval") or "DAY"
     minute = schedule.get("minute") or 0
-    at = f"at {schedule.get('hour') or 0:02d}:{minute:02d} ({schedule['timezone']})"
+    at = f"at {schedule.get('hour') or 0:02d}:{minute:02d} ({schedule.get('timezone')})"
     if interval == "MINUTE":
-        return f"every {minute or 1} minutes"
+        return "every minute" if minute == 1 else f"every {minute} minutes"
     if interval == "HOUR":
         return f"every hour at {minute:02d} minutes past"
     if interval == "WEEK":
@@ -549,6 +551,26 @@ def _default_ask_first(setup: AgentSetup, current: dict[str, Any] | None):
     ]
 
 
+def _check_schedule(schedule: Schedule) -> None:
+    """
+    :param schedule: A periodic trigger's schedule, with its timezone.
+    :raises ToolInputError: When the periodic trigger would refuse it.
+    """
+
+    minimum = settings.INTEGRATIONS_PERIODIC_MINUTE_MIN
+    if schedule.interval == "MINUTE" and schedule.minute < minimum:
+        raise ToolInputError(
+            f"For a MINUTE schedule, minute must be {minimum} or more.",
+            hint="For MINUTE, minute is every how many minutes the Agent runs.",
+        )
+    if schedule.timezone not in get_timezones():
+        raise ToolInputError(
+            f"{schedule.timezone!r} is not a timezone.",
+            hint="Use an IANA timezone name, such as Europe/Amsterdam or "
+            "America/Los_Angeles.",
+        )
+
+
 def _with_schedule_timezones(setup: AgentSetup, timezone: str) -> AgentSetup:
     """
     Give each new periodic trigger a schedule in the user's timezone unless it
@@ -557,6 +579,8 @@ def _with_schedule_timezones(setup: AgentSetup, timezone: str) -> AgentSetup:
     :param setup: The proposed change.
     :param timezone: The user's timezone.
     :return: The change, with a schedule and timezone on every periodic trigger.
+    :raises ToolInputError: When a schedule can't be saved, checked before the
+        user is asked to approve it.
     """
 
     triggers = []
@@ -565,6 +589,7 @@ def _with_schedule_timezones(setup: AgentSetup, timezone: str) -> AgentSetup:
             schedule = spec.schedule or Schedule()
             if not schedule.timezone:
                 schedule = schedule.model_copy(update={"timezone": timezone})
+            _check_schedule(schedule)
             spec = spec.model_copy(update={"schedule": schedule})
         triggers.append(spec)
     return setup.model_copy(update={"add_triggers": triggers})
