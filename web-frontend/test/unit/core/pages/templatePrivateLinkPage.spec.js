@@ -41,6 +41,9 @@ describe('template private link page', () => {
           refresh_token: unsignedToken({ user_id: 1 }),
         })
       }
+      testApp.mock
+        .onGet('/settings/')
+        .reply(200, { allow_user_templates: true })
       testApp.mock.onPost('/user/token-refresh/').reply(200, {
         user: { id: 1 },
         access_token: unsignedToken({ user_id: 1 }),
@@ -57,6 +60,9 @@ describe('template private link page', () => {
         )
       ).toStrictEqual(signedIn ? [TOKEN] : [])
       expect(wrapper.find('.tp').exists()).toBe(true)
+      expect(testApp.store.getters['settings/get'].allow_user_templates).toBe(
+        true
+      )
       expect(useHead).toHaveBeenCalledWith({
         meta: [{ name: 'referrer', content: 'no-referrer', tagPriority: 0 }],
       })

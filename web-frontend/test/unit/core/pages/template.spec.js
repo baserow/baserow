@@ -74,7 +74,9 @@ describe('template page', () => {
       if (user) {
         testApp.authenticate({ id: 1, ...user })
       }
-      testApp.mock.onGet('/settings/').reply(200, {})
+      testApp.mock
+        .onGet('/settings/')
+        .reply(200, { allow_user_templates: true })
       testApp.mock.onGet('/workspaces/').reply(200, [])
       testApp.mock.onGet('/applications/').reply(200, [])
       testApp.mock.onGet(/\/jobs\//).reply(200, { jobs: [] })
@@ -83,6 +85,9 @@ describe('template page', () => {
 
       expect(router.currentRoute.value.name).toBe(name)
       expect(router.currentRoute.value.query).toStrictEqual(query)
+      expect(testApp.store.getters['settings/get'].allow_user_templates).toBe(
+        true
+      )
     }
   )
 })

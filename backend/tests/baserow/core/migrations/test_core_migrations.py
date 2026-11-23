@@ -753,3 +753,19 @@ def test_0142_sets_max_snapshots_of_applications_with_snapshots(
     assert NewApplication.objects.get(id=without_snapshots.id).max_snapshots is None
     assert NewWorkspace.objects.get(id=workspace.id).default_max_snapshots == 0
     assert set(NewSnapshot.objects.values_list("protected", flat=True)) == {True}
+
+
+@pytest.mark.once_per_day_in_ci
+def test_0145_keeps_user_templates_allowed_on_existing_servers(
+    migrator, teardown_table_metadata
+):
+    old_state = migrator.migrate(
+        _core_migration_targets("0144_identity_definition")
+    )
+    existing = old_state.apps.get_model("core", "Settings").objects.create()
+
+    new_state = migrator.migrate(
+        _core_migration_targets("0145_settings_allow_user_templates")
+    )
+    Settings = new_state.apps.get_model("core", "Settings")
+    assert Settings.objects.get(id=existing.id).allow_user_templates is True

@@ -33,6 +33,7 @@ from baserow.api.templates.errors import (
     ERROR_TEMPLATE_FILE_DOES_NOT_EXIST,
     ERROR_TEMPLATE_HAS_NO_CONTENT,
     ERROR_TEMPLATE_UPDATED,
+    ERROR_USER_TEMPLATES_DISABLED,
 )
 from baserow.api.templates.serializers import TemplateSerializer
 from baserow.api.workspaces.serializers import WorkspaceSerializer
@@ -87,6 +88,7 @@ from baserow.core.user_templates.exceptions import (
     TemplateBlocked,
     TemplateHasNoContent,
     TemplateUpdated,
+    UserTemplatesDisabled,
 )
 from baserow.core.user_templates.handler import UserTemplateHandler
 from baserow.core.utils import ChildProgressBuilder, Progress
@@ -177,6 +179,7 @@ class InstallTemplateJobType(JobType):
         TemplateBlocked: ERROR_TEMPLATE_BLOCKED,
         TemplateHasNoContent: ERROR_TEMPLATE_HAS_NO_CONTENT,
         TemplateUpdated: ERROR_TEMPLATE_UPDATED,
+        UserTemplatesDisabled: ERROR_USER_TEMPLATES_DISABLED,
         InstallTemplateMaxLocksExceededException: ERROR_MAX_LOCKS_PER_TRANSACTION_EXCEEDED,
     }
 
@@ -188,6 +191,7 @@ class InstallTemplateJobType(JobType):
         TemplateDoesNotExist: ERROR_TEMPLATE_DOES_NOT_EXIST[2],
         TemplateBlocked: ERROR_TEMPLATE_BLOCKED[2],
         TemplateHasNoContent: "The content of the template was removed.",
+        UserTemplatesDisabled: ERROR_USER_TEMPLATES_DISABLED[2],
         InstallTemplateMaxLocksExceededException: InstallTemplateMaxLocksExceededException.message,
     }
 
@@ -335,6 +339,9 @@ class InstallTemplateJobType(JobType):
                         represents_progress=50
                     ),
                     content=content,
+                )
+                user_template_handler.check_user_templates_allowed(
+                    job.user, allow_instance_admin=True
                 )
                 self._commit_install(job, installed_applications)
         except BaseException as exc:

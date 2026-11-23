@@ -524,7 +524,9 @@
     "templateHasNoContentTitle": "Template has no content",
     "templateHasNoContentDescription": "The template has no content.",
     "templateUpdatedTitle": "This template was updated",
-    "templateUpdatedDescription": "The template changed since you opened it. Try again with its latest version."
+    "templateUpdatedDescription": "The template changed since you opened it. Try again with its latest version.",
+    "userTemplatesDisabledTitle": "User templates are turned off",
+    "userTemplatesDisabledDescription": "User templates have been turned off by the instance administrator."
   },
   "importerType": {
     "csv": "Import a CSV file",

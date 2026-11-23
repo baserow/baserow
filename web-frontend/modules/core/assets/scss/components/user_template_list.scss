@@ -72,6 +72,10 @@
     background-color: $palette-neutral-25;
   }
 
+  &--static {
+    cursor: default;
+  }
+
   &--head {
     border-bottom: solid 1px $palette-neutral-200;
     cursor: default;

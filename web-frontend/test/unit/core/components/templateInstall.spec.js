@@ -32,6 +32,7 @@ describe('TemplateInstall', () => {
 
   beforeEach(async () => {
     testApp = new TestApp()
+    testApp.store.commit('settings/SET_LOADED', true)
     await testApp.nuxtApp.$router.replace('/template/project-tracker')
     push = vi.spyOn(testApp.nuxtApp.$router, 'push').mockResolvedValue()
   })

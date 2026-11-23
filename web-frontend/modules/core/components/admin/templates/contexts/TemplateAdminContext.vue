@@ -31,6 +31,7 @@
 <script setup>
 import { computed, inject, ref } from 'vue'
 import { useRouter, useRuntimeConfig } from '#app'
+import { useStore } from 'vuex'
 
 import { useTemplateReview } from '@baserow/modules/core/composables/useTemplateReview'
 import { TEMPLATE_MODERATION } from '@baserow/modules/core/composables/useTemplateModeration'
@@ -113,6 +114,7 @@ const emit = defineEmits([
 ])
 
 const router = useRouter()
+const store = useStore()
 const config = useRuntimeConfig()
 const { decide } = useTemplateReview()
 const moderation = inject(TEMPLATE_MODERATION)
@@ -122,10 +124,19 @@ const { copyLink } = useCopyLink()
 const contextRef = ref(null)
 let copied = null
 
+const userTemplatesAllowed = computed(() =>
+  Boolean(store.getters['settings/get'].allow_user_templates)
+)
+
 const items = computed(() =>
-  (TEMPLATE_ADMIN_MENU_ITEMS[props.template?.state] ?? []).filter(
-    ({ name }) => name !== 'approve' || props.template.can_approve
-  )
+  (TEMPLATE_ADMIN_MENU_ITEMS[props.template?.state] ?? [])
+    .filter(({ name }) => name !== 'approve' || props.template.can_approve)
+    .filter(({ name }) => name !== 'copyLink' || userTemplatesAllowed.value)
+    .map((item) =>
+      item.name === 'view' && !userTemplatesAllowed.value
+        ? { ...item, name: 'preview' }
+        : item
+    )
 )
 
 function setCopied(component) {

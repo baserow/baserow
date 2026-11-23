@@ -62,11 +62,17 @@ export function getPrivateLinkUrl(template, router, baseUrl) {
  * 'sharing', 'private' or null. Only the author and admins know `listed`; anyone
  * else sees a listed template, unless they came through a private link.
  */
-export function getCopyLinkKind(template, { isPrivateLinkPage = false } = {}) {
+export function getCopyLinkKind(
+  template,
+  { isPrivateLinkPage = false, userTemplatesAllowed = true } = {}
+) {
   if (template?.state === 'blocked') {
     return null
   }
   if (typeof template?.listed === 'boolean') {
+    if (!userTemplatesAllowed) {
+      return null
+    }
     if (template.listed) {
       return 'sharing'
     }

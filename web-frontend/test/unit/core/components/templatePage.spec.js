@@ -34,6 +34,10 @@ describe('TemplatePage', () => {
 
   beforeEach(() => {
     testApp = new TestApp()
+    testApp.store.commit('settings/SET_SETTINGS', {
+      allow_user_templates: true,
+    })
+    testApp.store.commit('settings/SET_LOADED', true)
     refreshPublicList = vi.fn()
   })
 
@@ -96,9 +100,16 @@ describe('TemplatePage', () => {
     expect(wrapper.find('.list').isVisible()).toBe(false)
   })
 
-  test.each([true, false])(
-    'shows the tabs to the public templates, user_templates: %s',
-    async (enabled) => {
+  test.each([
+    [true, true, true],
+    [false, true, false],
+    [true, false, false],
+  ])(
+    'shows the tabs to the public templates, flag: %s, allowed: %s',
+    async (enabled, allowed, shown) => {
+      testApp.store.commit('settings/SET_SETTINGS', {
+        allow_user_templates: allowed,
+      })
       testApp.mock
         .onGet('/templates/project-tracker/')
         .reply(200, projectTracker)
@@ -110,7 +121,7 @@ describe('TemplatePage', () => {
 
       await wrapper.find('.details__back').trigger('click')
 
-      expect(wrapper.find('.segment-control').exists()).toBe(enabled)
+      expect(wrapper.find('.segment-control').exists()).toBe(shown)
     }
   )
 

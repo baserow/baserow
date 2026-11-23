@@ -73,7 +73,6 @@ def test_template_checks_reject_root_fields_on_a_revision(data_fixture):
         {"owner": user},
         {"author": user},
         {"public_revision": revision},
-        {"shared_revision": revision},
         {"private_link_token": "a" * 64},
         {"blocked_at": timezone.now()},
         {"blocked_by": user},
@@ -147,12 +146,10 @@ def test_template_clean_rejects_rows_breaking_the_family(data_fixture):
     revision.type = Template.Type.USER
 
     root.public_revision = other_revision
-    root.shared_revision = other_revision
     with pytest.raises(ValidationError) as exc:
         root.clean()
-    assert set(exc.value.message_dict) == {"public_revision", "shared_revision"}
+    assert set(exc.value.message_dict) == {"public_revision"}
 
-    root.shared_revision = revision
     root.public_revision = revision
     with pytest.raises(ValidationError) as exc:
         root.clean()
@@ -168,7 +165,7 @@ def test_template_clean_rejects_rows_breaking_the_family(data_fixture):
     revision.save()
     with pytest.raises(ValidationError) as exc:
         root.clean()
-    assert set(exc.value.message_dict) == {"public_revision", "shared_revision"}
+    assert set(exc.value.message_dict) == {"public_revision"}
 
 
 @pytest.mark.django_db
@@ -229,11 +226,11 @@ def test_template_clean_rejects_pointers_from_revisions_and_unsaved_roots(
         owner=root.owner,
         author=root.author,
         workspace=data_fixture.create_workspace(),
-        shared_revision=root,
+        public_revision=root,
     )
     with pytest.raises(ValidationError) as exc:
         unsaved.clean()
-    assert "shared_revision" in exc.value.message_dict
+    assert "public_revision" in exc.value.message_dict
 
 
 @pytest.mark.django_db

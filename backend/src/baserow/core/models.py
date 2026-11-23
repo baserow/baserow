@@ -1,7 +1,8 @@
+import operator
 import secrets
 import uuid
 from datetime import datetime, timezone
-from functools import lru_cache
+from functools import lru_cache, reduce
 from typing import Any
 
 from django.conf import settings
@@ -216,6 +217,13 @@ class Settings(models.Model):
         db_default=True,
         help_text="Indicates whether a user template must be approved by an admin "
         "before it's publicly listed.",
+    )
+    allow_user_templates = models.BooleanField(
+        default=True,
+        db_default=True,
+        help_text="Indicates whether user templates can be created, shared, opened "
+        "and installed. While off, only instance admins can open, install and "
+        "download them.",
     )
 
 
@@ -435,8 +443,11 @@ class Workspace(HierarchicalModelMixin, TrashableModelMixin, CreatedAndUpdatedOn
         """
         Whether the actor can open this workspace as a template: official, own,
         public, with the token of its private link or, for an instance admin, in the
-        review queue. Prefetch `template_set__root` to check many workspaces without a
-        query each, except the review queue and the private link queries.
+        review queue. While user templates are turned off, only the official ones and,
+        for an instance admin, the user templates of `allow_instance_admin` and the
+        review queue. Prefetch `template_set__root` and cache the settings to check
+        many workspaces without a query each, except the review queue and the private
+        link queries.
 
         :param actor: The user or anonymous user who opens the template.
         :param private_link_token: The token of the private link the actor opened
@@ -456,7 +467,10 @@ class Workspace(HierarchicalModelMixin, TrashableModelMixin, CreatedAndUpdatedOn
         templates = self.template_set.all()
         if "template_set" not in getattr(self, "_prefetched_objects_cache", {}):
             templates = templates.select_related("root")
-        if any(template.is_openable_outside_review_by(actor) for template in templates):
+        if (
+            any(template.is_openable_outside_review_by(actor) for template in templates)
+            and _user_templates_allowed()
+        ):
             return True
         if is_instance_admin(actor):
             if allow_instance_admin:
@@ -771,6 +785,13 @@ def _get_user_id(actor) -> int | None:
     return actor.id if isinstance(actor, User) else None
 
 
+def _user_templates_allowed() -> bool:
+    # Local import: baserow.core.handler imports this module.
+    from baserow.core.handler import CoreHandler
+
+    return CoreHandler().get_settings().allow_user_templates
+
+
 class UserTemplateState(models.TextChoices):
     PRIVATE = "private", "Private"
     IN_REVIEW = "in_review", "In review"
@@ -1056,6 +1077,7 @@ class TemplateQuerySet(QuerySet):
         *,
         private_link_token: str | None = None,
         allow_instance_admin: bool = False,
+        include_own: bool = False,
     ) -> "TemplateQuerySet":
         """
         The templates the actor can open. With the token of a private link, any
@@ -1064,37 +1086,53 @@ class TemplateQuerySet(QuerySet):
         deletion. With `allow_instance_admin`, an instance admin opens every
         revision of every user template not marked for deletion; without it, the
         admin review queue is left out. Lists pass neither, so that these templates
-        aren't listed.
+        aren't listed. While user templates are turned off, only the official
+        templates and the ones of `allow_instance_admin` and `include_own`.
 
         :param actor: The user or anonymous user.
         :param private_link_token: The token of the private link of the request.
         :param allow_instance_admin: Whether an instance admin opens every user
             template, only for the checks of a single template.
+        :param include_own: Whether the actor keeps their own user templates while
+            user templates are turned off, only for the list of their own.
         :return: Those templates.
         """
 
-        official = _official_template_q()
-        visible = template_root_q(
-            public_revision=F("id"),
-            blocked_at__isnull=True,
-            marked_for_deletion_at__isnull=True,
+        user_id = _get_user_id(actor)
+        own = (
+            [template_root_q(owner_id=user_id, marked_for_deletion_at__isnull=True)]
+            if user_id is not None
+            else []
         )
-        if (user_id := _get_user_id(actor)) is not None:
-            visible |= template_root_q(
-                owner_id=user_id, marked_for_deletion_at__isnull=True
-            )
+        visible = []
         queryset = self
-        if private_link_token is not None:
-            queryset = queryset.alias(family_id=Coalesce("root_id", "id"))
-            visible |= template_root_q(
-                private_link_token=private_link_token,
-                public_revision__isnull=True,
-                blocked_at__isnull=True,
-                marked_for_deletion_at__isnull=True,
-            ) & ~Q(Exists(_later_revisions()))
+        if _user_templates_allowed():
+            visible = own + [
+                template_root_q(
+                    public_revision=F("id"),
+                    blocked_at__isnull=True,
+                    marked_for_deletion_at__isnull=True,
+                )
+            ]
+            if private_link_token is not None:
+                queryset = queryset.alias(family_id=Coalesce("root_id", "id"))
+                visible.append(
+                    template_root_q(
+                        private_link_token=private_link_token,
+                        public_revision__isnull=True,
+                        blocked_at__isnull=True,
+                        marked_for_deletion_at__isnull=True,
+                    )
+                    & ~Q(Exists(_later_revisions()))
+                )
+        elif include_own:
+            visible = own
         if allow_instance_admin and is_instance_admin(actor):
-            visible |= template_root_q(marked_for_deletion_at__isnull=True)
-        return queryset.filter(official | Q(type=Template.Type.USER) & visible)
+            visible.append(template_root_q(marked_for_deletion_at__isnull=True))
+        q = _official_template_q()
+        if visible:
+            q |= Q(type=Template.Type.USER) & reduce(operator.or_, visible)
+        return queryset.filter(q)
 
 
 class Template(models.Model):
@@ -1216,15 +1254,6 @@ class Template(models.Model):
         related_name="published_by_roots",
         help_text="The approved revision that is publicly listed. Null means not "
         "listed. Only set on roots, pointing at the root or one of its revisions.",
-    )
-    shared_revision = models.ForeignKey(
-        "self",
-        null=True,
-        blank=True,
-        on_delete=models.PROTECT,
-        related_name="shared_by_roots",
-        help_text="The revision shared through the private link. Only set on roots, "
-        "pointing at the root or one of its revisions.",
     )
     private_link_token = models.CharField(
         max_length=64,
@@ -1348,7 +1377,6 @@ class Template(models.Model):
                         owner__isnull=True,
                         author__isnull=True,
                         public_revision__isnull=True,
-                        shared_revision__isnull=True,
                         private_link_token__isnull=True,
                         blocked_at__isnull=True,
                         blocked_by__isnull=True,
@@ -1466,33 +1494,32 @@ class Template(models.Model):
             if others.exists():
                 errors["workspace"] = "The workspace belongs to another template."
 
-        for field_name in ("public_revision", "shared_revision"):
-            revision_id = getattr(self, f"{field_name}_id")
-            if revision_id is None:
-                continue
-            if self.root_id is not None or self.pk is None:
-                errors[field_name] = "Only a saved root can select a revision."
-                continue
-
-            revision = (
-                self
-                if revision_id == self.pk
-                else templates.filter(pk=revision_id).first()
-            )
-            if revision is None or self.pk not in (revision.pk, revision.root_id):
-                errors[field_name] = "The selected revision must belong to this root."
-            elif revision.type != self.type:
-                errors[field_name] = "The selected revision must have the root's type."
-            elif not revision.has_content:
-                errors[field_name] = "The selected revision must have content."
-            elif (
-                field_name == "public_revision"
-                and revision.review_state != self.ReviewState.APPROVED
-            ):
-                errors[field_name] = "A public revision must be approved."
+        public_revision_error = self._public_revision_error(templates)
+        if public_revision_error:
+            errors["public_revision"] = public_revision_error
 
         if errors:
             raise ValidationError(errors)
+
+    def _public_revision_error(self, templates) -> str | None:
+        revision_id = self.public_revision_id
+        if revision_id is None:
+            return None
+        if self.root_id is not None or self.pk is None:
+            return "Only a saved root can select a revision."
+
+        revision = (
+            self if revision_id == self.pk else templates.filter(pk=revision_id).first()
+        )
+        if revision is None or self.pk not in (revision.pk, revision.root_id):
+            return "The selected revision must belong to this root."
+        if revision.type != self.type:
+            return "The selected revision must have the root's type."
+        if not revision.has_content:
+            return "The selected revision must have content."
+        if revision.review_state != self.ReviewState.APPROVED:
+            return "A public revision must be approved."
+        return None
 
 
 class UserLogEntry(models.Model):

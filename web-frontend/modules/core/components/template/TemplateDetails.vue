@@ -101,7 +101,10 @@
               @installed="emit('installed')"
               @outdated="emit('outdated')"
             >
-              <template v-if="ownerActions" #menu-items="{ hide }">
+              <template
+                v-if="ownerActions && !deleteOnly"
+                #menu-items="{ hide }"
+              >
                 <li class="context__menu-item">
                   <a
                     class="context__menu-item-link"
@@ -258,6 +261,11 @@ const props = defineProps({
     required: false,
     default: false,
   },
+  deleteOnly: {
+    type: Boolean,
+    required: false,
+    default: false,
+  },
   loadErrorHandler: {
     type: Function,
     required: false,
@@ -281,7 +289,12 @@ const store = useStore()
 
 const isPrivateLink = isPrivateLinkPage(useRoute())
 const copyLinkKind = computed(() =>
-  getCopyLinkKind(props.template, { isPrivateLinkPage: isPrivateLink })
+  getCopyLinkKind(props.template, {
+    isPrivateLinkPage: isPrivateLink,
+    userTemplatesAllowed: Boolean(
+      store.getters['settings/get'].allow_user_templates
+    ),
+  })
 )
 
 function edit(mode, hideMenu) {

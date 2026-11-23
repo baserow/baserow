@@ -20,6 +20,10 @@ describe('TemplateDetails', () => {
 
   beforeEach(() => {
     testApp = new TestApp()
+    testApp.store.commit('settings/SET_LOADED', true)
+    testApp.store.commit('settings/SET_SETTINGS', {
+      allow_user_templates: true,
+    })
     mockTemplateApplications(testApp.mock)
   })
 
@@ -152,6 +156,35 @@ describe('TemplateDetails', () => {
     expect(link.find('i').classes()).toContain('iconoir-bin')
 
     await link.trigger('click')
+
+    expect(wrapper.emitted('delete')).toStrictEqual([[userTemplate]])
+  })
+
+  test('offers only to delete an own template while user templates are off', async () => {
+    const userTemplate = {
+      ...template,
+      type: 'user',
+      is_own: true,
+      state: 'private',
+      listed: false,
+      can_make_public: true,
+    }
+    const wrapper = await mountComponent({
+      template: userTemplate,
+      ownerActions: true,
+      deleteOnly: true,
+    })
+
+    await wrapper
+      .find('.template-install__actions .button-icon')
+      .trigger('click')
+    const links = wrapper.findAll('.context__menu-item-link')
+    expect(links.map((link) => link.text())).toStrictEqual([
+      'templateInstall.download',
+      'templateDetails.delete',
+    ])
+
+    await links[1].trigger('click')
 
     expect(wrapper.emitted('delete')).toStrictEqual([[userTemplate]])
   })
