@@ -322,7 +322,19 @@ class AutomationNodeAccess:
         """
 
         if node.id not in self._table_ids:
-            self._table_ids[node.id] = node_table_ids(node) | started_table_ids(node)
+            # The started workflows of every node of the workflow are read at
+            # once, so more of them don't cost more queries.
+            nodes = [
+                other
+                for other in self._workflow_nodes.get(node.workflow_id, {}).values()
+                if other.id not in self._table_ids
+            ]
+            nodes = nodes if node in nodes else [node, *nodes]
+            started = started_table_ids(nodes)
+            for other in nodes:
+                self._table_ids[other.id] = node_table_ids(other) | started.get(
+                    other.id, set()
+                )
         return self._table_ids[node.id]
 
     def node_of_service(self, workflow, service: Service) -> Optional[AutomationNode]:
@@ -430,35 +442,103 @@ def node_table_ids(node: AutomationNode) -> set[int]:
     return service.get_type().get_table_ids(service)
 
 
-def started_table_ids(node: AutomationNode, _visited: set[int] = None) -> set[int]:
-    """
-    For a node that starts a workflow, the tables of the nodes of that workflow,
-    of its draft and its published version, and of the workflows they start in
-    turn. Its response can hold the data of any of them.
-    """
-
-    from baserow.contrib.automation.nodes.handler import AutomationNodeHandler
-    from baserow.contrib.automation.workflows.models import AutomationWorkflow
+def _started_workflow_id(node: AutomationNode) -> Optional[int]:
     from baserow.contrib.integrations.core.models import CoreStartWorkflowService
 
     service = node.service.specific
-    if not isinstance(service, CoreStartWorkflowService):
-        return set()
-    visited = set() if _visited is None else _visited
-    if service.workflow_id is None or service.workflow_id in visited:
-        return set()
-    visited.add(service.workflow_id)
+    if isinstance(service, CoreStartWorkflowService):
+        return service.workflow_id
+    return None
 
-    table_ids = set()
-    for workflow in AutomationWorkflow.objects_and_trash.filter(
-        Q(id=service.workflow_id) | Q(automation__published_from_id=service.workflow_id)
-    ):
-        # Trashed too, as they can have run in the answers of runs made before.
-        for other in AutomationNodeHandler().get_nodes(
-            workflow, base_queryset=AutomationNode.objects_and_trash.all()
-        ):
-            table_ids |= node_table_ids(other) | started_table_ids(other, visited)
-    return table_ids
+
+def _nodes_of_workflows(workflow_ids: set[int]) -> list[AutomationNode]:
+    """
+    The nodes of the workflows with their specific services, trashed too, as they
+    can have run in the answers of runs made before.
+    """
+
+    from baserow.core.db import specific_iterator
+    from baserow.core.services.handler import ServiceHandler
+
+    nodes = list(
+        specific_iterator(
+            AutomationNode.objects_and_trash.filter(
+                workflow_id__in=workflow_ids
+            ).select_related("content_type")
+        )
+    )
+    services = {
+        service.id: service
+        for service in ServiceHandler().get_services(
+            base_queryset=Service.objects.filter(
+                id__in=[node.service_id for node in nodes]
+            )
+        )
+    }
+    for node in nodes:
+        if node.service_id in services:
+            node.service = services[node.service_id]
+    return nodes
+
+
+def started_table_ids(nodes: Iterable[AutomationNode]) -> dict[int, set[int]]:
+    """
+    For the nodes that start a workflow, the tables of the nodes of that workflow,
+    of its draft and its published versions, and of the workflows they start in
+    turn, as their response can hold the data of any of them. The workflows of a
+    level of starts are read together, so the queries only grow with how deep the
+    starts go.
+
+    This is what a node may hold before it runs. Once the run it started answers,
+    `AutomationNodeHandler._add_deferred_table_ids` adds what that run read, which
+    can also be a table deleted since.
+
+    :return: The tables by ID of the node, for the nodes that start a workflow.
+    """
+
+    from baserow.contrib.automation.workflows.models import AutomationWorkflow
+
+    targets = {}
+    for node in nodes:
+        workflow_id = _started_workflow_id(node)
+        if workflow_id is not None:
+            targets[node.id] = workflow_id
+
+    # The tables of each started workflow and the workflows it starts itself.
+    tables: dict[int, set[int]] = {}
+    starts: dict[int, set[int]] = {}
+    to_read = set(targets.values())
+    while to_read:
+        versions = {}
+        for (
+            workflow_id,
+            published_from_id,
+        ) in AutomationWorkflow.objects_and_trash.filter(
+            Q(id__in=to_read) | Q(automation__published_from_id__in=to_read)
+        ).values_list("id", "automation__published_from_id"):
+            for target in {workflow_id, published_from_id} & to_read:
+                versions.setdefault(workflow_id, set()).add(target)
+        for target in to_read:
+            tables[target], starts[target] = set(), set()
+        for node in _nodes_of_workflows(set(versions)):
+            for target in versions[node.workflow_id]:
+                tables[target] |= node_table_ids(node)
+                started = _started_workflow_id(node)
+                if started is not None:
+                    starts[target].add(started)
+        to_read = set().union(*starts.values()) - tables.keys()
+
+    result = {}
+    for node_id, target in targets.items():
+        visited, to_visit, table_ids = {target}, [target], set()
+        while to_visit:
+            workflow_id = to_visit.pop()
+            table_ids |= tables[workflow_id]
+            for started in starts[workflow_id] - visited:
+                visited.add(started)
+                to_visit.append(started)
+        result[node_id] = table_ids
+    return result
 
 
 class FixedNodeAccess:

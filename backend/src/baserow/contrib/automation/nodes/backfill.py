@@ -63,30 +63,31 @@ def _workflows_to_fill():
 
 def _lost_table_nodes(nodes) -> set[int]:
     """
-    The nodes that had a table which no longer exists: their table field is
-    empty, as a deleted table leaves it, and they have test run data or a run
-    result, which they only get with a table. A node whose table was never picked
-    has neither.
+    The nodes that had a table, or started a workflow, which no longer exists:
+    their table or workflow field is empty, as deleting it leaves it, and they
+    have test run data or a run result, which they only get with one. A node whose
+    table or workflow was never picked has neither.
     """
 
     from baserow.contrib.automation.history.models import AutomationNodeResult
+    from baserow.contrib.integrations.core.models import CoreStartWorkflowService
 
-    without_table = [
-        node
-        for node in nodes
-        if hasattr(node.service.specific, "table_id")
-        and node.service.specific.table_id is None
-    ]
-    if not without_table:
+    def lost(service) -> bool:
+        if isinstance(service, CoreStartWorkflowService):
+            return service.workflow_id is None
+        return hasattr(service, "table_id") and service.table_id is None
+
+    emptied = [node for node in nodes if lost(node.service.specific)]
+    if not emptied:
         return set()
     with_results = set(
         AutomationNodeResult.objects.filter(
-            node_history__node_id__in=[node.id for node in without_table]
+            node_history__node_id__in=[node.id for node in emptied]
         ).values_list("node_history__node_id", flat=True)
     )
     return {
         node.id
-        for node in without_table
+        for node in emptied
         if node.service.specific.sample_data is not None or node.id in with_results
     }
 

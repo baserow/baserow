@@ -1826,6 +1826,21 @@ def test_a_node_reading_the_answer_of_a_started_workflow_is_hidden(
     )
     other, _ = _workflow_answering_with_the_secret_rows(admin, workflow, trigger)
     starting, manual, start, iterator = _workflow_starting(fixture, admin, other)
+    for entry in _run_the_starting_workflow(fixture, manual, start, iterator):
+        assert _result_as(api_client, entry, restricted_token) is None
+        assert "Paid 250k" in str(_result_as(api_client, entry, admin_token))
+
+
+def _run_the_starting_workflow(fixture, manual, start, iterator):
+    """
+    Runs the workflow, its start workflow node answering with the secret rows.
+
+    :return: The history entries of the start workflow node and the iterator.
+    """
+
+    from baserow.contrib.automation.history.models import AutomationNodeHistory
+
+    starting = start.workflow
     run = fixture.create_automation_workflow_history(
         workflow=starting, original_workflow=starting
     )
@@ -1838,15 +1853,97 @@ def test_a_node_reading_the_answer_of_a_started_workflow_is_hidden(
         node_history=started,
         result={"status_code": 200, "body": SECRET_ROWS["results"]},
     )
-
     AutomationNodeHandler().dispatch_node(iterator.id, history_id=run.id)
-
-    from baserow.contrib.automation.history.models import AutomationNodeHistory
-
     iterated = AutomationNodeHistory.objects.get(workflow_history=run, node=iterator)
-    for entry in (iterated, started):
+    return started, iterated
+
+
+def _table_the_restricted_user_may_see(fixture, workflow, restricted):
+    visible = fixture.create_database_table(
+        database=fixture.create_database_application(
+            workspace=workflow.automation.workspace
+        )
+    )
+    RoleAssignmentHandler().assign_role(
+        restricted,
+        workflow.automation.workspace,
+        role=Role.objects.get(uid="VIEWER"),
+        scope=visible.database.application_ptr,
+    )
+    return visible
+
+
+@pytest.mark.django_db
+def test_a_node_reading_a_started_workflow_published_on_a_secret_table_is_hidden(
+    api_client, enterprise_data_fixture, workflow_on_a_secret_table
+):
+    from baserow.contrib.automation.workflows.handler import AutomationWorkflowHandler
+
+    fixture = enterprise_data_fixture
+    admin, workflow, trigger, admin_token, restricted_token, restricted = (
+        workflow_on_a_secret_table
+    )
+    other, rows = _workflow_answering_with_the_secret_rows(admin, workflow, trigger)
+    AutomationWorkflowHandler().publish(other)
+    # Its draft reads a table the restricted user may see since, its published
+    # version, which the runs start, still reads the secret one.
+    visible = _table_the_restricted_user_may_see(fixture, workflow, restricted)
+    AutomationNodeService().update_node(
+        admin, rows.id, service={"table_id": visible.id}
+    )
+    _, manual, start, iterator = _workflow_starting(fixture, admin, other)
+
+    for entry in _run_the_starting_workflow(fixture, manual, start, iterator):
         assert _result_as(api_client, entry, restricted_token) is None
         assert "Paid 250k" in str(_result_as(api_client, entry, admin_token))
+
+
+@pytest.mark.django_db
+def test_a_node_reading_a_workflow_that_starts_one_on_a_secret_table_is_hidden(
+    api_client, enterprise_data_fixture, workflow_on_a_secret_table
+):
+    fixture = enterprise_data_fixture
+    admin, workflow, trigger, admin_token, restricted_token, _ = (
+        workflow_on_a_secret_table
+    )
+    other, _ = _workflow_answering_with_the_secret_rows(admin, workflow, trigger)
+    # It answers with what the workflow it starts answered.
+    middle, _, _, _ = _workflow_starting(fixture, admin, other)
+    _, manual, start, iterator = _workflow_starting(fixture, admin, middle)
+
+    for entry in _run_the_starting_workflow(fixture, manual, start, iterator):
+        assert _result_as(api_client, entry, restricted_token) is None
+        assert "Paid 250k" in str(_result_as(api_client, entry, admin_token))
+
+
+@pytest.mark.django_db
+def test_listing_nodes_costs_the_same_queries_for_more_start_workflow_nodes(
+    api_client, django_assert_num_queries, workflow_on_a_secret_table
+):
+    admin, workflow, trigger, _, restricted_token, _ = workflow_on_a_secret_table
+    url = reverse("api:automation:nodes:list", kwargs={"workflow_id": workflow.id})
+
+    def list_nodes_as_restricted():
+        response = api_client.get(url, HTTP_AUTHORIZATION=f"JWT {restricted_token}")
+        assert response.status_code == 200
+        return response
+
+    def add_start_node(after):
+        other, _ = _workflow_answering_with_the_secret_rows(admin, workflow, trigger)
+        start = _add_node(admin, workflow, "start_workflow", after)
+        start.service.specific.workflow = other
+        start.service.specific.save()
+        return start
+
+    last = add_start_node(trigger)
+    list_nodes_as_restricted()  # Warms the caches.
+    with CaptureQueriesContext(connection) as one_start:
+        list_nodes_as_restricted()
+    add_start_node(add_start_node(last))
+
+    with django_assert_num_queries(len(one_start)):
+        response = list_nodes_as_restricted()
+    assert len(response.json()) == 4
 
 
 @pytest.mark.django_db
@@ -2163,6 +2260,33 @@ def test_a_started_workflow_changed_before_the_fill_keeps_the_answers_hidden(
 
 
 @pytest.mark.django_db
+def test_answers_of_a_workflow_deleted_before_the_fill_are_shown_to_nobody(
+    api_client, enterprise_data_fixture, workflow_on_a_secret_table
+):
+    fixture = enterprise_data_fixture
+    admin, workflow, trigger, admin_token, restricted_token, _ = (
+        workflow_on_a_secret_table
+    )
+    other, _ = _workflow_answering_with_the_secret_rows(admin, workflow, trigger)
+    _, _, start, iterator = _workflow_starting(fixture, admin, other)
+    started = _start_history_before_the_upgrade(fixture, start)
+    iterated = fixture.create_automation_node_history(
+        workflow_history=started.workflow_history, node=iterator, read_table_ids=None
+    )
+    fixture.create_automation_node_result(
+        node_history=iterated, result=SECRET_ROWS["results"]
+    )
+    TrashHandler.trash(admin, workflow.automation.workspace, workflow.automation, other)
+    TrashHandler.permanently_delete(other)
+
+    _fill()
+
+    for entry in (started, iterated):
+        for token in (restricted_token, admin_token):
+            assert _result_as(api_client, entry, token) is None
+
+
+@pytest.mark.django_db
 def test_run_results_built_from_a_table_deleted_before_the_fill_are_shown_to_nobody(
     api_client, workflow_on_a_secret_table, test_run_nodes
 ):
@@ -2245,3 +2369,28 @@ def test_the_run_history_of_a_workflow_the_fill_gave_up_on_is_filled_before_an_e
     )
 
     assert _result_as(api_client, histories[iterator.id], restricted_token) is None
+
+
+@pytest.mark.django_db
+def test_the_fill_stops_without_giving_up_when_its_task_runs_out_of_time(
+    workflow_on_a_secret_table, test_run_nodes
+):
+    from celery.exceptions import SoftTimeLimitExceeded
+
+    from baserow.contrib.automation.nodes import backfill
+
+    _, workflow, _, _, _, _ = workflow_on_a_secret_table
+    _run_results(workflow)
+    _forget_stored_tables(workflow)
+
+    for _ in range(backfill.BACKFILL_MAX_ATTEMPTS):
+        with patch(
+            "baserow.contrib.automation.nodes.backfill.fill_workflow_table_ids",
+            side_effect=SoftTimeLimitExceeded(),
+        ):
+            with pytest.raises(SoftTimeLimitExceeded):
+                backfill.fill_missing_table_ids()
+
+    # The next run fills it, as running out of time isn't a failure.
+    assert backfill.fill_missing_table_ids()
+    assert workflow.id not in backfill._given_up()
