@@ -358,6 +358,39 @@ def test_a_promotion_can_be_undone_and_redone(data_fixture):
 
 @pytest.mark.django_db
 @pytest.mark.undo_redo
+@pytest.mark.parametrize("start_using", [_use_in_a_data_source, _use_in_a_user_source])
+def test_a_redone_promotion_records_the_uses_added_while_it_was_undone(
+    data_fixture, start_using
+):
+    session_id = str(uuid.uuid4())
+    user = data_fixture.create_user(session_id=session_id)
+    workspace = data_fixture.create_workspace(user=user)
+    shared_application = data_fixture.create_shared_application(workspace=workspace)
+    builder = data_fixture.create_builder_application(workspace=workspace)
+    integration = data_fixture.create_local_baserow_integration(
+        application=builder, user=user
+    )
+    scopes = [WorkspaceActionScopeType.value(workspace.id)]
+
+    UpdateIntegrationActionType.do(
+        user,
+        IntegrationHandler().get_integration_for_update(integration.id),
+        application_id=shared_application.id,
+    )
+    ActionHandler.undo(user, scopes, session_id)
+    # Back in its application, so only that application can start using it.
+    start_using(data_fixture, builder, integration)
+    (redone,) = ActionHandler.redo(user, scopes, session_id)
+    assert redone.error is None
+
+    (undone,) = ActionHandler.undo(user, scopes, session_id)
+
+    assert undone.error is None
+    assert _application_id(integration) == builder.id
+
+
+@pytest.mark.django_db
+@pytest.mark.undo_redo
 def test_undoing_a_promotion_keeps_the_admin_as_the_authorized_subject(
     data_fixture,
 ):

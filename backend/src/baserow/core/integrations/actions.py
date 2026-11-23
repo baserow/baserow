@@ -142,8 +142,9 @@ class UpdateIntegrationActionType(IntegrationActionTypeMixin, UndoableActionType
     the action handler rolls it back and records the error on the action.
 
     An update that promotes the integration also records the services and user
-    sources using it. Undoing moves it back to its application, where any that
-    started using it since from another application couldn't use it any more.
+    sources using it, and a redo records them again, as it promotes it again.
+    Undoing moves it back to its application, where any that started using it
+    since from another application couldn't use it any more.
     Core can't tell which application a service belongs to, so the undo fails as
     soon as anything new uses it, even from its own application, and the
     integration stays in the workspace.
@@ -246,6 +247,13 @@ class UpdateIntegrationActionType(IntegrationActionTypeMixin, UndoableActionType
         IntegrationService().update_integration(
             user, integration, **params.integration_new_params
         )
+
+        if params.service_ids is not None:
+            # While it was back in its application, only that application could
+            # start using it, so those uses mustn't block the next undo.
+            service_ids, user_source_ids = cls._get_using_ids(integration.id)
+            action_to_redo.params["service_ids"] = service_ids
+            action_to_redo.params["user_source_ids"] = user_source_ids
 
 
 class DeleteIntegrationActionType(IntegrationActionTypeMixin, UndoableActionType):
