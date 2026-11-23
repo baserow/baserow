@@ -3,6 +3,7 @@ import { flushPromises } from '@vue/test-utils'
 import { TestApp } from '@baserow/test/helpers/testApp'
 import SidebarImportTableContextItem from '@baserow/modules/database/components/sidebar/table/SidebarImportTableContextItem'
 import FieldService from '@baserow/modules/database/services/field'
+import { populateTable } from '@baserow/modules/database/store/table'
 
 vi.mock('@baserow/modules/database/services/field', () => ({
   default: vi.fn(),
@@ -38,7 +39,7 @@ describe('SidebarImportTableContextItem', () => {
         stubs: {
           ImportFileModal: {
             name: 'ImportFileModal',
-            props: ['database', 'table', 'fields'],
+            props: ['database', 'table', 'fields', 'undoInApplication'],
             template: '<div />',
             methods: { show },
           },
@@ -50,6 +51,18 @@ describe('SidebarImportTableContextItem', () => {
 
   const importModal = (wrapper) =>
     wrapper.findComponent({ name: 'ImportFileModal' })
+
+  test('uses table-level undo when importing into the selected table', async () => {
+    const selected = populateTable(table)
+    const { wrapper } = await mountItem()
+    expect(importModal(wrapper).props('undoInApplication')).toBe(true)
+
+    await testApp.store.dispatch('table/forceSelect', {
+      database: { ...database, tables: [selected] },
+      table: selected,
+    })
+    expect(importModal(wrapper).props('undoInApplication')).toBe(false)
+  })
 
   test('fetches fields, emits click, and opens the modal', async () => {
     const fetchAll = mockFetchAll()

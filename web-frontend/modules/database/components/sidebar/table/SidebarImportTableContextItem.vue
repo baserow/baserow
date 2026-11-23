@@ -14,6 +14,7 @@
       :database="database"
       :table="table"
       :fields="fields"
+      :undo-in-application="table.id !== $store.getters['table/getSelectedId']"
     />
   </a>
 </template>

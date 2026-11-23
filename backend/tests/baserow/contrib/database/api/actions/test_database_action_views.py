@@ -126,3 +126,59 @@ def test_undo_redo_table_renames_across_expanded_applications(api_client, data_f
         assert table.name == expected_name
     c.refresh_from_db()
     assert c.name == "C renamed"
+
+
+@pytest.mark.django_db(transaction=True)
+@pytest.mark.undo_redo
+def test_undo_redo_import_from_another_database_in_the_sidebar(
+    api_client, data_fixture, patch_filefield_storage
+):
+    user, token = data_fixture.create_user_and_token()
+    workspace = data_fixture.create_workspace(user=user)
+    active_database = data_fixture.create_database_application(workspace=workspace)
+    active_table = data_fixture.create_database_table(
+        database=active_database, name="Original"
+    )
+    import_database = data_fixture.create_database_application(workspace=workspace)
+    import_table = data_fixture.create_database_table(database=import_database)
+    field = data_fixture.create_text_field(table=import_table)
+    rows = import_table.get_model().objects
+    rows.create(**{field.db_column: "existing"})
+    headers = {"HTTP_CLIENTSESSIONID": "sidebar", "HTTP_AUTHORIZATION": f"JWT {token}"}
+
+    response = api_client.patch(
+        reverse("api:database:tables:item", kwargs={"table_id": active_table.id}),
+        {"name": "Renamed"},
+        format="json",
+        **headers,
+    )
+    assert response.status_code == HTTP_200_OK
+    with patch_filefield_storage():
+        response = api_client.post(
+            reverse(
+                "api:database:tables:import_async", kwargs={"table_id": import_table.id}
+            ),
+            {"data": [["imported"]], "configuration": {"undo_in_application": True}},
+            format="json",
+            **headers,
+        )
+    assert response.status_code == HTTP_200_OK
+    values = rows.order_by("id").values_list(field.db_column, flat=True)
+    assert list(values) == ["existing", "imported"]
+
+    scopes = {
+        "table": active_table.id,
+        "application": active_database.id,
+        "applications": [import_database.id],
+    }
+    for command, expected_rows in (
+        ("undo", ["existing"]),
+        ("redo", ["existing", "imported"]),
+    ):
+        response = api_client.patch(
+            reverse(f"api:user:{command}"), {"scopes": scopes}, format="json", **headers
+        )
+        assert response.status_code == HTTP_200_OK
+        active_table.refresh_from_db()
+        assert active_table.name == "Renamed"
+        assert list(values.all()) == expected_rows
