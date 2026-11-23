@@ -5,6 +5,7 @@ from django.db import transaction
 from django.urls import reverse
 
 import pytest
+from celery.exceptions import SoftTimeLimitExceeded
 from rest_framework.status import HTTP_202_ACCEPTED
 
 from baserow.contrib.agent.actions import UpdateAgentConfigurationActionType
@@ -16,7 +17,7 @@ from baserow.core.action.registries import action_type_registry
 from baserow.core.actions import InstallTemplateActionType
 from baserow.core.exceptions import PermissionDenied, PermissionException
 from baserow.core.handler import CoreHandler
-from baserow.core.identities.actions import CreateIdentityActionType
+from baserow.core.identities.actions import CreateScopedIdentityActionType
 from baserow.core.identities.exceptions import IdentityCannotBeScoped
 from baserow.core.identities.handler import IdentityHandler
 from baserow.core.identities.service import IdentityService
@@ -203,7 +204,7 @@ def test_install_scopes_a_new_identity_to_the_template_applications(
             "action_type", flat=True
         )
     ) >= {
-        CreateIdentityActionType.type,
+        CreateScopedIdentityActionType.type,
         BatchAssignRoleActionType.type,
         UpdateAgentConfigurationActionType.type,
     }
@@ -231,7 +232,7 @@ def test_an_agent_that_only_reads_gets_a_viewer_identity(
 
 
 @pytest.mark.django_db(transaction=True)
-def test_an_agent_only_template_creates_no_identity(
+def test_an_agent_only_template_creates_an_identity_without_access(
     enterprise_data_fixture, admin, settings, tmp_path
 ):
     template = sync_template(
@@ -245,11 +246,13 @@ def test_an_agent_only_template_creates_no_identity(
 
     job = install(admin, workspace, template, create_identities=True)
 
-    assert job.state == JOB_FINISHED
+    assert job.state == JOB_FINISHED, job.human_readable_error
     agent = AgentApplication.objects.get(workspace=workspace)
-    assert agent.run_as_subject_id is None
-    assert agent.pending_tool_choices is not None
-    assert not IdentityHandler().get_queryset(workspace).exists()
+    identity = run_identity(agent)
+    # Its tools are checked against no access when they run.
+    assert IdentityHandler.get_role_uid(identity) == "NO_ACCESS"
+    assert roles_of(identity) == set()
+    assert agent.pending_tool_choices is None
 
 
 @pytest.mark.django_db(transaction=True)
@@ -369,7 +372,7 @@ def test_the_template_identity_roles_are_recreated(
 
 
 @pytest.mark.django_db(transaction=True)
-def test_an_admin_role_on_an_application_isnt_recreated(
+def test_an_admin_role_is_recreated_for_an_installer_who_can_change_roles(
     enterprise_data_fixture, admin, settings, tmp_path
 ):
     template = sync_template(
@@ -386,12 +389,38 @@ def test_an_admin_role_on_an_application_isnt_recreated(
 
     identity = run_identity(AgentApplication.objects.get(workspace=workspace))
     assert roles_of(identity) == {
-        (Builder.objects.get(workspace=workspace).id, "VIEWER")
+        (Database.objects.get(workspace=workspace).id, "ADMIN"),
+        (Builder.objects.get(workspace=workspace).id, "VIEWER"),
     }
 
 
 @pytest.mark.django_db(transaction=True)
-def test_only_builder_and_viewer_roles_are_recreated(
+def test_an_admin_role_is_a_builder_role_for_an_installer_who_cant_change_roles(
+    enterprise_data_fixture, admin, settings, tmp_path
+):
+    template = sync_template(
+        enterprise_data_fixture,
+        settings,
+        tmp_path,
+        [WRITE_TOOLS],
+        source_roles={"CRM": "ADMIN"},
+    )
+    builder = enterprise_data_fixture.create_user()
+    workspace = enterprise_data_fixture.create_workspace(
+        users=[admin], custom_permissions=[(builder, "BUILDER")]
+    )
+
+    job = install(builder, workspace, template, create_identities=True)
+
+    assert job.state == JOB_FINISHED, job.human_readable_error
+    identity = run_identity(AgentApplication.objects.get(workspace=workspace))
+    assert roles_of(identity) == {
+        (Database.objects.get(workspace=workspace).id, "BUILDER")
+    }
+
+
+@pytest.mark.django_db(transaction=True)
+def test_editor_and_commenter_roles_are_recreated(
     enterprise_data_fixture, admin, settings, tmp_path
 ):
     template = sync_template(
@@ -408,13 +437,13 @@ def test_only_builder_and_viewer_roles_are_recreated(
 
     identity = run_identity(AgentApplication.objects.get(workspace=workspace))
     assert roles_of(identity) == {
-        (Database.objects.get(workspace=workspace).id, "BUILDER"),
-        (Builder.objects.get(workspace=workspace).id, "VIEWER"),
+        (Database.objects.get(workspace=workspace).id, "EDITOR"),
+        (Builder.objects.get(workspace=workspace).id, "COMMENTER"),
     }
 
 
 @pytest.mark.django_db(transaction=True)
-def test_an_identity_without_application_roles_isnt_recreated(
+def test_an_identity_without_application_roles_gets_no_access(
     enterprise_data_fixture, admin, settings, tmp_path
 ):
     # The template's identity could reach none of its applications.
@@ -429,11 +458,10 @@ def test_an_identity_without_application_roles_isnt_recreated(
 
     job = install(admin, workspace, template, create_identities=True)
 
-    assert job.state == JOB_FINISHED
-    agent = AgentApplication.objects.get(workspace=workspace)
-    assert agent.run_as_subject_id is None
-    assert agent.pending_tool_choices is not None
-    assert not IdentityHandler().get_queryset(workspace).exists()
+    assert job.state == JOB_FINISHED, job.human_readable_error
+    identity = run_identity(AgentApplication.objects.get(workspace=workspace))
+    assert IdentityHandler.get_role_uid(identity) == "NO_ACCESS"
+    assert roles_of(identity) == set()
 
 
 @pytest.mark.django_db(transaction=True)
@@ -682,7 +710,7 @@ def test_a_user_template_install_recreates_the_template_identity_roles(
 
 
 @pytest.mark.django_db(transaction=True)
-def test_exported_roles_that_cant_be_given_create_no_identity(
+def test_exported_roles_that_cant_be_given_are_left_out(
     enterprise_data_fixture, admin, settings, tmp_path
 ):
     template = sync_template(enterprise_data_fixture, settings, tmp_path, [WRITE_TOOLS])
@@ -695,17 +723,80 @@ def test_exported_roles_that_cant_be_given_create_no_identity(
     )
     for application in content["export"]:
         if application["type"] == "agent":
-            application["run_as_identity_roles"] = [[database_id, "ADMIN"]]
+            application["run_as_identity_roles"] = [[database_id, "NO_ROLE"]]
     path.write_text(json.dumps(content))
     workspace = enterprise_data_fixture.create_workspace(user=admin)
 
     job = install(admin, workspace, template, create_identities=True)
 
     assert job.state == JOB_FINISHED, job.human_readable_error
+    identity = run_identity(AgentApplication.objects.get(workspace=workspace))
+    assert roles_of(identity) == set()
+
+
+@pytest.mark.django_db(transaction=True)
+def test_an_agent_named_like_a_link_gets_no_identity(
+    enterprise_data_fixture, admin, settings, tmp_path
+):
+    template = sync_template(enterprise_data_fixture, settings, tmp_path, [WRITE_TOOLS])
+    path = tmp_path / "agent-kit.json"
+    content = json.loads(path.read_text())
+    for application in content["export"]:
+        if application["type"] == "agent":
+            application["name"] = "Reset your password at evil-login.com"
+    path.write_text(json.dumps(content))
+    CoreHandler().sync_templates(pattern="agent-kit")
+    workspace = enterprise_data_fixture.create_workspace(user=admin)
+
+    job = install(admin, workspace, template, create_identities=True)
+
+    assert job.state == JOB_FINISHED, job.human_readable_error
     agent = AgentApplication.objects.get(workspace=workspace)
+    assert agent.name == "Reset your password at evil-login.com"
     assert agent.run_as_subject_id is None
     assert agent.pending_tool_choices is not None
     assert not IdentityHandler().get_queryset(workspace).exists()
+
+
+@pytest.mark.django_db(transaction=True)
+def test_an_unexpected_identity_failure_is_reported(
+    enterprise_data_fixture, admin, settings, tmp_path
+):
+    template = sync_template(enterprise_data_fixture, settings, tmp_path, [WRITE_TOOLS])
+    workspace = enterprise_data_fixture.create_workspace(user=admin)
+    error = RuntimeError("boom")
+
+    with (
+        patch.object(IdentityService, "create_scoped_identity", side_effect=error),
+        patch("baserow.contrib.agent.application_types.exception_capturer") as capturer,
+    ):
+        job = install(admin, workspace, template, create_identities=True)
+
+    assert job.state == JOB_FINISHED
+    capturer.assert_called_once_with(error)
+    assert AgentApplication.objects.get(workspace=workspace).run_as_subject_id is None
+
+
+@pytest.mark.django_db(transaction=True)
+def test_the_time_limit_isnt_caught_while_creating_an_identity(
+    enterprise_data_fixture, admin, settings, tmp_path
+):
+    template = sync_template(enterprise_data_fixture, settings, tmp_path, [WRITE_TOOLS])
+    workspace = enterprise_data_fixture.create_workspace(user=admin)
+    install(admin, workspace, template)
+    agent = AgentApplication.objects.get(workspace=workspace)
+
+    with (
+        patch.object(
+            IdentityService,
+            "create_scoped_identity",
+            side_effect=SoftTimeLimitExceeded(),
+        ),
+        pytest.raises(SoftTimeLimitExceeded),
+    ):
+        agent.get_type().create_install_identities(
+            admin, workspace, [agent], list(workspace.application_set.all())
+        )
 
 
 @pytest.mark.django_db(transaction=True)
@@ -721,7 +812,7 @@ def test_an_expected_identity_failure_is_logged_as_a_warning(
             "create_scoped_identity",
             side_effect=PermissionDenied(),
         ),
-        patch("baserow.contrib.agent.service.logger") as logger,
+        patch("baserow.contrib.agent.application_types.logger") as logger,
     ):
         job = install(admin, workspace, template, create_identities=True)
 

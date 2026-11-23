@@ -4,21 +4,15 @@ from django.contrib.auth.models import AbstractUser
 from django.db import DEFAULT_DB_ALIAS, transaction
 from django.db.models import F, QuerySet
 
-from loguru import logger
-
-from baserow.core.exceptions import PermissionDenied, PermissionException
-from baserow.core.feature_flags import FF_AGENT_BUILDER, feature_flag_is_enabled
+from baserow.core.exceptions import PermissionDenied
 from baserow.core.handler import CoreHandler
-from baserow.core.identities.exceptions import IdentityCannotBeScoped
 from baserow.core.identities.handler import IdentityHandler
 from baserow.core.identities.service import IdentityService
-from baserow.core.models import Application, Workspace
 from baserow.core.operations import (
     CreateApplicationsWorkspaceOperationType,
     UpdateApplicationOperationType,
 )
 from baserow.core.signals import application_pending_count_updated, application_updated
-from baserow.core.subjects import UserSubjectType
 from baserow.core.types import PermissionCheck
 
 from .action_tools.handler import AgentActionHandler
@@ -198,109 +192,6 @@ class AgentService:
             # Open pages refresh readiness from this public application payload.
             application_updated.send(self, application=agent, user=user)
         return updated
-
-    def create_install_identities(
-        self,
-        user: AbstractUser,
-        workspace: Workspace,
-        agents: list[AgentApplication],
-        installed_applications: list[Application],
-    ) -> None:
-        """
-        Make each installed Agent with pending tool choices act as a new identity
-        named after it, with no workspace access and a role on only the other
-        applications of the same install: the roles the template's identity had
-        when it was exported, or else the builder role if one of its tools changes
-        data, and the viewer role otherwise. Binding it turns the pending tools on,
-        as when an identity is picked.
-
-        An Agent whose identity can't be created, scoped or bound stays installed
-        with its pending choices, and the failure is logged: the identity is a
-        shortcut that the installer can still take by hand, so it doesn't fail
-        the install. Each Agent is done in a savepoint, so a failure never leaves
-        an identity behind.
-
-        :param user: The user who installs the template.
-        :param workspace: The workspace the template is installed into.
-        :param agents: The installed Agents.
-        :param installed_applications: Every installed application.
-        """
-
-        from baserow.contrib.agent.actions import UpdateAgentConfigurationActionType
-
-        # Without the feature, the installer can't see the Agents or their identities.
-        if not feature_flag_is_enabled(FF_AGENT_BUILDER, user=user):
-            logger.warning(
-                "Not creating identities for the Agents installed in workspace "
-                "{} by user {}: the Agent builder isn't enabled for them.",
-                workspace.id,
-                user.id,
-            )
-            return
-        # The access may have changed since the install was requested.
-        if not IdentityService().can_create_scoped_identity(user, workspace):
-            logger.warning(
-                "Not creating identities for the Agents installed in workspace "
-                "{} by user {}: they can't create scoped identities.",
-                workspace.id,
-                user.id,
-            )
-            return
-        # Not the Agents, so an identity can't change its own configuration.
-        applications = [
-            application
-            for application in installed_applications
-            if not isinstance(application, AgentApplication)
-        ]
-        if not applications:
-            # An identity with access to nothing can't run the Agent's tools, so
-            # the Agent waits for one to be picked instead.
-            return
-        application_ids = {application.id for application in applications}
-        for agent in agents:
-            pending = self.handler.get_pending_tool_configuration(agent)
-            if not pending["allowed_tools"]:
-                continue
-            roles = agent.pending_tool_choices.get("identity_roles")
-            if roles is not None:
-                roles = [tuple(role) for role in roles]
-                if not any(role[0] in application_ids for role in roles):
-                    # The template's identity could reach none of the applications.
-                    continue
-            try:
-                with transaction.atomic():
-                    identity = IdentityService().create_scoped_identity(
-                        user,
-                        workspace,
-                        # The longest name an identity can have.
-                        name=agent.name[:150],
-                        applications=applications,
-                        can_change_data=any(
-                            agent_tool_type_registry.get(name).changes_data
-                            for name in pending["allowed_tools"]
-                        ),
-                        roles=roles,
-                    )
-                    # Audited, because the Agent gets the identity's access.
-                    UpdateAgentConfigurationActionType.do(
-                        user,
-                        agent.id,
-                        run_as_subject_type=UserSubjectType.type,
-                        run_as_subject_id=identity.id,
-                    )
-            except (PermissionException, IdentityCannotBeScoped) as error:
-                # Expected when the installer can't change an application, or the
-                # template's roles can't be given.
-                logger.warning(
-                    "Not creating the identity of the installed Agent {}: {}",
-                    agent.id,
-                    repr(error),
-                )
-            except Exception:
-                logger.exception(
-                    "Could not create the identity of the installed Agent {}.",
-                    agent.id,
-                )
 
     def list_conversations(
         self,

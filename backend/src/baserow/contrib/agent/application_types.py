@@ -6,8 +6,14 @@ from django.db import transaction
 from django.db.transaction import Atomic
 from django.urls import URLResolver, include, path
 
+from celery.exceptions import SoftTimeLimitExceeded
+from loguru import logger
+from rest_framework.exceptions import ValidationError
+
+from baserow.api.validators import no_url_validation
 from baserow.contrib.agent.action_tools.handler import AgentActionHandler
 from baserow.contrib.agent.action_tools.registries import agent_action_type_registry
+from baserow.contrib.agent.actions import UpdateAgentConfigurationActionType
 from baserow.contrib.agent.api.serializers import AgentApplicationSerializer
 from baserow.contrib.agent.constants import AgentRunAsState
 from baserow.contrib.agent.handler import AgentHandler
@@ -21,10 +27,15 @@ from baserow.contrib.agent.registries import (
     agent_tool_type_registry,
 )
 from baserow.contrib.agent.triggers.handler import AgentTriggerHandler
+from baserow.core.action.registries import action_type_registry
 from baserow.core.ai_provider.constants import AI_PROVIDER_FEATURE_AI_AGENT
+from baserow.core.exceptions import PermissionException
+from baserow.core.feature_flags import FF_AGENT_BUILDER, feature_flag_is_enabled
 from baserow.core.generative_ai.constants import ReasoningEffort
 from baserow.core.generative_ai.registries import generative_ai_model_type_registry
 from baserow.core.handler import CoreHandler
+from baserow.core.identities.actions import CreateScopedIdentityActionType
+from baserow.core.identities.exceptions import IdentityCannotBeScoped
 from baserow.core.identities.registries import identity_extension_type_registry
 from baserow.core.identities.service import IdentityService
 from baserow.core.integrations.handler import IntegrationHandler
@@ -33,8 +44,9 @@ from baserow.core.integrations.operations import ReadIntegrationOperationType
 from baserow.core.models import Workspace
 from baserow.core.registries import ApplicationType, ImportExportConfig
 from baserow.core.storage import ExportZipFile
+from baserow.core.subjects import UserSubjectType
 from baserow.core.types import PermissionCheck
-from baserow.core.utils import ChildProgressBuilder
+from baserow.core.utils import ChildProgressBuilder, exception_capturer
 
 
 class AgentApplicationType(ApplicationType):
@@ -228,11 +240,116 @@ class AgentApplicationType(ApplicationType):
         applications: list[AgentApplication],
         installed_applications: list,
     ) -> None:
-        from baserow.contrib.agent.service import AgentService
+        """
+        Make each installed Agent with pending tool choices act as a new identity
+        named after it, with no workspace access and a role on only the other
+        applications of the same install: the roles the template's identity had
+        when it was exported, or else the builder role if one of its tools changes
+        data, and the viewer role otherwise. Without other applications, the
+        identity has no access, and the tools are checked against that when they
+        run. Binding it turns the pending tools on, as when an identity is picked.
 
-        AgentService().create_install_identities(
-            user, workspace, applications, installed_applications
-        )
+        An Agent whose identity can't be created, scoped or bound stays installed
+        with its pending choices: the identity is a shortcut that the installer
+        can still take by hand, so it doesn't fail the install. Each Agent is done
+        in a savepoint, so a failure never leaves an identity behind.
+        """
+
+        # Without the feature, the installer can't see the Agents or their identities.
+        if not feature_flag_is_enabled(FF_AGENT_BUILDER, user=user):
+            logger.warning(
+                "Not creating identities for the Agents installed in workspace "
+                "{} by user {}: the Agent builder isn't enabled for them.",
+                workspace.id,
+                user.id,
+            )
+            return
+        # The access may have changed since the install was requested.
+        if not IdentityService().can_create_scoped_identity(user, workspace):
+            logger.warning(
+                "Not creating identities for the Agents installed in workspace "
+                "{} by user {}: they can't create scoped identities.",
+                workspace.id,
+                user.id,
+            )
+            return
+        # Not the Agents, so an identity can't change its own configuration.
+        scoped_applications = [
+            application
+            for application in installed_applications
+            if not isinstance(application, AgentApplication)
+        ]
+        for agent in applications:
+            self._create_install_identity(user, workspace, agent, scoped_applications)
+
+    def _create_install_identity(
+        self,
+        user: AbstractUser,
+        workspace: Workspace,
+        agent: AgentApplication,
+        applications: list,
+    ) -> None:
+        """
+        Creates and binds the identity of one installed Agent, if it waits for one.
+        See `create_install_identities`.
+
+        :param user: The user who installs the template.
+        :param workspace: The workspace the template is installed into.
+        :param agent: The installed Agent.
+        :param applications: The installed applications the identity may access.
+        """
+
+        pending = AgentHandler().get_pending_tool_configuration(agent)
+        if not pending["allowed_tools"]:
+            return
+        # Identity names reach emails, so they get the check of the identities API.
+        name = agent.name[:150]
+        try:
+            no_url_validation(name)
+        except ValidationError:
+            logger.warning(
+                "Not creating the identity of the installed Agent {}: its name "
+                "can't be the name of an identity.",
+                agent.id,
+            )
+            return
+        roles = agent.pending_tool_choices.get("identity_roles")
+        try:
+            with transaction.atomic():
+                identity = action_type_registry.get_by_type(
+                    CreateScopedIdentityActionType
+                ).do(
+                    user,
+                    workspace,
+                    name=name,
+                    applications=applications,
+                    can_change_data=any(
+                        agent_tool_type_registry.get(tool).changes_data
+                        for tool in pending["allowed_tools"]
+                    ),
+                    roles=None if roles is None else [tuple(role) for role in roles],
+                )
+                # Audited, because the Agent gets the identity's access.
+                action_type_registry.get_by_type(UpdateAgentConfigurationActionType).do(
+                    user,
+                    agent.id,
+                    run_as_subject_type=UserSubjectType.type,
+                    run_as_subject_id=identity.id,
+                )
+        except (PermissionException, IdentityCannotBeScoped) as error:
+            # Expected when the installer can't change an application.
+            logger.warning(
+                "Not creating the identity of the installed Agent {}: {}",
+                agent.id,
+                repr(error),
+            )
+        except SoftTimeLimitExceeded:
+            raise
+        except Exception as error:
+            logger.exception(
+                "Could not create the identity of the installed Agent {}.", agent.id
+            )
+            exception_capturer(error)
 
     def supports_integration_type(self, integration_type) -> bool:
         """MCP servers, and the integrations its action types' services use."""

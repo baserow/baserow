@@ -19,6 +19,7 @@ from baserow.core.types import PermissionCheck
 from baserow_enterprise.features import RBAC, TEAMS
 from baserow_enterprise.role.actions import BatchAssignRoleActionType
 from baserow_enterprise.role.constants import (
+    ADMIN_ROLE_UID,
     BUILDER_ROLE_UID,
     COMMENTER_ROLE_UID,
     EDITOR_ROLE_UID,
@@ -27,7 +28,10 @@ from baserow_enterprise.role.constants import (
 )
 from baserow_enterprise.role.handler import RoleAssignmentHandler
 from baserow_enterprise.role.models import Role, RoleAssignment
-from baserow_enterprise.role.operations import ReadRoleApplicationOperationType
+from baserow_enterprise.role.operations import (
+    ReadRoleApplicationOperationType,
+    UpdateRoleApplicationOperationType,
+)
 from baserow_enterprise.role.types import NewRoleAssignment
 from baserow_enterprise.teams.actions import (
     CreateTeamSubjectActionType,
@@ -40,15 +44,16 @@ from baserow_enterprise.teams.operations import (
 )
 from baserow_premium.license.handler import LicenseHandler
 
-# The role an identity scoped to applications gets for a role it had on one: the
-# builder role if it could change it, otherwise the viewer role. Never the admin
-# role, with which it could give itself or others more.
-SCOPED_IDENTITY_ROLE_UIDS = {
-    VIEWER_ROLE_UID: VIEWER_ROLE_UID,
-    COMMENTER_ROLE_UID: VIEWER_ROLE_UID,
-    EDITOR_ROLE_UID: BUILDER_ROLE_UID,
-    BUILDER_ROLE_UID: BUILDER_ROLE_UID,
-}
+# The roles an identity scoped to applications can have on one of them. The admin
+# role is only given by an installer who may change the roles of the application,
+# and is the builder role otherwise.
+SCOPED_IDENTITY_ROLE_UIDS = [
+    VIEWER_ROLE_UID,
+    COMMENTER_ROLE_UID,
+    EDITOR_ROLE_UID,
+    BUILDER_ROLE_UID,
+    ADMIN_ROLE_UID,
+]
 
 
 class IdentityTeamSummarySerializer(serializers.Serializer):
@@ -140,7 +145,10 @@ class EnterpriseIdentityExtensionType(IdentityExtensionType):
         Gives the identity a role on each application: the given role, or else the
         builder role if it may change them and the viewer role otherwise. The user
         must be allowed to change every application, so the identity never gets
-        more than them. The assignments are recorded like those of the role
+        more than them: the admin role is given only on the applications whose
+        roles the user may change, and the builder role on the others. Without
+        applications or roles it keeps no access, and its tools are checked against
+        that when they run. The assignments are recorded like those of the role
         endpoints, so they show in the audit log.
         """
 
@@ -151,14 +159,29 @@ class EnterpriseIdentityExtensionType(IdentityExtensionType):
             raise IdentityCannotBeScoped(
                 "Only an identity without access can be scoped."
             )
+        if roles is None:
+            default = BUILDER_ROLE_UID if can_change_data else VIEWER_ROLE_UID
+            role_uids = {application.id: default for application in applications}
+        else:
+            role_uids = {
+                application_id: role_uid
+                for application_id, role_uid in roles
+                if role_uid in SCOPED_IDENTITY_ROLE_UIDS
+            }
         # Roles on applications are stored for the base model, which the role
         # endpoints resolve the `application` scope to.
         scopes = list(
             Application.objects.filter(
                 workspace=workspace,
-                id__in=[application.id for application in applications],
+                id__in=[
+                    application.id
+                    for application in applications
+                    if application.id in role_uids
+                ],
             ).order_by("id")
         )
+        if not scopes:
+            return
         # Roles on an application are checked against its specific type.
         CoreHandler().check_multiple_permissions(
             [
@@ -170,35 +193,40 @@ class EnterpriseIdentityExtensionType(IdentityExtensionType):
             workspace=workspace,
             raise_exception=True,
         )
-        if roles is None:
-            default = BUILDER_ROLE_UID if can_change_data else VIEWER_ROLE_UID
-            role_uids = {scope.id: default for scope in scopes}
-        else:
-            role_uids = {
-                application_id: SCOPED_IDENTITY_ROLE_UIDS[role_uid]
-                for application_id, role_uid in roles
-                if role_uid in SCOPED_IDENTITY_ROLE_UIDS
-            }
-            scopes = [scope for scope in scopes if scope.id in role_uids]
+        admin_scopes = [
+            scope for scope in scopes if role_uids[scope.id] == ADMIN_ROLE_UID
+        ]
+        if admin_scopes:
+            can_change_roles = CoreHandler().check_multiple_permissions(
+                [
+                    PermissionCheck(
+                        user, UpdateRoleApplicationOperationType.type, scope.specific
+                    )
+                    for scope in admin_scopes
+                ],
+                workspace=workspace,
+            )
+            for check, allowed in can_change_roles.items():
+                if allowed is not True:
+                    role_uids[check.context.id] = BUILDER_ROLE_UID
         role_by_uid = {
             role.uid: role
             for role in Role.objects.filter(uid__in=set(role_uids.values()))
         }
-        assignments = [
-            NewRoleAssignment(identity, role_by_uid[role_uids[scope.id]], scope)
-            for scope in scopes
-        ]
-        if not assignments:
-            # Without a role, it could reach none of the applications.
-            raise IdentityCannotBeScoped("None of the roles can be given.")
         action_type_registry.get_by_type(BatchAssignRoleActionType).do(
-            user, assignments, workspace, check_role_permissions=False
+            user,
+            [
+                NewRoleAssignment(identity, role_by_uid[role_uids[scope.id]], scope)
+                for scope in scopes
+            ],
+            workspace,
+            check_role_permissions=False,
         )
 
     def get_application_roles(self, identity, user=None):
         """
         Exports the roles of an identity without workspace access on single
-        applications, as the builder or viewer role it would get. Nothing is
+        applications. Nothing is
         exported for an identity with workspace access, whose application roles
         alone don't say what it can reach, or when the exporting user may not read
         its roles. The roles an exporting user may not read are left out.
@@ -216,7 +244,7 @@ class EnterpriseIdentityExtensionType(IdentityExtensionType):
                 subject_type=ContentType.objects.get_for_model(User),
                 subject_id=identity.id,
                 scope_type=ContentType.objects.get_for_model(Application),
-                role__uid__in=list(SCOPED_IDENTITY_ROLE_UIDS),
+                role__uid__in=SCOPED_IDENTITY_ROLE_UIDS,
             )
             .order_by("scope_id")
             .values_list("scope_id", "role__uid")
@@ -228,10 +256,7 @@ class EnterpriseIdentityExtensionType(IdentityExtensionType):
             if assignments and not readable:
                 return None
             assignments = readable
-        return [
-            [scope_id, SCOPED_IDENTITY_ROLE_UIDS[role_uid]]
-            for scope_id, role_uid in assignments
-        ]
+        return [[scope_id, role_uid] for scope_id, role_uid in assignments]
 
     def filter_readable_application_roles(self, roles, user, workspace):
         """Keeps the roles on applications of the workspace whose roles the user may read."""

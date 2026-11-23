@@ -74,9 +74,24 @@ class IdentityService:
             values["role_uid"], workspace
         ):
             raise IdentityRoleDoesNotExist()
+        identity = self._create_with_extensions(user, workspace, values)
+        return self._send_created(user, workspace, identity)
+
+    def _create_with_extensions(
+        self, user: AbstractUser, workspace: Workspace, values: dict
+    ) -> User:
+        """Creates an identity and the data of every registered extension."""
+
         identity = IdentityHandler().create_identity(workspace, **values)
         for extension in identity_extension_type_registry.get_all():
             extension.create(identity, values, user)
+        return identity
+
+    def _send_created(
+        self, user: AbstractUser, workspace: Workspace, identity: User
+    ) -> User:
+        """Reloads a new identity with its extension data and announces it."""
+
         identity = IdentityHandler().get_identity(
             identity.id, IdentityHandler().get_queryset(workspace)
         )
@@ -237,16 +252,14 @@ class IdentityService:
         :param name: The name of the identity.
         :param applications: The applications of the workspace it may access.
         :param can_change_data: Whether it may change them or only read them, when
-            no usable `roles` are given.
+            no `roles` are given.
         :param roles: The role to give on each application, by application id, as
             exported for the identity of a template.
         :raises PermissionDenied: If no extension can scope the identity for the
             user, or the user may not create it or change one of the applications.
-        :raises IdentityCannotBeScoped: If none of the roles can be given.
+        :raises IdentityCannotBeScoped: If the new identity has workspace access.
         :return: The newly created identity.
         """
-
-        from baserow.core.identities.actions import CreateIdentityActionType
 
         CoreHandler().check_permissions(
             user,
@@ -260,29 +273,11 @@ class IdentityService:
         if scoper is None:
             raise PermissionDenied()
         # The default role of an extension that can scope has no workspace access.
-        identity = IdentityHandler().create_identity(workspace, name=name)
-        for extension in identity_extension_type_registry.get_all():
-            extension.create(identity, {}, user)
-        CreateIdentityActionType.register_action(
-            user=user,
-            params=CreateIdentityActionType.Params(
-                workspace.id,
-                workspace.name,
-                identity.id,
-                identity.first_name,
-                IdentityHandler.get_role_uid(identity),
-            ),
-            scope=CreateIdentityActionType.scope(workspace.id),
-            workspace=workspace,
-        )
+        identity = self._create_with_extensions(user, workspace, {"name": name})
         scoper.scope_to_applications(
             identity, applications, can_change_data, user, roles=roles
         )
-        identity = IdentityHandler().get_identity(
-            identity.id, IdentityHandler().get_queryset(workspace)
-        )
-        identity_created.send(self, user=user, identity=identity)
-        return identity
+        return self._send_created(user, workspace, identity)
 
     def can_copy_binding(
         self, workspace: Workspace, import_export_config: ImportExportConfig

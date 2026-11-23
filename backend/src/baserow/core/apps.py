@@ -391,11 +391,13 @@ class CoreConfig(AppConfig):
 
         from baserow.core.identities.actions import (
             CreateIdentityActionType,
+            CreateScopedIdentityActionType,
             DeleteIdentityActionType,
             UpdateIdentityActionType,
         )
 
         action_type_registry.register(CreateIdentityActionType())
+        action_type_registry.register(CreateScopedIdentityActionType())
         action_type_registry.register(UpdateIdentityActionType())
         action_type_registry.register(DeleteIdentityActionType())
 

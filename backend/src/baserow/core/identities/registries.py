@@ -52,13 +52,12 @@ class IdentityExtensionType(Instance):
         :param identity: The identity to give access to.
         :param applications: The applications it may access.
         :param can_change_data: Whether it may change them or only read them, when
-            no usable `roles` are given.
+            no `roles` are given.
         :param user: The user who scopes the identity.
         :param roles: The role uid to give on each application, by application id,
             as returned by `get_application_roles` for another identity. When given,
             the applications without one get no role.
-        :raises IdentityCannotBeScoped: If the identity already has more access, or
-            it would get no role at all.
+        :raises IdentityCannotBeScoped: If the identity already has more access.
         """
 
         raise NotImplementedError()

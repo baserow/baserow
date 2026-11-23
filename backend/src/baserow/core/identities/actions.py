@@ -69,6 +69,71 @@ class CreateIdentityActionType(ActionType):
         return WorkspaceActionScopeType.value(workspace_id)
 
 
+class CreateScopedIdentityActionType(ActionType):
+    type = "create_scoped_identity"
+    description = ActionTypeDescription(
+        _("Create identity with access to some applications"),
+        _(
+            'Identity "%(identity_name)s" (%(identity_id)s) created with access to '
+            "only the applications %(application_ids)s"
+        ),
+        WORKSPACE_ACTION_CONTEXT,
+    )
+    analytics_params = ["workspace_id", "identity_id", "application_ids"]
+
+    @dataclasses.dataclass
+    class Params:
+        workspace_id: int
+        workspace_name: str
+        identity_id: int
+        identity_name: str
+        application_ids: list[int]
+
+    @classmethod
+    def do(
+        cls,
+        user: AbstractUser,
+        workspace: Workspace,
+        name: str,
+        applications: list,
+        can_change_data: bool,
+        roles: list[tuple[int, str]] | None = None,
+    ) -> User:
+        """
+        Creates an identity without workspace access that can reach only the given
+        applications, and records who did it. See
+        `IdentityService.create_scoped_identity`.
+
+        :return: The newly created identity.
+        """
+
+        identity = IdentityService().create_scoped_identity(
+            user,
+            workspace,
+            name=name,
+            applications=applications,
+            can_change_data=can_change_data,
+            roles=roles,
+        )
+        cls.register_action(
+            user=user,
+            params=cls.Params(
+                workspace.id,
+                workspace.name,
+                identity.id,
+                identity.first_name,
+                [application.id for application in applications],
+            ),
+            scope=cls.scope(workspace.id),
+            workspace=workspace,
+        )
+        return identity
+
+    @classmethod
+    def scope(cls, workspace_id: int) -> ActionScopeStr:
+        return WorkspaceActionScopeType.value(workspace_id)
+
+
 class UpdateIdentityActionType(ActionType):
     type = "update_identity"
     description = ActionTypeDescription(
