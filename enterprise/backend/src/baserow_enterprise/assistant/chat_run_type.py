@@ -86,6 +86,22 @@ class RestoredRun:
     resume: AssistantResume | None = None
 
 
+def _merge_resumed_artifacts(
+    paused: dict[str, Any], resumed: dict[str, Any]
+) -> dict[str, Any]:
+    """
+    :param paused: The artifacts the answer had when its run paused.
+    :param resumed: The artifacts of the run that continued it.
+    :return: Both, with the sources of the run before the pause first. The pause
+        and the run state are the continued run's own.
+    """
+
+    kept = {key: value for key, value in paused.items() if key not in ("paused", "run")}
+    sources = list(kept.get("sources") or [])
+    sources += [source for source in resumed["sources"] if source not in sources]
+    return {**kept, **resumed, "sources": sources}
+
+
 class AssistantChatRunType(ChatRunType):
     """
     Kuma's messages, answered in the background. The send endpoint saves the
@@ -504,7 +520,9 @@ class AssistantChatRunType(ChatRunType):
             )
             # A run that stopped before writing keeps the paused run's text.
             ai_message.content = result.text or ai_message.content
-            ai_message.artifacts = artifacts
+            ai_message.artifacts = _merge_resumed_artifacts(
+                ai_message.artifacts, artifacts
+            )
             ai_message.save(update_fields=["content", "artifacts", "updated_on"])
             AssistantChatPrediction.objects.filter(ai_response=ai_message).update(
                 prediction=prediction

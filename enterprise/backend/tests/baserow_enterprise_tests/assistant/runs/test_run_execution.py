@@ -376,12 +376,16 @@ def test_a_resumed_run_that_pauses_again_resumes_with_only_its_new_decision(
     assert list(agents.values_list("name", flat=True)) == ["Bot 1"]
 
 
-def _paused_on_agent_setup(assistant_run, enterprise_data_fixture, kuma_model, mocker):
+def _paused_on_agent_setup(
+    assistant_run, enterprise_data_fixture, kuma_model, mocker, resumed_answer=None
+):
     """
     Runs Kuma until it pauses on an apply_agent_setup call that needs approval,
     then approves it. The resumed run is queued but not executed.
 
-    :return: The resumed run, its chat, and the tool returns the resumed model saw.
+    :param resumed_answer: What the model answers once the call ran, or None for
+        a model that fails then.
+    :return: The resumed run and its chat.
     """
 
     from baserow_enterprise.assistant.deps import AgentMode
@@ -403,7 +407,10 @@ def _paused_on_agent_setup(assistant_run, enterprise_data_fixture, kuma_model, m
             if isinstance(message, ModelRequest)
             for part in message.parts
         ):
-            raise RuntimeError("The provider went away")
+            if resumed_answer is None:
+                raise RuntimeError("The provider went away")
+            yield resumed_answer
+            return
         setup = {
             "name": "Bot",
             "run_as_identity_id": identity.id,
@@ -480,3 +487,26 @@ def test_a_resumed_run_that_never_starts_keeps_the_paused_runs_calls_in_history(
     message = chat.messages.get(id=resumed.context["resume_message_id"])
     assert message.content == "I need your approval before I make this change."
     assert message.artifacts["run"]["error_code"] == ChatRunErrorCode.NOT_STARTED
+
+
+@pytest.mark.django_db(transaction=True)
+def test_a_resumed_answer_keeps_the_sources_found_before_the_pause(
+    assistant_run, enterprise_data_fixture, kuma_model, mocker, fast_journal
+):
+    resumed, chat = _paused_on_agent_setup(
+        assistant_run,
+        enterprise_data_fixture,
+        kuma_model,
+        mocker,
+        resumed_answer="Bot is ready.",
+    )
+    message = chat.messages.get(id=resumed.context["resume_message_id"])
+    message.artifacts = {**message.artifacts, "sources": ["https://baserow.io/a"]}
+    message.save(update_fields=["artifacts"])
+
+    execute_chat_run(str(resumed.id))
+
+    message.refresh_from_db()
+    assert message.content == "Bot is ready."
+    assert message.artifacts["sources"] == ["https://baserow.io/a"]
+    assert "paused" not in message.artifacts
