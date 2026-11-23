@@ -819,8 +819,10 @@ class SharedApplication(Application):
     """
     The hidden application of a workspace that owns its workspace integrations, so
     that they keep the ownership chain of any integration: integration, application,
-    workspace. Baserow keeps one per workspace, created with the workspace, see
-    `CoreHandler.create_shared_application`.
+    workspace. A workspace has at most one. `CoreHandler.create_workspace` creates
+    it with the workspace; a workspace from before it existed gets one from the
+    transitional lazy creation or backfill (#6758). Template workspaces, which have
+    no members, are created without one and don't need it.
     """
 
 
