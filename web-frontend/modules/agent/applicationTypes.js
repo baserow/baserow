@@ -66,8 +66,9 @@ export class AgentApplicationType extends ApplicationType {
     return this.canBeCreated() ? { agent: application } : null
   }
 
+  // Not when the template preview leaves its Agents out.
   createsIdentityOnInstall() {
-    return true
+    return this.canBeCreated()
   }
 
   get developmentStage() {

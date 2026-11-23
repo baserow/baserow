@@ -7,6 +7,7 @@ from django.db.models import F, QuerySet
 from loguru import logger
 
 from baserow.core.exceptions import PermissionDenied, PermissionException
+from baserow.core.feature_flags import FF_AGENT_BUILDER, feature_flag_is_enabled
 from baserow.core.handler import CoreHandler
 from baserow.core.identities.exceptions import IdentityCannotBeScoped
 from baserow.core.identities.handler import IdentityHandler
@@ -227,6 +228,15 @@ class AgentService:
 
         from baserow.contrib.agent.actions import UpdateAgentConfigurationActionType
 
+        # Without the feature, the installer can't see the Agents or their identities.
+        if not feature_flag_is_enabled(FF_AGENT_BUILDER, user=user):
+            logger.warning(
+                "Not creating identities for the Agents installed in workspace "
+                "{} by user {}: the Agent builder isn't enabled for them.",
+                workspace.id,
+                user.id,
+            )
+            return
         # The access may have changed since the install was requested.
         if not IdentityService().can_create_scoped_identity(user, workspace):
             logger.warning(

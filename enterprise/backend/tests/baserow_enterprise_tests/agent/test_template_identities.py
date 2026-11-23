@@ -546,6 +546,23 @@ def test_losing_rbac_before_the_job_runs_keeps_the_agent_pending(
 
 
 @pytest.mark.django_db(transaction=True)
+def test_without_the_agent_builder_the_agent_keeps_waiting(
+    enterprise_data_fixture, admin, settings, tmp_path
+):
+    template = sync_template(enterprise_data_fixture, settings, tmp_path, [WRITE_TOOLS])
+    workspace = enterprise_data_fixture.create_workspace(user=admin)
+    settings.FEATURE_FLAGS = []
+
+    job = install(admin, workspace, template, create_identities=True)
+
+    assert job.state == JOB_FINISHED
+    agent = AgentApplication.objects.get(workspace=workspace)
+    assert agent.run_as_subject_id is None
+    assert agent.pending_tool_choices is not None
+    assert not IdentityHandler().get_queryset(workspace).exists()
+
+
+@pytest.mark.django_db(transaction=True)
 def test_a_failed_role_assignment_keeps_the_agent_pending_and_installs(
     enterprise_data_fixture, admin, settings, tmp_path
 ):

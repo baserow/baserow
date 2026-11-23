@@ -717,6 +717,24 @@ describe('TemplateInstall', () => {
       expect(option(wrapper).exists()).toBe(true)
     })
 
+    test('is hidden while the Agent builder is off', async () => {
+      signIn()
+      registerPlugin()
+      const agentType = testApp.getRegistry().get('application', 'agent')
+      const canBeCreated = vi
+        .spyOn(agentType, 'canBeCreated')
+        .mockReturnValue(false)
+      try {
+        const wrapper = await testApp.mount(TemplateInstall, {
+          props: { template, applications: [database, agent] },
+        })
+
+        expect(option(wrapper).exists()).toBe(false)
+      } finally {
+        canBeCreated.mockRestore()
+      }
+    })
+
     test('is hidden for a workspace the user cannot scope identities in', async () => {
       signIn()
       registerPlugin()
