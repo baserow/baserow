@@ -877,6 +877,81 @@ describe('Agent conversations', () => {
     expect(selected(wrapper).text()).toBe('B')
   })
 
+  test.each([
+    ['agent.private', false],
+    ['agent.shared', true],
+  ])('filters %s conversations on the server', async (label, shared) => {
+    const both = conversationsPage([
+      conversation('mine', 'Mine'),
+      { ...conversation('team', 'Team'), shared: true },
+    ])
+    mockConversations(testApp, both, both)
+    const wrapper = await mount()
+
+    await filterConversations(wrapper, label)
+
+    expect(conversationTitles(wrapper)).toEqual([shared ? 'Team' : 'Mine'])
+    const reads = testApp.mock.history.get.filter(({ url }) =>
+      url.endsWith('/conversations/')
+    )
+    expect(reads.at(-1).params).toEqual({ cursor: null, limit: 100, shared })
+  })
+
+  test('shares a private conversation only once its owner confirms', async () => {
+    const chat = conversation('chat', 'Chat')
+    mockConversations(testApp, conversationsPage([chat]))
+    testApp.mock
+      .onPost('/agent/10/conversations/chat/share/')
+      .reply(200, { ...chat, shared: true })
+    const wrapper = await mount()
+    const modalButton = (label) =>
+      Array.from(document.querySelectorAll('.modal__box button')).find(
+        (button) => button.textContent.trim() === label
+      )
+
+    await chooseFromMenu(wrapper, 'Chat', 'agent.share')
+    expect(document.querySelector('.modal__box').textContent).toContain(
+      'agent.shareConversationWarning'
+    )
+    expect(testApp.mock.history.post).toHaveLength(0)
+    modalButton('agent.share').click()
+    await flushPromises()
+
+    expect(testApp.mock.history.post.map(({ url }) => url)).toEqual([
+      '/agent/10/conversations/chat/share/',
+    ])
+    expect(wrapper.find('.agent-conversations__private').exists()).toBe(false)
+  })
+
+  test("names others' messages in a shared conversation and tells a Viewer they can't reply", async () => {
+    allowed.value = (operation) =>
+      withoutConfiguration(operation) && !operation.includes('create')
+    mockConversations(
+      testApp,
+      conversationsPage([{ ...conversation('team', 'Team'), shared: true }])
+    )
+    mockMessages(
+      testApp,
+      'team',
+      page([
+        message('ada', 'From Ada', { id: 1, sender: { id: 2, name: 'Ada' } }),
+        message('gone', 'From a deleted user', { id: 2, sender: null }),
+      ])
+    )
+    const wrapper = await mount()
+
+    await selectConversation(wrapper, 'Team')
+
+    expect(
+      wrapper.findAll('.chat-message__note').map((note) => note.text())
+    ).toEqual(['Ada', 'agent.deletedSender'])
+    expect(wrapper.find('.chat-message--own').exists()).toBe(false)
+    expect(composerExists(wrapper)).toBe(false)
+    expect(wrapper.get('.agent-chat__shared').text()).toBe(
+      'agent.sharedReadOnly'
+    )
+  })
+
   test('shows a shared conversation without a composer, with its trigger start card', async () => {
     allowed.value = withoutConfiguration
     mockConversations(

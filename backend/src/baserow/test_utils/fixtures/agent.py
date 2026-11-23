@@ -53,8 +53,8 @@ class AgentApplicationFixtures:
         self, user: AbstractUser | None = None, **kwargs
     ) -> AgentConversation:
         """
-        Create a conversation owned by `user`, or a shared one when `owner_user`
-        is passed as None.
+        Create a conversation owned by `user`, or one a trigger started when
+        `owner_user` is passed as None.
 
         :param user: The owner, created when neither it nor `owner_user` is given.
         :return: The created conversation.
@@ -67,6 +67,8 @@ class AgentApplicationFixtures:
         kwargs.setdefault("uuid", uuid4())
         kwargs.setdefault("title", "Conversation")
         kwargs.setdefault("owner_user", user)
+        kwargs.setdefault("shared", kwargs["owner_user"] is None)
+        kwargs.setdefault("started_by_trigger", kwargs["owner_user"] is None)
         return AgentConversation.objects.create(**kwargs)
 
     def create_agent_message(
@@ -82,6 +84,7 @@ class AgentApplicationFixtures:
             )
         kwargs.setdefault("uuid", uuid4())
         kwargs.setdefault("content", "Hello")
+        kwargs.setdefault("sender", kwargs["conversation"].owner_user)
         return AgentMessage.objects.create(**kwargs)
 
     def create_agent_tool_approval(
@@ -145,4 +148,6 @@ class AgentApplicationFixtures:
             kwargs["trigger"] = self.create_agent_trigger(agent=agent)
         kwargs.setdefault("uuid", uuid4())
         kwargs.setdefault("title", "Started by a trigger")
-        return AgentConversation.objects.create(agent=agent, owner_user=None, **kwargs)
+        return AgentConversation.objects.create(
+            agent=agent, shared=True, started_by_trigger=True, **kwargs
+        )

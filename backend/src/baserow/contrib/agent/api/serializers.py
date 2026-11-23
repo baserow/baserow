@@ -338,11 +338,16 @@ class AgentConversationSerializer(serializers.ModelSerializer):
         help_text="The number of held tool calls in this conversation waiting for "
         "a decision."
     )
-    shared = serializers.SerializerMethodField(
-        help_text="Whether a trigger started this conversation. A shared conversation "
-        "is read by everyone who may read the agent's conversations, accepts no "
-        "messages, and its held tool calls are decided by anyone who may send the "
-        "agent messages."
+    shared = serializers.BooleanField(
+        read_only=True,
+        help_text="Whether everyone who may read the agent's conversations reads "
+        "this one, and anyone who may send the agent messages decides its held tool "
+        "calls. Otherwise only its owner sees it.",
+    )
+    started_by_trigger = serializers.BooleanField(
+        read_only=True,
+        help_text="Whether a trigger started this shared conversation, so it "
+        "accepts no messages.",
     )
     trigger_id = serializers.IntegerField(
         read_only=True,
@@ -370,6 +375,7 @@ class AgentConversationSerializer(serializers.ModelSerializer):
             "pending_approval_count",
             "pinned",
             "shared",
+            "started_by_trigger",
             "trigger_id",
             "trigger_type",
             "trigger_name",
@@ -384,15 +390,6 @@ class AgentConversationSerializer(serializers.ModelSerializer):
         return self.context.get("conversation_pending_approvals", {}).get(
             conversation.id, 0
         )
-
-    @extend_schema_field(serializers.BooleanField())
-    def get_shared(self, conversation: AgentConversation) -> bool:
-        """
-        :param conversation: The serialized conversation.
-        :return: Whether a trigger started it, so it has no owner.
-        """
-
-        return conversation.is_shared
 
     @extend_schema_field(serializers.CharField(allow_null=True))
     def get_trigger_type(self, conversation: AgentConversation) -> str | None:
@@ -475,7 +472,18 @@ class AgentPendingReplySerializer(serializers.ModelSerializer):
         ).data
 
 
+class AgentConversationUserSerializer(serializers.Serializer):
+    id = serializers.IntegerField(read_only=True)
+    name = serializers.CharField(source="first_name", read_only=True)
+
+
 class AgentMessageSerializer(serializers.ModelSerializer):
+    sender = AgentConversationUserSerializer(
+        read_only=True,
+        allow_null=True,
+        help_text="The person who sent the message, or whom the reply answers. "
+        "Null for a trigger or a deleted user.",
+    )
     steps = AgentMessageStepSerializer(many=True, allow_null=True, read_only=True)
     approvals = AgentToolApprovalSerializer(
         many=True,
@@ -496,6 +504,7 @@ class AgentMessageSerializer(serializers.ModelSerializer):
             "id",
             "uuid",
             "role",
+            "sender",
             "content",
             "created_on",
             "status",
@@ -618,6 +627,7 @@ class AgentConversationCursorField(KeysetCursorField):
 class AgentConversationsQuerySerializer(serializers.Serializer):
     pinned = serializers.BooleanField(required=False)
     has_pending_approvals = serializers.BooleanField(required=False)
+    shared = serializers.BooleanField(required=False)
     limit = serializers.IntegerField(
         default=20,
         min_value=1,

@@ -22,6 +22,16 @@
         :name="$t('agent.pinned')"
         icon="iconoir-pin"
       />
+      <DropdownItem
+        value="private"
+        :name="$t('agent.private')"
+        icon="iconoir-lock"
+      />
+      <DropdownItem
+        value="shared"
+        :name="$t('agent.shared')"
+        icon="iconoir-community"
+      />
     </Dropdown>
     <InfiniteScroll
       ref="scroll"
@@ -188,6 +198,15 @@
     </div>
     <Context ref="menu" @hidden="menuItem = null">
       <ul v-if="menuItem" class="context__menu">
+        <li
+          v-if="canUpdateItem(menuItem) && !menuItem.shared"
+          class="context__menu-item"
+        >
+          <a class="context__menu-item-link" @click="share">
+            <i class="context__menu-item-icon iconoir-community"></i>
+            {{ $t('agent.share') }}
+          </a>
+        </li>
         <li v-if="canUpdateItem(menuItem)" class="context__menu-item">
           <a class="context__menu-item-link" @click="togglePin">
             <i class="context__menu-item-icon iconoir-pin"></i>
@@ -217,6 +236,10 @@
         </li>
       </ul>
     </Context>
+    <AgentShareConversationModal
+      ref="shareModal"
+      @share="$emit('share', $event)"
+    />
   </aside>
 </template>
 
@@ -225,6 +248,7 @@ import { nextTick, ref, watch } from 'vue'
 import Icon from '@baserow/modules/core/components/Icon'
 import Context from '@baserow/modules/core/components/Context'
 import InfiniteScroll from '@baserow/modules/core/components/helpers/InfiniteScroll'
+import AgentShareConversationModal from '@baserow/modules/agent/components/AgentShareConversationModal'
 import { useNuxtApp } from '#app'
 import { serviceTypeOf } from '@baserow/modules/agent/utils/triggers'
 
@@ -249,6 +273,7 @@ const emit = defineEmits([
   'load-more',
   'create',
   'update',
+  'share',
   'delete',
 ])
 
@@ -257,6 +282,7 @@ const { $registry } = useNuxtApp()
 const scroll = ref(null)
 const menu = ref(null)
 const menuItem = ref(null)
+const shareModal = ref(null)
 const renameInput = ref([])
 const renamingUuid = ref(null)
 const renameTitle = ref('')
@@ -360,6 +386,12 @@ function togglePin() {
   const item = menuItem.value
   menu.value.hide()
   emit('update', item, { pinned: !item.pinned })
+}
+
+function share() {
+  const item = menuItem.value
+  menu.value.hide()
+  shareModal.value.show(item)
 }
 
 function remove() {

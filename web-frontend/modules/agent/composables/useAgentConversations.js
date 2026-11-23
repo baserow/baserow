@@ -84,6 +84,18 @@ const CONVERSATION_CHANGED_ERRORS = [
   API_ERROR_CODE.AGENT_TOOL_APPROVAL_NOT_PENDING,
 ]
 
+// Each list filter as conversation list query parameters, and as a local check.
+const CONVERSATION_FILTERS = {
+  all: { params: {}, matches: () => true },
+  waiting: {
+    params: { has_pending_approvals: true },
+    matches: (conversation) => conversation.pending_approval_count > 0,
+  },
+  pinned: { params: { pinned: true }, matches: ({ pinned }) => pinned },
+  private: { params: { shared: false }, matches: ({ shared }) => !shared },
+  shared: { params: { shared: true }, matches: ({ shared }) => shared },
+}
+
 /** Page-local conversations, private or shared, gated by the Agent configuration. */
 export function useAgentConversations(agent, configuration) {
   const store = useStore()
@@ -191,9 +203,10 @@ export function useAgentConversations(agent, configuration) {
       Boolean(selectedConversation.value) &&
       (!selectedConversation.value.local || canCreateConversation.value)
   )
-  // A shared conversation takes no messages until continuation ships.
+  // A conversation a trigger started takes no messages until continuation ships.
   const canWriteSelected = computed(
-    () => canMessageSelected.value && !selectedConversation.value.shared
+    () =>
+      canMessageSelected.value && !selectedConversation.value.started_by_trigger
   )
   const canStopSelected = computed(
     () =>
@@ -300,10 +313,7 @@ export function useAgentConversations(agent, configuration) {
           data ? data.next_cursor : cursor,
           {
             realtimeRecovery: reload,
-            ...(conversationFilter.value === 'pinned' ? { pinned: true } : {}),
-            ...(conversationFilter.value === 'waiting'
-              ? { has_pending_approvals: true }
-              : {}),
+            ...CONVERSATION_FILTERS[conversationFilter.value].params,
           }
         ))
         if (
@@ -351,9 +361,7 @@ export function useAgentConversations(agent, configuration) {
   }
 
   function matchesFilter(conversation) {
-    return conversationFilter.value === 'waiting'
-      ? isWaiting(conversation)
-      : conversationFilter.value !== 'pinned' || conversation.pinned
+    return CONVERSATION_FILTERS[conversationFilter.value].matches(conversation)
   }
 
   function unlistConversation(conversationUuid) {
@@ -759,10 +767,6 @@ export function useAgentConversations(agent, configuration) {
     }
   }
 
-  function isWaiting(conversation) {
-    return conversation.pending_approval_count > 0
-  }
-
   function openPendingConversation(conversation) {
     if (!findConversation(conversation.uuid))
       unlistedConversation.value = conversation
@@ -783,6 +787,21 @@ export function useAgentConversations(agent, configuration) {
       receiveConversation(data)
     } catch (error) {
       applyConversationValues(conversation, previous)
+      if (isDeletedElsewhere(error)) removeConversation(conversation.uuid)
+      else notifyIf(error)
+    }
+  }
+
+  async function shareConversation(conversation) {
+    applyConversationValues(conversation, { shared: true })
+    try {
+      const { data } = await service.shareConversation(
+        agent.value.id,
+        conversation.uuid
+      )
+      receiveConversation(data)
+    } catch (error) {
+      applyConversationValues(conversation, { shared: false })
       if (isDeletedElsewhere(error)) removeConversation(conversation.uuid)
       else notifyIf(error)
     }
@@ -1039,6 +1058,7 @@ export function useAgentConversations(agent, configuration) {
     canReviewPending,
     stopReply,
     updateConversation,
+    shareConversation,
     deleteConversation,
   }
 }

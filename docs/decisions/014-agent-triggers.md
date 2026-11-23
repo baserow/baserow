@@ -14,9 +14,9 @@ Agents only answered when a person wrote to them. We let an agent own triggers b
 on the trigger services Automation workflows already start from, and open a
 conversation whenever one fires. Three decisions carry this: trigger service types
 notify every registered listener and expose `arm()` so a service can go live without
-Automation's publish step; a trigger-started conversation is shared, modelled as a
-conversation with no owner; and an unattended run pauses on held calls until an
-editor decides them, like any other run.
+Automation's publish step; a trigger-started conversation is shared, like one a
+person chose to share; and an unattended run pauses on held calls until an editor
+decides them, like any other run.
 
 ## Context
 
@@ -42,8 +42,8 @@ mixed-version compatibility is needed for these changes.
 | Event payload        | The dict a service type produces per event; exposed to the trigger message as the `trigger` data provider.          |
 | Listener             | A callable a consumer registers to receive `(services, event_payload, user, isolate_failures)`.                     |
 | Armed                | A trigger service that receives real events now: periodic `next_run_at` set, HTTP/email `is_public`.                |
-| Shared conversation  | A conversation with `owner_user IS NULL`; readable by everyone with `read_conversations` on the agent.              |
-| Private conversation | A conversation started by a person; visible to that person only. Unchanged.                                         |
+| Shared conversation  | A conversation with `shared` set; readable by everyone with `read_conversations` on the agent.                      |
+| Private conversation | A conversation started by a person and not shared; visible to that person only.                                     |
 | Run identity         | The subject the agent's tools act as. Never a conversation owner, never an author.                                  |
 | Ask-first tool       | An allowed tool whose calls pause the reply until a person approves them.                                           |
 
@@ -77,16 +77,22 @@ the periodic service type no longer imports an Automation exception at module le
 A consumer holds the foreign key to its service (`AgentTrigger.service`, as automation
 nodes, data sources and button actions do). `Service` knows no owner.
 
-### 2. A trigger-started conversation is shared: it has no owner
+### 2. A trigger-started conversation is shared
 
-`AgentConversation.owner_user` becomes nullable and a `trigger` foreign key (set to
-null when the trigger is deleted) records what started it. Shared means exactly
-`owner_user IS NULL`. Shared conversations are visible to everyone with
-`read_conversations` on the agent; private ones stay visible to their owner only.
+A trigger-started conversation has no owner, is `shared` and `started_by_trigger`, and
+a `trigger` foreign key (set to null when the trigger is deleted) records what started
+it. A person's conversation starts private, and its owner can share it for good: once
+others may have read it, making it private again wouldn't take back what they saw.
+Shared conversations are visible to everyone with `read_conversations` on the agent;
+private ones stay visible to their owner only. Each message records its `sender`, and a
+reply runs for the person it answers. A shared conversation outlives its owner's
+account; a private one is deleted with it.
 
 Renaming, trashing, restoring and stopping a shared conversation additionally require
-`application.update`. Following its runs live requires `read_conversations`. Sending a
-message in one is refused in this release; continuation by editors is a later change.
+`application.update`. Following its runs live requires `read_conversations`. Anyone
+who may send the agent messages continues a person's shared conversation; sending a
+message in a trigger-started one is refused in this release, and continuing it is a
+later change.
 Its held calls are decided like a private one's, by anyone who may send the agent
 messages, so editors approve or reject a call and only builders, who may update the
 configuration, also always allow its tool. Realtime updates go to the users permitted
@@ -175,9 +181,8 @@ core when another background feature needs it.
 - Plugins that overrode `start_listening` or `stop_listening` on a trigger service type
   must override `connect` and `disconnect` instead; the `on_event` class attribute is
   now a method.
-- `NULL` owner means shared, not missing. Every site that reads the owner (permission
-  subject, timezone, realtime recipient, pending counts, approvals) handles it, and new
-  code must too.
+- A reply runs for its `sender`, not the conversation's owner: in a shared
+  conversation they differ, and the owner can be gone.
 - Readers of a shared conversation see what the run identity could read. Builders pick
   the identity knowing that.
 - The periodic beat tick only resolves trigger messages; conversations start in tasks

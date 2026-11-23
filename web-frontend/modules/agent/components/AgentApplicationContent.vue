@@ -72,6 +72,7 @@
         @retry="state.retryConversations"
         @load-more="state.loadMoreConversations"
         @update="state.updateConversation"
+        @share="state.shareConversation"
         @delete="state.deleteConversation"
       />
       <main class="agent-chat" :class="{ 'agent-chat--empty': showChatIntro }">
@@ -212,7 +213,7 @@
               state.canSend && Boolean(state.currentDraft?.content.trim())
             "
             :sending="Boolean(state.currentDraft?.sending)"
-            :running="replyRunning"
+            :running="replyRunning && state.canStopSelected"
             :stopping="Boolean(state.replyFollower?.stopRequested)"
             :activity="composerActivity"
             :activity-tone="state.waitingForApproval ? 'waiting' : 'default'"
@@ -224,17 +225,12 @@
             @send="submitMessage"
             @stop="stopReply"
           />
-          <div
-            v-else-if="state.selectedConversation?.shared"
-            class="agent-chat__shared"
-          >
+          <div v-else-if="readOnlyNote" class="agent-chat__shared">
             <i
               class="agent-chat__shared-icon iconoir-info-empty"
               aria-hidden="true"
             ></i>
-            <span class="agent-chat__shared-text">{{
-              $t('agent.sharedNoMessages')
-            }}</span>
+            <span class="agent-chat__shared-text">{{ $t(readOnlyNote) }}</span>
             <Button
               v-if="replyRunning && state.canStopSelected"
               type="secondary"
@@ -465,12 +461,18 @@ const canCompose = computed(
     !showConfigurationWarning.value &&
     state.canWriteSelected
 )
-// A shared conversation takes no messages, so a running reply gets Stop alone.
+// Who can't send messages sees why, with Stop alone for a running reply.
 const showComposer = computed(
-  () =>
-    !state.selectedConversation?.shared &&
-    (canCompose.value || replyRunning.value)
+  () => canCompose.value || (replyRunning.value && state.canWriteSelected)
 )
+const readOnlyNote = computed(() => {
+  const conversation = state.selectedConversation
+  if (conversation?.started_by_trigger) return 'agent.sharedNoMessages'
+  if (conversation?.shared && !state.canWriteSelected) {
+    return 'agent.sharedReadOnly'
+  }
+  return ''
+})
 const warningTitle = computed(() =>
   hasLoadError.value
     ? 'agent.readinessLoadError'

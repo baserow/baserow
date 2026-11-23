@@ -36,6 +36,7 @@ class AgentConfig(AppConfig):
             CreateAgentMessageActionType,
             DecideAgentToolApprovalsActionType,
             DeleteAgentConversationActionType,
+            ShareAgentConversationActionType,
             UpdateAgentConfigurationActionType,
             UpdateAgentConversationActionType,
         )
@@ -108,6 +109,7 @@ class AgentConfig(AppConfig):
             CreateAgentMessageActionType,
             DecideAgentToolApprovalsActionType,
             UpdateAgentConversationActionType,
+            ShareAgentConversationActionType,
             DeleteAgentConversationActionType,
             UpdateAgentConfigurationActionType,
             CreateAgentTriggerActionType,

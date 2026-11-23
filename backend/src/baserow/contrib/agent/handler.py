@@ -677,25 +677,29 @@ class AgentHandler:
         cursor: AgentConversationCursor | None = None,
         pinned: bool | None = None,
         has_pending_approvals: bool | None = None,
+        shared: bool | None = None,
     ) -> QuerySet[AgentConversation]:
         """
-        Return the conversations the user sees in the agent: their own and the
-        shared ones a trigger started.
+        Return the conversations the user sees in the agent: their own private
+        ones and the shared ones.
 
         :param agent: The agent the conversations belong to.
         :param user: The user whose own conversations are included.
         :param cursor: The last conversation of the previous page, to continue after.
         :param pinned: Only pinned or unpinned conversations, or both when omitted.
         :param has_pending_approvals: Only conversations with or without pending calls.
+        :param shared: Only shared or private conversations, or both when omitted.
         :return: The conversations, pinned first, then most recently active, with
-            the trigger that started each shared one.
+            the trigger that started each one a trigger started.
         """
 
         conversations = AgentConversation.objects.filter(
-            Q(owner_user=user) | Q(owner_user__isnull=True), agent=agent
+            self._visible_to(user), agent=agent
         ).select_related("trigger__service")
         if pinned is not None:
             conversations = conversations.filter(pinned=pinned)
+        if shared is not None:
+            conversations = conversations.filter(shared=shared)
         if has_pending_approvals is not None:
             pending = Exists(
                 self._pending_approvals().filter(reply__conversation_id=OuterRef("pk"))
@@ -717,7 +721,17 @@ class AgentHandler:
             the access of a configuration update.
         """
 
-        return [UpdateApplicationOperationType.type] if conversation.is_shared else []
+        return [UpdateApplicationOperationType.type] if conversation.shared else []
+
+    @staticmethod
+    def _visible_to(user: AbstractUser) -> Q:
+        """
+        :param user: The user reading conversations.
+        :return: The filter keeping the user's own private conversations and the
+            shared ones.
+        """
+
+        return Q(owner_user_id=user.id, shared=False) | Q(shared=True)
 
     def get_conversation(
         self,
@@ -739,9 +753,7 @@ class AgentHandler:
             its owner unless it is shared.
         """
 
-        queryset = AgentConversation.objects.filter(
-            Q(owner_user=user) | Q(owner_user__isnull=True)
-        )
+        queryset = AgentConversation.objects.filter(self._visible_to(user))
         if for_update:
             queryset = queryset.select_for_update(of=("self",))
         try:
@@ -749,7 +761,7 @@ class AgentHandler:
         except AgentConversation.DoesNotExist as exc:
             raise AgentConversationDoesNotExist from exc
         conversation.agent = agent
-        if not conversation.is_shared:
+        if not conversation.shared:
             conversation.owner_user = user
         return conversation
 
@@ -780,6 +792,25 @@ class AgentHandler:
         if new_values:
             conversation.save(update_fields=list(new_values))
         return AgentConversationUpdated(conversation, original_values, new_values)
+
+    def share_conversation(
+        self, conversation: AgentConversation
+    ) -> AgentConversationUpdated:
+        """
+        Share a private conversation for good: once others may have read it,
+        making it private again wouldn't take back what they saw.
+
+        :param conversation: The conversation, locked.
+        :return: The conversation with the new values, none when it was shared.
+        """
+
+        if conversation.shared:
+            return AgentConversationUpdated(conversation, {}, {})
+        conversation.shared = True
+        conversation.save(update_fields=["shared"])
+        return AgentConversationUpdated(
+            conversation, {"shared": False}, {"shared": True}
+        )
 
     def delete_conversation(
         self, user: AbstractUser, conversation: AgentConversation
@@ -926,7 +957,7 @@ class AgentHandler:
                 message_uuid,
                 content,
             )
-        return self._add_message(conversation, content, uuid=message_uuid)
+        return self._add_message(conversation, content, uuid=message_uuid, sender=user)
 
     def start_trigger_conversation(
         self,
@@ -958,7 +989,8 @@ class AgentHandler:
         conversation = AgentConversation.objects.create(
             uuid=uuid4(),
             agent=trigger.agent,
-            owner_user=None,
+            shared=True,
+            started_by_trigger=True,
             trigger=trigger,
             title=normalize_title(content),
         )
@@ -973,7 +1005,11 @@ class AgentHandler:
         )
 
     def get_message_retry(
-        self, conversation: AgentConversation, uuid: UUID, content: str
+        self,
+        conversation: AgentConversation,
+        uuid: UUID,
+        content: str,
+        sender: AbstractUser,
     ) -> AgentMessageCreated | None:
         """
         Return the message already accepted for a message uuid.
@@ -981,7 +1017,9 @@ class AgentHandler:
         :param conversation: The conversation the message is sent to.
         :param uuid: The uuid of the message.
         :param content: The content of the message.
-        :raises AgentMessageConflict: When the uuid was accepted with other content.
+        :param sender: The user sending the message.
+        :raises AgentMessageConflict: When the uuid was accepted with other content
+            or from another sender.
         :return: The conversation, the accepted message, its reply and the run
             writing it, or None when nothing was accepted with this uuid before.
         """
@@ -989,12 +1027,16 @@ class AgentHandler:
         message = conversation.messages.filter(uuid=uuid).first()
         if message is None:
             return None
-        if message.content != content:
+        if message.content != content or message.sender_id != sender.id:
             raise AgentMessageConflict
         return self._accepted(conversation, message)
 
     def create_message(
-        self, conversation: AgentConversation, uuid: UUID, content: str
+        self,
+        conversation: AgentConversation,
+        uuid: UUID,
+        content: str,
+        sender: AbstractUser,
     ) -> AgentMessageCreated:
         """
         Add a user message with an empty reply, and start the run writing it.
@@ -1005,12 +1047,13 @@ class AgentHandler:
         :param conversation: The conversation to add the message to.
         :param uuid: The uuid of the message.
         :param content: The content of the message.
+        :param sender: The user sending the message.
         :return: The conversation, the new message, its reply and the run writing
             it.
         """
 
         conversation.save(update_fields=["updated_on"])
-        return self._add_message(conversation, content, uuid=uuid)
+        return self._add_message(conversation, content, uuid=uuid, sender=sender)
 
     def _add_message(
         self,
@@ -1018,6 +1061,7 @@ class AgentHandler:
         content: str,
         role: AgentMessage.Role = AgentMessage.Role.USER,
         uuid: UUID | None = None,
+        sender: AbstractUser | None = None,
         raise_on_run_limit: bool = True,
         failure: str | None = None,
         start_run: bool = True,
@@ -1030,6 +1074,8 @@ class AgentHandler:
         :param content: The content of the message.
         :param role: Who sent the message: a person or a trigger.
         :param uuid: The client's uuid of the message, or None for a new one.
+        :param sender: The person sending the message, whom the reply answers, or
+            None for a trigger.
         :param raise_on_run_limit: Whether a reached reply limit raises, or fails
             the reply with ``chat_run_limit_reached``.
         :param failure: The error code failing the reply instead of running or
@@ -1047,12 +1093,14 @@ class AgentHandler:
             conversation=conversation,
             uuid=uuid or uuid4(),
             role=role,
+            sender=sender,
             content=content,
         )
         reply = AgentMessage.objects.create(
             conversation=conversation,
             uuid=uuid4(),
             role=AgentMessage.Role.ASSISTANT,
+            sender=sender,
             content="",
             status=AgentReplyStatus.RUNNING if start_run else AgentReplyStatus.QUEUED,
         )
@@ -1083,11 +1131,11 @@ class AgentHandler:
         self, conversation: AgentConversation, reply: AgentMessage
     ) -> ChatRun:
         """
-        Start the run writing the reply: as the owner, or with nobody for a shared
-        conversation's unattended reply.
+        Start the run writing the reply: as the person it answers, or with nobody
+        for a trigger's unattended reply.
 
-        :param conversation: The conversation, with its agent and owner.
-        :param reply: The empty reply the run writes.
+        :param conversation: The conversation, with its agent.
+        :param reply: The empty reply the run writes, with its sender.
         :raises ChatRunLimitReached: When a reply limit is reached.
         :return: The run.
         """
@@ -1096,7 +1144,7 @@ class AgentHandler:
             AGENT_RUN_TYPE,
             conversation.id,
             conversation.agent.workspace,
-            conversation.owner_user,
+            reply.sender,
             context={"reply_id": reply.id},
             created_event_data={},
         )
@@ -1164,8 +1212,8 @@ class AgentHandler:
 
     def get_waiting_reply(self, conversation: AgentConversation) -> AgentMessage | None:
         """
-        Return the conversation's latest reply if it waits for the owner to decide
-        its held calls.
+        Return the conversation's latest reply if it waits for decisions on its
+        held calls.
 
         :param conversation: The conversation to look at.
         :return: The waiting reply, with its conversation, or None.
@@ -1178,7 +1226,7 @@ class AgentHandler:
 
     def _pending_approvals(self) -> QuerySet[AgentToolApproval]:
         """
-        :return: The held calls waiting for their conversation owner's decision.
+        :return: The held calls waiting for a decision.
         """
 
         return AgentToolApproval.objects.filter(status=AgentToolApproval.Status.PENDING)
@@ -1237,7 +1285,7 @@ class AgentHandler:
     ) -> dict[int, dict[int, int]]:
         """
         Count the held calls waiting for each user's decision in their untrashed
-        conversations with each Agent.
+        private conversations with each Agent.
 
         :param user_ids: The ids of the users who own the conversations.
         :param agent_ids: The ids of the Agents to count in.
@@ -1250,6 +1298,7 @@ class AgentHandler:
             self._pending_approvals()
             .filter(
                 reply__conversation__owner_user_id__in=user_ids,
+                reply__conversation__shared=False,
                 reply__conversation__agent_id__in=agent_ids,
                 reply__conversation__trashed=False,
             )
@@ -1281,7 +1330,7 @@ class AgentHandler:
         return dict(
             self._pending_approvals()
             .filter(
-                reply__conversation__owner_user__isnull=True,
+                reply__conversation__shared=True,
                 reply__conversation__agent_id__in=agent_ids,
                 reply__conversation__trashed=False,
             )
@@ -1396,7 +1445,7 @@ class AgentHandler:
         """
 
         return AgentConversation.objects.filter(
-            Q(owner_user_id=user.id) | Q(owner_user__isnull=True),
+            self._visible_to(user),
             agent__trashed=False,
             agent__workspace__trashed=False,
             agent__workspace__workspaceuser__user_id=user.id,
@@ -1404,8 +1453,8 @@ class AgentHandler:
 
     def get_reply(self, reply_id: int) -> AgentMessage:
         """
-        Fetch a reply with its conversation, the conversation's owner and trigger,
-        and its agent.
+        Fetch a reply with the person it answers, its conversation, the
+        conversation's trigger and its agent.
 
         :param reply_id: The id of the reply.
         :raises AgentConversationDoesNotExist: When the reply no longer exists or its
@@ -1416,7 +1465,7 @@ class AgentHandler:
         reply = (
             AgentMessage.objects.select_related(
                 "conversation__agent__workspace",
-                "conversation__owner_user",
+                "sender__profile",
                 "conversation__trigger",
             )
             .filter(id=reply_id, conversation__trashed=False)
@@ -1535,13 +1584,13 @@ class AgentHandler:
             allowed_tool_names=tools["allowed_tools"],
             ask_first_tool_names=tools["ask_first_tools"],
             action_tools=action_tools,
-            timezone=self._get_reply_timezone(conversation),
-            conversation_user=self._get_conversation_user(conversation),
+            timezone=self._get_reply_timezone(reply),
+            conversation_user=self._get_conversation_user(reply),
             mcp_servers=mcp_servers,
             reasoning_effort=agent.reasoning_effort,
             web_search_tool=web_search_tool,
             web_search_enabled=agent.web_search_enabled,
-            started_by_trigger=conversation.is_shared,
+            started_by_trigger=conversation.started_by_trigger,
             web_fetch_enabled=web_fetch_enabled,
         )
 
@@ -1605,16 +1654,17 @@ class AgentHandler:
             )
         return tuple(snapshots)
 
-    def _get_reply_timezone(self, conversation: AgentConversation) -> str:
+    def _get_reply_timezone(self, reply: AgentMessage) -> str:
         """
-        :param conversation: The conversation the reply is written in.
-        :return: The timezone the reply's tools read dates in: the owner's, or for
-            a shared conversation its trigger's, so "today" means the day the
-            builder scheduled it for.
+        :param reply: The reply being written, with its sender.
+        :return: The timezone the reply's tools read dates in: its sender's, or for
+            a trigger's reply the trigger's, so "today" means the day the builder
+            scheduled it for.
         """
 
-        if not conversation.is_shared:
-            return conversation.owner_user.profile.timezone
+        conversation = reply.conversation
+        if not conversation.started_by_trigger:
+            return reply.sender.profile.timezone
         return trigger_timezone_name(conversation.trigger.service.specific)
 
     def _get_unavailable_tool_messages(
@@ -1645,19 +1695,21 @@ class AgentHandler:
         ]
 
     def _get_conversation_user(
-        self, conversation: AgentConversation
+        self, reply: AgentMessage
     ) -> AgentConversationUser | None:
         """
-        :param conversation: The conversation the reply is written in.
-        :return: The person it is with, named on one short line as the name ends
-            up in the instructions, or None when a trigger started it.
+        :param reply: The reply being written, with its sender.
+        :return: The person it answers, named on one short line as the name ends
+            up in the instructions, or None when a trigger started the conversation.
         """
 
-        if conversation.is_shared:
+        if reply.conversation.started_by_trigger:
             return None
-        owner = conversation.owner_user
-        name = " ".join(owner.first_name.split())
-        return AgentConversationUser(owner.id, name[:CONVERSATION_USER_NAME_MAX_LENGTH])
+        sender = reply.sender
+        name = " ".join(sender.first_name.split())
+        return AgentConversationUser(
+            sender.id, name[:CONVERSATION_USER_NAME_MAX_LENGTH]
+        )
 
     def _get_paused_transcript(
         self, reply: AgentMessage
@@ -2030,12 +2082,15 @@ class AgentHandler:
                 "title": conversation.title,
                 "pinned": conversation.pinned,
                 "owner_user_id": conversation.owner_user_id,
+                "shared": conversation.shared,
+                "started_by_trigger": conversation.started_by_trigger,
                 "trigger_id": conversation.trigger_id,
                 "created_on": conversation.created_on.isoformat(),
                 "updated_on": conversation.updated_on.isoformat(),
                 "messages": [
                     {
                         "role": message.role,
+                        "sender_id": message.sender_id,
                         "content": message.content,
                         "status": message.status,
                         "error_code": message.error_code,
@@ -2063,10 +2118,10 @@ class AgentHandler:
     ) -> None:
         """
         Copy conversations with their messages into the agent with new uuids.
-        Conversations of deleted owners are skipped, shared ones are always kept,
-        and a reply still being written or waiting for approvals is ended as
-        interrupted. A conversation whose trigger wasn't copied loses the link,
-        as it does when the trigger is deleted.
+        Private conversations of deleted owners are skipped, shared ones are always
+        kept without the users deleted since, and a reply still being written or
+        waiting for approvals is ended as interrupted. A conversation whose trigger
+        wasn't copied loses the link, as it does when the trigger is deleted.
 
         :param agent: The agent to copy the conversations into.
         :param serialized_conversations: The conversations from export_conversations.
@@ -2074,22 +2129,28 @@ class AgentHandler:
             the agent's triggers were imported under.
         """
 
-        existing_owner_ids = set(
-            get_user_model()
-            .objects.filter(
-                id__in=[
-                    data["owner_user_id"]
-                    for data in serialized_conversations
-                    if data["owner_user_id"] is not None
-                ]
+        referenced_user_ids = {
+            user_id
+            for data in serialized_conversations
+            for user_id in (
+                data["owner_user_id"],
+                *(message["sender_id"] for message in data["messages"]),
             )
+            if user_id is not None
+        }
+        existing_user_ids = set(
+            get_user_model()
+            .objects.filter(id__in=referenced_user_ids)
             .values_list("id", flat=True)
         )
+
+        def existing(user_id: int | None) -> int | None:
+            return user_id if user_id in existing_user_ids else None
+
         retained_data = [
             data
             for data in serialized_conversations
-            if data["owner_user_id"] is None
-            or data["owner_user_id"] in existing_owner_ids
+            if data["shared"] or data["owner_user_id"] in existing_user_ids
         ]
         trigger_ids = id_mapping.get("agent_triggers", {})
         conversations = [
@@ -2098,7 +2159,9 @@ class AgentHandler:
                 uuid=uuid4(),
                 title=data["title"],
                 pinned=data.get("pinned", False),
-                owner_user_id=data["owner_user_id"],
+                owner_user_id=existing(data["owner_user_id"]),
+                shared=data["shared"],
+                started_by_trigger=data["started_by_trigger"],
                 trigger_id=trigger_ids.get(data.get("trigger_id")),
             )
             for data in retained_data
@@ -2125,6 +2188,7 @@ class AgentHandler:
                         conversation=conversation,
                         uuid=uuid4(),
                         role=serialized_message["role"],
+                        sender_id=existing(serialized_message["sender_id"]),
                         content=serialized_message["content"],
                         status=status,
                         error_code=error_code,

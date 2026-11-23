@@ -271,6 +271,48 @@ class UpdateAgentConversationActionType(UndoableActionType):
         )
 
 
+class ShareAgentConversationActionType(ActionType):
+    type = "share_agent_conversation"
+    description = ActionTypeDescription(
+        _("Share agent conversation"),
+        _("Conversation (%(conversation_id)s) shared in agent (%(agent_id)s)."),
+    )
+    analytics_params = ["agent_id", "conversation_id"]
+
+    @dataclass
+    class Params:
+        agent_id: int
+        conversation_id: int
+
+    @classmethod
+    @transaction.atomic
+    def do(
+        cls, user: AbstractUser, agent_id: int, conversation_uuid: UUID
+    ) -> AgentConversation:
+        """
+        Share a private conversation. It can't be undone.
+
+        :param user: The user sharing the conversation.
+        :param agent_id: The id of the agent.
+        :param conversation_uuid: The uuid of the conversation.
+        :return: The shared conversation.
+        """
+
+        updated = AgentService().share_conversation(user, agent_id, conversation_uuid)
+        if updated.new_values:
+            cls.register_action(
+                user,
+                cls.Params(agent_id, updated.conversation.id),
+                cls.scope(agent_id),
+                updated.conversation.agent.workspace,
+            )
+        return updated.conversation
+
+    @classmethod
+    def scope(cls, agent_id: int) -> ActionScopeStr:
+        return ApplicationActionScopeType.value(agent_id)
+
+
 class DeleteAgentConversationActionType(UndoableActionType):
     type = "delete_agent_conversation"
     description = ActionTypeDescription(
