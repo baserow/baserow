@@ -216,11 +216,7 @@ class ApplicationsView(APIView):
         responses={
             200: PolymorphicApplicationResponseSerializer,
             400: get_error_schema(
-                [
-                    "ERROR_USER_NOT_IN_GROUP",
-                    "ERROR_REQUEST_BODY_VALIDATION",
-                    "ERROR_APPLICATION_OPERATION_NOT_SUPPORTED",
-                ]
+                ["ERROR_USER_NOT_IN_GROUP", "ERROR_REQUEST_BODY_VALIDATION"]
             ),
             404: get_error_schema(["ERROR_GROUP_DOES_NOT_EXIST"]),
         },
@@ -231,7 +227,6 @@ class ApplicationsView(APIView):
             WorkspaceDoesNotExist: ERROR_GROUP_DOES_NOT_EXIST,
             UserNotInWorkspace: ERROR_USER_NOT_IN_GROUP,
             ApplicationTypeDoesNotExist: ERROR_APPLICATION_TYPE_DOES_NOT_EXIST,
-            ApplicationOperationNotSupported: ERROR_APPLICATION_OPERATION_NOT_SUPPORTED,
         }
     )
     @validate_body(PolymorphicApplicationCreateSerializer)

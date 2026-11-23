@@ -3,6 +3,10 @@ from django.shortcuts import reverse
 import pytest
 from rest_framework.status import HTTP_200_OK, HTTP_400_BAD_REQUEST
 
+from baserow.api.applications.serializers import (
+    BaseApplicationCreatePolymorphicSerializer,
+    get_user_managed_application_types,
+)
 from baserow.core.application_types import SharedApplicationType
 from baserow.core.models import Application, DuplicateApplicationJob
 
@@ -37,9 +41,43 @@ def test_create_shared_application(api_client, data_fixture):
         HTTP_AUTHORIZATION=f"JWT {token}",
     )
 
+    # Refused as an invalid type, like the API documentation says.
     assert response.status_code == HTTP_400_BAD_REQUEST
-    assert response.json()["error"] == "ERROR_APPLICATION_OPERATION_NOT_SUPPORTED"
+    assert response.json()["error"] == "ERROR_REQUEST_BODY_VALIDATION"
+    assert response.json()["detail"]["type"][0]["code"] == "invalid_choice"
     assert not Application.objects.filter(workspace=workspace).exists()
+
+
+def test_the_shared_type_cannot_be_chosen_when_creating_an_application():
+    choices = BaseApplicationCreatePolymorphicSerializer().fields["type"].choices
+
+    assert SharedApplicationType.type not in choices
+    assert "database" in choices
+
+
+@pytest.mark.django_db
+def test_the_api_documentation_offers_no_shared_application_to_create_or_update(
+    api_client,
+):
+    schema = api_client.get(reverse("api:json_schema")).json()
+    components = schema["components"]["schemas"]
+
+    def request_variants(path, method):
+        body = schema["paths"][path][method]["requestBody"]["content"]
+        ref = body["application/json"]["schema"]["$ref"].split("/")[-1]
+        return [
+            sub["$ref"].split("/")[-1]
+            for sub in components[ref].get("anyOf", components[ref].get("oneOf", []))
+        ]
+
+    create = request_variants("/api/applications/workspace/{workspace_id}/", "post")
+    update = request_variants("/api/applications/{application_id}/", "patch")
+
+    user_managed = len(get_user_managed_application_types())
+    for variants in (create, update):
+        assert len(variants) == user_managed
+        assert any(name.startswith("Database") for name in variants)
+        assert not any("SharedApplication" in name for name in variants)
 
 
 @pytest.mark.django_db

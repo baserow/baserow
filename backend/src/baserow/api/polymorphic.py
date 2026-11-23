@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Any, Dict
+from typing import TYPE_CHECKING, Any, Dict, Iterable
 
 from rest_framework import serializers
 from rest_framework.fields import empty
@@ -305,3 +305,16 @@ class PolymorphicRequestSerializer(BasePolymorphicSerializer):
     """
 
     request = True
+
+    @classmethod
+    def get_request_types(cls) -> Iterable["Instance"]:
+        """
+        Returns the types a request can use, which the API documentation lists. A
+        serializer whose requests can't use some types of its registry overrides it,
+        and refuses those types when it validates. A class method, as the
+        documentation may only have the class.
+
+        :return: Every type of the registry, by default.
+        """
+
+        return cls.registry.get_all()

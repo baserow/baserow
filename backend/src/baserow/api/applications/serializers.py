@@ -108,9 +108,32 @@ class PublicPolymorphicApplicationResponseSerializer(
     extra_params = {"public": True}
 
 
+def get_user_managed_application_types():
+    """
+    Returns the application types that people create and change through the API:
+    every type but those Baserow keeps for a workspace, like the shared application
+    that owns the workspace integrations.
+
+    :return: The application types.
+    """
+
+    return [
+        application_type
+        for application_type in application_type_registry.get_all()
+        if application_type.is_user_managed
+    ]
+
+
 class BaseApplicationCreatePolymorphicSerializer(serializers.ModelSerializer):
+    # Lazy, so the types registered after this module is imported are included.
     type = serializers.ChoiceField(
-        choices=lazy(application_type_registry.get_types, list)()
+        choices=lazy(
+            lambda: [
+                application_type.type
+                for application_type in get_user_managed_application_types()
+            ],
+            list,
+        )()
     )
     init_with_data = serializers.BooleanField(default=False)
 
@@ -123,6 +146,10 @@ class PolymorphicApplicationCreateSerializer(PolymorphicRequestSerializer):
     base_class = BaseApplicationCreatePolymorphicSerializer
     registry = application_type_registry
 
+    @classmethod
+    def get_request_types(cls):
+        return get_user_managed_application_types()
+
 
 class BaseApplicationUpdatePolymorphicSerializer(serializers.ModelSerializer):
     class Meta:
@@ -133,6 +160,12 @@ class BaseApplicationUpdatePolymorphicSerializer(serializers.ModelSerializer):
 class PolymorphicApplicationUpdateSerializer(PolymorphicRequestSerializer):
     base_class = BaseApplicationUpdatePolymorphicSerializer
     registry = application_type_registry
+
+    # Changing an application Baserow keeps for a workspace is refused, see
+    # `ApplicationType.is_user_managed`.
+    @classmethod
+    def get_request_types(cls):
+        return get_user_managed_application_types()
 
 
 class OrderApplicationsSerializer(serializers.Serializer):
