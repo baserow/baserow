@@ -163,6 +163,7 @@ export default {
       required: true,
     },
   },
+  emits: ['expand'],
   setup() {
     const sidebarId = useId()
     const collapsedGroups = useState(
@@ -227,7 +228,26 @@ export default {
       )
     },
   },
+  mounted() {
+    this.$bus.$on('reveal-sidebar-application', this.revealApplication)
+  },
+  beforeUnmount() {
+    this.$bus.$off('reveal-sidebar-application', this.revealApplication)
+  },
   methods: {
+    revealApplication(application) {
+      if (application.workspace.id !== this.selectedWorkspace.id) {
+        return
+      }
+      this.$emit('expand')
+      this.collapsedGroups[`${this.selectedWorkspace.id}:${application.type}`] =
+        false
+      this.$store.commit('application/SET_SIDEBAR_EXPANDED', {
+        id: application.id,
+        workspaceId: this.selectedWorkspace.id,
+        expanded: true,
+      })
+    },
     toggleApplicationGroup(key) {
       this.collapsedGroups[key] = !this.collapsedGroups[key]
     },

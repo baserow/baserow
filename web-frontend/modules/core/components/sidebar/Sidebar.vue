@@ -163,6 +163,7 @@
         v-if="hasSelectedWorkspace"
         :applications="applications"
         :selected-workspace="selectedWorkspace"
+        @expand="collapsed && $emit('set-col1-width', 240)"
       ></SidebarWithWorkspace>
 
       <SidebarWithoutWorkspace

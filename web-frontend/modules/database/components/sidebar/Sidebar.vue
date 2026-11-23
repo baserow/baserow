@@ -37,7 +37,7 @@
           )
         "
         class="tree__sub-add"
-        data-highlight="create-table"
+        :data-highlight="`create-table-${application.id}`"
         @click="$refs.createTableModal.show()"
       >
         <i class="tree__sub-add-icon iconoir-plus"></i>
