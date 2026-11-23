@@ -15,6 +15,7 @@ import {
   getTabId,
   storeOnboardingRunId,
 } from '@baserow_enterprise/utils/assistantTabStorage'
+import { isStopping } from '@baserow_enterprise/utils/assistant'
 
 export const ASSISTANT_RUN_TYPE = 'assistant'
 const NAVIGATION = 'navigation'
@@ -150,9 +151,7 @@ export class AssistantChatRunType extends ChatRunType {
       case NAVIGATION:
         if (
           live &&
-          !follower.stopRequested &&
-          !follower.view.cancelRequested &&
-          !(chat?.chatId === chatId && chat.cancelling) &&
+          !isStopping(follower, chat?.chatId === chatId ? chat : null) &&
           event.data.origin_tab_id === getTabId() &&
           store.getters['assistant/isPanelOpen']
         ) {
@@ -193,11 +192,7 @@ export class AssistantChatRunType extends ChatRunType {
   }
 
   openOnboardingTable(follower) {
-    if (
-      follower.stopRequested ||
-      follower.view.cancelRequested ||
-      follower.view.status === RUN_STATUS.CANCELLED
-    ) {
+    if (isStopping(follower) || follower.view.status === RUN_STATUS.CANCELLED) {
       storeOnboardingRunId(null)
       return
     }
