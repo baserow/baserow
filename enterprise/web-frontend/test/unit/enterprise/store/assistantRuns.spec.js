@@ -564,7 +564,7 @@ describe('Kuma durable streamed send and resume', () => {
     await flushPromises()
     await store.dispatch('assistant/cancelMessage')
     fail(refused(429, 'ERROR_CHAT_RUN_LIMIT'))
-    expect(await first).toBe(SEND_OUTCOME.FAILED)
+    expect(await first).toBe(SEND_OUTCOME.LIMIT_REACHED)
 
     const next = store.dispatch('assistant/startRun', {
       message: 'Try again',
