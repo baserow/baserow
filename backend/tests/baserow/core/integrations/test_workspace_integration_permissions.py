@@ -255,9 +255,13 @@ def test_members_still_manage_the_integrations_of_an_application(data_fixture):
 
 
 @pytest.mark.django_db
-def test_the_workspace_integrations_of_a_template_can_be_listed(data_fixture):
+def test_the_workspace_integrations_of_a_template_cannot_be_listed(data_fixture):
     workspace = data_fixture.create_workspace()
     data_fixture.create_template(workspace=workspace)
+    builder = data_fixture.create_builder_application(workspace=workspace)
+    builder_integration = data_fixture.create_local_baserow_integration(
+        application=builder
+    )
     shared_application = data_fixture.create_shared_application(workspace=workspace)
     integration = data_fixture.create_local_baserow_integration(
         application=shared_application
@@ -265,8 +269,14 @@ def test_the_workspace_integrations_of_a_template_can_be_listed(data_fixture):
     outsider = data_fixture.create_user()
 
     for user in [outsider, AnonymousUser()]:
-        integrations = IntegrationService().get_integrations(user, shared_application)
-        assert [i.id for i in integrations] == [integration.id]
+        # The preview of a template lists the integrations of its applications.
+        # A template carries copies of the workspace integrations it uses, so
+        # nothing reads those of its workspace.
+        integrations = IntegrationService().get_integrations(user, builder)
+        assert [i.id for i in integrations] == [builder_integration.id]
+
+        with pytest.raises(PermissionException):
+            IntegrationService().get_integrations(user, shared_application)
 
         with pytest.raises(PermissionException):
             IntegrationService().update_integration(
