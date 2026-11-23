@@ -141,6 +141,20 @@ class StreamingAPIClient(APIClient):
         return response
 
 
+@pytest.fixture
+def sentry_events(settings):
+    """
+    Enables Sentry and collects the events it would send, see
+    `collect_sentry_events`.
+    """
+
+    from baserow.test_utils.sentry import TEST_SENTRY_DSN, collect_sentry_events
+
+    settings.SENTRY_DSN = TEST_SENTRY_DSN
+    with collect_sentry_events() as events:
+        yield events
+
+
 @pytest.fixture()
 def api_client():
     return StreamingAPIClient()
