@@ -3,7 +3,7 @@ from django.db import migrations, models
 
 class Migration(migrations.Migration):
     dependencies = [
-        ("core", "0141_ai_provider_excluded_workspaces"),
+        ("core", "0143_service_sample_data_table_ids"),
     ]
 
     operations = [
