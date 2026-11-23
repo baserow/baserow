@@ -106,7 +106,9 @@ class IntegrationHandler:
         is returned too, so the copy reconnects when it's restored.
 
         :param integration_id: The exported integration ID, if any.
-        :param id_mapping: The import ID mapping.
+        :param id_mapping: The import ID mapping. The copies made for the
+            application the service is imported into are looked up first, see
+            `import_integration`.
         :param application_id: The application the service is imported into. When
             given, an integration the application can't use is dropped, see
             `check_integration_usable`.
@@ -126,18 +128,24 @@ class IntegrationHandler:
             import_export_config is not None
             and import_export_config.keeps_unmapped_references
         )
-        try:
-            # A `defaultdict` mapping answers with its default, like the
-            # `MirrorDict` a copy within an application uses.
-            integrations = id_mapping["integrations"]
-        except KeyError:
-            # Nothing was imported into the mapping when the source application
-            # has no integrations of its own, as when its services only use
-            # workspace integrations.
-            integrations = {}
-        integration_id = integrations.get(
-            integration_id, integration_id if keep_unmapped else None
-        )
+        copies_of_the_application = (
+            id_mapping.get("integrations_by_application") or {}
+        ).get(application_id, {})
+        if integration_id in copies_of_the_application:
+            integration_id = copies_of_the_application[integration_id]
+        else:
+            try:
+                # A `defaultdict` mapping answers with its default, like the
+                # `MirrorDict` a copy within an application uses.
+                integrations = id_mapping["integrations"]
+            except KeyError:
+                # Nothing was imported into the mapping when the source
+                # application has no integrations of its own, as when its
+                # services only use workspace integrations.
+                integrations = {}
+            integration_id = integrations.get(
+                integration_id, integration_id if keep_unmapped else None
+            )
         if integration_id is None:
             return None
 
@@ -767,5 +775,13 @@ class IntegrationHandler:
         )
 
         id_mapping["integrations"][serialized_integration["id"]] = integration.id
+        # Each application of an import that uses a workspace integration carries
+        # a copy of it under the same ID, so the mapping above keeps only the last
+        # copy. Every application's own copies are kept apart too, for the services
+        # imported after the next application's integrations, like the actions of
+        # database buttons. See `get_integration_for_import`.
+        id_mapping.setdefault("integrations_by_application", {}).setdefault(
+            application.id, {}
+        )[serialized_integration["id"]] = integration.id
 
         return integration

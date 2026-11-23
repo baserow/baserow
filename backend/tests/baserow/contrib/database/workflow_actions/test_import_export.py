@@ -2,6 +2,8 @@ from io import BytesIO
 
 import pytest
 
+from baserow.contrib.automation.nodes.handler import AutomationNodeHandler
+from baserow.contrib.automation.workflows.models import AutomationWorkflow
 from baserow.contrib.database.fields.actions import UpdateFieldActionType
 from baserow.contrib.database.fields.field_types import ButtonFieldType
 from baserow.contrib.database.fields.handler import FieldHandler
@@ -1573,16 +1575,22 @@ def test_restoring_a_converted_button_keeps_its_action_target(data_fixture):
     ], "The kept target table's fields have to come back with it."
 
 
-def _button_that_sends_through_the_workspace_smtp(data_fixture, table, name_field):
-    """A button whose email goes through an SMTP integration of the workspace."""
+def _button_that_sends_through_the_workspace_smtp(
+    data_fixture, table, name_field, smtp=None
+):
+    """
+    A button whose email goes through an SMTP integration of the workspace, a new
+    one unless `smtp` is given.
+    """
 
-    smtp = data_fixture.create_smtp_integration(
-        application=data_fixture.create_shared_application(
-            workspace=table.database.workspace
-        ),
-        host="mail.example.org",
-        password="pw",  # nosec
-    )
+    if smtp is None:
+        smtp = data_fixture.create_smtp_integration(
+            application=data_fixture.create_shared_application(
+                workspace=table.database.workspace
+            ),
+            host="mail.example.org",
+            password="pw",  # nosec
+        )
     button_field = data_fixture.create_button_field(table=table, name="btn")
     service = data_fixture.create_core_smtp_email_service(
         integration=smtp,
@@ -1672,3 +1680,85 @@ def test_a_workspace_export_copies_a_workspace_integration_without_its_secrets(
     assert copy.id != smtp.id
     assert copy.specific.host == ""
     assert _smtp_integration_id(imported, "T") == copy.id
+
+
+@pytest.mark.django_db(transaction=True)
+def test_databases_that_share_a_workspace_integration_each_keep_their_copy(
+    data_fixture,
+):
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    smtp = None
+    for name in ["First", "Second"]:
+        database = data_fixture.create_database_application(
+            workspace=workspace, name=name
+        )
+        table = data_fixture.create_database_table(database=database, name="T")
+        name_field = data_fixture.create_text_field(table=table, name="Name")
+        _, smtp = _button_that_sends_through_the_workspace_smtp(
+            data_fixture, table, name_field, smtp=smtp
+        )
+    config = ImportExportConfig(include_permission_data=False)
+    core_handler = CoreHandler()
+
+    exported = core_handler.export_workspace_applications(workspace, BytesIO(), config)
+    imported, _ = core_handler.import_applications_to_workspace(
+        data_fixture.create_workspace(user=user), exported, BytesIO(), config, None
+    )
+
+    # The actions are imported once every database is, and still use the copy
+    # of their own database, not the one imported last.
+    assert len(imported) == 2
+    for database in imported:
+        (copy,) = database.integrations.all()
+        assert _smtp_integration_id(database, "T") == copy.id
+
+
+@pytest.mark.django_db(transaction=True)
+def test_a_database_keeps_its_copy_of_a_workspace_integration_a_workflow_shares(
+    data_fixture,
+):
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    database = data_fixture.create_database_application(workspace=workspace)
+    table = data_fixture.create_database_table(database=database, name="T")
+    name_field = data_fixture.create_text_field(table=table, name="Name")
+    _, smtp = _button_that_sends_through_the_workspace_smtp(
+        data_fixture, table, name_field
+    )
+    workflow = data_fixture.create_automation_workflow(
+        automation=data_fixture.create_automation_application(workspace=workspace)
+    )
+    data_fixture.create_automation_node(
+        workflow=workflow,
+        type="smtp_email",
+        reference_node_id=workflow.get_trigger().id,
+        service_kwargs={"integration": smtp},
+    )
+    config = ImportExportConfig(include_permission_data=False)
+    core_handler = CoreHandler()
+
+    exported = core_handler.export_workspace_applications(workspace, BytesIO(), config)
+    imported, _ = core_handler.import_applications_to_workspace(
+        data_fixture.create_workspace(user=user), exported, BytesIO(), config, None
+    )
+
+    # The database is imported first, and its actions only once the workflow's
+    # copy is imported too.
+    imported_by_type = {
+        application.get_type().type: application for application in imported
+    }
+    database_copy = imported_by_type["database"].integrations.get()
+    assert _smtp_integration_id(imported_by_type["database"], "T") == database_copy.id
+    (node,) = [
+        node
+        for node in AutomationNodeHandler().get_nodes(
+            workflow=AutomationWorkflow.objects.get(
+                automation_id=imported_by_type["automation"].id
+            )
+        )
+        if node.get_type().type == "smtp_email"
+    ]
+    automation_copy = node.service.integration
+    assert automation_copy.application_id == imported_by_type["automation"].id
+    assert automation_copy.id not in (smtp.id, database_copy.id)
