@@ -26,12 +26,14 @@ def delete_orphaned_user_template_workspaces(self):
     Permanently removes the user templates deleted longer than the grace period
     ago, and then deletes the workspaces and archives left behind by create user
     template jobs that didn't create their template, or by removed templates whose
-    content couldn't be deleted right away.
+    content couldn't be deleted right away, and the files of templates removed
+    before their files were deleted with them.
     """
 
     handler = UserTemplateHandler()
     handler.delete_marked_templates()
     handler.delete_content_of_unfinished_jobs()
+    handler.delete_files_of_removed_templates()
 
 
 # noinspection PyUnusedLocal

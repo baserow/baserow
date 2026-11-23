@@ -41,6 +41,7 @@ from baserow.core.jobs.models import JobQuerySet
 from baserow.core.jobs.registries import JobType
 from baserow.core.user.exceptions import UserNotFound
 from baserow.core.user.handler import UserHandler
+from baserow.core.user_files.handler import delete_new_files_on_error
 from baserow.core.user_templates.actions import (
     CreateUserTemplateActionType,
     UpdateUserTemplateActionType,
@@ -252,7 +253,7 @@ class CreateUserTemplateJobType(JobType):
         The export needs its own `repeatable_read` transaction per application and
         the import creates one per application, so the job runs without an outer
         transaction. Whatever was created is removed by `on_error` and
-        `on_cancelled` instead of a rollback.
+        `on_cancelled`, or by the sweep, instead of a rollback.
         """
 
         return nullcontext()
@@ -397,21 +398,24 @@ class CreateUserTemplateJobType(JobType):
             "before_commit": partial(self._save_template, job),
         }
         try:
-            if not is_update:
-                template = action_type_registry.get_by_type(
-                    CreateUserTemplateActionType
-                ).do(job.user, job.source_workspace, job.application_ids, **kwargs)
-            else:
-                template = action_type_registry.get_by_type(
-                    UpdateUserTemplateActionType
-                ).do(
-                    job.user,
-                    job.template,
-                    job.base_revision,
-                    job.source_workspace if copies_from_workspace else None,
-                    job.application_ids,
-                    **kwargs,
-                )
+            with delete_new_files_on_error(
+                on_failure=partial(self._leave_content_to_sweep, job)
+            ):
+                if not is_update:
+                    template = action_type_registry.get_by_type(
+                        CreateUserTemplateActionType
+                    ).do(job.user, job.source_workspace, job.application_ids, **kwargs)
+                else:
+                    template = action_type_registry.get_by_type(
+                        UpdateUserTemplateActionType
+                    ).do(
+                        job.user,
+                        job.template,
+                        job.base_revision,
+                        job.source_workspace if copies_from_workspace else None,
+                        job.application_ids,
+                        **kwargs,
+                    )
             if job.make_public:
                 # After the revision is committed, so that only the new revision is
                 # listed, and the template stays private when making it public
@@ -435,10 +439,10 @@ class CreateUserTemplateJobType(JobType):
                 # the failed job is saved without.
                 job.refresh_from_db(fields=["template", "revision", "base_revision"])
             except CreateUserTemplateJob.DoesNotExist:
-                self._delete_content_of_deleted_job(job)
+                self._track_content_of_deleted_job(job)
             raise
 
-    def _delete_content_of_deleted_job(self, job: CreateUserTemplateJob) -> None:
+    def _track_content_of_deleted_job(self, job: CreateUserTemplateJob) -> None:
         """
         A job deleted while it runs, with its user, can't be saved as failed, so
         `on_error` doesn't run, and its deletion only saw what it tracked by then.
@@ -446,12 +450,12 @@ class CreateUserTemplateJobType(JobType):
         """
 
         try:
-            UserTemplateHandler().delete_content_of_deleted_job(
+            UserTemplateHandler().track_content_of_deleted_job(
                 job.template_workspace_id, job.archive_name
             )
         except Exception:
             logger.exception(
-                f"Deleting the content of deleted create user template job {job.id} "
+                f"Tracking the content of deleted create user template job {job.id} "
                 "failed."
             )
 
@@ -486,20 +490,31 @@ class CreateUserTemplateJobType(JobType):
             setattr(job, field_name, value)
         job.save(update_fields=list(content))
 
+    def _leave_content_to_sweep(self, job: CreateUserTemplateJob) -> None:
+        job.content_left_to_sweep = True
+
+    def _delete_content(self, job: CreateUserTemplateJob) -> None:
+        """
+        Deletes the content the job copied. When the new files of the failed copy
+        couldn't be deleted, the content is left to the sweep of unfinished jobs,
+        which finds the files without a row through the template workspace.
+        """
+
+        if not getattr(job, "content_left_to_sweep", False):
+            UserTemplateHandler().delete_content_without_template(
+                job.template_workspace_id, job.archive_name
+            )
+
     def on_error(self, job: CreateUserTemplateJob, error: Exception):
         # A revision that was committed is kept with its action, like a
         # cancellation is refused after the commit.
-        UserTemplateHandler().delete_content_without_template(
-            job.template_workspace_id, job.archive_name
-        )
+        self._delete_content(job)
 
     def on_cancelled(self, job: CreateUserTemplateJob):
         # The revision was rolled back, see `lock_on_cancel`. Whatever can't be
         # deleted here is left to the sweep of unfinished jobs.
         try:
-            UserTemplateHandler().delete_content_without_template(
-                job.template_workspace_id, job.archive_name
-            )
+            self._delete_content(job)
         except Exception:
             logger.exception(
                 f"Deleting the content of create user template job {job.id} failed."

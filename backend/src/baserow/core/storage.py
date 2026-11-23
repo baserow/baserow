@@ -1,7 +1,11 @@
+import os
+import posixpath
 from io import BytesIO
-from typing import BinaryIO
+from typing import BinaryIO, Collection, Iterator
 
-from django.core.files.storage import Storage, default_storage
+from django.core.files.storage import FileSystemStorage, Storage, default_storage
+
+from loguru import logger
 
 # This import is necessary to handle the creation of zip files in a standardized way
 # across the application. The ZipStream library is used to manage zip file streams
@@ -53,3 +57,64 @@ def _create_storage_dir_if_missing_and_open(storage_location, storage=None) -> B
         # and then open again.
         storage.save(storage_location, BytesIO())
         return storage.open(storage_location, "wb")
+
+
+def iter_storage_names_with_prefixes(
+    storage: Storage, folder: str, name_prefixes: Collection[str]
+) -> Iterator[str]:
+    """
+    Yields the names of the stored files in the folder whose file name starts with
+    one of the prefixes. Local disk reads the folder once for all the prefixes;
+    cloud storages list each prefix on their side. An unknown storage yields
+    nothing.
+
+    :param storage: The storage to list.
+    :param folder: The folder, e.g. `user_files`.
+    :param name_prefixes: The starts of the file names, e.g. `tpl0000000012`.
+    :return: The names, usable with the storage's other methods.
+    """
+
+    from storages.backends.azure_storage import AzureStorage
+    from storages.backends.gcloud import GoogleCloudStorage
+    from storages.backends.s3 import S3Storage
+
+    name_prefixes = tuple(name_prefixes)
+    if not name_prefixes:
+        return
+    folder = folder.strip("/")
+
+    if isinstance(storage, FileSystemStorage):
+        try:
+            with os.scandir(storage.path(folder)) as entries:
+                for entry in entries:
+                    if entry.name.startswith(name_prefixes) and entry.is_file():
+                        yield posixpath.join(folder, entry.name)
+        except FileNotFoundError:
+            pass
+        return
+
+    if not isinstance(storage, (S3Storage, GoogleCloudStorage, AzureStorage)):
+        logger.warning(
+            f"Listing files by prefix isn't supported by {type(storage).__name__}."
+        )
+        return
+
+    location = storage.location.strip("/")
+    root = f"{location}/" if location else ""
+    for name_prefix in name_prefixes:
+        prefix = f"{root}{folder}/{name_prefix}"
+        if isinstance(storage, S3Storage):
+            paginator = storage.connection.meta.client.get_paginator("list_objects_v2")
+            pages = paginator.paginate(Bucket=storage.bucket_name, Prefix=prefix)
+            keys = (
+                entry["Key"] for page in pages for entry in page.get("Contents", ())
+            )
+        elif isinstance(storage, GoogleCloudStorage):
+            keys = (blob.name for blob in storage.bucket.list_blobs(prefix=prefix))
+        else:
+            keys = (
+                blob.name for blob in storage.client.list_blobs(name_starts_with=prefix)
+            )
+
+        for key in keys:
+            yield key[len(root) :]

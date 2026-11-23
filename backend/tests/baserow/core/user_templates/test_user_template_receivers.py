@@ -203,10 +203,10 @@ def test_deleting_a_user_while_their_template_is_updated(data_fixture, state):
     user.delete()
 
     assert not CreateUserTemplateJob.objects.filter(id=job.id).exists()
-    assert not Workspace.objects_and_trash.filter(id=job_workspace.id).exists()
-    assert not get_default_storage().exists(job_archive)
     assert Template.objects.get(id=template.id).marked_for_deletion_at is not None
 
     purge_after_the_grace_period()
 
+    assert not Workspace.objects_and_trash.filter(id=job_workspace.id).exists()
+    assert not get_default_storage().exists(job_archive)
     assert_template_and_content_removed(template, workspace, archive)

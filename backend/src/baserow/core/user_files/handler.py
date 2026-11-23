@@ -8,7 +8,7 @@ from contextlib import contextmanager
 from contextvars import ContextVar
 from io import BytesIO
 from os.path import join
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple
+from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Tuple
 from urllib.parse import urlparse
 from zipfile import ZipFile
 
@@ -16,6 +16,7 @@ from django.conf import settings
 from django.core.files.storage import Storage
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.db.models import QuerySet
+from django.utils import timezone
 from django.utils.http import parse_header_parameters
 
 from celery.exceptions import SoftTimeLimitExceeded
@@ -55,6 +56,7 @@ _new_stored_files: ContextVar[Optional[List[Tuple[str, Storage]]]] = ContextVar(
     "new_stored_files", default=None
 )
 
+TEMPLATE_FILE_DELETION_BATCH_SIZE = 100
 MIME_TYPE_UNKNOWN = "application/octet-stream"
 ACTIVE_CONTENT_EXTENSIONS = {"html", "htm", "xhtml", "xml", "svg", "svgz"}
 ACTIVE_CONTENT_MIME_TYPES = {
@@ -568,6 +570,19 @@ class UserFileHandler:
         zip_names.add(zip_name)
         return True
 
+    def user_file_storage_paths(self, user_file_name: str | UserFile) -> List[str]:
+        """
+        Returns the storage paths of a user file and of its thumbnails.
+
+        :param user_file_name: The user file or its name, or the start of names.
+        :return: The paths, the original first.
+        """
+
+        return [self.user_file_path(user_file_name)] + [
+            self.user_file_thumbnail_path(user_file_name, thumbnail_name)
+            for thumbnail_name in settings.USER_THUMBNAILS
+        ]
+
     def delete_user_file_from_storage(
         self, user_file_name: str | UserFile, storage: Storage
     ) -> List[str]:
@@ -579,16 +594,38 @@ class UserFileHandler:
         :return: The paths that existed and were deleted.
         """
 
-        paths = [self.user_file_path(user_file_name)] + [
-            self.user_file_thumbnail_path(user_file_name, thumbnail_name)
-            for thumbnail_name in settings.USER_THUMBNAILS
-        ]
         deleted_paths = []
-        for path in paths:
+        for path in self.user_file_storage_paths(user_file_name):
             if storage.exists(path):
                 storage.delete(path)
                 deleted_paths.append(path)
         return deleted_paths
+
+    def delete_template_files(
+        self, workspace_id: int, storage: Optional[Storage] = None
+    ) -> None:
+        """
+        Deletes the stored files of a user template workspace and their
+        thumbnails, and marks their rows deleted. The rows of a batch are marked
+        once its files are gone, so a deletion cut off by an error goes on from
+        where it stopped when it runs again.
+
+        :param workspace_id: The id of the user template workspace.
+        :param storage: The storage holding the files.
+        """
+
+        storage = storage or get_default_storage()
+        user_files = (
+            UserFile.objects.template_files(workspace_id)
+            .filter(deleted_at__isnull=True)
+            .order_by("id")
+        )
+        while batch := list(user_files[:TEMPLATE_FILE_DELETION_BATCH_SIZE]):
+            for user_file in batch:
+                self.delete_user_file_from_storage(user_file, storage)
+            UserFile.objects.filter(id__in=[f.id for f in batch]).update(
+                deleted_at=timezone.now()
+            )
 
     def export_user_file(
         self,
@@ -650,12 +687,13 @@ class UserFileHandler:
 
 
 @contextmanager
-def delete_new_files_on_error():
+def delete_new_files_on_error(on_failure: Optional[Callable[[], None]] = None):
     """
     Records the user files `upload_user_file` newly stores inside the block. When
     the block raises, deletes those of them no `UserFile` row references, with
-    their thumbnails, and re-raises. Open it outside the transaction the uploads
-    run in, so the rows are rolled back before the check.
+    their thumbnails, and re-raises. When that deletion fails, it's logged and
+    `on_failure` is called. Open it outside the transaction the uploads run in, so
+    the rows are rolled back before the check.
     """
 
     new_stored_files = []
@@ -667,6 +705,8 @@ def delete_new_files_on_error():
             _delete_unreferenced_files(new_stored_files)
         except Exception:
             logger.exception("Could not delete the new files of a failed operation.")
+            if on_failure is not None:
+                on_failure()
         raise
     finally:
         _new_stored_files.reset(token)
