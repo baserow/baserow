@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Fixes the trigger list in a new workflow not scrolling with the mouse wheel",
+    "issue_origin": "github",
+    "issue_number": null,
+    "domain": "automation",
+    "bullet_points": [],
+    "created_at": "2026-11-23"
+}
