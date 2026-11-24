@@ -117,25 +117,6 @@ class AssistantMessageRequestSerializer(serializers.Serializer):
     )
 
 
-class AssistantToolDecisionSerializer(serializers.Serializer):
-    id = serializers.IntegerField(help_text="The id of the held change.")
-    approved = serializers.BooleanField(help_text="Whether the change may be made.")
-    reason = serializers.CharField(
-        required=False,
-        allow_blank=True,
-        max_length=2000,
-        help_text="Why the change is rejected, for Kuma.",
-    )
-
-
-class AssistantDecideApprovalsRequestSerializer(serializers.Serializer):
-    decisions = AssistantToolDecisionSerializer(many=True, min_length=1)
-    ui_context = UIContextSerializer(
-        help_text="What the user is looking at when deciding."
-    )
-    tab_id = serializers.CharField(default="", allow_blank=True, max_length=64)
-
-
 @extend_schema_serializer(deprecate_fields=["status"])
 class AssistantChatSerializer(serializers.ModelSerializer):
     chat_id = serializers.IntegerField(
@@ -201,15 +182,6 @@ class AiMessageSerializer(serializers.Serializer):
         allow_null=True,
         choices=["LIKE", "DISLIKE"],
         help_text="The sentiment for the message, if it has been rated.",
-    )
-    approvals = serializers.ListField(
-        child=serializers.DictField(),
-        required=False,
-        default=list,
-        help_text=(
-            "The changes Kuma held for the user's approval: each one's `id`, "
-            "`status`, `reason`, `title` and the `changes` it makes."
-        ),
     )
     run_status = serializers.CharField(
         required=False,

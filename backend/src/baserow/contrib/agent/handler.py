@@ -1501,7 +1501,9 @@ class AgentHandler:
                 dataclasses.replace(
                     server,
                     tools=tuple(
-                        dataclasses.replace(tool, ask_first=True)
+                        dataclasses.replace(
+                            tool, ask_first=tool.ask_first or tool.changes_data
+                        )
                         for tool in server.tools
                     ),
                 )
@@ -2059,6 +2061,7 @@ class AgentHandler:
             {
                 "title": conversation.title,
                 "pinned": conversation.pinned,
+                "is_test": conversation.is_test,
                 "owner_user_id": conversation.owner_user_id,
                 "trigger_id": conversation.trigger_id,
                 "created_on": conversation.created_on.isoformat(),
@@ -2128,6 +2131,7 @@ class AgentHandler:
                 uuid=uuid4(),
                 title=data["title"],
                 pinned=data.get("pinned", False),
+                is_test=data.get("is_test", False),
                 owner_user_id=data["owner_user_id"],
                 trigger_id=trigger_ids.get(data.get("trigger_id")),
             )

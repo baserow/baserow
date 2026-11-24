@@ -38,10 +38,6 @@ function inFlightMessage(follower) {
   }
 }
 
-// The card was decided already, by another tab or before a reload.
-const ERROR_ASSISTANT_TOOL_APPROVAL_NOT_PENDING =
-  'ERROR_ASSISTANT_TOOL_APPROVAL_NOT_PENDING'
-
 /**
  * How Kuma took a message: a run answers it, the chat still answers another
  * one, the user has as many runs as allowed, or it was refused, which the chat
@@ -668,77 +664,6 @@ export const actions = {
     return { outcome: SEND_OUTCOME.FAILED, runId: null }
   },
 
-  /**
-   * Approves or rejects the changes Kuma waits on, then follows the run that
-   * continues the answer once none is left undecided. The card shows the
-   * decision at once and goes back to pending when the request fails. A card
-   * decided elsewhere is read again from the server.
-   *
-   * @param {Array<{id: number, approved: boolean, reason?: string}>} decisions
-   */
-  async decideApprovals({ commit, dispatch, getters, state }, decisions) {
-    const chat = getters.currentChat
-    const messageId = state.messages.find((m) =>
-      (m.approvals || []).some((a) => a.id === decisions[0]?.id)
-    )?.id
-    if (!chat || messageId === undefined) return
-    const byId = new Map(decisions.map((d) => [d.id, d]))
-    // Read the message when updating it: a refresh may have replaced it.
-    const setStatuses = (statusOf) => {
-      const message = state.messages.find((m) => m.id === messageId)
-      if (!message) return
-      commit('UPDATE_MESSAGE', {
-        id: messageId,
-        updates: {
-          approvals: message.approvals.map((approval) =>
-            byId.has(approval.id)
-              ? { ...approval, ...statusOf(byId.get(approval.id)) }
-              : approval
-          ),
-        },
-      })
-    }
-    setStatuses((decision) => ({
-      status: decision.approved ? 'approved' : 'rejected',
-      reason: decision.reason || '',
-    }))
-    commit('UPDATE_CHAT', { id: chat.id, updates: { running: true } })
-    try {
-      let response
-      try {
-        response = await assistant(this.$client).decideApprovals(
-          chat.id,
-          decisions,
-          getters.uiContext,
-          getTabId()
-        )
-      } catch (error) {
-        // Only a decision the server didn't take goes back to pending.
-        setStatuses(() => ({ status: 'pending', reason: '' }))
-        if (error.handler?.code === ERROR_ASSISTANT_TOOL_APPROVAL_NOT_PENDING) {
-          await dispatch('refreshCurrentChat')
-          return
-        }
-        throw error
-      }
-      if (response.run) {
-        await dispatch(
-          'chatRuns/follow',
-          {
-            runId: response.run.id,
-            runType: ASSISTANT_RUN_TYPE,
-            chatId: response.chat_id,
-            context: { chatUuid: chat.id },
-            attach: true,
-          },
-          { root: true }
-        )
-      }
-    } finally {
-      commit('UPDATE_CHAT', { id: chat.id, updates: { running: false } })
-    }
-  },
-
   async sendMessage({ dispatch }, { message, workspace }) {
     const { outcome, runId } = await dispatch('startRun', {
       message,
@@ -802,12 +727,6 @@ export const actions = {
 
 export const getters = {
   currentChatId: (state) => state.currentChatId,
-
-  /** Whether Kuma waits for the user to approve or reject a change. */
-  isWaitingForApproval: (state) =>
-    state.messages.some((message) =>
-      (message.approvals || []).some((a) => a.status === 'pending')
-    ),
 
   pendingPrompt: (state) => state.pendingPrompt,
 

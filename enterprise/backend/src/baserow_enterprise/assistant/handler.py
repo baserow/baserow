@@ -14,18 +14,9 @@ from baserow.core.chat_runs.models import ChatRun
 from baserow.core.db import IsolationLevel, transaction_atomic
 from baserow.core.models import Workspace
 
-from .exceptions import (
-    AssistantChatDoesNotExist,
-    AssistantChatWaitingForApproval,
-    AssistantToolApprovalNotPending,
-)
+from .exceptions import AssistantChatDoesNotExist
 from .messages import assistant_message_payload, list_chat_messages
-from .models import (
-    AssistantChat,
-    AssistantChatMessage,
-    AssistantChatPrediction,
-    AssistantToolApproval,
-)
+from .models import AssistantChat, AssistantChatMessage, AssistantChatPrediction
 from .runs import ASSISTANT_RUN_TYPE, AssistantRunContext
 from .types import AiMessage, HumanMessage, UIContext
 
@@ -269,9 +260,6 @@ class AssistantHandler:
 
         with transaction.atomic():
             chat, _ = self.get_or_create_chat(user, workspace, chat_uuid)
-            # Like an Agent's conversation, the chat waits for the owner's decision.
-            if self.get_waiting_message(chat) is not None:
-                raise AssistantChatWaitingForApproval()
             generate_title = _title_is_provisional(chat)
             if not chat.title:
                 chat.title = _provisional_title(content)
@@ -292,100 +280,6 @@ class AssistantHandler:
                 ASSISTANT_RUN_TYPE,
                 chat.id,
                 workspace,
-                user,
-                dict(context),
-                {"human_message": serialized},
-            )
-        return run, serialized
-
-    def get_waiting_message(self, chat: AssistantChat) -> AssistantChatMessage | None:
-        """
-        :param chat: The chat.
-        :return: The AI message whose run paused on calls the owner hasn't
-            decided yet, or None.
-        """
-
-        return (
-            chat.messages.filter(
-                role=AssistantChatMessage.Role.AI,
-                approvals__status=AssistantToolApproval.Status.PENDING,
-            )
-            .order_by("-id")
-            .first()
-        )
-
-    def decide_approvals(
-        self,
-        user: AbstractUser,
-        chat: AssistantChat,
-        decisions: list[dict[str, Any]],
-        ui_context: UIContext,
-        tab_id: str,
-    ) -> tuple[ChatRun | None, dict[str, Any] | None]:
-        """
-        Approves or rejects the held calls of the chat's waiting answer and, once
-        none is left undecided, starts the run that continues it, in one
-        transaction. Approvals never expire: the tools check the call again when
-        the run continues.
-
-        :param user: The chat's owner deciding.
-        :param chat: The chat.
-        :param decisions: Each decision: the approval ``id``, ``approved`` and an
-            optional ``reason`` for a rejection.
-        :param ui_context: What the user is looking at.
-        :param tab_id: The deciding tab, which receives Kuma's navigation.
-        :raises AssistantToolApprovalNotPending: When an approval is decided
-            already or isn't held by the chat's waiting answer.
-        :return: The run continuing the answer and the human message it answers,
-            as clients show it, or Nones while some calls are still undecided.
-        """
-
-        with transaction.atomic():
-            chat = AssistantChat.objects.select_for_update().get(id=chat.id)
-            message = self.get_waiting_message(chat)
-            if message is None:
-                raise AssistantToolApprovalNotPending()
-            pending = {
-                approval.id: approval
-                for approval in message.approvals.select_for_update().filter(
-                    status=AssistantToolApproval.Status.PENDING
-                )
-            }
-            ids = [d["id"] for d in decisions]
-            if not ids or len(set(ids)) != len(ids) or not set(ids) <= pending.keys():
-                raise AssistantToolApprovalNotPending()
-            now = datetime.now(timezone.utc)
-            for decision in decisions:
-                approval = pending.pop(decision["id"])
-                approval.status = (
-                    AssistantToolApproval.Status.APPROVED
-                    if decision["approved"]
-                    else AssistantToolApproval.Status.REJECTED
-                )
-                approval.reason = decision.get("reason") or ""
-                approval.decided_by = user
-                approval.decided_on = now
-                approval.save(
-                    update_fields=["status", "reason", "decided_by", "decided_on"]
-                )
-            if pending:
-                return None, None
-            human_message_id = message.artifacts["paused"]["human_message_id"]
-            human_message = chat.messages.get(id=human_message_id)
-            serialized = assistant_message_payload(human_message)
-            context: AssistantRunContext = {
-                "human_message_id": human_message_id,
-                "client_session_id": get_untrusted_client_session_id(user),
-                "action_group_id": str(message.action_group_id or uuid4()),
-                "ui_context": ui_context.model_dump(mode="json"),
-                "origin_tab_id": tab_id,
-                "generate_title": False,
-                "resume_message_id": message.id,
-            }
-            run = ChatRunHandler().start_run(
-                ASSISTANT_RUN_TYPE,
-                chat.id,
-                chat.workspace,
                 user,
                 dict(context),
                 {"human_message": serialized},

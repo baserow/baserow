@@ -30,15 +30,6 @@ def to_assistant_message(message: AssistantChatMessage) -> HumanMessage | AiMess
         error_code=run_state.get("error_code"),
         onboarding_target=message.artifacts.get("onboarding_target"),
         can_submit_feedback=prediction is not None,
-        approvals=[
-            {
-                **approval.details,
-                "id": approval.id,
-                "status": approval.status,
-                "reason": approval.reason,
-            }
-            for approval in message.approvals.all()
-        ],
         human_sentiment=prediction.get_human_sentiment_display()
         if prediction
         else None,
@@ -68,11 +59,7 @@ def list_chat_messages(
     :return: The projected messages, oldest first.
     """
 
-    queryset = (
-        chat.messages.select_related("prediction")
-        .prefetch_related("approvals")
-        .order_by("-created_on", "-id")
-    )
+    queryset = chat.messages.select_related("prediction").order_by("-created_on", "-id")
     if last_message_id is not None:
         queryset = queryset.filter(id__lt=last_message_id)
     return [to_assistant_message(message) for message in reversed(queryset[:limit])]

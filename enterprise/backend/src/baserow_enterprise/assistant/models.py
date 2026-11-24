@@ -154,58 +154,6 @@ class AssistantChatPrediction(
         return self.SENTIMENT_MAP.get(self.human_sentiment)
 
 
-class AssistantToolApproval(BigAutoFieldMixin, models.Model):
-    """
-    A tool call Kuma held for the chat owner's decision, like an Agent's
-    `AgentToolApproval`. It never expires: the call is checked again when the
-    owner decides.
-    """
-
-    class Status(models.TextChoices):
-        PENDING = "pending"
-        APPROVED = "approved"
-        REJECTED = "rejected"
-
-    message = models.ForeignKey(
-        AssistantChatMessage,
-        on_delete=models.CASCADE,
-        related_name="approvals",
-        help_text="The AI message whose run paused on the call.",
-    )
-    tool_call_id = models.CharField(max_length=255)
-    tool_name = models.CharField(max_length=100)
-    tool_key = models.CharField(
-        max_length=64,
-        blank=True,
-        default="",
-        help_text="A digest of what the call changes when it was held. An approved "
-        "call only runs while it's the same.",
-    )
-    details = models.JSONField(
-        default=dict,
-        blank=True,
-        help_text="What the approval card shows: the changes the call makes.",
-    )
-    status = models.CharField(
-        max_length=16, choices=Status.choices, default=Status.PENDING
-    )
-    reason = models.TextField(blank=True, default="")
-    decided_by = models.ForeignKey(
-        User, null=True, on_delete=models.SET_NULL, related_name="+"
-    )
-    decided_on = models.DateTimeField(null=True)
-    created_on = models.DateTimeField(auto_now_add=True)
-
-    class Meta:
-        ordering = ("id",)
-        constraints = [
-            models.UniqueConstraint(
-                fields=["message", "tool_call_id"],
-                name="assistant_tool_approval_unique_call",
-            )
-        ]
-
-
 class DocumentCategory(NamedTuple):
     name: str
     parent: str

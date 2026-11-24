@@ -46,6 +46,11 @@ describe('Kuma navigation targets', () => {
       location: { type: 'dashboard', dashboard_id: 10 },
       route: { name: 'dashboard-application', params: { dashboardId: 10 } },
     },
+    {
+      application: { type: 'agent' },
+      location: { type: 'agent', agent_id: 10 },
+      route: { name: 'agent-application', params: { agentId: 10 } },
+    },
   ])(
     'opens a loaded $location.type target without fetching it again',
     async ({ application, location, route }) => {

@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import re
+
 from baserow.contrib.agent.models import AgentApplication, AgentConversation
 from baserow.core.feature_flags import FF_AGENT_BUILDER, FF_IDENTITIES
 from baserow.test_utils.fixtures import Fixtures
@@ -41,6 +43,10 @@ PROMPT_BUILDS_WEEKLY_DIGEST = (
     "summary of the leads added to the Leads table in the past week."
 )
 PROMPT_TURNS_OFF_ASK_FIRST = "Let Lead triage update rows without asking me first."
+# How Kuma says a trigger is the user's to turn on.
+TURN_ON = re.compile(
+    r"turn(ed|ing)?\b.{0,30}\bon\b|enabl|switch(ed|ing)?\b.{0,30}\bon\b"
+)
 PROMPT_PAUSES_TRIGGER = "Pause Lead triage for now: it should stop running by itself."
 PROMPT_TESTS_AGENT = (
     "Test Lead triage with a sample lead from Dan saying: Just browsing, no budget yet."
@@ -52,7 +58,7 @@ def _leads_workspace(fx, with_agent: bool = False) -> EvalScenario:
     A workspace with a Sales database whose Leads table (Name, Email, Message,
     Priority) holds two leads, opened in the UI. With ``with_agent``, it also has
     the Lead triage Agent: it reads the table and updates rows, asking first, when
-    a row is created.
+    a row is created, with the trigger the user turned on.
     """
 
     fx.enable_enterprise()
@@ -84,12 +90,11 @@ def _leads_workspace(fx, with_agent: bool = False) -> EvalScenario:
                 ),
                 new_identity={"name": "Lead triage", "role": "BUILDER"},
                 allowed_tools=[*READ_TOOLS, "update_rows"],
-                add_triggers=[
-                    {"type": ROWS_CREATED, "table_id": leads.id, "enabled": True}
-                ],
+                add_triggers=[{"type": ROWS_CREATED, "table_id": leads.id}],
             ),
             ["update_rows"],
         )
+        agent.triggers.update(enabled=True)
         refs["agent"] = agent
 
     return EvalScenario(
@@ -121,6 +126,14 @@ def _leads_unchanged(scenario: EvalScenario) -> CheckResult:
         "the Leads table is unchanged",
         rows == [None] * len(LEADS),
         hint=f"Priority option ids: {rows}",
+    )
+
+
+def _says_to_turn_the_trigger_on(output: EvalRunOutput) -> CheckResult:
+    return CheckResult(
+        "told the user to turn the trigger on",
+        bool(TURN_ON.search(output.answer.lower())),
+        hint=output.answer[:300],
     )
 
 
@@ -159,9 +172,9 @@ def _check_builds_row_triage(
             hint=f"agents: {[a['name'] for a in agents]}",
         ),
         CheckResult(
-            "an enabled rows-created trigger on Leads",
+            "a rows-created trigger on Leads, turned off",
             [(t["type"], t["table_id"], t["enabled"]) for t in triggers]
-            == [(ROWS_CREATED, scenario.refs["leads"].id, True)],
+            == [(ROWS_CREATED, scenario.refs["leads"].id, False)],
             hint=f"triggers: {triggers}",
         ),
         CheckResult(
@@ -181,11 +194,7 @@ def _check_builds_row_triage(
             allowed <= {*READ_TOOLS, "list_databases", "update_rows"},
             hint=f"allowed: {sorted(allowed)}",
         ),
-        CheckResult(
-            "the whole setup was approved on one card",
-            len(output.approvals) == 1,
-            hint=f"cards: {output.approvals}",
-        ),
+        _says_to_turn_the_trigger_on(output),
         _leads_unchanged(scenario),
     ]
 
@@ -222,8 +231,8 @@ def _check_builds_weekly_digest(
             hint=f"agents: {[a['name'] for a in agents]}",
         ),
         CheckResult(
-            "a schedule trigger",
-            [t["type"] for t in triggers] == ["periodic"],
+            "a schedule trigger, turned off",
+            [(t["type"], t["enabled"]) for t in triggers] == [("periodic", False)],
             hint=f"triggers: {triggers}",
         ),
         CheckResult(
@@ -242,6 +251,7 @@ def _check_builds_weekly_digest(
             and "password" not in output.answer.lower(),
             hint=output.answer[:200],
         ),
+        _says_to_turn_the_trigger_on(output),
         _leads_unchanged(scenario),
     ]
 
@@ -259,7 +269,7 @@ register_case(
 )
 
 # ---------------------------------------------------------------------------
-# Edits an existing Agent: widening waits for a card, narrowing doesn't
+# Edits an existing Agent: ask first stays the user's to turn off
 # ---------------------------------------------------------------------------
 
 
@@ -274,30 +284,28 @@ def _the_triage_agent(scenario: EvalScenario) -> tuple[list[dict], dict]:
     return agents, agent
 
 
-def _check_turns_off_ask_first(
+def _check_leaves_ask_first_to_the_user(
     case: EvalCase, scenario: EvalScenario, output: EvalRunOutput
 ) -> list[CheckResult]:
     agents, agent = _the_triage_agent(scenario)
-    cards = output.approvals
     return [
         CheckResult(
-            "edited the Agent instead of adding one",
-            len(agents) == 1,
-            hint=f"agents: {[a['name'] for a in agents]}",
+            "kept the one Agent and its tools",
+            len(agents) == 1
+            and sorted(agent.get("allowed_tools") or [])
+            == sorted([*READ_TOOLS, "update_rows"]),
+            hint=f"agents: {[a['name'] for a in agents]}, allowed: "
+            f"{agent.get('allowed_tools')}",
         ),
         CheckResult(
-            "updates rows without asking first, and kept its other tools",
-            sorted(agent.get("allowed_tools") or [])
-            == sorted([*READ_TOOLS, "update_rows"])
-            and not agent.get("ask_first_tools"),
-            hint=f"allowed: {agent.get('allowed_tools')}, ask first: "
-            f"{agent.get('ask_first_tools')}",
+            "updating rows still asks first",
+            agent.get("ask_first_tools") == ["update_rows"],
+            hint=f"ask first: {agent.get('ask_first_tools')}",
         ),
         CheckResult(
-            "one card names the change",
-            len(cards) == 1
-            and any("update_rows" in change for change in cards[0].get("changes", [])),
-            hint=f"cards: {cards}",
+            "said where the user turns it off",
+            "configuration" in output.answer.lower(),
+            hint=output.answer[:300],
         ),
         CheckResult(
             "the trigger still runs",
@@ -309,11 +317,11 @@ def _check_turns_off_ask_first(
 
 register_case(
     EvalCase(
-        id="agent/edits-turns-off-ask-first",
+        id="agent/edits-leaves-ask-first-to-user",
         dataset="kuma-agent",
         prompt=PROMPT_TURNS_OFF_ASK_FIRST,
         scenario="agent-leads-with-triage",
-        checks=_check_turns_off_ask_first,
+        checks=_check_leaves_ask_first_to_the_user,
         max_iters=15,
         feature_flags=FEATURE_FLAGS,
     )
@@ -331,11 +339,6 @@ def _check_pauses_trigger(
             and [t["enabled"] for t in agent.get("triggers") or []] == [False],
             hint=f"agents: {[a['name'] for a in agents]}, triggers: "
             f"{agent.get('triggers')}",
-        ),
-        CheckResult(
-            "turning something off needed no card",
-            not output.approvals,
-            hint=f"cards: {output.approvals}",
         ),
         CheckResult(
             "its tools are unchanged",
@@ -378,8 +381,8 @@ def _check_tests_agent(
         _leads_unchanged(scenario),
         CheckResult(
             "the Agent wasn't changed",
-            not output.approvals and tool_called(output, "apply_agent_setup") == 0,
-            hint=f"cards: {output.approvals}",
+            tool_called(output, "apply_agent_setup") == 0,
+            hint=f"tools called: {output.tool_calls}",
         ),
     ]
 

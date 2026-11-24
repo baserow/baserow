@@ -33,8 +33,6 @@ class EvalRunOutput:
     sources: list[Any]
     request_count: int
     duration_s: float
-    # The approval cards the run paused on, which the harness approved.
-    approvals: list[dict] = field(default_factory=list)
 
 
 @dataclass

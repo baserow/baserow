@@ -95,6 +95,14 @@ const NAVIGATION_TARGETS = Object.freeze({
       params: { dashboardId: location.dashboard_id },
     },
   }),
+  agent: (app, workspaceId, location) => ({
+    applicationId: location.agent_id,
+    findTarget: (agent) => agent,
+    route: {
+      name: 'agent-application',
+      params: { agentId: location.agent_id },
+    },
+  }),
   workspace: (app, workspaceId) => ({
     route: { name: 'workspace', params: { workspaceId } },
   }),

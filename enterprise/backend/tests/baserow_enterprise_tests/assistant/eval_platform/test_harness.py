@@ -1253,14 +1253,12 @@ class TestModelFailureBoundary:
 
 # The tools run on the executor's thread, which only sees committed data.
 @pytest.mark.django_db(transaction=True)
-def test_harness_approves_each_card_and_resumes_the_run(data_fixture):
+def test_a_case_runs_with_its_feature_flags_turned_on(data_fixture):
     user = data_fixture.create_user()
     workspace = data_fixture.create_workspace(user=user)
-    registry.register_scenario("approves-cards")(
+    registry.register_scenario("builds-agent")(
         lambda _: EvalScenario(user=user, workspace=workspace, ui_context=None)
     )
-    # Opening web pages widens what the Agent can do, so the call waits for a card.
-    setup = {"name": "Triage", "web_fetch_enabled": True}
 
     def model_function(messages, info):
         if len(messages) == 1:
@@ -1268,7 +1266,7 @@ def test_harness_approves_each_card_and_resumes_the_run(data_fixture):
                 parts=[
                     ToolCallPart(
                         "apply_agent_setup",
-                        {"setup": setup, "thought": "t"},
+                        {"setup": {"name": "Triage"}, "thought": "t"},
                         tool_call_id="apply",
                     )
                 ]
@@ -1276,17 +1274,15 @@ def test_harness_approves_each_card_and_resumes_the_run(data_fixture):
         return ModelResponse(parts=[TextPart("Created Triage.")])
 
     case = EvalCase(
-        id="harness/approves-cards",
+        id="harness/builds-agent",
         dataset="harness-test",
         prompt="Build Triage.",
-        scenario="approves-cards",
+        scenario="builds-agent",
         checks=lambda case, scenario, output: [],
         mode=AgentMode.AGENT,
         feature_flags=("agent-builder",),
     )
     output, _ = run_case(case, FunctionModel(model_function))
 
-    assert [card["title"] for card in output.approvals] == ['Create the Agent "Triage"']
     assert output.answer == "Created Triage."
-    agent = AgentApplication.objects.get(workspace=workspace)
-    assert (agent.name, agent.web_fetch_enabled) == ("Triage", True)
+    assert AgentApplication.objects.get(workspace=workspace).name == "Triage"

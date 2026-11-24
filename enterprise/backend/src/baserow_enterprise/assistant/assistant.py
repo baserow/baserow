@@ -1,5 +1,4 @@
 import asyncio
-import json
 import re
 import time
 from collections.abc import AsyncIterable
@@ -7,15 +6,9 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
 from django.contrib.auth.models import AbstractUser
-from django.utils.translation import gettext as _
 
 from loguru import logger
-from pydantic_ai import (
-    Agent,
-    DeferredToolRequests,
-    UnexpectedModelBehavior,
-    capture_run_messages,
-)
+from pydantic_ai import Agent, UnexpectedModelBehavior, capture_run_messages
 from pydantic_ai._thinking_part import split_content_into_text_and_thinking
 from pydantic_ai.exceptions import ModelAPIError, ModelHTTPError
 from pydantic_ai.messages import (
@@ -72,7 +65,6 @@ from baserow_enterprise.assistant.model_profiles import (
 from baserow_enterprise.assistant.runs import (
     CHAT_TITLE_EVENT,
     NAVIGATION_EVENT,
-    AssistantResume,
     AssistantRunResult,
 )
 from baserow_enterprise.assistant.telemetry import (
@@ -190,21 +182,9 @@ class AgentAnswer:
     messages_json: bytes
 
 
-@dataclass(frozen=True)
-class AgentPaused:
-    """A run that stopped on calls waiting for the chat owner's approval."""
-
-    text: str
-    messages_json: bytes
-    requests: DeferredToolRequests
-    mode: AgentMode
-
-
-# Stream messages, one accepted answer, pause or error, then None to close the queue.
-AssistantQueueEvent = (
-    AiMessageChunk | AiReasoningChunk | AgentAnswer | AgentPaused | Exception | None
-)
-AssistantAgentEvent = AgentStreamEvent | AgentRunResultEvent[str | DeferredToolRequests]
+# Stream messages, one accepted answer or error, then None to close the queue.
+AssistantQueueEvent = AiMessageChunk | AiReasoningChunk | AgentAnswer | Exception | None
+AssistantAgentEvent = AgentStreamEvent | AgentRunResultEvent[str]
 
 
 def _strip_think_tags(text: str) -> str:
@@ -384,12 +364,6 @@ class Assistant:
             model_profile=self._model_profile,
         )
 
-    @property
-    def _paused_text(self) -> str:
-        """:return: What the chat shows above the approval card of a paused run."""
-
-        return _("I need your approval before I make this change.")
-
     def _cancelled_by_user(self) -> bool:
         """
         :return: Whether the user asked to stop, which the trace tells apart from
@@ -476,7 +450,6 @@ class Assistant:
         user_prompt: str,
         message_history: list[ModelMessage] | None,
         queue: asyncio.Queue[AssistantQueueEvent],
-        resume: AssistantResume | None = None,
     ) -> None:
         """Execute the main agent via ``_stream_agent_run``.
 
@@ -486,7 +459,6 @@ class Assistant:
         :param user_prompt: The user message to answer.
         :param message_history: Prior conversation to resume from, if any.
         :param queue: The queue consumed by the background assistant.
-        :param resume: The paused run to continue instead of answering the prompt.
         :raises RuntimeError: If the stream ends without a result event.
         """
 
@@ -500,24 +472,13 @@ class Assistant:
                         cancelled_by_user=self._cancelled_by_user,
                     ) as tracer:
                         result = await self._stream_agent_run(
-                            user_prompt, message_history, queue, resume
+                            user_prompt, message_history, queue
                         )
                         if result is None:
                             raise RuntimeError(
                                 "Agent stream ended without a result event"
                             )
                         answer, run_result = result
-                        if isinstance(answer, DeferredToolRequests):
-                            tracer.set_trace_output("")
-                            queue.put_nowait(
-                                AgentPaused(
-                                    text=self._paused_text,
-                                    messages_json=run_result.all_messages_json(),
-                                    requests=answer,
-                                    mode=self._deps.mode,
-                                )
-                            )
-                            return
                         tracer.set_trace_output(answer)
                         await self._emit_answer(
                             answer, run_result.all_messages_json(), queue
@@ -557,8 +518,7 @@ class Assistant:
         user_prompt: str,
         message_history: list[ModelMessage] | None,
         queue: asyncio.Queue[AssistantQueueEvent],
-        resume: AssistantResume | None = None,
-    ) -> tuple[str | DeferredToolRequests, AgentRunResult] | None:
+    ) -> tuple[str, AgentRunResult[str]] | None:
         """Run a single agent streaming pass.
 
         Streams reasoning/text chunks to *queue* and returns
@@ -568,15 +528,12 @@ class Assistant:
         :param user_prompt: The prompt for this agent pass.
         :param message_history: The compacted prior model messages, if any.
         :param queue: The queue that receives streamed assistant events.
-        :param resume: The paused run to continue instead of answering the prompt.
         :return: The final answer and run result, or ``None`` if no result arrives.
         """
 
         with ToolManager.parallel_execution_mode("sequential"):
             async with main_agent.run_stream_events(
-                # A resumed run continues its paused calls, not a new prompt.
-                user_prompt=None if resume else user_prompt,
-                deferred_tool_results=resume.deferred_tool_results if resume else None,
+                user_prompt=user_prompt,
                 deps=self._deps,
                 model=self._model,
                 message_history=message_history,
@@ -590,7 +547,7 @@ class Assistant:
         self,
         events: AsyncIterable[AssistantAgentEvent],
         queue: asyncio.Queue[AssistantQueueEvent],
-    ) -> tuple[str | DeferredToolRequests, AgentRunResult] | None:
+    ) -> tuple[str, AgentRunResult[str]] | None:
         """Stream thinking separately from tentative answer text.
 
         Text can precede a tool call or fail output validation. Reclassify it when
@@ -604,8 +561,6 @@ class Assistant:
         async for event in events:
             match event:
                 case AgentRunResultEvent(result=result):
-                    if isinstance(result.output, DeferredToolRequests):
-                        return result.output, result
                     return _strip_think_tags(result.output), result
                 case FunctionToolCallEvent():
                     # A tool preface becomes reasoning once, even for a batch of calls.
@@ -718,7 +673,6 @@ class BackgroundAssistant(Assistant):
         self._latest_text = ""
         self._loaded_history: list[ModelMessage] = []
         self._answer: AgentAnswer | None = None
-        self._paused: AgentPaused | None = None
         self._title: str | None = None
         self._onboarding_target: dict[str, Any] | None = None
         self._tool_executor = ToolExecutor()
@@ -751,8 +705,7 @@ class BackgroundAssistant(Assistant):
         user_prompt: str,
         message_history: list[ModelMessage] | None,
         queue: asyncio.Queue[AssistantQueueEvent],
-        resume: AssistantResume | None = None,
-    ) -> tuple[str | DeferredToolRequests, AgentRunResult] | None:
+    ) -> tuple[str, AgentRunResult[str]] | None:
         """
         Runs the agent pass with the run's tool helpers bound, so no model call of
         the pass starts once the run is cancelled, and with its sync tools in the
@@ -761,7 +714,6 @@ class BackgroundAssistant(Assistant):
         :param user_prompt: The prompt for this agent pass.
         :param message_history: The compacted prior model messages, if any.
         :param queue: The queue that receives streamed assistant events.
-        :param resume: The paused run to continue instead of answering the prompt.
         :return: The final answer and run result, or ``None`` if no result arrives.
         """
 
@@ -769,16 +721,10 @@ class BackgroundAssistant(Assistant):
             bind_tool_helpers(self._tool_helpers),
             Agent.using_thread_executor(self._tool_executor),
         ):
-            return await super()._stream_agent_run(
-                user_prompt, message_history, queue, resume
-            )
+            return await super()._stream_agent_run(user_prompt, message_history, queue)
 
     async def answer(
-        self,
-        prompt: str,
-        ui_context: UIContext,
-        generate_title: bool,
-        resume: AssistantResume | None = None,
+        self, prompt: str, ui_context: UIContext, generate_title: bool
     ) -> ChatRunOutcome:
         """
         Answers the prompt until it is done or the journal asks the run to stop.
@@ -787,13 +733,10 @@ class BackgroundAssistant(Assistant):
         :param prompt: The human message the run answers.
         :param ui_context: What the user was looking at when sending it.
         :param generate_title: Whether to replace the chat's provisional title.
-        :param resume: The paused run to continue with the owner's decisions.
         :return: How the run ended, with an `AssistantRunResult`.
         """
 
-        work = asyncio.create_task(
-            self._produce(prompt, ui_context, generate_title, resume)
-        )
+        work = asyncio.create_task(self._produce(prompt, ui_context, generate_title))
         stop = asyncio.create_task(self._journal.wait_for_stop())
         try:
             await asyncio.wait({work, stop}, return_when=asyncio.FIRST_COMPLETED)
@@ -811,7 +754,7 @@ class BackgroundAssistant(Assistant):
                 self._chat.id,
                 type(work.exception()).__name__,
             )
-        return self._outcome(prompt, resume)
+        return self._outcome(prompt)
 
     async def _wind_down(self, work: asyncio.Task[None]) -> None:
         """
@@ -835,11 +778,7 @@ class BackgroundAssistant(Assistant):
         )
 
     async def _produce(
-        self,
-        prompt: str,
-        ui_context: UIContext,
-        generate_title: bool,
-        resume: AssistantResume | None = None,
+        self, prompt: str, ui_context: UIContext, generate_title: bool
     ) -> None:
         """
         Streams the answer, then the chat title, inside the model's client scope.
@@ -847,45 +786,28 @@ class BackgroundAssistant(Assistant):
         :param prompt: The human message.
         :param ui_context: What the user was looking at.
         :param generate_title: Whether to generate the chat's title.
-        :param resume: The paused run to continue, if any.
         """
 
         async with self._model:
-            await self._stream_answer(prompt, ui_context, resume)
+            await self._stream_answer(prompt, ui_context)
             if generate_title:
                 await self._report_title(prompt)
 
-    async def _stream_answer(
-        self,
-        prompt: str,
-        ui_context: UIContext,
-        resume: AssistantResume | None = None,
-    ) -> None:
+    async def _stream_answer(self, prompt: str, ui_context: UIContext) -> None:
         """
-        Runs the main agent and reports its text as it streams. A resumed run
-        continues from the paused run's own messages, in the mode it paused in.
+        Runs the main agent and reports its text as it streams.
 
         :param prompt: The human message.
         :param ui_context: What the user was looking at.
-        :param resume: The paused run to continue, if any.
         """
 
+        self._deps.mode = _mode_for_ui_context(ui_context)
         self._tool_helpers.request_context["ui_context"] = ui_context.format()
-        if resume is None:
-            self._deps.mode = _mode_for_ui_context(ui_context)
-            self._loaded_history = await self._load_message_history() or []
-        else:
-            self._deps.mode = AgentMode(resume.mode)
-            self._loaded_history = ModelMessagesTypeAdapter.validate_json(
-                resume.messages_json
-            )
-            self._deps.verified_tool_outcomes = get_verified_tool_outcomes(
-                self._loaded_history
-            )
+        self._loaded_history = await self._load_message_history() or []
 
         queue: asyncio.Queue[AssistantQueueEvent] = asyncio.Queue()
         agent_task = asyncio.create_task(
-            self._run_agent(prompt, self._loaded_history or None, queue, resume)
+            self._run_agent(prompt, self._loaded_history or None, queue)
         )
         try:
             while True:
@@ -894,8 +816,6 @@ class BackgroundAssistant(Assistant):
                         break
                     case AgentAnswer() as answer:
                         self._answer = answer
-                    case AgentPaused() as paused:
-                        self._paused = paused
                     case Exception() as error:
                         raise error
                     case AiMessageChunk() | AiReasoningChunk() as message:
@@ -966,12 +886,9 @@ class BackgroundAssistant(Assistant):
         self._title = _short_title(title) or _short_title(prompt)
         self._journal.emit(CHAT_TITLE_EVENT, {"title": self._title}, flush_now=True)
 
-    def _outcome(
-        self, prompt: str, resume: AssistantResume | None = None
-    ) -> ChatRunOutcome:
+    def _outcome(self, prompt: str) -> ChatRunOutcome:
         """
         :param prompt: The human message.
-        :param resume: The paused run this run continued, if any.
         :return: Completed when the agent answered, even if a stop came later;
             otherwise how the run stopped, with what the user saw.
         """
@@ -981,82 +898,33 @@ class BackgroundAssistant(Assistant):
                 status=ChatRunStatus.COMPLETED,
                 result=self._result(self._answer.answer, self._answer.messages_json),
             )
-        if self._paused is not None:
-            return ChatRunOutcome(
-                status=ChatRunStatus.COMPLETED, result=self._paused_result(self._paused)
-            )
         status, error_code = _STOPPED_RUN_OUTCOMES.get(
             self._journal.stop_reason, (ChatRunStatus.FAILED, ChatRunErrorCode.FAILED)
         )
         return ChatRunOutcome(
             status=status,
             error_code=error_code,
-            result=self._result(
-                self._latest_text, self._unfinished_history(prompt, resume)
-            ),
+            result=self._result(self._latest_text, self._unfinished_history(prompt)),
         )
 
-    def _unfinished_history(
-        self, prompt: str, resume: AssistantResume | None = None
-    ) -> bytes:
+    def _unfinished_history(self, prompt: str) -> bytes:
         """
         Keeps the agent's own messages when the prompt reached the model, closed
         with a text answer so the next message is never rejected for an unanswered
         tool call. Otherwise records the prompt with a note that nothing was done.
 
         :param prompt: The human message.
-        :param resume: The paused run this run continued, if any.
         :return: The chat's new history, serialized.
         """
 
-        # A continued run adds no prompt, but its paused run's calls already ran.
-        if resume is not None or count_user_prompts(
-            self._agent_messages
-        ) > count_user_prompts(self._loaded_history):
+        if count_user_prompts(self._agent_messages) > count_user_prompts(
+            self._loaded_history
+        ):
             closing = ModelResponse(
                 parts=[TextPart(content=unfinished_answer(self._latest_text))]
             )
-            # A continued run that failed before loading keeps its paused run's.
-            messages = (
-                self._agent_messages
-                or self._loaded_history
-                or ModelMessagesTypeAdapter.validate_json(resume.messages_json)
-            )
-            return ModelMessagesTypeAdapter.dump_json([*messages, closing])
+            return ModelMessagesTypeAdapter.dump_json([*self._agent_messages, closing])
         return append_turn(self._chat.message_history, prompt, NOT_STARTED_ANSWER)
-
-    def _paused_result(self, paused: AgentPaused) -> AssistantRunResult:
-        """
-        :param paused: The run's pause on calls waiting for approval.
-        :return: What the run type saves: the chat's history stays as it was until
-            the run continues, and the paused run's messages and held calls are
-            kept with the answer.
-        """
-
-        metadata = paused.requests.metadata
-        approvals = [
-            {
-                "tool_call_id": call.tool_call_id,
-                "tool_name": call.tool_name,
-                "tool_key": (metadata.get(call.tool_call_id) or {}).get("tool_key", ""),
-                "details": (metadata.get(call.tool_call_id) or {}).get(
-                    "details", {"title": call.tool_name, "changes": []}
-                ),
-            }
-            for call in paused.requests.approvals
-        ]
-        return AssistantRunResult(
-            text=paused.text,
-            message_history=self._chat.message_history,
-            sources=tuple(self._deps.sources),
-            trace_id=self._telemetry.trace_id,
-            title=self._title,
-            paused={
-                "messages": json.loads(paused.messages_json),
-                "mode": paused.mode.value,
-                "approvals": approvals,
-            },
-        )
 
     def _result(self, text: str, message_history: bytes) -> AssistantRunResult:
         """

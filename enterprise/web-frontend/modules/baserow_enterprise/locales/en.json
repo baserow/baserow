@@ -637,7 +637,6 @@
   },
   "assistant": {
     "statusThinking": "Thinking...",
-    "waitingForApproval": "Approve or reject the change above to continue.",
     "statusAnswering": "Answering...",
     "runLimitReached": "Kuma is already answering as many of your messages as it can. Send this one when one of them is done.",
     "runFailedToStart": "Kuma couldn't start answering this message. Please try again.",
@@ -664,16 +663,6 @@
     "expandReasoning": "Expand reasoning",
     "collapseReasoning": "Collapse reasoning",
     "disclaimer": "Kuma can make mistakes, please double-check responses"
-  },
-  "assistantApprovalCard": {
-    "approve": "Approve",
-    "reject": "Reject",
-    "confirmReject": "Reject change",
-    "cancel": "Cancel",
-    "reasonPlaceholder": "Why not? Kuma reads this (optional)",
-    "approved": "Approved",
-    "rejected": "Rejected",
-    "decideFailed": "Couldn't save your decision. Please try again."
   },
   "assistantMessageActions": {
     "feedbackContextTitle": "Help us improve",

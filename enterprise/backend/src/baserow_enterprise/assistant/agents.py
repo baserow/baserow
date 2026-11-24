@@ -1,6 +1,6 @@
 import json
 
-from pydantic_ai import Agent, DeferredToolRequests, RunContext
+from pydantic_ai import Agent, RunContext
 from pydantic_ai.messages import RetryPromptPart, ToolReturnPart, UserPromptPart
 
 from baserow_enterprise.assistant.deps import AssistantDeps
@@ -20,25 +20,14 @@ _LICENSE_TIER_ALIASES = {
     "enterprise_without_support": "enterprise",
 }
 
-# A tool that needs the chat owner's approval pauses the run with its held calls.
-main_agent: Agent[AssistantDeps, str | DeferredToolRequests] = Agent(
+main_agent: Agent[AssistantDeps, str] = Agent(
     deps_type=AssistantDeps,
-    output_type=[str, DeferredToolRequests],
+    output_type=str,
     instructions=AGENT_SYSTEM_PROMPT,
     retries=3,
     name="main_agent",
 )
-
-
-def _validate_answer(ctx: RunContext[AssistantDeps], answer):
-    """Check a final answer; a pause on calls waiting for approval isn't one."""
-
-    if not isinstance(answer, str):
-        return answer
-    return validate_final_answer(ctx, answer)
-
-
-main_agent.output_validator(_validate_answer)
+main_agent.output_validator(validate_final_answer)
 
 
 def _canonical_license_tier(license_tier: str) -> str:

@@ -116,15 +116,6 @@ export default (client) => {
       )
     },
 
-    async decideApprovals(chatUuid, decisions, uiContext, tabId) {
-      const { data } = await client.post(
-        `/assistant/chat/${chatUuid}/approvals/`,
-        { decisions, ui_context: uiContext, tab_id: tabId },
-        { baseURL: getAssistantBaseURL(client) }
-      )
-      return data
-    },
-
     async fetchChats(workspaceId) {
       const { data } = await client.get(
         `/assistant/chat/?workspace_id=${workspaceId}`,

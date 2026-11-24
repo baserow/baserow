@@ -57,7 +57,6 @@
         :ui-context="uiContext"
         :is-running="isAssistantRunning"
         :is-cancelling="isAssistantCancelling"
-        :is-waiting-for-approval="isWaitingForApproval"
         :running-message="assistantRunningMessage"
         @send-message="handleSendMessage"
         @cancel-message="handleCancelMessage"
@@ -110,7 +109,6 @@ export default {
       pendingPrompt: 'assistant/pendingPrompt',
       uiContext: 'assistant/uiContext',
       uiLocation: 'assistant/uiLocation',
-      isWaitingForApproval: 'assistant/isWaitingForApproval',
     }),
     currentChatId() {
       return this.currentChat?.id

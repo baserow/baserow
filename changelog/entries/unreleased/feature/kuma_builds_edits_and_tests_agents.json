@@ -1,6 +1,6 @@
 {
     "type": "feature",
-    "message": "Kuma can build, edit and test Agents, and asks for approval before widening what an Agent can do",
+    "message": "Kuma can build, edit and test Agents. Triggers it adds start turned off",
     "issue_origin": "github",
     "issue_number": null,
     "domain": "core",

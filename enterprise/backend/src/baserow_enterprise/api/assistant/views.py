@@ -42,11 +42,9 @@ from baserow.core.handler import CoreHandler
 from baserow_enterprise.assistant.exceptions import (
     AssistantChatDoesNotExist,
     AssistantChatMessagePredictionDoesNotExist,
-    AssistantChatWaitingForApproval,
     AssistantConfiguredModelNotAvailableError,
     AssistantModelDisabledError,
     AssistantModelNotSupportedError,
-    AssistantToolApprovalNotPending,
 )
 from baserow_enterprise.assistant.handler import AssistantHandler
 from baserow_enterprise.assistant.model_profiles import (
@@ -64,18 +62,15 @@ from baserow_enterprise.assistant.types import UIContext
 
 from .errors import (
     ERROR_ASSISTANT_CHAT_DOES_NOT_EXIST,
-    ERROR_ASSISTANT_CHAT_WAITING_FOR_APPROVAL,
     ERROR_ASSISTANT_CONFIGURED_MODEL_NOT_AVAILABLE,
     ERROR_ASSISTANT_MODEL_DISABLED,
     ERROR_ASSISTANT_MODEL_NOT_SUPPORTED,
-    ERROR_ASSISTANT_TOOL_APPROVAL_NOT_PENDING,
     ERROR_CANNOT_SUBMIT_MESSAGE_FEEDBACK,
 )
 from .serializers import (
     AssistantChatMessagesSerializer,
     AssistantChatSerializer,
     AssistantChatsRequestSerializer,
-    AssistantDecideApprovalsRequestSerializer,
     AssistantMessageRequestSerializer,
     AssistantRateChatMessageSerializer,
     OnboardingPromptSuggestionsRequestSerializer,
@@ -196,7 +191,6 @@ class AssistantChatView(APIView):
             AssistantModelNotSupportedError: ERROR_ASSISTANT_MODEL_NOT_SUPPORTED,
             ChatRunAlreadyActive: ERROR_CHAT_RUN_IN_PROGRESS,
             ChatRunLimitReached: ERROR_CHAT_RUN_LIMIT,
-            AssistantChatWaitingForApproval: ERROR_ASSISTANT_CHAT_WAITING_FOR_APPROVAL,
         }
     )
     def post(
@@ -348,83 +342,6 @@ class AssistantChatView(APIView):
             cache.set(f"assistant:chat:{chat.uuid}:cancelled", True, timeout=300)
 
         return Response(status=HTTP_204_NO_CONTENT)
-
-
-class AssistantChatApprovalsView(APIView):
-    @extend_schema(
-        tags=["AI Assistant"],
-        operation_id="decide_assistant_tool_approvals",
-        description=(
-            "Approve or reject the changes Kuma is waiting on in the chat. Once "
-            "none is left undecided, Kuma continues in a new run, which the "
-            "response names; follow it through the core chat-run stream.\n\n"
-        ),
-        request=AssistantDecideApprovalsRequestSerializer,
-        responses={
-            200: OpenApiResponse(
-                description="The run continuing the answer, or null while some "
-                "changes are still undecided, and the chat's id.",
-            ),
-            400: get_error_schema(
-                [
-                    "ERROR_USER_NOT_IN_GROUP",
-                    "ERROR_REQUEST_BODY_VALIDATION",
-                    "ERROR_ASSISTANT_TOOL_APPROVAL_NOT_PENDING",
-                ]
-            ),
-            404: get_error_schema(["ERROR_ASSISTANT_CHAT_DOES_NOT_EXIST"]),
-            409: get_error_schema(["ERROR_CHAT_RUN_IN_PROGRESS"]),
-            429: get_error_schema(["ERROR_CHAT_RUN_LIMIT"]),
-        },
-    )
-    @validate_body(AssistantDecideApprovalsRequestSerializer, return_validated=True)
-    @map_exceptions(
-        {
-            UserNotInWorkspace: ERROR_USER_NOT_IN_GROUP,
-            WorkspaceDoesNotExist: ERROR_GROUP_DOES_NOT_EXIST,
-            AssistantChatDoesNotExist: ERROR_ASSISTANT_CHAT_DOES_NOT_EXIST,
-            AssistantToolApprovalNotPending: ERROR_ASSISTANT_TOOL_APPROVAL_NOT_PENDING,
-            AssistantModelDisabledError: ERROR_ASSISTANT_MODEL_DISABLED,
-            AssistantConfiguredModelNotAvailableError: (
-                ERROR_ASSISTANT_CONFIGURED_MODEL_NOT_AVAILABLE
-            ),
-            AssistantModelNotSupportedError: ERROR_ASSISTANT_MODEL_NOT_SUPPORTED,
-            ChatRunAlreadyActive: ERROR_CHAT_RUN_IN_PROGRESS,
-            ChatRunLimitReached: ERROR_CHAT_RUN_LIMIT,
-        }
-    )
-    def post(self, request: Request, chat_uuid: UUID, data: dict[str, Any]):
-        """
-        Saves the owner's decisions and names the run continuing the answer.
-
-        :param request: The authenticated API request.
-        :param chat_uuid: The chat identifier.
-        :param data: The validated decisions and UI context.
-        :return: The continuing run, or None while some changes are undecided.
-        """
-
-        set_db_alias(DEFAULT_DB_ALIAS)
-        handler = AssistantHandler()
-        chat = handler.get_chat(request.user, chat_uuid)
-        workspace = chat.workspace
-        CoreHandler().check_permissions(
-            request.user,
-            ChatAssistantChatOperationType.type,
-            workspace=workspace,
-            context=workspace,
-        )
-        check_lm_ready_or_raise(
-            model_profile=resolve_assistant_model(workspace=workspace)
-        )
-        set_untrusted_client_session_id_from_request_or_raise_if_invalid(
-            request.user, request
-        )
-        ui_context = UIContext.from_validate_request(request, data["ui_context"])
-        run, _ = handler.decide_approvals(
-            request.user, chat, data["decisions"], ui_context, data["tab_id"]
-        )
-        # The client follows the continuing run through the core chat-run stream.
-        return Response({"run": _run_payload(run) if run else None, "chat_id": chat.id})
 
 
 class AssistantChatMessageFeedbackView(APIView):

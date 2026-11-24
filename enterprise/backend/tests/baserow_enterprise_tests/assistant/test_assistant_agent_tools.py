@@ -1,21 +1,9 @@
 from uuid import uuid4
 
 import pytest
-from pydantic_ai.exceptions import ApprovalRequired
 
 from baserow.contrib.agent.handler import AgentHandler
 from baserow.contrib.agent.models import AgentApplication, AgentMessage
-from baserow_enterprise.assistant.exceptions import (
-    AssistantChatWaitingForApproval,
-    AssistantToolApprovalNotPending,
-)
-from baserow_enterprise.assistant.handler import AssistantHandler
-from baserow_enterprise.assistant.models import (
-    AssistantChat,
-    AssistantChatMessage,
-    AssistantChatPrediction,
-    AssistantToolApproval,
-)
 from baserow_enterprise.assistant.tools.agent.tools import (
     AgentSetup,
     apply_agent_setup,
@@ -27,26 +15,26 @@ from baserow_enterprise.assistant.tools.agent.tools import (
     test_agent as start_agent_test,
 )
 from baserow_enterprise.assistant.tools.shared import ToolInputError
-from baserow_enterprise.assistant.types import UIContext
+from baserow_enterprise.assistant.types import AgentNavigationType
 
 from .utils import make_test_ctx
 
-
-def _ctx(user, workspace, approved_key=None):
-    ctx = make_test_ctx(user, workspace)
-    ctx.tool_call_approved = approved_key is not None
-    ctx.tool_call_metadata = {"tool_key": approved_key} if approved_key else None
-    return ctx
+ENABLED_MODELS_PATH = (
+    "baserow.core.generative_ai.registries.GenerativeAIModelTypeRegistry"
+    ".get_enabled_models_per_type"
+)
 
 
-def _held(ctx, setup, agent_id=None):
-    with pytest.raises(ApprovalRequired) as held:
-        apply_agent_setup(ctx, AgentSetup(**setup), thought="t", agent_id=agent_id)
-    return held.value.metadata
+def _ctx(user, workspace):
+    return make_test_ctx(user, workspace)
+
+
+def _apply(ctx, setup, agent_id=None):
+    return apply_agent_setup(ctx, AgentSetup(**setup), thought="t", agent_id=agent_id)
 
 
 @pytest.mark.django_db
-def test_a_read_only_agent_is_created_without_approval(data_fixture):
+def test_an_agent_is_created_with_its_trigger_turned_off(data_fixture):
     user = data_fixture.create_user()
     workspace = data_fixture.create_workspace(user=user)
     identity = data_fixture.create_identity(workspace=workspace)
@@ -70,154 +58,210 @@ def test_a_read_only_agent_is_created_without_approval(data_fixture):
     assert [(t["type"], t["enabled"]) for t in setup["triggers"]] == [
         ("periodic", False)
     ]
+    assert "doesn't run by itself" in result["next_steps"]
 
 
 @pytest.mark.django_db
-def test_granting_a_tool_that_changes_data_waits_for_approval(data_fixture):
+def test_kuma_opens_the_agent_it_changed(data_fixture):
     user = data_fixture.create_user()
     workspace = data_fixture.create_workspace(user=user)
-    identity = data_fixture.create_identity(workspace=workspace)
-    setup = {
-        "name": "Triage",
-        "run_as_identity_id": identity.id,
-        "allowed_tools": ["list_tables", "create_tables"],
-        "ask_first_tools": [],
-    }
+    ctx = _ctx(user, workspace)
+    navigations = []
+    ctx.deps.tool_helpers.navigate_to = navigations.append
 
-    metadata = _held(_ctx(user, workspace), setup)
+    agent_id = _apply(ctx, {"name": "Digest"})["setup"]["agent_id"]
 
-    assert (
-        "Let the Agent use create_tables without asking first"
-        in (metadata["details"]["changes"])
-    )
-    assert not AgentApplication.objects.filter(workspace=workspace).exists()
-
-    result = apply_agent_setup(
-        _ctx(user, workspace, approved_key=metadata["tool_key"]),
-        AgentSetup(**setup),
-        thought="t",
-    )
-    assert result["setup"]["allowed_tools"] == ["list_tables", "create_tables"]
-    assert result["setup"]["ask_first_tools"] == []
-
-
-@pytest.mark.django_db
-def test_turning_off_ask_first_alone_waits_for_approval_then_applies(data_fixture):
-    user = data_fixture.create_user()
-    workspace = data_fixture.create_workspace(user=user)
-    identity = data_fixture.create_identity(workspace=workspace)
-    created = {
-        "name": "Triage",
-        "run_as_identity_id": identity.id,
-        "allowed_tools": ["list_tables", "create_tables"],
-    }
-    metadata = _held(_ctx(user, workspace), created)
-    agent = apply_agent_setup(
-        _ctx(user, workspace, approved_key=metadata["tool_key"]),
-        AgentSetup(**created),
-        thought="t",
-    )["setup"]
-    assert agent["ask_first_tools"] == ["create_tables"]
-
-    change = {"ask_first_tools": []}
-    metadata = _held(_ctx(user, workspace), change, agent_id=agent["agent_id"])
-    assert metadata["details"]["changes"] == [
-        "Let the Agent use create_tables without asking first"
+    assert navigations == [
+        AgentNavigationType(type="agent", agent_id=agent_id, agent_name="Digest")
     ]
 
-    result = apply_agent_setup(
-        _ctx(user, workspace, approved_key=metadata["tool_key"]),
-        AgentSetup(**change),
-        thought="t",
-        agent_id=agent["agent_id"],
-    )
-    assert result["setup"]["allowed_tools"] == ["list_tables", "create_tables"]
-    assert result["setup"]["ask_first_tools"] == []
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "setup",
+    [
+        {"add_triggers": [{"type": "periodic", "enabled": True}]},
+        {"update_triggers": [{"trigger_id": 1, "enabled": True}]},
+        {"allowed_tools": ["create_tables"], "ask_first_tools": []},
+    ],
+)
+def test_kuma_has_no_way_to_turn_a_trigger_on_or_ask_first_off(data_fixture, setup):
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    identity = data_fixture.create_identity(workspace=workspace)
+    agent = data_fixture.create_agent_application(workspace=workspace)
+    trigger = data_fixture.create_agent_trigger(agent=agent, enabled=False)
+    setup = {**setup, "run_as_identity_id": identity.id}
+
+    result = _apply(_ctx(user, workspace), setup, agent.id)["setup"]
+
+    trigger.refresh_from_db()
+    assert not trigger.enabled
+    assert not any(t["enabled"] for t in result["triggers"])
+    assert result["ask_first_tools"] == [
+        name for name in result["allowed_tools"] if name == "create_tables"
+    ]
 
 
 @pytest.mark.django_db
-def test_turning_on_a_row_trigger_names_only_a_table_of_the_workspace(
+def test_a_newly_allowed_tool_asks_first_and_the_users_choice_is_kept(data_fixture):
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    identity = data_fixture.create_identity(workspace=workspace)
+    agent = data_fixture.create_agent_application(workspace=workspace)
+    # The user let the Agent create tables without asking.
+    AgentHandler().update_configuration(
+        agent,
+        run_as_subject_type="auth.User",
+        run_as_subject_id=identity.id,
+        allowed_tools=["create_tables"],
+        ask_first_tools=[],
+    )
+
+    result = _apply(
+        _ctx(user, workspace),
+        {"allowed_tools": ["list_tables", "create_tables", "create_fields"]},
+        agent.id,
+    )["setup"]
+
+    assert result["allowed_tools"] == ["list_tables", "create_tables", "create_fields"]
+    assert result["ask_first_tools"] == ["create_fields"]
+
+
+@pytest.mark.django_db
+def test_only_the_user_turns_web_fetch_on(data_fixture):
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    ctx = _ctx(user, workspace)
+
+    with pytest.raises(ToolInputError, match="open web pages"):
+        _apply(ctx, {"name": "Digest", "web_fetch_enabled": True})
+    assert not AgentApplication.objects.filter(workspace=workspace).exists()
+
+    agent = data_fixture.create_agent_application(
+        workspace=workspace, web_fetch_enabled=True
+    )
+    result = _apply(ctx, {"web_fetch_enabled": False}, agent.id)
+
+    assert result["setup"]["web_fetch_enabled"] is False
+    assert result["revert"] == {
+        "setup": {},
+        "cannot_undo": [
+            "web fetch stays off: the user turns it on in the Agent's Configuration"
+        ],
+    }
+
+
+@pytest.mark.django_db
+def test_new_instructions_are_refused_while_the_agent_opens_web_pages_alone(
     data_fixture,
 ):
     user = data_fixture.create_user()
     workspace = data_fixture.create_workspace(user=user)
-    identity = data_fixture.create_identity(workspace=workspace)
-    leads = data_fixture.create_database_table(user=user, name="Leads")
-    leads.database.workspace = workspace
-    leads.database.save()
-    elsewhere = data_fixture.create_database_table(name="Payroll")
-    trigger = {"type": "local_baserow_rows_created", "enabled": True}
+    agent = _agent_that_may_run_alone(data_fixture, workspace, True, None)
+    agent.web_fetch_enabled = True
+    agent.save()
+    ctx = _ctx(user, workspace)
 
-    metadata = _held(
-        _ctx(user, workspace),
-        {
-            "name": "Triage",
-            "run_as_identity_id": identity.id,
-            "add_triggers": [
-                {**trigger, "table_id": leads.id},
-                {**trigger, "table_id": elsewhere.id},
-            ],
-        },
-    )
+    with pytest.raises(ToolInputError, match="change its instructions"):
+        _apply(ctx, {"instructions": "New"}, agent.id)
 
-    assert metadata["details"]["changes"] == [
-        "Run the Agent by itself when rows are created in Leads",
-        "Run the Agent by itself when rows are created",
-    ]
+    result = _apply(ctx, {"instructions": "New", "web_fetch_enabled": False}, agent.id)
+    assert result["setup"]["instructions"] == "New"
 
 
 @pytest.mark.django_db
-def test_an_approval_doesnt_apply_once_the_agent_changed(data_fixture):
+def test_tools_need_an_identity_to_act_as(data_fixture):
     user = data_fixture.create_user()
     workspace = data_fixture.create_workspace(user=user)
-    identity = data_fixture.create_identity(workspace=workspace)
-    agent = apply_agent_setup(
-        _ctx(user, workspace),
-        AgentSetup(name="Bot", instructions="v1", run_as_identity_id=identity.id),
-        thought="t",
-    )["setup"]
-    change = {"allowed_tools": ["create_tables"], "ask_first_tools": []}
-    metadata = _held(_ctx(user, workspace), change, agent_id=agent["agent_id"])
 
-    apply_agent_setup(
-        _ctx(user, workspace),
-        AgentSetup(instructions="v2"),
-        thought="t",
-        agent_id=agent["agent_id"],
-    )
-    result = apply_agent_setup(
-        _ctx(user, workspace, approved_key=metadata["tool_key"]),
-        AgentSetup(**change),
-        thought="t",
-        agent_id=agent["agent_id"],
-    )
-
-    assert result["changed"] is False
-    current = get_agent(_ctx(user, workspace), agent["agent_id"], thought="t")
-    assert current["allowed_tools"] == []
+    with pytest.raises(ToolInputError, match="needs an identity"):
+        _apply(_ctx(user, workspace), {"name": "Bot", "allowed_tools": ["list_tables"]})
+    assert not AgentApplication.objects.filter(workspace=workspace).exists()
 
 
 @pytest.mark.django_db
-def test_a_new_tool_that_changes_data_asks_first_by_default(data_fixture):
+def test_testing_an_agent_starts_a_test_conversation(data_fixture, mocker):
+    mocker.patch(ENABLED_MODELS_PATH, return_value={"openai": ["gpt-5"]})
+    mocker.patch("baserow.core.chat_runs.handler.ChatRunHandler.start_run")
     user = data_fixture.create_user()
     workspace = data_fixture.create_workspace(user=user)
-    identity = data_fixture.create_identity(workspace=workspace)
-    setup = {
-        "name": "Bot",
-        "run_as_identity_id": identity.id,
-        "allowed_tools": ["list_tables", "create_tables"],
+    agent = data_fixture.create_agent_application(
+        workspace=workspace,
+        instructions="Say hi.",
+        provider_type="openai",
+        model_identifier="gpt-5",
+    )
+
+    result = start_agent_test(_ctx(user, workspace), agent.id, "Hi", thought="t")
+
+    conversation = agent.conversations.get(uuid=result["conversation_uuid"])
+    assert (conversation.is_test, conversation.title) == (True, "Test: Hi")
+
+
+@pytest.mark.django_db
+def test_a_test_conversation_asks_first_for_mcp_tools_that_change_data(
+    data_fixture,
+):
+    from baserow.contrib.integrations.mcp.models import MCPServerTool
+
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    agent = _agent_that_may_run_alone(data_fixture, workspace, False, None)
+    agent.provider_type, agent.model_identifier = "openai", "m"
+    agent.save()
+    server = data_fixture.create_mcp_server_integration(application=agent)
+    for name, changes_data in (("send", True), ("read", False)):
+        MCPServerTool.objects.create(
+            integration=server,
+            name=name,
+            definition_hash=name,
+            enabled=True,
+            changes_data=changes_data,
+            ask_first=False,
+        )
+    asks = {}
+    for is_test in (False, True):
+        conversation = data_fixture.create_agent_conversation(
+            user=user, agent=agent, is_test=is_test
+        )
+        data_fixture.create_agent_message(conversation=conversation, content="Hi")
+        reply = AgentMessage.objects.create(
+            conversation=conversation,
+            uuid=uuid4(),
+            role=AgentMessage.Role.ASSISTANT,
+            content="",
+        )
+        request = AgentHandler().get_reply_request(reply)
+        asks[is_test] = {
+            tool.name: tool.ask_first
+            for server in request.mcp_servers
+            for tool in server.tools
+        }
+
+    assert asks[False] == {"send": False, "read": False}
+    assert asks[True] == {"send": True, "read": False}
+
+
+@pytest.mark.django_db
+def test_kuma_turns_a_trigger_off(data_fixture):
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    agent = _agent_that_may_run_alone(data_fixture, workspace, True)
+    trigger = agent.triggers.get()
+
+    result = _apply(
+        _ctx(user, workspace), {"turn_off_triggers": [trigger.id]}, agent.id
+    )
+
+    assert [t["enabled"] for t in result["setup"]["triggers"]] == [False]
+    assert result["revert"] == {
+        "setup": {},
+        "cannot_undo": [
+            f'the trigger "{trigger.name}" stays turned off: the user turns it on '
+            "in the Agent's Configuration"
+        ],
     }
-
-    metadata = _held(_ctx(user, workspace), setup)
-    assert metadata["details"]["changes"][-1] == (
-        "Let the Agent use create_tables, asking first"
-    )
-    result = apply_agent_setup(
-        _ctx(user, workspace, approved_key=metadata["tool_key"]),
-        AgentSetup(**setup),
-        thought="t",
-    )
-    assert result["setup"]["ask_first_tools"] == ["create_tables"]
 
 
 @pytest.mark.django_db
@@ -253,82 +297,6 @@ def test_a_test_conversation_asks_first_for_every_tool_that_changes_data(
 
     assert requests[False].ask_first_tool_names == []
     assert requests[True].ask_first_tool_names == ["create_tables"]
-
-
-def _waiting_chat(data_fixture):
-    user = data_fixture.create_user()
-    workspace = data_fixture.create_workspace(user=user)
-    chat = AssistantChat.objects.create(user=user, workspace=workspace, title="c")
-    human = chat.messages.create(role=AssistantChatMessage.Role.HUMAN, content="Do")
-    ai = chat.messages.create(
-        role=AssistantChatMessage.Role.AI,
-        content="I need your approval",
-        artifacts={
-            "paused": {
-                "human_message_id": human.id,
-                "messages": [],
-                "mode": "agent",
-                "tool_call_ids": ["call-0", "call-1"],
-            }
-        },
-    )
-    AssistantChatPrediction.objects.create(human_message=human, ai_response=ai)
-    approvals = [
-        AssistantToolApproval.objects.create(
-            message=ai, tool_call_id=f"call-{i}", tool_name="apply_agent_setup"
-        )
-        for i in range(2)
-    ]
-    ui_context = UIContext.model_validate(
-        {
-            "workspace": {"id": workspace.id, "name": workspace.name},
-            "user": {"id": user.id, "name": user.first_name, "email": user.email},
-        }
-    )
-    return user, workspace, chat, approvals, ui_context
-
-
-@pytest.mark.django_db
-def test_kuma_continues_only_once_every_held_call_is_decided(data_fixture, mocker):
-    start = mocker.patch(
-        "baserow_enterprise.assistant.handler.ChatRunHandler.start_run"
-    )
-    user, workspace, chat, (first, second), ui_context = _waiting_chat(data_fixture)
-    handler = AssistantHandler()
-
-    with pytest.raises(AssistantChatWaitingForApproval):
-        handler.send_message(user, workspace, chat.uuid, "Hi", ui_context, "")
-
-    run, _ = handler.decide_approvals(
-        user, chat, [{"id": first.id, "approved": True}], ui_context, ""
-    )
-    assert run is None and not start.called
-
-    with pytest.raises(AssistantToolApprovalNotPending):
-        handler.decide_approvals(
-            user,
-            chat,
-            [{"id": second.id, "approved": True}, {"id": second.id, "approved": False}],
-            ui_context,
-            "",
-        )
-
-    handler.decide_approvals(
-        user,
-        chat,
-        [{"id": second.id, "approved": False, "reason": "Not that table"}],
-        ui_context,
-        "",
-    )
-    context = start.call_args.args[4]
-    assert context["resume_message_id"] == first.message_id
-    second.refresh_from_db()
-    assert (second.status, second.reason) == ("rejected", "Not that table")
-
-    with pytest.raises(AssistantToolApprovalNotPending):
-        handler.decide_approvals(
-            user, chat, [{"id": first.id, "approved": True}], ui_context, ""
-        )
 
 
 @pytest.mark.django_db
@@ -374,6 +342,17 @@ def test_a_too_long_agent_name_returns_an_error_to_kuma(data_fixture):
 
 
 @pytest.mark.django_db
+def test_an_identity_role_that_doesnt_exist_returns_an_error_to_kuma(data_fixture):
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    setup = {"name": "Bot", "new_identity": {"name": "Bot", "role": "NOPE"}}
+
+    with pytest.raises(ToolInputError, match="role doesn't exist"):
+        _apply(_ctx(user, workspace), setup)
+    assert not AgentApplication.objects.filter(workspace=workspace).exists()
+
+
+@pytest.mark.django_db
 def test_a_refused_trigger_returns_an_error_to_kuma(data_fixture, settings):
     settings.INTEGRATIONS_PERIODIC_MINUTE_MIN = 5
     user = data_fixture.create_user()
@@ -392,35 +371,23 @@ def test_a_refused_trigger_returns_an_error_to_kuma(data_fixture, settings):
 
 
 @pytest.mark.django_db
-def test_a_schedule_runs_in_the_users_timezone_and_the_card_says_when(
-    data_fixture,
-):
+def test_a_schedule_runs_in_the_users_timezone(data_fixture):
     user = data_fixture.create_user()
     user.profile.timezone = "Europe/Amsterdam"
     user.profile.save()
     workspace = data_fixture.create_workspace(user=user)
-    setup = {
-        "name": "Digest",
-        "add_triggers": [
-            {
-                "type": "periodic",
-                "enabled": True,
-                "schedule": {"interval": "WEEK", "day_of_week": 0, "hour": 8},
-            }
-        ],
-    }
+    schedule = {"interval": "WEEK", "day_of_week": 0, "hour": 8}
 
-    metadata = _held(_ctx(user, workspace), setup)
-    assert metadata["details"]["changes"] == [
-        "Run the Agent by itself every Monday at 08:00 (Europe/Amsterdam)"
-    ]
-
-    result = apply_agent_setup(
-        _ctx(user, workspace, approved_key=metadata["tool_key"]),
-        AgentSetup(**setup),
-        thought="t",
+    result = _apply(
+        _ctx(user, workspace),
+        {
+            "name": "Digest",
+            "add_triggers": [{"type": "periodic", "schedule": schedule}],
+        },
     )
+
     [trigger] = result["setup"]["triggers"]
+    assert not trigger["enabled"]
     assert trigger["schedule"] == {
         "interval": "WEEK",
         "hour": 8,
@@ -429,12 +396,6 @@ def test_a_schedule_runs_in_the_users_timezone_and_the_card_says_when(
         "day_of_month": 1,
         "timezone": "Europe/Amsterdam",
     }
-
-
-ENABLED_MODELS_PATH = (
-    "baserow.core.generative_ai.registries.GenerativeAIModelTypeRegistry"
-    ".get_enabled_models_per_type"
-)
 
 
 @pytest.mark.django_db
@@ -493,30 +454,6 @@ def test_kuma_says_a_new_agent_isnt_ready_when_no_model_is_enabled(
 
 
 @pytest.mark.django_db
-def test_a_waiting_card_can_be_decided_after_its_prediction_is_deleted(
-    data_fixture, mocker
-):
-    start = mocker.patch(
-        "baserow_enterprise.assistant.handler.ChatRunHandler.start_run"
-    )
-    user, workspace, chat, approvals, ui_context = _waiting_chat(data_fixture)
-    handler = AssistantHandler()
-    handler.delete_predictions(older_than_days=0)
-    assert not AssistantChatPrediction.objects.filter(ai_response__chat=chat).exists()
-
-    handler.decide_approvals(
-        user,
-        chat,
-        [{"id": approval.id, "approved": True} for approval in approvals],
-        ui_context,
-        "",
-    )
-
-    human = chat.messages.get(role=AssistantChatMessage.Role.HUMAN)
-    assert start.call_args.args[4]["human_message_id"] == human.id
-
-
-@pytest.mark.django_db
 def test_reverting_a_change_puts_back_what_it_can_and_says_what_stays(
     data_fixture,
 ):
@@ -558,30 +495,16 @@ def test_reverting_a_change_puts_back_what_it_can_and_says_what_stays(
         ({"interval": "DAY", "timezone": "PST"}, "not a timezone"),
     ],
 )
-def test_a_schedule_that_cant_be_saved_is_refused_before_the_card(
-    data_fixture, schedule, error
-):
+def test_a_schedule_that_cant_be_saved_is_refused(data_fixture, schedule, error):
     user = data_fixture.create_user()
     workspace = data_fixture.create_workspace(user=user)
     setup = AgentSetup(
         name="Digest",
-        add_triggers=[{"type": "periodic", "enabled": True, "schedule": schedule}],
+        add_triggers=[{"type": "periodic", "schedule": schedule}],
     )
 
     with pytest.raises(ToolInputError, match=error):
         apply_agent_setup(_ctx(user, workspace), setup, thought="t")
-
-
-def test_a_schedule_every_minute_reads_in_the_singular():
-    from baserow_enterprise.assistant.tools.agent.tools import _describe_schedule
-
-    assert (
-        _describe_schedule({"interval": "MINUTE", "minute": 1, "timezone": "UTC"})
-        == "every minute"
-    )
-    assert _describe_schedule(
-        {"interval": "MINUTE", "minute": 5, "timezone": "UTC"}
-    ) == ("every 5 minutes")
 
 
 @pytest.mark.django_db
@@ -618,12 +541,6 @@ def test_waiting_for_a_test_reply_stops_when_kuma_is_cancelled(data_fixture, moc
     with pytest.raises(asyncio.CancelledError):
         get_agent_test_result(ctx, agent.id, conversation.uuid, thought="t")
     assert clock[0] == 1
-
-
-INSTRUCTIONS_CARD = (
-    "Change the instructions of an Agent that runs by itself and changes data "
-    "without asking"
-)
 
 
 def _agent_that_may_run_alone(data_fixture, workspace, trigger_on, changes_with="tool"):
@@ -663,50 +580,60 @@ def _agent_that_may_run_alone(data_fixture, workspace, trigger_on, changes_with=
 
 @pytest.mark.django_db
 @pytest.mark.parametrize("changes_with", ["tool", "action", "mcp"])
-def test_new_instructions_wait_for_approval_on_an_agent_that_runs_alone(
+def test_new_instructions_are_refused_while_the_agent_changes_data_alone(
     data_fixture, changes_with
 ):
     user = data_fixture.create_user()
     workspace = data_fixture.create_workspace(user=user)
     agent = _agent_that_may_run_alone(data_fixture, workspace, True, changes_with)
 
-    metadata = _held(_ctx(user, workspace), {"instructions": "New"}, agent.id)
+    with pytest.raises(ToolInputError, match="change its instructions") as refused:
+        _apply(_ctx(user, workspace), {"instructions": "New"}, agent.id)
 
-    assert metadata["details"]["changes"] == [f'{INSTRUCTIONS_CARD}, to: "New"']
+    assert "turn_off_triggers" in refused.value.hint
+    agent.refresh_from_db()
+    assert agent.instructions == "Old"
 
 
 @pytest.mark.django_db
 @pytest.mark.parametrize("trigger_on,changes_with", [(False, "tool"), (True, None)])
-def test_new_instructions_apply_at_once_when_the_agent_cant_change_data_alone(
+def test_new_instructions_apply_when_the_agent_cant_change_data_alone(
     data_fixture, trigger_on, changes_with
 ):
     user = data_fixture.create_user()
     workspace = data_fixture.create_workspace(user=user)
     agent = _agent_that_may_run_alone(data_fixture, workspace, trigger_on, changes_with)
 
-    result = apply_agent_setup(
-        _ctx(user, workspace),
-        AgentSetup(instructions="New"),
-        thought="t",
-        agent_id=agent.id,
-    )
+    result = _apply(_ctx(user, workspace), {"instructions": "New"}, agent.id)
 
     assert result["setup"]["instructions"] == "New"
 
 
 @pytest.mark.django_db
-def test_the_instructions_card_shows_the_new_instructions(data_fixture):
+@pytest.mark.parametrize(
+    "change,refusal",
+    [
+        ({"new_identity": {"name": "Bot", "role": "MEMBER"}}, "new identity"),
+        ({"run_as_identity_id": "other"}, "run it as the identity"),
+    ],
+)
+def test_identity_changes_wait_until_the_triggers_are_off(
+    data_fixture, change, refusal
+):
     user = data_fixture.create_user()
     workspace = data_fixture.create_workspace(user=user)
-    agent = _agent_that_may_run_alone(data_fixture, workspace, True)
+    agent = _agent_that_may_run_alone(data_fixture, workspace, True, None)
+    if change.get("run_as_identity_id"):
+        other = data_fixture.create_identity(workspace=workspace)
+        change = {"run_as_identity_id": other.id}
     ctx = _ctx(user, workspace)
-    short = "Close stale tickets.\nNever delete rows."
-    long = "Close each stale ticket. " * 100
+    before = get_agent(ctx, agent.id, thought="t")
 
-    [short_line] = _held(ctx, {"instructions": short}, agent.id)["details"]["changes"]
-    [long_line] = _held(ctx, {"instructions": long}, agent.id)["details"]["changes"]
+    with pytest.raises(ToolInputError, match=refusal):
+        _apply(ctx, change, agent.id)
+    assert get_agent(ctx, agent.id, thought="t") == before
 
-    assert short_line.endswith('to: "Close stale tickets. Never delete rows."')
-    excerpt = long_line.split('to: "', 1)[1]
-    assert excerpt.startswith("Close each stale ticket. Close each")
-    assert excerpt.endswith('ticket.…"') and len(excerpt) < 510
+    trigger = agent.triggers.get()
+    result = _apply(ctx, {**change, "turn_off_triggers": [trigger.id]}, agent.id)
+    assert result["changed"]
+    assert [t["enabled"] for t in result["setup"]["triggers"]] == [False]
