@@ -1,4 +1,4 @@
-import { expect } from 'vitest'
+import { expect, vi } from 'vitest'
 import { flushPromises } from '@vue/test-utils'
 import MockAdapter from 'axios-mock-adapter'
 import { registerRealtimeEvents } from '@baserow/modules/dashboard/realtime'
@@ -133,36 +133,34 @@ describe('dashboardApplication store', () => {
     })
   })
 
-  test('removes a failed creation preview and allows retrying on the empty dashboard', async () => {
+  test('reports the created widget ID while pending data sources are refreshed', async () => {
     const url = `/dashboard/${dashboardId}/widgets/`
+    const onCreated = vi.fn()
     const create = () =>
       store.dispatch('dashboardApplication/createWidget', {
         dashboard: { id: dashboardId },
         widget: { type: 'summary', title: 'Summary' },
-        reveal: true,
+        onCreated,
       })
     mock.onPost(url).replyOnce(500)
-    const rejected = create()
-    expect(store.getters['dashboardApplication/getNewWidget']).toMatchObject({
-      title: 'Summary',
-      grid_x: 0,
-      grid_y: 0,
-      grid_width: 2,
-      grid_height: 4,
-    })
-    expect(store.getters['dashboardApplication/isEmpty']).toBe(false)
-    expect(store.getters['dashboardApplication/getWidgets']).toHaveLength(0)
-    await expect(rejected).rejects.toThrow()
-    expect(store.getters['dashboardApplication/getNewWidget']).toBeNull()
+    await expect(create()).rejects.toThrow()
+    expect(onCreated).not.toHaveBeenCalled()
     expect(store.getters['dashboardApplication/isEmpty']).toBe(true)
 
     mock.onPost(url).replyOnce(200, createdWidget)
-    await create()
-    expect(store.getters['dashboardApplication/getNewWidget'].id).toBe(
-      createdWidget.id
+    let resolveRefresh
+    mock.onGet(`/dashboard/${dashboardId}/data-sources/`).reply(
+      () =>
+        new Promise((resolve) => {
+          resolveRefresh = resolve
+        })
     )
+    const creation = create()
+    await flushPromises()
+    expect(onCreated).toHaveBeenCalledExactlyOnceWith(createdWidget.id)
     expect(store.getters['dashboardApplication/getWidgets']).toHaveLength(1)
-    expect(store.getters['dashboardApplication/isEditMode']).toBe(true)
+    resolveRefresh([200, [dataSource]])
+    await expect(creation).resolves.toEqual(createdWidget)
   })
 
   test('realtime adds a widget created elsewhere without selecting it', async () => {

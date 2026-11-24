@@ -14,15 +14,15 @@
     }"
   >
     <DashboardWidgetGridLoading
-      v-if="!isLayoutReady && widgets.length > 0"
+      v-if="!isLayoutReady && (widgets.length > 0 || pendingWidget)"
       :class="{
         'dashboard-widget-grid__loading--overlay': hasMeasuredDimensions,
       }"
     />
     <GridLayout
-      v-if="hasMeasuredDimensions && layout.length > 0"
+      v-if="hasMeasuredDimensions && displayedLayout.length > 0"
       ref="grid"
-      v-model:layout="layout"
+      v-model:layout="displayedLayout"
       :col-num="columns"
       :row-height="gridRowHeight"
       :margin="[gridGap, gridGap]"
@@ -34,7 +34,7 @@
       @layout-updated="persistLayout"
     >
       <GridItem
-        v-for="layoutItem in layout"
+        v-for="layoutItem in displayedLayout"
         :key="layoutItem.i"
         v-bind="getWidgetGridItemConstraints(getWidget(layoutItem), layoutItem)"
         :i="layoutItem.i"
@@ -68,7 +68,7 @@
           role="status"
           aria-busy="true"
           :aria-label="
-            $t('dashboard.creatingWidget', { name: newWidget?.title })
+            $t('dashboard.creatingWidget', { name: pendingWidget.title })
           "
         >
           <SkeletonBlock height="100%" />
@@ -88,6 +88,7 @@
 </template>
 
 <script>
+import { reactive } from 'vue'
 import { GridItem, GridLayout } from 'grid-layout-plus'
 
 import DashboardWidget from '@baserow/modules/dashboard/components/widget/DashboardWidget'
@@ -95,9 +96,9 @@ import DashboardWidgetGridLoading from '@baserow/modules/dashboard/components/Da
 import { dimensionMixin } from '@baserow/modules/core/mixins/dimensions'
 import {
   DASHBOARD_GRID_COLUMNS,
-  PENDING_WIDGET_ID,
   createWidgetGridLayout,
   getWidgetGridItemConstraints,
+  getWidgetPreviewPosition,
   resizeWidgetGridLayout,
   toWidgetLayoutPayload,
 } from '@baserow/modules/dashboard/utils/widgetGridLayout'
@@ -105,6 +106,7 @@ import { notifyIf } from '@baserow/modules/core/utils/error'
 
 const GRID_GAP = 16
 const GRID_ROW_HEIGHT = 24
+const PENDING_WIDGET_ID = 'pending'
 
 export default {
   name: 'DashboardWidgetGrid',
@@ -115,6 +117,9 @@ export default {
     GridLayout,
   },
   mixins: [dimensionMixin],
+  inject: {
+    widgetCreation: { from: 'dashboardWidgetCreation', default: null },
+  },
   props: {
     dashboard: {
       type: Object,
@@ -134,6 +139,7 @@ export default {
       isLayoutReady: false,
       layoutReadyFrame: null,
       layout: [],
+      revealedWidgetId: null,
       // Widgets added after the first layout, until the grid placed them.
       placingItemIds: [],
       placingFrames: [],
@@ -151,26 +157,42 @@ export default {
       }
       return this.dimensions.width >= 700 ? 2 : 1
     },
-    newWidget() {
-      return this.$store.getters[
-        `${this.storePrefix}dashboardApplication/getNewWidget`
-      ]
+    pendingWidget() {
+      return this.widgetCreation?.widgetId === null ? this.widgetCreation : null
     },
     widgets() {
-      const widgets =
-        this.$store.getters[
-          `${this.storePrefix}dashboardApplication/getWidgets`
-        ]
-      return this.newWidget?.id === PENDING_WIDGET_ID
-        ? [...widgets, this.newWidget]
-        : widgets
+      return this.$store.getters[
+        `${this.storePrefix}dashboardApplication/getWidgets`
+      ]
     },
-    placedNewWidgetId() {
-      const id = this.newWidget?.id
-      // Wait until the grid has painted the card at its final coordinates.
-      return this.isLayoutReady &&
-        this.widgetsById[id] &&
-        this.layout.some((item) => item.i === id) &&
+    displayedLayout: {
+      get() {
+        if (!this.pendingWidget) return this.layout
+
+        const preview = getWidgetPreviewPosition(
+          this.layout,
+          this.pendingWidget.size,
+          this.columns
+        )
+        // The grid mutates its items during compaction. Keep that work separate
+        // from the layout being saved while the preview is shown.
+        return reactive([
+          ...this.layout.map((item) => ({ ...item })),
+          { i: PENDING_WIDGET_ID, ...preview },
+        ])
+      },
+      set(layout) {
+        if (!this.pendingWidget) this.layout = layout
+      },
+    },
+    placedCreationItemId() {
+      const id = this.pendingWidget
+        ? PENDING_WIDGET_ID
+        : this.widgetCreation?.widgetId
+      return id != null &&
+        id !== this.revealedWidgetId &&
+        this.isLayoutReady &&
+        this.displayedLayout.some((item) => item.i === id) &&
         !this.placingItemIds.includes(String(id))
         ? id
         : null
@@ -197,22 +219,23 @@ export default {
         this.isEditMode &&
         this.canUpdateLayout &&
         !this.isPersisting &&
-        !this.layout.some((item) => item.i === PENDING_WIDGET_ID)
+        !this.pendingWidget
       )
     },
   },
   watch: {
-    placedNewWidgetId: {
+    pendingWidget(widget) {
+      if (widget && this.isLayoutReady) this.markPlacing([PENDING_WIDGET_ID])
+    },
+    placedCreationItemId: {
       flush: 'post',
       handler(id) {
         if (id == null) return
-        const item = this.$refs.grid.getItem(id)
-        item.wrapper.scrollIntoView({ block: 'nearest', inline: 'nearest' })
+        const element = this.$refs.grid?.getItem(id)?.wrapper
+        if (!element) return
+        element.scrollIntoView({ block: 'nearest', inline: 'nearest' })
         if (id !== PENDING_WIDGET_ID) {
-          this.$store.commit(
-            `${this.storePrefix}dashboardApplication/SET_NEW_WIDGET`,
-            null
-          )
+          this.revealedWidgetId = id
         }
       },
     },

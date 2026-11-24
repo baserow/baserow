@@ -18,7 +18,7 @@
 </template>
 
 <script>
-import { computed } from 'vue'
+import { computed, reactive } from 'vue'
 import DashboardHeader from '@baserow/modules/dashboard/components/DashboardHeader'
 import DashboardContent from '@baserow/modules/dashboard/components/DashboardContent'
 import { notifyIf } from '@baserow/modules/core/utils/error'
@@ -27,7 +27,10 @@ export default {
   name: 'Dashboard',
   components: { DashboardHeader, DashboardContent },
   provide() {
-    return { storePrefix: computed(() => this.storePrefix) }
+    return {
+      storePrefix: computed(() => this.storePrefix),
+      dashboardWidgetCreation: computed(() => this.widgetCreation),
+    }
   },
   props: {
     dashboard: {
@@ -46,8 +49,21 @@ export default {
   },
   data() {
     return {
-      isCreatingWidget: false,
+      widgetCreation: null,
     }
+  },
+  computed: {
+    isCreatingWidget() {
+      return this.widgetCreation?.loading ?? false
+    },
+  },
+  watch: {
+    'dashboard.id'() {
+      this.widgetCreation = null
+    },
+  },
+  beforeUnmount() {
+    this.widgetCreation = null
   },
   methods: {
     async createWidget(widgetVariation) {
@@ -55,26 +71,50 @@ export default {
         return
       }
 
-      const widgetType = widgetVariation.type.getType()
-      const typeFromRegistry = this.$registry.get('dashboardWidget', widgetType)
-      this.isCreatingWidget = true
+      const dashboard = this.dashboard
+      const store = `${this.storePrefix}dashboardApplication`
+      const type = this.$registry.get(
+        'dashboardWidget',
+        widgetVariation.type.getType()
+      )
+      const widget = {
+        title: type.name,
+        type: type.getType(),
+        ...widgetVariation.params,
+      }
+      const creation = reactive({
+        title: widget.title,
+        size: type.initialGridSize,
+        widgetId: null,
+        loading: true,
+      })
+      const wasEditing = this.$store.getters[`${store}/isEditMode`]
+      this.widgetCreation = creation
       try {
-        await this.$store.dispatch(
-          `${this.storePrefix}dashboardApplication/createWidget`,
-          {
-            dashboard: this.dashboard,
-            reveal: true,
-            widget: {
-              title: typeFromRegistry.name,
-              type: widgetType,
-              ...widgetVariation.params,
-            },
-          }
-        )
+        await this.$store.dispatch(`${store}/enterEditMode`)
+        await this.$store.dispatch(`${store}/createWidget`, {
+          dashboard,
+          widget,
+          onCreated: (widgetId) => {
+            creation.widgetId = widgetId
+          },
+        })
       } catch (error) {
+        if (
+          this.widgetCreation === creation &&
+          creation.widgetId === null &&
+          !wasEditing &&
+          this.$store.getters[`${store}/getDashboardId`] === dashboard.id &&
+          this.$store.getters[`${store}/isEditMode`]
+        ) {
+          this.$store.dispatch(`${store}/toggleEditMode`)
+        }
         notifyIf(error, 'dashboard')
       } finally {
-        this.isCreatingWidget = false
+        creation.loading = false
+        if (this.widgetCreation === creation && creation.widgetId === null) {
+          this.widgetCreation = null
+        }
       }
     },
   },

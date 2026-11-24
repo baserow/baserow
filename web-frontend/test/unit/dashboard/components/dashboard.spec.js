@@ -58,7 +58,11 @@ describe('Dashboard', () => {
       return Promise.resolve()
     })
     const registry = {
-      get: vi.fn().mockReturnValue({ name: 'Summary' }),
+      get: vi.fn().mockReturnValue({
+        ...widgetVariation.type,
+        name: 'Summary',
+        initialGridSize: { width: 2, height: 4 },
+      }),
     }
     const wrapper = mount(Dashboard, {
       props: {
@@ -68,7 +72,7 @@ describe('Dashboard', () => {
       global: {
         mocks: {
           $registry: registry,
-          $store: { dispatch },
+          $store: { dispatch, getters: {} },
         },
         stubs: {
           DashboardHeader: DashboardHeaderStub,
@@ -79,15 +83,23 @@ describe('Dashboard', () => {
 
     await wrapper.get('[data-testid="header-create-widget"]').trigger('click')
 
-    expect(dispatch).toHaveBeenCalledWith('dashboardApplication/createWidget', {
-      dashboard: { id: 1 },
-      reveal: true,
-      widget: {
-        title: 'Summary',
-        type: 'summary',
-        some_parameter: 'value',
-      },
-    })
+    expect(dispatch).toHaveBeenNthCalledWith(
+      1,
+      'dashboardApplication/enterEditMode'
+    )
+    expect(dispatch).toHaveBeenNthCalledWith(
+      2,
+      'dashboardApplication/createWidget',
+      {
+        dashboard: { id: 1 },
+        onCreated: expect.any(Function),
+        widget: {
+          title: 'Summary',
+          type: 'summary',
+          some_parameter: 'value',
+        },
+      }
+    )
     expect(
       wrapper
         .get('[data-testid="header-create-widget"]')
@@ -101,7 +113,7 @@ describe('Dashboard', () => {
 
     await wrapper.get('[data-testid="content-create-widget"]').trigger('click')
 
-    expect(dispatch).toHaveBeenCalledTimes(1)
+    expect(dispatch).toHaveBeenCalledTimes(2)
 
     resolveCreateWidget()
     await flushPromises()
@@ -111,6 +123,7 @@ describe('Dashboard', () => {
         .get('[data-testid="header-create-widget"]')
         .attributes('data-loading')
     ).toBe('false')
+    wrapper.unmount()
   })
 })
 

@@ -8,10 +8,6 @@ import { getToken, setToken } from '@baserow/modules/core/utils/auth'
 import { ConcurrentPriorityTaskQueue } from '@baserow/modules/core/utils/queue'
 import debounce from 'lodash/debounce'
 import isEqual from 'lodash/isEqual'
-import {
-  createPendingWidget,
-  PENDING_WIDGET_ID,
-} from '@baserow/modules/dashboard/utils/widgetGridLayout'
 import { WidgetValueUpdate } from '@baserow/modules/dashboard/utils/widgetValueUpdate'
 
 export const state = () => ({
@@ -24,7 +20,6 @@ export const state = () => ({
   loading: false,
   editMode: false,
   selectedWidgetId: null,
-  newWidget: null,
   widgets: [],
   widgetValues: {},
   widgetSelections: {},
@@ -43,6 +38,7 @@ export const state = () => ({
 })
 
 const widgetUpdates = new WeakMap()
+const widgetLayoutUpdates = new WeakMap()
 
 const DEFAULT_DATA_SOURCE_DISPATCH_CONCURRENCY = 5
 const DATA_SOURCE_DISPATCH_MAX_RETRIES = 3
@@ -375,7 +371,6 @@ export const mutations = {
     state.dataSourceMutationGenerations = {}
     state.editMode = false
     state.selectedWidgetId = null
-    state.newWidget = null
     cancelDataSourceRefresh(state)
     state.widgetValues = {}
     state.widgetSelections = {}
@@ -393,7 +388,6 @@ export const mutations = {
   },
   SET_DASHBOARD_ID(state, dashboardId) {
     if (state.dashboardId !== dashboardId) {
-      state.newWidget = null
       cancelDataSourceRefresh(state)
       state.widgetValues = {}
       state.widgetSelections = {}
@@ -496,9 +490,6 @@ export const mutations = {
   },
   ADD_INTEGRATION(state, integration) {
     state.integrations.push(integration)
-  },
-  SET_NEW_WIDGET(state, widget) {
-    state.newWidget = widget
   },
   SELECT_WIDGET(state, widgetId) {
     state.selectedWidgetId = widgetId
@@ -1029,40 +1020,30 @@ export const actions = {
   /**
    * Create a widget and select it, unless `select` is false: an editor adding
    * a widget from another widget's settings keeps working on that one.
+   * Notify `onCreated` after the POST succeeds, before refreshing related data.
    */
   async createWidget(
-    { state, commit, dispatch },
-    { dashboard, widget, select = true, reveal = false }
+    { state, dispatch },
+    { dashboard, widget, select = true, onCreated }
   ) {
     const { $client } = this
     const request = {
       dashboardId: dashboard.id,
       dashboardGeneration: state.dashboardGeneration,
     }
-    if (reveal) {
-      const type = this.$registry.get('dashboardWidget', widget.type)
-      commit(
-        'SET_NEW_WIDGET',
-        createPendingWidget(widget, state.widgets, type.initialGridSize)
-      )
+    // The server places the new widget using the saved layout.
+    const layoutUpdate = widgetLayoutUpdates.get(state)
+    if (layoutUpdate?.dashboardId === dashboard.id) {
+      await layoutUpdate.promise.catch(() => {})
     }
-    let widgetData
-    try {
-      const { data } = await WidgetService($client).create(dashboard.id, widget)
-      widgetData = data
-    } catch (error) {
-      if (reveal && isDashboardRequestCurrent(state, request)) {
-        commit('SET_NEW_WIDGET', null)
-      }
-      throw error
-    }
+    const { data: widgetData } = await WidgetService($client).create(
+      dashboard.id,
+      widget
+    )
     if (!isDashboardRequestCurrent(state, request)) {
       return widgetData
     }
-    if (reveal) {
-      dispatch('enterEditMode')
-      commit('SET_NEW_WIDGET', widgetData)
-    }
+    onCreated?.(widgetData.id)
     const createdWidget = await dispatch('handleNewWidgetCreated', widgetData)
     if (!isDashboardRequestCurrent(state, request)) {
       return createdWidget
@@ -1189,10 +1170,7 @@ export const actions = {
     }
     applyWidgetDelete(context, this.$registry, widgetId)
   },
-  async updateWidgetLayout(
-    { state, commit, dispatch },
-    { dashboardId, layout }
-  ) {
+  async updateWidgetLayout({ state, commit }, { dashboardId, layout }) {
     const { $client } = this
     commit('INVALIDATE_WIDGET_FETCH')
     const request = normalizeDashboardFetchRequest(
@@ -1200,15 +1178,22 @@ export const actions = {
       state,
       'widgetFetchGeneration'
     )
-    const { data } = await WidgetService($client).updateLayout(
+    const update = {
       dashboardId,
-      layout
-    )
-    if (!isFetchRequestCurrent(state, request, 'widgetFetchGeneration')) {
-      return data
+      promise: WidgetService($client).updateLayout(dashboardId, layout),
     }
-    commit('UPDATE_WIDGET_LAYOUTS', data)
-    return data
+    widgetLayoutUpdates.set(state, update)
+    try {
+      const { data } = await update.promise
+      if (isFetchRequestCurrent(state, request, 'widgetFetchGeneration')) {
+        commit('UPDATE_WIDGET_LAYOUTS', data)
+      }
+      return data
+    } finally {
+      if (widgetLayoutUpdates.get(state) === update) {
+        widgetLayoutUpdates.delete(state)
+      }
+    }
   },
   async handleWidgetsLayoutUpdated({ state, commit, dispatch }) {
     commit('INVALIDATE_WIDGET_FETCH')
@@ -1232,9 +1217,7 @@ export const getters = {
     return state.loading
   },
   isEmpty(state) {
-    return (
-      state.widgets.length === 0 && state.newWidget?.id !== PENDING_WIDGET_ID
-    )
+    return state.widgets.length === 0
   },
   getWidgetById: (state, getters) => (widgetId) => {
     return state.widgets.find((widget) => widget.id === widgetId)
@@ -1254,7 +1237,6 @@ export const getters = {
       return first.id - second.id
     })
   },
-  getNewWidget: (state) => state.newWidget,
   getSelectedWidgetId(state) {
     return state.selectedWidgetId
   },

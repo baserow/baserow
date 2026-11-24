@@ -1,5 +1,4 @@
 export const DASHBOARD_GRID_COLUMNS = 6
-export const PENDING_WIDGET_ID = 'pending'
 
 const FALLBACK_GRID_LAYOUT = {
   min_width: 1,
@@ -70,27 +69,27 @@ function firstAvailableRow(layout, item, minimumY = 0) {
   return candidate.y
 }
 
-/** Preview the first available position while the server creates the widget. */
-export function createPendingWidget(widget, widgets, { width, height }) {
-  const layout = widgets.map(getCanonicalLayoutItem)
+function projectWidgetWidth(width, columns) {
+  return width > DASHBOARD_GRID_COLUMNS / 2 ? columns : 1
+}
+
+/** Find the first available slot in the layout currently on screen. */
+export function getWidgetPreviewPosition(layout, { width, height }, columns) {
+  const w =
+    columns === DASHBOARD_GRID_COLUMNS
+      ? width
+      : projectWidgetWidth(width, columns)
   let bestX = 0
   let bestY = Infinity
-  for (let x = 0; x <= DASHBOARD_GRID_COLUMNS - width; x++) {
-    const y = firstAvailableRow(layout, { x, w: width, h: height })
+  for (let x = 0; x <= columns - w; x++) {
+    const y = firstAvailableRow(layout, { x, w, h: height })
     if (y < bestY) {
       bestX = x
       bestY = y
       if (y === 0) break
     }
   }
-  return {
-    ...widget,
-    id: PENDING_WIDGET_ID,
-    grid_x: bestX,
-    grid_y: bestY,
-    grid_width: width,
-    grid_height: height,
-  }
+  return { x: bestX, y: bestY, w, h: height }
 }
 
 /**
@@ -153,7 +152,7 @@ export function createWidgetGridLayout(
     if (columns === DASHBOARD_GRID_COLUMNS) {
       item.y = firstAvailableRow(layout, item, item.y)
     } else {
-      item.w = item.w > DASHBOARD_GRID_COLUMNS / 2 ? columns : 1
+      item.w = projectWidgetWidth(item.w, columns)
       if (x + item.w > columns) {
         y += rowHeight
         x = 0

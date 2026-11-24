@@ -57,6 +57,9 @@ export default {
     DashboardContentHeader,
     DashboardSidebar,
   },
+  inject: {
+    widgetCreation: { from: 'dashboardWidgetCreation', default: null },
+  },
   props: {
     dashboard: {
       type: Object,
@@ -91,6 +94,9 @@ export default {
       ]
     },
     isEmpty() {
+      if (this.widgetCreation?.widgetId === null) {
+        return false
+      }
       return this.$store.getters[
         `${this.storePrefix}dashboardApplication/isEmpty`
       ]

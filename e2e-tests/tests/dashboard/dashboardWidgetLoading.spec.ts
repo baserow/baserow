@@ -1,3 +1,5 @@
+import type { Page } from "@playwright/test";
+
 import {
   createDashboard,
   createSummaryWidget,
@@ -5,6 +7,43 @@ import {
 } from "../../fixtures/dashboard/dashboard";
 import { baserowConfig } from "../../playwright.config";
 import { expect, test } from "../baserowTest";
+
+async function pauseRequest(
+  page: Page,
+  method: "POST" | "PATCH",
+  path: string
+) {
+  let release!: () => void;
+  const pending = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  let received = false;
+  await page.route(`**${path}`, async (route) => {
+    if (route.request().method() === method) {
+      received = true;
+      await pending;
+    }
+    await route.continue();
+  });
+  return {
+    received: () => received,
+    release,
+    complete() {
+      const response = page.waitForResponse(
+        (response) =>
+          response.request().method() === method &&
+          response.url().endsWith(path)
+      );
+      release();
+      return response;
+    },
+  };
+}
+
+async function addSummary(page: Page) {
+  await page.getByRole("button", { name: "Add widget", exact: true }).click();
+  await page.getByRole("button", { name: "Summary", exact: true }).click();
+}
 
 test("keeps unconfigured widgets visible while creating another widget", async ({
   page,
@@ -46,9 +85,7 @@ test("keeps unconfigured widgets visible while creating another widget", async (
         response.request().method() === "POST" &&
         response.url().endsWith(`/dashboard/${dashboard.id}/widgets/`)
     );
-    await page
-      .getByRole("button", { name: "Summary", exact: true })
-      .click();
+    await page.getByRole("button", { name: "Summary", exact: true }).click();
     const createdWidget = await (await creationResponse).json();
     const newCard = page.getByTestId(`dashboard-widget-${createdWidget.id}`);
     await expect.poll(() => pendingDispatches).toBeGreaterThan(0);
@@ -101,34 +138,139 @@ test("reveals the new widget while its creation request is pending", async ({
     page.getByTestId(`dashboard-widget-${widgets[2].id}`)
   ).not.toBeInViewport();
 
-  const url = `**/api/dashboard/${dashboard.id}/widgets/`;
-  let releaseCreation!: () => void;
-  const pending = new Promise<void>((resolve) => {
-    releaseCreation = resolve;
-  });
-  await page.route(url, async (route) => {
-    if (route.request().method() === "POST") await pending;
-    await route.continue();
-  });
+  const creation = await pauseRequest(
+    page,
+    "POST",
+    `/api/dashboard/${dashboard.id}/widgets/`
+  );
   try {
-    await page.getByRole("button", { name: "Add widget", exact: true }).click();
-    await page.getByRole("button", { name: "Summary", exact: true }).click();
+    await addSummary(page);
     const preview = page.getByRole("status", { name: "Adding Summary…" });
     await expect(preview).toBeInViewport({ ratio: 0.95 });
     const box = await preview.boundingBox();
-    const response = page.waitForResponse(
-      (response) =>
-        response.request().method() === "POST" &&
-        response.url().endsWith(`/dashboard/${dashboard.id}/widgets/`)
-    );
-    releaseCreation();
-    const widget = await (await response).json();
+    const widget = await (await creation.complete()).json();
     const card = page.getByTestId(`dashboard-widget-${widget.id}`);
     await expect(preview).toHaveCount(0);
     await expect(card).toBeInViewport({ ratio: 0.95 });
     await expect.poll(() => card.boundingBox()).toEqual(box);
   } finally {
-    releaseCreation();
+    creation.release();
+    await page.unrouteAll({ behavior: "wait" });
+  }
+});
+
+test("shows the new widget in the resized layout before it finishes saving", async ({
+  page,
+  workspacePage,
+}) => {
+  await page.setViewportSize({ width: 1920, height: 760 });
+  const dashboard = await createDashboard(
+    "Adding while a resize is saving",
+    workspacePage.workspace
+  );
+  const first = await createSummaryWidget(dashboard, "First widget");
+  const second = await createSummaryWidget(dashboard, "Second widget");
+  await updateDashboardWidgetLayout(
+    dashboard,
+    [first, second].map((widget, i) => ({
+      ...widget,
+      grid_x: 0,
+      grid_y: i * 6,
+      grid_width: 6,
+      grid_height: 6,
+    }))
+  );
+  await page.goto(
+    `${baserowConfig.PUBLIC_WEB_FRONTEND_URL}/dashboard/${dashboard.id}`
+  );
+  await page.getByText("Edit mode", { exact: true }).click();
+  await expect(page.getByTestId("dashboard-widget-grid")).toHaveClass(
+    /dashboard-widget-grid--layout-ready/
+  );
+
+  const path = `/api/dashboard/${dashboard.id}/widgets/`;
+  const layout = await pauseRequest(page, "PATCH", path + "layout/");
+  const creation = await pauseRequest(page, "POST", path);
+  try {
+    const firstCard = page.getByTestId(
+      `dashboard-widget-grid-item-${first.id}`
+    );
+    const resizer = firstCard.locator(".vgl-item__resizer");
+    await resizer.hover();
+    const initial = await firstCard.boundingBox();
+    const handle = await resizer.boundingBox();
+    if (!initial || !handle) throw new Error("Could not measure the widget");
+
+    const columnWidth = (initial.width + 16) / 6;
+    const x = handle.x + handle.width / 2;
+    const y = handle.y + handle.height / 2;
+    await page.mouse.move(x, y);
+    await page.mouse.down();
+    await page.mouse.move(x - 2 * columnWidth, y, { steps: 12 });
+    await page.mouse.up();
+    await expect.poll(layout.received).toBe(true);
+
+    await addSummary(page);
+    const preview = page.getByRole("status", { name: "Adding Summary…" });
+    await expect(preview).toBeInViewport({ ratio: 0.95 });
+    const resized = await firstCard.boundingBox();
+    const box = await preview.boundingBox();
+    expect(box?.y).toBe(resized?.y);
+    expect(box?.x).toBeGreaterThan(initial.x + 3 * columnWidth);
+    expect(creation.received()).toBe(false);
+
+    expect((await layout.complete()).ok()).toBe(true);
+    await expect.poll(creation.received).toBe(true);
+    const widget = await (await creation.complete()).json();
+    expect(widget).toMatchObject({ grid_x: 4, grid_y: 0 });
+    await expect(preview).toHaveCount(0);
+    await expect
+      .poll(() =>
+        page.getByTestId(`dashboard-widget-${widget.id}`).boundingBox()
+      )
+      .toEqual(box);
+  } finally {
+    layout.release();
+    creation.release();
+    await page.unrouteAll({ behavior: "wait" });
+  }
+});
+
+test("keeps the first widget in place from the empty dashboard", async ({
+  page,
+  workspacePage,
+}) => {
+  await page.setViewportSize({ width: 1000, height: 760 });
+  const dashboard = await createDashboard(
+    "Adding the first widget",
+    workspacePage.workspace
+  );
+  await page.goto(
+    `${baserowConfig.PUBLIC_WEB_FRONTEND_URL}/dashboard/${dashboard.id}`
+  );
+  await expect(page.getByText("Edit mode", { exact: true })).toBeVisible();
+  const creation = await pauseRequest(
+    page,
+    "POST",
+    `/api/dashboard/${dashboard.id}/widgets/`
+  );
+  try {
+    await addSummary(page);
+    const preview = page.getByRole("status", { name: "Adding Summary…" });
+    await expect(
+      page.getByRole("button", { name: "Done editing" })
+    ).toBeVisible();
+    await expect(preview).toBeInViewport({ ratio: 0.95 });
+    const box = await preview.boundingBox();
+    const widget = await (await creation.complete()).json();
+    await expect(preview).toHaveCount(0);
+    await expect
+      .poll(() =>
+        page.getByTestId(`dashboard-widget-${widget.id}`).boundingBox()
+      )
+      .toEqual(box);
+  } finally {
+    creation.release();
     await page.unrouteAll({ behavior: "wait" });
   }
 });
