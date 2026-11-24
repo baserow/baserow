@@ -277,6 +277,40 @@ describe('AIProviderFeatureSettings', () => {
     })
   })
 
+  test('asks for a provider when there are none to pick a model from', async () => {
+    testApp.store.commit('aiProvider/SET_WORKSPACE_ID', null)
+    testApp.store.commit('aiProvider/SET_PROVIDERS', [])
+    testApp.store.commit('aiProvider/SET_FEATURE_SETTINGS', [
+      {
+        feature_type: 'kuma',
+        mode: 'legacy',
+        state: 'unconfigured',
+        model: null,
+        inherited_model: null,
+      },
+    ])
+
+    const wrapper = await mountComponent()
+
+    expect(wrapper.find('.ai-provider-feature-settings__hint').text()).toBe(
+      'aiProviderAdmin.noFeatureModelsWithoutProviders'
+    )
+
+    testApp.store.commit('aiProvider/SET_PROVIDERS', [
+      {
+        id: 1,
+        provider_type: 'openai',
+        is_active: true,
+        models: [],
+      },
+    ])
+    await wrapper.vm.$nextTick()
+
+    expect(wrapper.find('.ai-provider-feature-settings__hint').text()).toBe(
+      'aiProviderAdmin.noFeatureModels'
+    )
+  })
+
   test('shows an empty legacy environment model and disables it', async () => {
     const setting = {
       feature_type: 'kuma',
