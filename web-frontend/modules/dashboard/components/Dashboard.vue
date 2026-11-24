@@ -5,14 +5,14 @@
       :loading="loading"
       :is-creating-widget="isCreatingWidget"
       :store-prefix="storePrefix"
-      @widget-variation-selected="createWidget"
+      @widget-variation-selected="addWidget"
     />
     <DashboardContent
       :dashboard="dashboard"
       :loading="loading"
       :is-creating-widget="isCreatingWidget"
       :store-prefix="storePrefix"
-      @widget-variation-selected="createWidget"
+      @widget-variation-selected="addWidget"
     />
   </div>
 </template>
@@ -30,6 +30,7 @@ export default {
     return {
       storePrefix: computed(() => this.storePrefix),
       dashboardWidgetCreation: computed(() => this.widgetCreation),
+      createDashboardWidget: this.createWidget,
     }
   },
   props: {
@@ -66,21 +67,28 @@ export default {
     this.widgetCreation = null
   },
   methods: {
-    async createWidget(widgetVariation) {
+    async addWidget(variation) {
+      try {
+        await this.createWidget({
+          type: variation.type.getType(),
+          params: variation.params,
+        })
+      } catch (error) {
+        notifyIf(error, 'dashboard')
+      }
+    },
+    async createWidget({ type: widgetType, params, select = true }) {
       if (this.isCreatingWidget) {
         return
       }
 
       const dashboard = this.dashboard
       const store = `${this.storePrefix}dashboardApplication`
-      const type = this.$registry.get(
-        'dashboardWidget',
-        widgetVariation.type.getType()
-      )
+      const type = this.$registry.get('dashboardWidget', widgetType)
       const widget = {
         title: type.name,
-        type: type.getType(),
-        ...widgetVariation.params,
+        type: widgetType,
+        ...params,
       }
       const creation = reactive({
         title: widget.title,
@@ -92,9 +100,10 @@ export default {
       this.widgetCreation = creation
       try {
         await this.$store.dispatch(`${store}/enterEditMode`)
-        await this.$store.dispatch(`${store}/createWidget`, {
+        return await this.$store.dispatch(`${store}/createWidget`, {
           dashboard,
           widget,
+          select,
           onCreated: (widgetId) => {
             creation.widgetId = widgetId
           },
@@ -109,7 +118,7 @@ export default {
         ) {
           this.$store.dispatch(`${store}/toggleEditMode`)
         }
-        notifyIf(error, 'dashboard')
+        throw error
       } finally {
         creation.loading = false
         if (this.widgetCreation === creation && creation.widgetId === null) {

@@ -3,42 +3,11 @@ import type { Page } from "@playwright/test";
 import {
   createDashboard,
   createSummaryWidget,
+  pauseWidgetRequest,
   updateDashboardWidgetLayout,
 } from "../../fixtures/dashboard/dashboard";
 import { baserowConfig } from "../../playwright.config";
 import { expect, test } from "../baserowTest";
-
-async function pauseRequest(
-  page: Page,
-  method: "POST" | "PATCH",
-  path: string
-) {
-  let release!: () => void;
-  const pending = new Promise<void>((resolve) => {
-    release = resolve;
-  });
-  let received = false;
-  await page.route(`**${path}`, async (route) => {
-    if (route.request().method() === method) {
-      received = true;
-      await pending;
-    }
-    await route.continue();
-  });
-  return {
-    received: () => received,
-    release,
-    complete() {
-      const response = page.waitForResponse(
-        (response) =>
-          response.request().method() === method &&
-          response.url().endsWith(path)
-      );
-      release();
-      return response;
-    },
-  };
-}
 
 async function addSummary(page: Page) {
   await page.getByRole("button", { name: "Add widget", exact: true }).click();
@@ -138,7 +107,7 @@ test("reveals the new widget while its creation request is pending", async ({
     page.getByTestId(`dashboard-widget-${widgets[2].id}`)
   ).not.toBeInViewport();
 
-  const creation = await pauseRequest(
+  const creation = await pauseWidgetRequest(
     page,
     "POST",
     `/api/dashboard/${dashboard.id}/widgets/`
@@ -189,8 +158,8 @@ test("shows the new widget in the resized layout before it finishes saving", asy
   );
 
   const path = `/api/dashboard/${dashboard.id}/widgets/`;
-  const layout = await pauseRequest(page, "PATCH", path + "layout/");
-  const creation = await pauseRequest(page, "POST", path);
+  const layout = await pauseWidgetRequest(page, "PATCH", path + "layout/");
+  const creation = await pauseWidgetRequest(page, "POST", path);
   try {
     const firstCard = page.getByTestId(
       `dashboard-widget-grid-item-${first.id}`
@@ -249,7 +218,7 @@ test("keeps the first widget in place from the empty dashboard", async ({
     `${baserowConfig.PUBLIC_WEB_FRONTEND_URL}/dashboard/${dashboard.id}`
   );
   await expect(page.getByText("Edit mode", { exact: true })).toBeVisible();
-  const creation = await pauseRequest(
+  const creation = await pauseWidgetRequest(
     page,
     "POST",
     `/api/dashboard/${dashboard.id}/widgets/`

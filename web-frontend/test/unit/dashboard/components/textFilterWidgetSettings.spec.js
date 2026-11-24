@@ -219,6 +219,7 @@ describe('TextFilterWidgetSettings', () => {
   test('renders literal settings and saves clearing through the widget store', async () => {
     const dispatch = vi.spyOn(testApp.store, 'dispatch').mockResolvedValue()
     const wrapper = await testApp.mount(TextFilterWidgetSettings, {
+      global: { provide: { createDashboardWidget: vi.fn() } },
       props: {
         dashboard: { id: 1 },
         widget: {
@@ -795,31 +796,31 @@ describe('creating widgets from a filter', () => {
     const dispatch = vi
       .spyOn(store, 'dispatch')
       .mockImplementation(async (action, payload) => {
-        if (action.endsWith('/createWidget')) {
-          const created = {
-            id: 30,
-            type: 'summary',
-            title: 'Summary',
-            data_source_id: 31,
-          }
-          store.commit('dashboardApplication/SET_WIDGETS', [
-            ...store.getters['dashboardApplication/getWidgets'],
-            created,
-          ])
-          store.commit('dashboardApplication/SET_DATA_SOURCES', [
-            { id: 31, table_id: null, filters: [] },
-          ])
-          return created
-        }
         if (action.endsWith('/updateWidget'))
           store.commit('dashboardApplication/UPDATE_WIDGET', payload)
       })
+    const createDashboardWidget = vi.fn(async () => {
+      const created = {
+        id: 30,
+        type: 'summary',
+        title: 'Summary',
+        data_source_id: 31,
+      }
+      store.commit('dashboardApplication/SET_WIDGETS', [...widgets, created])
+      store.commit('dashboardApplication/SET_DATA_SOURCES', [
+        { id: 31, table_id: null, filters: [] },
+      ])
+      return created
+    })
     const wrapper = await testApp.mount(TextFilterWidgetSettings, {
       props: { dashboard: { id: 1, workspace: { id: 1 } }, widget: widgets[0] },
-      global: { stubs: { ConfigureFilterTargetModal: configurationStub } },
+      global: {
+        provide: { createDashboardWidget },
+        stubs: { ConfigureFilterTargetModal: configurationStub },
+      },
     })
     dispatch.mockClear()
-    return { wrapper, dispatch, store }
+    return { wrapper, createDashboardWidget, dispatch, store }
   }
 
   async function createSummary(wrapper) {
@@ -838,11 +839,11 @@ describe('creating widgets from a filter', () => {
   }
 
   test('opens the setup of the new widget for this filter, then just closes it', async () => {
-    const { wrapper, dispatch, store } = await mountFilters([filterWidget()])
+    const { wrapper, createDashboardWidget, dispatch, store } =
+      await mountFilters([filterWidget()])
     await createSummary(wrapper)
-    expect(dispatch.mock.calls).toHaveLength(1)
-    expect(dispatch.mock.calls[0][1]).toEqual(
-      expect.objectContaining({ select: false })
+    expect(createDashboardWidget).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({ type: 'summary', select: false })
     )
     const configuration = wrapper.findComponent({
       name: 'ConfigureFilterTargetModal',
@@ -858,7 +859,7 @@ describe('creating widgets from a filter', () => {
       )
     )
     await flushPromises()
-    expect(dispatch.mock.calls).toHaveLength(1)
+    expect(dispatch).not.toHaveBeenCalled()
     expect(
       wrapper.findComponent({ name: 'ConfigureFilterTargetModal' }).exists()
     ).toBe(false)
@@ -874,7 +875,7 @@ describe('creating widgets from a filter', () => {
       .findComponent({ name: 'ConfigureFilterTargetModal' })
       .vm.$emit('hidden')
     await flushPromises()
-    expect(dispatch.mock.calls).toHaveLength(1)
+    expect(dispatch).not.toHaveBeenCalled()
     expect(
       wrapper.findComponent({ name: 'WidgetFilterConfigurationModal' }).exists()
     ).toBe(false)
@@ -884,6 +885,9 @@ describe('creating widgets from a filter', () => {
     const second = filterWidget({ id: 5 })
     const { wrapper } = await mountFilters([filterWidget(), second])
     await createSummary(wrapper)
+    expect(
+      wrapper.findComponent({ name: 'ConfigureFilterTargetModal' }).exists()
+    ).toBe(true)
     await wrapper.setProps({ widget: second })
     expect(
       wrapper.findComponent({ name: 'ConfigureFilterTargetModal' }).exists()

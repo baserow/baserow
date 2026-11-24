@@ -1,10 +1,17 @@
 import { mount } from '@vue/test-utils'
+import { ref } from 'vue'
 
 import WidgetContext from '@baserow/modules/dashboard/components/widget/WidgetContext'
 
 function mountWidgetContext(
   hasPermission,
-  { isDisplayWidget = false, tableId = null, flag = true, dispatch } = {}
+  {
+    isDisplayWidget = false,
+    tableId = null,
+    flag = true,
+    createDashboardWidget = vi.fn(),
+    widgetCreation = ref(null),
+  } = {}
 ) {
   return mount(WidgetContext, {
     props: {
@@ -12,24 +19,24 @@ function mountWidgetContext(
       widget: { id: 1, type: 'summary', data_source_id: 3 },
     },
     global: {
+      provide: {
+        createDashboardWidget,
+        dashboardWidgetCreation: widgetCreation,
+      },
       mocks: {
         $hasPermission: hasPermission,
         $featureFlagIsEnabled: () => flag,
         $registry: {
-          get: (namespace, type) =>
-            type === 'text_filter'
-              ? { getType: () => 'text_filter', name: 'Filter' }
-              : {
-                  isDisplayWidget,
-                  getDataSourceId: (widget) => widget.data_source_id,
-                },
+          get: () => ({
+            isDisplayWidget,
+            getDataSourceId: (widget) => widget.data_source_id,
+          }),
         },
         $store: {
           getters: {
             'dashboardApplication/getDataSourceById': () =>
               tableId ? { id: 3, table_id: tableId } : null,
           },
-          dispatch: dispatch || vi.fn(),
         },
         $t: (key) => key,
       },
@@ -67,26 +74,40 @@ describe('WidgetContext', () => {
   })
 
   test('creates a filter applied to the widget', async () => {
-    const dispatch = vi.fn().mockResolvedValue({ id: 9 })
+    const createDashboardWidget = vi.fn().mockResolvedValue({ id: 9 })
     const wrapper = mountWidgetContext(() => true, {
       isDisplayWidget: true,
       tableId: 5,
-      dispatch,
+      createDashboardWidget,
     })
 
     await wrapper.find('.context__menu-item-link').trigger('click')
 
-    expect(dispatch).toHaveBeenCalledWith('dashboardApplication/createWidget', {
-      dashboard: { id: 7, workspace: { id: 1 } },
-      widget: expect.objectContaining({
-        type: 'text_filter',
+    expect(createDashboardWidget).toHaveBeenCalledWith({
+      type: 'text_filter',
+      params: {
         target_filters: [
           expect.objectContaining({
             target_widget_id: 1,
             group: { filter_type: 'AND', filters: [], filter_groups: [] },
           }),
         ],
-      }),
+      },
     })
+  })
+
+  test('disables adding a filter during another widget creation', async () => {
+    const createDashboardWidget = vi.fn()
+    const wrapper = mountWidgetContext(() => true, {
+      isDisplayWidget: true,
+      tableId: 5,
+      createDashboardWidget,
+      widgetCreation: ref({ loading: true }),
+    })
+
+    const addFilter = wrapper.get('[role="button"]')
+    expect(addFilter.attributes('aria-disabled')).toBe('true')
+    await addFilter.trigger('click')
+    expect(createDashboardWidget).not.toHaveBeenCalled()
   })
 })

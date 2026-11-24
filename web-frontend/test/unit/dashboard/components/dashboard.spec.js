@@ -93,6 +93,7 @@ describe('Dashboard', () => {
       {
         dashboard: { id: 1 },
         onCreated: expect.any(Function),
+        select: true,
         widget: {
           title: 'Summary',
           type: 'summary',
