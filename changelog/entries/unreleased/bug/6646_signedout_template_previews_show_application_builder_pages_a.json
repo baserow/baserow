@@ -1,9 +1,0 @@
-{
-    "type": "bug",
-    "message": "Signed-out template previews show Application Builder pages and dashboards instead of loading forever",
-    "issue_origin": "github",
-    "issue_number": 6646,
-    "domain": "core",
-    "bullet_points": [],
-    "created_at": "2026-11-21"
-}
