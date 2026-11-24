@@ -81,9 +81,9 @@ describe('AutomaticSnapshotScheduleSection', () => {
     })
   }
 
-  const mountComponent = async (snapshotUsage = null) => {
+  const mountComponent = async () => {
     const wrapper = await testApp.mount(AutomaticSnapshotScheduleSection, {
-      props: { application, snapshotUsage },
+      props: { application },
       global: { stubs: { PaidFeaturesModal: PaidFeaturesModalStub } },
     })
     await flushPromises()
@@ -102,6 +102,34 @@ describe('AutomaticSnapshotScheduleSection', () => {
     expect(wrapper.text()).toContain('automaticSnapshots.enterpriseBadge')
     expect(wrapper.find('.paid-features-modal-stub').exists()).toBe(true)
     expect(testApp.mock.history.get).toHaveLength(0)
+  })
+
+  test('hides schedule details and clears its active state when the license is lost', async () => {
+    giveEnterpriseLicense()
+    testApp.mock.onGet(url).reply(
+      200,
+      overview({
+        workspace_default: schedule(),
+        last_run: { finished_at: '2026-11-24T08:00:00Z', error: 'No room' },
+      })
+    )
+    const wrapper = await mountComponent()
+    expect(
+      wrapper.find('.automatic-snapshot-schedule__last-run').exists()
+    ).toBe(true)
+    await testApp.store.dispatch('auth/forceUpdateUserData', {
+      active_licenses: {
+        instance_wide: { enterprise: false },
+        per_workspace: {},
+      },
+    })
+    await flushPromises()
+    expect(wrapper.text()).toContain('automaticSnapshots.upsell')
+    expect(
+      wrapper.find('.automatic-snapshot-schedule__last-run').exists()
+    ).toBe(false)
+    expect(wrapper.find('.switch').exists()).toBe(false)
+    expect(wrapper.emitted('capacity-warning').at(-1)).toEqual([''])
   })
 
   test('offers to set up a schedule when nothing applies', async () => {
@@ -129,21 +157,25 @@ describe('AutomaticSnapshotScheduleSection', () => {
       )
       const wrapper = await mountComponent()
       const result = wrapper.find('.automatic-snapshot-schedule__last-run')
-      expect(result.text()).toContain('automaticSnapshots.lastExecution')
+      expect(result.text()).toContain('automaticSnapshots.lastExecution:')
+      expect(wrapper.text()).not.toContain(
+        'automaticSnapshots.upToMaxSnapshots'
+      )
+      expect(result.html()).toMatchSnapshot()
       expect(result.text()).toContain(
         error
           ? 'automaticSnapshots.executionFailed'
           : 'automaticSnapshots.executionSucceeded'
       )
-      expect(result.find('details').exists()).toBe(Boolean(error))
+      expect(result.find('details').exists()).toBe(true)
       if (error) {
         expect(result.find('details').attributes('open')).toBeUndefined()
-        expect(result.find('summary').text()).toBe(
-          'automaticSnapshots.viewError'
+        expect(result.find('summary').attributes('aria-label')).toBe(
+          'automaticSnapshots.executionDetails'
         )
         expect(
           result.find('.automatic-snapshot-schedule__last-run-error').text()
-        ).toBe(error)
+        ).toContain(error)
       }
     }
   )
@@ -156,6 +188,9 @@ describe('AutomaticSnapshotScheduleSection', () => {
     const wrapper = await mountComponent()
 
     expect(wrapper.text()).toContain('automaticSnapshots.badgeWorkspace')
+    expect(wrapper.emitted('capacity-warning').at(-1)).toEqual([
+      'automaticSnapshots.scheduleBlocked',
+    ])
     expect(wrapper.text()).toContain('automaticSnapshots.everyDay')
     expect(wrapper.text()).toContain('automaticSnapshots.setByWorkspace')
     expect(footerLabels(wrapper)).toEqual(['automaticSnapshots.customise'])
@@ -202,94 +237,6 @@ describe('AutomaticSnapshotScheduleSection', () => {
       'automaticSnapshots.edit',
       'automaticSnapshots.remove',
     ])
-  })
-
-  test('warns that runs skip an application with a max of 0 snapshots', async () => {
-    giveEnterpriseLicense()
-    testApp.mock.onGet(url).reply(
-      200,
-      overview({
-        state: 'own_schedule',
-        schedule: schedule({ application_id: 10 }),
-      })
-    )
-
-    const wrapper = await mountComponent({
-      limit: 10,
-      effective_max_snapshots: 0,
-    })
-
-    expect(wrapper.find('.automatic-snapshot-schedule__warning').text()).toBe(
-      'automaticSnapshots.maxSnapshotsZeroWarning'
-    )
-  })
-
-  test('warns that runs fail when every kept snapshot is protected', async () => {
-    giveEnterpriseLicense()
-    testApp.mock.onGet(url).reply(
-      200,
-      overview({
-        state: 'own_schedule',
-        schedule: schedule({ application_id: 10 }),
-      })
-    )
-
-    const wrapper = await mountComponent({
-      limit: 10,
-      effective_max_snapshots: 3,
-      protected_count: 3,
-    })
-
-    expect(
-      wrapper.find('.automatic-snapshot-schedule__warning').text()
-    ).toContain('automaticSnapshots.fullOfProtectedWarning')
-    expect(
-      wrapper.find('.automatic-snapshot-schedule__warning').classes()
-    ).toContain('alert--error')
-    expect(
-      wrapper.find('.automatic-snapshot-schedule__warning').classes()
-    ).not.toContain('alert--compact')
-  })
-
-  test('does not warn when a snapshot can be replaced', async () => {
-    giveEnterpriseLicense()
-    testApp.mock.onGet(url).reply(
-      200,
-      overview({
-        state: 'own_schedule',
-        schedule: schedule({ application_id: 10 }),
-      })
-    )
-
-    const wrapper = await mountComponent({
-      limit: 10,
-      effective_max_snapshots: 3,
-      protected_count: 2,
-    })
-
-    expect(wrapper.find('.automatic-snapshot-schedule__warning').exists()).toBe(
-      false
-    )
-  })
-
-  test('warns that runs fail when snapshots are turned off', async () => {
-    giveEnterpriseLicense()
-    testApp.mock.onGet(url).reply(
-      200,
-      overview({
-        state: 'own_schedule',
-        schedule: schedule({ application_id: 10 }),
-      })
-    )
-
-    const wrapper = await mountComponent({
-      limit: 0,
-      effective_max_snapshots: 2,
-    })
-
-    expect(wrapper.find('.automatic-snapshot-schedule__warning').text()).toBe(
-      'automaticSnapshots.disabledWarning'
-    )
   })
 
   test('is hidden without the automatic snapshots feature flag', async () => {

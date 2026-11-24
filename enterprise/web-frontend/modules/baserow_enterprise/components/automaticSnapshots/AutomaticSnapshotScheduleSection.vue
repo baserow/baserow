@@ -63,9 +63,6 @@
                 >· {{ activeSchedule.timezone }}</span
               >
             </div>
-            <div class="automatic-snapshot-schedule__detail">
-              {{ activeScheduleDetail }}
-            </div>
           </template>
           <div v-else class="automatic-snapshot-schedule__description">
             {{ emptyDescription }}
@@ -79,6 +76,42 @@
             }}</Button>
           </div>
         </template>
+        <div
+          v-if="hasFeature && (activeScheduleDetail || overview?.last_run)"
+          class="automatic-snapshot-schedule__last-run"
+        >
+          <span v-if="activeScheduleDetail">{{ activeScheduleDetail }}</span>
+          <template v-if="overview?.last_run">
+            <span v-if="activeScheduleDetail"> · </span>
+            <span
+              >{{ $t('automaticSnapshots.lastExecution') }}:
+              {{
+                overview.last_run.error
+                  ? $t('automaticSnapshots.executionFailed')
+                  : $t('automaticSnapshots.executionSucceeded')
+              }}</span
+            >
+            <details>
+              <summary :aria-label="$t('automaticSnapshots.executionDetails')">
+                ⓘ
+              </summary>
+              <div class="automatic-snapshot-schedule__last-run-error">
+                {{
+                  formatRunTime(
+                    activeSchedule || {
+                      interval: 'DAY',
+                      timezone: moment.tz.guess(),
+                    },
+                    overview.last_run.finished_at
+                  )
+                }}
+                <div v-if="overview.last_run.error">
+                  {{ overview.last_run.error }}
+                </div>
+              </div>
+            </details>
+          </template>
+        </div>
       </div>
       <SwitchInput
         v-if="hasFeature && overview && !isEmpty && canUpdate"
@@ -94,36 +127,6 @@
         @keydown.enter.prevent="!actionLoading && toggle(!switchedOn)"
         @keydown.space.prevent="!actionLoading && toggle(!switchedOn)"
       ></SwitchInput>
-    </div>
-
-    <Alert
-      v-if="hasFeature && activeSchedule && maxSnapshotsWarning"
-      type="error"
-      class="automatic-snapshot-schedule__warning"
-    >
-      {{ maxSnapshotsWarning }}
-    </Alert>
-
-    <div
-      v-if="hasFeature && overview?.last_run"
-      class="automatic-snapshot-schedule__last-run"
-    >
-      <div>{{ $t('automaticSnapshots.lastExecution') }}</div>
-      <div>
-        {{ moment.utc(overview.last_run.finished_at).local().format('lll') }}
-        ·
-        {{
-          overview.last_run.error
-            ? $t('automaticSnapshots.executionFailed')
-            : $t('automaticSnapshots.executionSucceeded')
-        }}
-      </div>
-      <details v-if="overview.last_run.error">
-        <summary>{{ $t('automaticSnapshots.viewError') }}</summary>
-        <div class="automatic-snapshot-schedule__last-run-error">
-          {{ overview.last_run.error }}
-        </div>
-      </details>
     </div>
 
     <div
@@ -177,7 +180,7 @@
 </template>
 
 <script setup>
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import moment from '@baserow/modules/core/moment'
 import { notifyIf } from '@baserow/modules/core/utils/error'
 import PaidFeaturesModal from '@baserow_premium/components/PaidFeaturesModal'
@@ -190,23 +193,15 @@ import {
   describeSchedule,
   formatRunTime,
   getNewScheduleValues,
-  getScheduleBlockedWarning,
   getScheduleValues,
 } from '@baserow_enterprise/utils/automaticSnapshots'
+
+const emit = defineEmits(['capacity-warning'])
 
 const props = defineProps({
   application: {
     type: Object,
     required: true,
-  },
-  /**
-   * The snapshot usage of the application from the snapshots modal, `null` while
-   * it's loading. It says whether scheduled runs can create anything.
-   */
-  snapshotUsage: {
-    type: Object,
-    required: false,
-    default: null,
   },
 })
 
@@ -267,33 +262,20 @@ const isEmpty = computed(
 )
 // The schedule that creates the snapshots of this application, if any.
 const activeSchedule = computed(() => {
+  if (!hasFeature.value) {
+    return null
+  }
   if (overview.value?.state === 'own_schedule') {
     return ownSchedule.value
   }
   return followsEnabledDefault.value ? workspaceDefault.value : null
 })
 const switchedOn = computed(() => activeSchedule.value !== null)
-
-// Why scheduled runs create nothing, when they can't: snapshots are turned off,
-// the application has a max of 0, so runs skip it, or every snapshot it keeps is
-// protected, so runs fail.
-const maxSnapshotsWarning = computed(() => {
-  const usage = props.snapshotUsage
-  if (!usage) {
-    return ''
-  }
-  return (
-    getScheduleBlockedWarning(
-      {
-        limit: usage.limit,
-        maxSnapshots: usage.effective_max_snapshots,
-        protectedCount: usage.protected_count,
-      },
-      props.application.name,
-      t
-    ) || ''
-  )
-})
+watch(
+  () => (switchedOn.value ? t('automaticSnapshots.scheduleBlocked') : ''),
+  (message) => emit('capacity-warning', message),
+  { immediate: true }
+)
 
 const stateBadge = computed(() => {
   if (!overview.value || isEmpty.value) {
@@ -335,13 +317,12 @@ function showsTimezone(schedule) {
 
 const activeScheduleDetail = computed(() => {
   const schedule = activeSchedule.value
-  if (!schedule.next_run_at) {
-    return t('automaticSnapshots.upToMaxSnapshots')
+  if (!schedule?.next_run_at) {
+    return ''
   }
-  const next = t('automaticSnapshots.nextRun', {
+  return t('automaticSnapshots.nextRun', {
     date: formatRunTime(schedule, schedule.next_run_at),
   })
-  return `${next} · ${t('automaticSnapshots.upToMaxSnapshots')}`
 })
 
 function newScheduleValues() {

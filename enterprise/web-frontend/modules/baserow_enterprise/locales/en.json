@@ -1115,8 +1115,7 @@
     "badgeWorkspace": "Workspace schedule",
     "off": "No automatic snapshots are created of {name}. The workspace schedule doesn't apply to it.",
     "none": "Snapshot {name} on a schedule and keep the most recent copies, so a mistake can be undone.",
-    "nextRun": "Next snapshot {date}",
-    "upToMaxSnapshots": "Keeps up to the application's max snapshots",
+    "nextRun": "Next: {date}",
     "edit": "Edit schedule",
     "customise": "Customise for {name}",
     "setByWorkspace": "Set by a workspace admin",
@@ -1149,10 +1148,11 @@
     "everyWeek": "Every {day} at {time}",
     "everyMonth": "Every month on day {day} at {time}",
     "noRoom": "There is not enough room to create a new snapshot.",
-    "lastExecution": "Last execution",
+    "lastExecution": "Last",
     "executionFailed": "Failed",
     "executionSucceeded": "Succeeded",
-    "viewError": "View error"
+    "executionDetails": "Last execution details",
+    "scheduleBlocked": "Scheduled snapshots will not be created until there is room."
   },
   "automaticSnapshotsSettings": {
     "title": "Automatic snapshots",
