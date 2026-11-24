@@ -46,7 +46,11 @@ from baserow_enterprise.assistant.model_profiles import (
     ResolvedAssistantModelProfile,
 )
 from baserow_enterprise.assistant.prompts import AGENT_SYSTEM_PROMPT
-from baserow_enterprise.assistant.tools.core.tools import switch_mode
+from baserow_enterprise.assistant.tools.core.tools import (
+    _only_modes_the_user_has,
+    core_toolset,
+    switch_mode,
+)
 from baserow_enterprise.assistant.tools.registries import assistant_tool_registry
 from baserow_enterprise.assistant.tools.routing import (
     ModeAwareToolset,
@@ -57,6 +61,7 @@ from baserow_enterprise.assistant.tools.routing import (
 from baserow_enterprise.assistant.tools.search_user_docs.tool_types import (
     SearchDocsToolType,
 )
+from baserow_enterprise.assistant.tools.shared import ToolInputError
 from baserow_enterprise.assistant.tools.toolset import (
     InlineRefsToolset,
     _find_placeholder_ids,
@@ -825,6 +830,16 @@ def test_kuma_offers_agents_only_when_it_can_build_them(
         _mode_for_ui_context(on_agent_page, built.deps.permitted_tools)
         == AgentMode.AGENT
     ) is agent_builder
-    switched = switch_mode(ctx, "agent", thought="t")
-    assert (built.deps.mode == AgentMode.AGENT) is agent_builder
-    assert ("isn't available" in switched) is not agent_builder
+    # Without the agent tools, switch_mode doesn't say an agent mode exists.
+    offered = asyncio.run(
+        _only_modes_the_user_has(ctx, core_toolset.tools["switch_mode"].tool_def)
+    ).parameters_json_schema["properties"]["mode"]
+    assert ("agent" in offered["enum"]) is agent_builder
+    assert ("'agent'" in offered["description"]) is agent_builder
+    if agent_builder:
+        switch_mode(ctx, "agent", thought="t")
+        assert built.deps.mode == AgentMode.AGENT
+    else:
+        with pytest.raises(ToolInputError, match="is not a mode"):
+            switch_mode(ctx, "agent", thought="t")
+        assert built.deps.mode != AgentMode.AGENT

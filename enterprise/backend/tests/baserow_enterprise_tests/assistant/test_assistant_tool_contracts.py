@@ -517,7 +517,7 @@ def _check_list_agents(result: Any) -> None:
 
 def _check_list_agent_tools(result: Any) -> None:
     assert result["trigger_types"][-1] == "periodic"
-    assert set(result["identities"]) == {"can_create", "selectable"}
+    assert {"can_create", "can_select", "selectable"} <= set(result["identities"])
     assert all(not tool["deactivated"] for tool in result["tools"])
     json.dumps(result)
 

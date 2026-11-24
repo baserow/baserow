@@ -1594,10 +1594,10 @@ class AgentHandler:
             mcp_servers = tuple(
                 dataclasses.replace(
                     server,
+                    # Whether an MCP tool only reads is the remote server's own
+                    # word, so in a test every one of them asks first.
                     tools=tuple(
-                        dataclasses.replace(
-                            tool, ask_first=tool.ask_first or tool.changes_data
-                        )
+                        dataclasses.replace(tool, ask_first=True)
                         for tool in server.tools
                     ),
                 )

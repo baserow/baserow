@@ -2,6 +2,7 @@ import asyncio
 import inspect
 import json
 from dataclasses import replace
+from enum import StrEnum
 from typing import Any, Awaitable, Callable, get_type_hints
 
 from asgiref.sync import async_to_sync, sync_to_async
@@ -202,6 +203,15 @@ async def shield_tool_call(work: Awaitable[ToolReturn]) -> ToolReturn:
         raise
 
 
+class AgentToolNeeds(StrEnum):
+    """What an identity has to be allowed to do before it can call a tool."""
+
+    READ = "read"
+    COMMENT = "comment"
+    CHANGE_ROWS = "change_rows"
+    BUILD = "build"
+
+
 class AgentToolType(Instance):
     """
     A tool an Agent can call: a function shared with the other clients, see
@@ -216,6 +226,10 @@ class AgentToolType(Instance):
 
     group: str
     """The part of the workspace the tool works on, to group tools in the UI."""
+
+    needs: AgentToolNeeds
+    """What the Agent's identity has to be allowed to do to call the tool. Every
+    type says it, so a new tool is never given more than it needs."""
 
     changes_data: bool = False
     """True when the tool creates, changes or deletes data. It then runs alone, and
@@ -358,6 +372,20 @@ class AgentToolType(Instance):
 
 class AgentToolTypeRegistry(Registry[AgentToolType]):
     name = "agent_tool"
+
+    def register(self, instance: AgentToolType) -> None:
+        """
+        :param instance: The tool type to register.
+        :raises ValueError: When the type doesn't say what it needs, as nothing
+            can then tell which role covers it.
+        """
+
+        if not isinstance(getattr(instance, "needs", None), AgentToolNeeds):
+            raise ValueError(
+                f"The {self.name} {instance.type} must set `needs` to an "
+                "AgentToolNeeds value."
+            )
+        super().register(instance)
 
 
 agent_tool_type_registry = AgentToolTypeRegistry()

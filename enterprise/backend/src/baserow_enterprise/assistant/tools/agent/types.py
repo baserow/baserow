@@ -2,7 +2,13 @@
 
 from typing import Annotated, Any, Literal
 
-from pydantic import BaseModel, Field, field_validator, model_validator
+from pydantic import (
+    BaseModel,
+    Field,
+    StringConstraints,
+    field_validator,
+    model_validator,
+)
 from rest_framework.exceptions import ValidationError as DRFValidationError
 
 from baserow.api.validators import no_url_validation
@@ -24,6 +30,10 @@ WEEKDAYS = (
     "SUNDAY",
 )
 IDENTITY_NAME_MAX_LENGTH = 150
+# The limits of the Agent action API.
+ACTION_DESCRIPTION_MAX_LENGTH = 10000
+# Names are saved trimmed, so they are read trimmed too.
+Trimmed = StringConstraints(strip_whitespace=True)
 
 TRIGGER_MESSAGE = (
     "Leave blank so each run opens with the event, such as the rows that changed. "
@@ -35,7 +45,8 @@ TRIGGER_MESSAGE = (
 class NewIdentity(BaseModel):
     """An identity gets the lowest workspace role that covers the Agent's tools."""
 
-    name: str = Field(
+    name: Annotated[str, Trimmed] = Field(
+        min_length=1,
         max_length=IDENTITY_NAME_MAX_LENGTH,
         description="The identity's name, usually the Agent's name. No links.",
     )
@@ -134,13 +145,26 @@ class ActionSpec(BaseModel):
         description="The tool name the Agent calls: up to 64 letters, numbers and "
         "underscores, starting with a letter or underscore.",
     )
-    description: str = Field(default="", description="When the Agent should use it.")
+    description: str = Field(
+        default="",
+        max_length=ACTION_DESCRIPTION_MAX_LENGTH,
+        description="When the Agent should use it.",
+    )
+
+
+class ScheduleChange(BaseModel):
+    """A new schedule for a periodic trigger, which keeps its name and message."""
+
+    trigger_id: int
+    schedule: Schedule
 
 
 class AgentSetup(BaseModel):
     """An Agent's setup, or the part of it to change. Unset values stay as they are."""
 
-    name: str | None = Field(default=None, description="Required to create.")
+    name: Annotated[str, Trimmed] | None = Field(
+        default=None, description="Required to create."
+    )
     instructions: str | None = Field(
         default=None,
         max_length=AGENT_TEXT_MAX_LENGTH,
@@ -185,8 +209,12 @@ class AgentSetup(BaseModel):
     )
     remove_triggers: list[int] = Field(
         default_factory=list,
-        description="The trigger_id of each trigger to delete. To change when a "
-        "trigger runs, remove it and add the new one in the same call.",
+        description="The trigger_id of each trigger to delete.",
+    )
+    change_schedules: list[ScheduleChange] = Field(
+        default_factory=list,
+        description="A new schedule for a periodic trigger, which keeps its name "
+        "and message. The trigger is turned off: the user turns it back on.",
     )
     add_actions: list[ActionSpec] = Field(
         default_factory=list,
@@ -201,4 +229,17 @@ class AgentSetup(BaseModel):
     def _acts_as_one_identity(self) -> "AgentSetup":
         if self.new_identity and self.run_as_identity_id:
             raise ValueError("Send run_as_identity_id or new_identity, not both.")
+        both = sorted(set(self.grant_tools) & set(self.revoke_tools))
+        if both:
+            raise ValueError(
+                f"{', '.join(both)} is in grant_tools and revoke_tools: send each "
+                "tool in one of them."
+            )
+        removed = {change.trigger_id for change in self.change_schedules} & set(
+            self.remove_triggers
+        )
+        if removed:
+            raise ValueError(
+                "A trigger in change_schedules can't be in remove_triggers too."
+            )
         return self

@@ -45,7 +45,7 @@ PROMPT_BUILDS_WEEKLY_DIGEST = (
 PROMPT_TURNS_OFF_ASK_FIRST = "Let Lead triage update rows without asking me first."
 # How Kuma says a trigger is the user's to turn on.
 TURN_ON = re.compile(
-    r"turn(ed|ing)?\b.{0,30}\bon\b|enabl|switch(ed|ing)?\b.{0,30}\bon\b"
+    r"turn(ed|ing)?\b.{0,30}\bon\b|\benable\b|switch(ed|ing)?\b.{0,30}\bon\b"
 )
 PROMPT_PAUSES_TRIGGER = "Pause Lead triage for now: it should stop running by itself."
 PROMPT_TESTS_AGENT = (

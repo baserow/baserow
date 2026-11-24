@@ -7,6 +7,7 @@ identity gets the lowest role that covers the Agent's tools.
 """
 
 import json
+import re
 import time
 from collections.abc import Iterator
 from contextlib import contextmanager
@@ -24,7 +25,6 @@ from pydantic_ai import RunContext
 from baserow.contrib.agent.action_tools.actions import (
     CreateAgentActionActionType,
     DeleteAgentActionActionType,
-    UpdateAgentActionActionType,
 )
 from baserow.contrib.agent.action_tools.exceptions import (
     AgentActionLimitReached,
@@ -47,7 +47,8 @@ from baserow.contrib.agent.models import (
     AgentMessage,
     AgentReplyStatus,
 )
-from baserow.contrib.agent.registries import agent_tool_type_registry
+from baserow.contrib.agent.operations import ReadAgentConfigurationOperationType
+from baserow.contrib.agent.registries import AgentToolNeeds, agent_tool_type_registry
 from baserow.contrib.agent.service import AgentService
 from baserow.contrib.agent.triggers.actions import (
     CreateAgentTriggerActionType,
@@ -63,6 +64,7 @@ from baserow.contrib.integrations.mcp.models import MCPServerTool
 from baserow.core.chat_runs.exceptions import ChatRunLimitReached
 from baserow.core.datetime import get_timezones
 from baserow.core.exceptions import PermissionException
+from baserow.core.feature_flags import FF_IDENTITIES, feature_flag_is_enabled
 from baserow.core.formula.literals import wrap_static_string
 from baserow.core.handler import CoreHandler
 from baserow.core.identities.actions import CreateIdentityActionType
@@ -72,6 +74,7 @@ from baserow.core.identities.operations import CreateIdentityOperationType
 from baserow.core.identities.registries import identity_extension_type_registry
 from baserow.core.identities.service import IdentityService
 from baserow.core.models import Workspace
+from baserow.core.operations import UpdateApplicationOperationType
 from baserow.core.services.exceptions import ServiceMisconfigured
 from baserow.core.subjects import UserSubjectType
 from baserow.core.tools import ToolContext
@@ -81,6 +84,7 @@ from baserow.core.tools.applications import (
     visible_applications,
 )
 from baserow.core.tools.errors import format_validation_error
+from baserow_enterprise.assistant.action_memory import was_cut
 from baserow_enterprise.assistant.deps import AssistantDeps
 from baserow_enterprise.assistant.tools.shared import ToolInputError
 from baserow_enterprise.assistant.tools.toolset import AssistantFunctionToolset
@@ -96,9 +100,14 @@ from .types import (
 )
 
 AGENT_TYPE = AgentApplicationType.type
-# The lowest workspace role an identity needs for a tool, by what the tool does.
-ROW_TOOLS = frozenset({"create_rows", "update_rows", "delete_rows"})
 ROLES_BY_REACH = ("VIEWER", "COMMENTER", "EDITOR", "BUILDER", "ADMIN")
+# The lowest workspace role that covers what a tool says it needs.
+ROLE_FOR_NEEDS = {
+    AgentToolNeeds.READ: "VIEWER",
+    AgentToolNeeds.COMMENT: "COMMENTER",
+    AgentToolNeeds.CHANGE_ROWS: "EDITOR",
+    AgentToolNeeds.BUILD: "BUILDER",
+}
 # Where roles need a licence the workspace lacks, members are builders.
 ROLE_WITHOUT_ROLES = "MEMBER"
 # How long get_agent_test_result waits for the Agent to finish replying.
@@ -202,10 +211,12 @@ def _schedule_values(service: Any) -> dict[str, Any] | None:
         return None
     values = {
         field: getattr(service, field)
-        for field in ("interval", "hour", "minute", "day_of_month", "timezone")
+        for field in ("interval", "hour", "minute", "timezone")
     }
-    day = service.day_of_week
-    values["day_of_week"] = WEEKDAYS[day] if day is not None else None
+    # A day is saved for every schedule, and only these two run by it.
+    weekly, monthly = service.interval == "WEEK", service.interval == "MONTH"
+    values["day_of_week"] = WEEKDAYS[service.day_of_week] if weekly else None
+    values["day_of_month"] = service.day_of_month if monthly else None
     return values
 
 
@@ -214,6 +225,14 @@ def _read_setup(user: AbstractUser, agent: AgentApplication) -> dict[str, Any]:
 
     configuration = AgentService().get_configuration(user, agent.id)
     run_as = configuration.run_as
+    identity = (
+        IdentityHandler()
+        .get_queryset(agent.workspace)
+        .filter(id=run_as.subject_id)
+        .first()
+        if run_as.subject_id
+        else None
+    )
     triggers = AgentTriggerService().list_triggers(user, agent.id)
     actions = AgentActionService().list_actions(user, agent.id)
     return {
@@ -229,7 +248,10 @@ def _read_setup(user: AbstractUser, agent: AgentApplication) -> dict[str, Any]:
         "run_as": {
             "identity_id": run_as.subject_id,
             "name": run_as.name,
-            "role": _identity_role(agent.workspace, run_as.subject_id),
+            "role": IdentityHandler.get_role_uid(identity) if identity else None,
+            # False for an identity that is trashed or gone: the Agent's tools
+            # are refused until it acts as another one.
+            "available": identity is not None,
         }
         if run_as.subject_id
         else None,
@@ -284,10 +306,15 @@ def _check_model(
         Agents in the workspace.
     """
 
-    if not setup.provider_type and not setup.model_identifier:
+    if setup.provider_type is None and setup.model_identifier is None:
         return
-    provider_type = setup.provider_type or (current or {}).get("provider_type")
-    model_identifier = setup.model_identifier or (current or {}).get("model_identifier")
+    # The values as they are saved: only an unset one keeps the current value.
+    provider_type, model_identifier = (
+        (current or {}).get(field)
+        if getattr(setup, field) is None
+        else getattr(setup, field)
+        for field in ("provider_type", "model_identifier")
+    )
     enabled = _enabled_models(workspace)
     if {"provider_type": provider_type, "model_identifier": model_identifier} in (
         enabled
@@ -314,32 +341,25 @@ def _changes_data(name: str) -> bool:
     )
 
 
-def _identity_role(workspace: Workspace, identity_id: int) -> str | None:
-    """
-    :param workspace: The chat's workspace, which the identity is looked up in.
-    :param identity_id: An identity.
-    :return: The identity's workspace role uid, or None when it isn't there.
-    """
-
-    identity = IdentityHandler().get_queryset(workspace).filter(id=identity_id).first()
-    return IdentityHandler.get_role_uid(identity) if identity else None
-
-
 def _identity_options(user: AbstractUser, workspace: Workspace) -> dict[str, Any]:
     """
     :param user: The chat's user.
     :param workspace: The chat's workspace.
-    :return: Whether the user's role lets them create an identity, and the
-        identities they may make an Agent act as.
+    :return: Whether the user can create an identity and why not, whether they
+        may choose the identity an Agent acts as, and the ones to choose from.
     """
 
-    can_create = CoreHandler().check_permissions(
+    cannot_create = None
+    if not feature_flag_is_enabled(FF_IDENTITIES, user=user):
+        cannot_create = "Identities aren't turned on here"
+    elif not CoreHandler().check_permissions(
         user,
         CreateIdentityOperationType.type,
         workspace=workspace,
         context=workspace,
         raise_permission_exceptions=False,
-    )
+    ):
+        cannot_create = "Only a workspace admin can create an identity"
     can_select = IdentityService().check_can_bind(
         user, workspace, raise_permission_exceptions=False
     )
@@ -357,7 +377,14 @@ def _identity_options(user: AbstractUser, workspace: Workspace) -> dict[str, Any
         if can_select
         else []
     )
-    return {"can_create": can_create, "selectable": selectable}
+    options = {
+        "can_create": cannot_create is None,
+        "can_select": can_select,
+        "selectable": selectable,
+    }
+    if cannot_create:
+        options["cannot_create_because"] = cannot_create
+    return options
 
 
 def _check_identity(
@@ -383,20 +410,26 @@ def _check_identity(
         return
     options = _identity_options(user, workspace)
     if setup.new_identity and not options["can_create"]:
+        why = options["cannot_create_because"]
         if options["selectable"]:
             raise ToolInputError(
-                "Not applied. Only a workspace admin can create an identity.",
+                f"Not applied. {why}.",
                 hint="Ask the user which of these the Agent should act as and send "
                 "it as run_as_identity_id, or they ask an admin for a new one: "
                 + json.dumps(options["selectable"]),
             )
+        if options["can_select"]:
+            raise ToolInputError(
+                f"Not applied. {why}, and the workspace has no identity to choose yet.",
+                hint="Tell the user to ask a workspace admin to create an identity "
+                "for the Agent.",
+            )
         raise ToolInputError(
-            "Not applied. Only a workspace admin can create an identity, and the "
-            "user may not choose one for an Agent either.",
+            f"Not applied. {why}, and the user may not choose one for an Agent either.",
             hint="Tell the user they need the Builder role to build Agents, and an "
             "admin to create the identity.",
         )
-    if not setup.new_identity and not options["selectable"]:
+    if not setup.new_identity and not options["can_select"]:
         raise ToolInputError(
             "Not applied. The user may not choose the identity an Agent acts as.",
             hint="Tell the user they need the Builder role in the workspace.",
@@ -407,18 +440,19 @@ def _lowest_role(workspace: Workspace, tools: list[str]) -> str:
     """
     :param workspace: The chat's workspace.
     :param tools: The tools the Agent is allowed after the change.
-    :return: The lowest workspace role that covers the tools: one that reads, one
-        that changes rows, or one that changes tables and fields.
+    :return: The lowest workspace role that covers what each tool needs.
     """
 
-    changing = [name for name in tools if _changes_data(name)]
-    if any(name not in ROW_TOOLS for name in changing):
-        wanted = "BUILDER"
-    elif changing:
-        wanted = "EDITOR"
-    else:
-        wanted = "VIEWER"
-    for role in ROLES_BY_REACH[ROLES_BY_REACH.index(wanted) :]:
+    known = agent_tool_type_registry.get_types()
+    wanted = max(
+        (
+            ROLES_BY_REACH.index(ROLE_FOR_NEEDS[agent_tool_type_registry.get(n).needs])
+            for n in tools
+            if n in known
+        ),
+        default=0,
+    )
+    for role in ROLES_BY_REACH[wanted:]:
         if role != "ADMIN" and identity_extension_type_registry.role_uid_exists(
             role, workspace
         ):
@@ -452,17 +486,24 @@ def _runs_by_itself(current: dict[str, Any], setup: AgentSetup) -> bool:
     :return: Whether a trigger still starts the Agent after the change.
     """
 
-    off = {*setup.turn_off_triggers, *setup.remove_triggers}
+    off = {
+        *setup.turn_off_triggers,
+        *setup.remove_triggers,
+        *(change.trigger_id for change in setup.change_schedules),
+    }
     return any(
         trigger["enabled"] and trigger["trigger_id"] not in off
         for trigger in current["triggers"]
     )
 
 
-def _acts_without_asking(current: dict[str, Any], setup: AgentSetup) -> bool:
+def _acts_without_asking(
+    current: dict[str, Any], setup: AgentSetup, tools_after: list[str]
+) -> bool:
     """
     :param current: The Agent's setup now.
     :param setup: The proposed change.
+    :param tools_after: Every tool the Agent is allowed after the change.
     :return: Whether, after the change, the Agent can open web pages or has a
         tool, action or MCP tool that changes data without asking first.
     """
@@ -471,10 +512,12 @@ def _acts_without_asking(current: dict[str, Any], setup: AgentSetup) -> bool:
         return True
 
     # A tool Kuma allows asks first, so only the ones the user freed count.
+    # The same list that is saved, so this can't see a tool differently.
     asking = set(current["ask_first_tools"])
     if any(
-        _changes_data(name) and name not in asking and name not in setup.revoke_tools
-        for name in current["allowed_tools"]
+        _changes_data(name) and name not in asking
+        for name in tools_after
+        if name in current["allowed_tools"]
     ):
         return True
     # Actions are added turned off, so only the Agent's current ones count.
@@ -490,7 +533,9 @@ def _acts_without_asking(current: dict[str, Any], setup: AgentSetup) -> bool:
     ).exists()
 
 
-def _unattended_changes(current: dict[str, Any] | None, setup: AgentSetup) -> list[str]:
+def _unattended_changes(
+    current: dict[str, Any] | None, setup: AgentSetup, tools_after: list[str]
+) -> list[str]:
     """
     Nobody watches an Agent a trigger starts, so Kuma doesn't change who it acts
     as, or what steers the web pages it opens and its unasked changes to data:
@@ -498,6 +543,7 @@ def _unattended_changes(current: dict[str, Any] | None, setup: AgentSetup) -> li
 
     :param current: The Agent's setup now, or None for a new Agent.
     :param setup: The proposed change.
+    :param tools_after: Every tool the Agent is allowed after the change.
     :return: In plain words, each part of the change that isn't made while a
         trigger starts the Agent. Empty when the whole change can be made.
     """
@@ -513,7 +559,7 @@ def _unattended_changes(current: dict[str, Any] | None, setup: AgentSetup) -> li
     if (
         setup.web_search_enabled
         and not current["web_search_enabled"]
-        and _acts_without_asking(current, setup)
+        and _acts_without_asking(current, setup, tools_after)
     ):
         changes.append(
             "let it search the web, as it opens web pages or changes data without "
@@ -522,7 +568,7 @@ def _unattended_changes(current: dict[str, Any] | None, setup: AgentSetup) -> li
     if (
         setup.instructions is not None
         and setup.instructions != current["instructions"]
-        and _acts_without_asking(current, setup)
+        and _acts_without_asking(current, setup, tools_after)
     ):
         changes.append(
             "change its instructions, as it opens web pages or changes data "
@@ -592,7 +638,42 @@ def _with_schedule_timezones(setup: AgentSetup, timezone: str) -> AgentSetup:
             _check_schedule(schedule)
             spec = spec.model_copy(update={"schedule": schedule})
         triggers.append(spec)
-    return setup.model_copy(update={"add_triggers": triggers})
+    changes = []
+    for change in setup.change_schedules:
+        schedule = change.schedule
+        if not schedule.timezone:
+            schedule = schedule.model_copy(update={"timezone": timezone})
+        _check_schedule(schedule)
+        changes.append(change.model_copy(update={"schedule": schedule}))
+    return setup.model_copy(
+        update={"add_triggers": triggers, "change_schedules": changes}
+    )
+
+
+def _check_schedule_changes(current: dict[str, Any] | None, setup: AgentSetup) -> None:
+    """
+    :param current: The Agent's setup now, or None for a new Agent.
+    :param setup: The proposed change.
+    :raises ToolInputError: When a schedule is changed on something that isn't a
+        periodic trigger of the Agent.
+    """
+
+    periodic = {
+        trigger["trigger_id"]
+        for trigger in (current or {}).get("triggers", [])
+        if trigger["type"] == SCHEDULE_TRIGGER
+    }
+    unknown = [
+        str(change.trigger_id)
+        for change in setup.change_schedules
+        if change.trigger_id not in periodic
+    ]
+    if unknown:
+        raise ToolInputError(
+            f"Not applied. {', '.join(unknown)} is not a periodic trigger of this "
+            "Agent.",
+            hint="Read the Agent's triggers with get_agent.",
+        )
 
 
 def _apply(
@@ -602,6 +683,7 @@ def _apply(
     setup: AgentSetup,
     tools: list[str] | None,
     role_tools: list[str],
+    ask_first: list[str] | None = None,
 ) -> AgentApplication:
     """
     Apply the setup through the actions the Agent's Configuration uses.
@@ -613,6 +695,8 @@ def _apply(
     :param tools: Every tool the Agent is allowed after the change, or None to
         leave its tools as they are.
     :param role_tools: The tools a new identity's role has to cover.
+    :param ask_first: The tools that ask first, or None for the handler's rule:
+        a kept tool keeps its setting and a new one that changes data asks first.
     :return: The Agent.
     """
 
@@ -643,6 +727,8 @@ def _apply(
         # Without ask first values the handler keeps each kept tool's setting
         # and makes a newly allowed tool that changes data ask first.
         values["allowed_tools"] = tools
+        if ask_first is not None:
+            values["ask_first_tools"] = ask_first
     if agent is None:
         agent = create_application(
             _tool_ctx(user, workspace), AGENT_TYPE, setup.name
@@ -672,18 +758,25 @@ def _apply(
     for trigger_id in setup.turn_off_triggers:
         if trigger_id not in setup.remove_triggers:
             UpdateAgentTriggerActionType.do(user, agent.id, trigger_id, enabled=False)
+    for change in setup.change_schedules:
+        UpdateAgentTriggerActionType.do(
+            user,
+            agent.id,
+            change.trigger_id,
+            enabled=False,
+            service=change.schedule.service_values(),
+        )
     for action_id in setup.remove_actions:
         DeleteAgentActionActionType.do(user, agent.id, action_id)
     for spec in setup.add_actions:
-        action = CreateAgentActionActionType.do(
+        CreateAgentActionActionType.do(
             user,
             agent.id,
             spec.type,
             name=spec.name,
             description=spec.description,
+            enabled=False,
         )
-        if action.enabled:
-            UpdateAgentActionActionType.do(user, agent.id, action.id, enabled=False)
     return agent
 
 
@@ -724,6 +817,11 @@ def _undo(
                 "web fetch stays off: the user turns it on in the Agent's Configuration"
             )
             continue
+        if field in ("provider_type", "model_identifier") and not previous[field]:
+            # Kuma doesn't take an Agent's model away: it would stop replying.
+            if field == "provider_type":
+                stays.append("the Agent keeps its model")
+            continue
         change[field] = "" if previous[field] is None else previous[field]
     granted = [n for n in after["allowed_tools"] if n not in previous["allowed_tools"]]
     revoked = [n for n in previous["allowed_tools"] if n not in after["allowed_tools"]]
@@ -750,11 +848,20 @@ def _undo(
         for trigger in previous["triggers"]
         if trigger["trigger_id"] not in kept
     ]
+    schedules_before = {t["trigger_id"]: t["schedule"] for t in previous["triggers"]}
     for trigger in after["triggers"]:
         before = enabled_before.get(trigger["trigger_id"])
         if before is None:
-            stays.append(f'the trigger "{trigger["name"]}" stays, turned off')
-        elif before and not trigger["enabled"]:
+            change.setdefault("remove_triggers", []).append(trigger["trigger_id"])
+            continue
+        if trigger["schedule"] != schedules_before[trigger["trigger_id"]]:
+            change.setdefault("change_schedules", []).append(
+                {
+                    "trigger_id": trigger["trigger_id"],
+                    "schedule": schedules_before[trigger["trigger_id"]],
+                }
+            )
+        if before and not trigger["enabled"]:
             stays.append(
                 f'the trigger "{trigger["name"]}" stays turned off: the user turns '
                 "it on in the Agent's Configuration"
@@ -767,11 +874,13 @@ def _undo(
         for action in previous["actions"]
         if action["action_id"] not in kept_actions
     ]
-    stays += [
-        f'the action "{action["name"]}" stays, turned off'
+    added_actions = [
+        action["action_id"]
         for action in after["actions"]
         if action["action_id"] not in action_ids
     ]
+    if added_actions:
+        change["remove_actions"] = added_actions
     return {"setup": change, "cannot_undo": stays}
 
 
@@ -803,6 +912,140 @@ def _summary(user: AbstractUser, agent: AgentApplication) -> dict[str, Any]:
         ],
         "actions": [action["name"] for action in setup["actions"]],
     }
+
+
+def _checked_tools(
+    ctx: RunContext[AssistantDeps],
+    agent: AgentApplication | None,
+    current: dict[str, Any] | None,
+    setup: AgentSetup,
+) -> tuple[list[str] | None, list[str], list[str] | None]:
+    """
+    Refuse a change Kuma doesn't make, before anything is written.
+
+    :param ctx: The run's context.
+    :param agent: The Agent to change, or None to create one.
+    :param current: The Agent's setup now, or None for a new Agent.
+    :param setup: The proposed change.
+    :return: The tools to save or None to leave them, every tool the Agent is
+        allowed after the change, and the tools that ask first or None for the
+        handler's rule.
+    :raises ToolInputError: For each refusal, saying what to do instead.
+    """
+
+    user, workspace = ctx.deps.user, ctx.deps.workspace
+    _check_model(workspace, current, setup)
+    if agent is None and not setup.name:
+        raise ToolInputError("A new Agent needs a name.")
+    if agent is None:
+        # A request that names an Agent means that one, not a second one.
+        same_name = (
+            visible_applications(ctx.deps.tool_context(), [AGENT_TYPE])
+            .filter(name__iexact=setup.name)
+            .first()
+        )
+        if same_name:
+            raise ToolInputError(
+                f'Not created: an Agent named "{same_name.name}" already exists, '
+                f"with agent_id {same_name.id}.",
+                hint="To change or test that Agent, use its agent_id. Only when "
+                "the user wants a second Agent, create it under another name.",
+            )
+    if setup.instructions and was_cut(setup.instructions):
+        raise ToolInputError(
+            "Not applied. These instructions are a copy that was cut short, so "
+            "saving them would lose the rest.",
+            hint="The full earlier text is gone from this chat. Tell the user you "
+            "can't put the earlier instructions back and ask them to paste them.",
+        )
+    if setup.web_fetch_enabled and not (current or {}).get("web_fetch_enabled"):
+        raise ToolInputError(
+            "Not applied. Kuma doesn't let an Agent open web pages.",
+            hint="Leave web_fetch_enabled out and tell the user to turn web fetch "
+            "on in the Agent's Configuration.",
+        )
+    _check_schedule_changes(current, setup)
+    tools_after = _tools_after(current, setup)
+    tools = tools_after if setup.grant_tools or setup.revoke_tools else None
+    ask_first = None
+    gets_identity = setup.new_identity or setup.run_as_identity_id
+    if agent and gets_identity and not (current or {}).get("run_as"):
+        # An imported Agent's tools wait for an identity. They come on with the
+        # ask first choices they were set up with, and like any tool Kuma allows,
+        # the ones that change data ask first too.
+        waiting = AgentHandler().get_pending_tool_configuration(agent)
+        if waiting["allowed_tools"]:
+            tools = tools_after = list(
+                dict.fromkeys(
+                    name
+                    for name in (*waiting["allowed_tools"], *tools_after)
+                    if name not in setup.revoke_tools
+                )
+            )
+            ask_first = [
+                name
+                for name in tools
+                if name in waiting["ask_first_tools"] or _changes_data(name)
+            ]
+    has_identity = bool(gets_identity or (current or {}).get("run_as"))
+    if tools and not has_identity:
+        raise ToolInputError(
+            "Not applied. An Agent needs an identity to act as before it can "
+            "have tools.",
+            hint="Set run_as_identity_id or new_identity in the same call; "
+            "list_agent_tools says which the user can use.",
+        )
+    _check_identity(user, workspace, current, setup)
+    refused = _unattended_changes(current, setup, tools_after)
+    if refused:
+        raise ToolInputError(
+            "Not applied. A trigger starts this Agent by itself, so Kuma doesn't "
+            + "; ".join(refused)
+            + ".",
+            hint="Ask the user whether to turn its triggers off in the same call "
+            "with turn_off_triggers, which they turn back on in the Agent's "
+            "Configuration, or to make the change there themselves.",
+        )
+    return tools, tools_after, ask_first
+
+
+def _what_runs(after: dict[str, Any]) -> str:
+    """
+    :param after: The Agent's setup after the change.
+    :return: What Kuma tells the user about what starts the Agent and what is
+        still turned off, for the triggers and actions as they are now.
+    """
+
+    running = [t["name"] or t["type"] for t in after["triggers"] if t["enabled"]]
+    off = [
+        *(t for t in after["triggers"] if not t["enabled"]),
+        *(a for a in after["actions"] if not a["enabled"]),
+    ]
+    steps = []
+    if running:
+        steps.append(
+            f"A trigger is on ({', '.join(running)}), so the Agent runs by itself."
+        )
+    elif after["triggers"]:
+        steps.append(
+            "The Agent doesn't run by itself until the user turns a trigger on in "
+            "the Agent's Configuration."
+        )
+    else:
+        steps.append("The Agent has no trigger: it only replies in a conversation.")
+    if off:
+        steps.append(
+            "Name every trigger and action that is turned off: the user turns "
+            "them on in the Agent's Configuration, where credentials for actions "
+            "are entered too."
+        )
+    run_as = after["run_as"]
+    if run_as and not run_as["available"]:
+        steps.append(
+            "Tell the user the identity the Agent acts as is trashed or gone, so "
+            "its tools are refused until it acts as another one."
+        )
+    return " ".join(steps)
 
 
 def list_agents(
@@ -838,7 +1081,7 @@ def get_agent(
     """\
     Read one Agent's full setup: instructions, model, identity, tools, triggers and actions.
 
-    WHEN to use: Before editing an Agent. The result shows what is saved; apply_agent_setup takes changes to it: grant_tools and revoke_tools for allowed_tools, run_as_identity_id for run_as, add_triggers, turn_off_triggers and remove_triggers for triggers, add_actions and remove_actions for actions.
+    WHEN to use: Before editing an Agent. The result shows what is saved; apply_agent_setup takes changes to it: grant_tools and revoke_tools for allowed_tools, run_as_identity_id for run_as, add_triggers, turn_off_triggers, change_schedules and remove_triggers for triggers, add_actions and remove_actions for actions.
     """
 
     agent = _agent(ctx, agent_id)
@@ -859,7 +1102,7 @@ def list_agent_tools(
     List what an Agent in this workspace can be given: the tools, the models it can reply with, the trigger and action types, and the identities it can act as.
 
     WHEN to use: Before building or changing an Agent. Give an Agent the smallest set of tools that does the job. An Agent needs one of the listed models to reply; when none is listed, no model is enabled for Agents in the workspace.
-    IDENTITIES: identities.selectable are the ones the user may pick with run_as_identity_id. Only when identities.can_create is true can new_identity be used; its role is set for you, the lowest that covers the Agent's tools.
+    IDENTITIES: identities.selectable are the ones the user may pick with run_as_identity_id. Only when identities.can_create is true can new_identity be used; its role is set for you, the lowest that covers the Agent's tools. When it is false, identities.cannot_create_because says why: tell the user that, in those words.
     """
 
     ctx.deps.tool_helpers.update_status(_("Listing what an agent can use..."))
@@ -893,7 +1136,8 @@ def apply_agent_setup(
     ASK: Only when you can't tell which table a new Agent works on, ask the user that one question with ask_user. Otherwise build straight away: how the Agent reads its event or decides goes in its instructions, not in a question. For an Agent that exists, never ask what its setup already says: read it with get_agent.
     HOW: Read list_agent_tools first; for an edit find the Agent with list_agents and read it with get_agent. Grant the read tools the Agent needs to find its data, such as list_tables and list_table_rows, next to any tool that changes it. Default to read-only tools. An Agent with tools needs an identity: run_as_identity_id, or new_identity when the user can create one. Never ask for API keys, passwords, SMTP credentials, recipients or URLs: actions are added turned off for the user to configure.
     LIMITS: You can't make an Agent run by itself. A trigger is added turned off and you can't turn one on: tell the user to turn it on in the Agent's Configuration once they've checked the Agent. A tool you grant that changes data asks first, every time it is called, and only the user turns that off or turns web fetch on, both in the Configuration. While a trigger is on, a change to the Agent's identity or, when it opens web pages or changes data without asking, its instructions is refused: ask the user whether to turn the triggers off in the same call with turn_off_triggers, or to make the change in the Configuration. When the user asks you to turn a trigger on, stop a tool asking first or turn on web fetch, don't ask a question about it: say you can't and that they do it in the Agent's Configuration.
-    REVERT: To undo a change, call this tool with the revert.setup of that change's result, and tell the user what its revert.cannot_undo lists: added triggers and actions stay turned off, and a created Agent or identity stays.
+    REVERT: To undo a change, call this tool with the revert.setup of that change's result, and tell the user what its revert.cannot_undo lists: a created Agent or identity stays, and what was deleted or turned off is the user's to bring back. A revert deletes the triggers and actions the change added: say so.
+    SCHEDULE: To change when a periodic trigger runs, use change_schedules with its trigger_id: the trigger keeps its name and message.
     RETURNS: The Agent's setup before and after the change, and how to revert it.
     """
 
@@ -904,79 +1148,29 @@ def apply_agent_setup(
         if agent
         else _("Building agent %(name)s...") % {"name": setup.name or ""}
     )
-    with _readable_errors():
-        current = _read_setup(user, agent) if agent else None
     setup = _with_schedule_timezones(setup, _user_timezone(user))
-    _check_model(workspace, current, setup)
-    if agent is None and not setup.name:
-        raise ToolInputError("A new Agent needs a name.")
-    if agent is None:
-        # A request that names an Agent means that one, not a second one.
-        same_name = (
-            visible_applications(ctx.deps.tool_context(), [AGENT_TYPE])
-            .filter(name__iexact=setup.name)
-            .first()
-        )
-        if same_name:
-            raise ToolInputError(
-                f'Not created: an Agent named "{same_name.name}" already exists, '
-                f"with agent_id {same_name.id}.",
-                hint="To change or test that Agent, use its agent_id. Only when "
-                "the user wants a second Agent, create it under another name.",
-            )
-    if setup.web_fetch_enabled and not (current or {}).get("web_fetch_enabled"):
-        raise ToolInputError(
-            "Not applied. Kuma doesn't let an Agent open web pages.",
-            hint="Leave web_fetch_enabled out and tell the user to turn web fetch "
-            "on in the Agent's Configuration.",
-        )
-    tools_after = _tools_after(current, setup)
-    tools = tools_after if setup.grant_tools or setup.revoke_tools else None
-    gets_identity = setup.new_identity or setup.run_as_identity_id
-    if agent and gets_identity and not (current or {}).get("run_as"):
-        # An imported Agent's tools wait for an identity. Sent as its tools, the
-        # ones that change data come on asking first, like any tool Kuma allows.
-        waiting = AgentHandler().get_pending_tool_configuration(agent)["allowed_tools"]
-        if waiting:
-            tools = tools_after = [
-                name
-                for name in (*waiting, *tools_after)
-                if name not in setup.revoke_tools
-            ]
-            tools = tools_after = list(dict.fromkeys(tools))
-    has_identity = bool(
-        setup.new_identity or setup.run_as_identity_id or (current or {}).get("run_as")
-    )
-    if tools and not has_identity:
-        raise ToolInputError(
-            "Not applied. An Agent needs an identity to act as before it can "
-            "have tools.",
-            hint="Set run_as_identity_id or new_identity in the same call; "
-            "list_agent_tools says which the user can use.",
-        )
-    _check_identity(user, workspace, current, setup)
-    refused = _unattended_changes(current, setup)
-    if refused:
-        raise ToolInputError(
-            "Not applied. A trigger starts this Agent by itself, so Kuma doesn't "
-            + "; ".join(refused)
-            + ".",
-            hint="Ask the user whether to turn its triggers off in the same call "
-            "with turn_off_triggers, which they turn back on in the Agent's "
-            "Configuration, or to make the change there themselves.",
-        )
     with _readable_errors(), transaction.atomic():
-        agent = _apply(user, workspace, agent, setup, tools, tools_after)
+        current = None
+        if agent is not None:
+            # Locked like a save from the Configuration, so the checks see what
+            # is saved and the write doesn't undo a change made in between.
+            # The locked row replaces the one read before the lock, which a
+            # rename would otherwise save back whole.
+            agent = AgentService().get_authorized_agent(
+                user,
+                agent.id,
+                UpdateApplicationOperationType.type,
+                ReadAgentConfigurationOperationType.type,
+                for_update=True,
+            )
+            current = _read_setup(user, agent)
+        tools, tools_after, ask_first = _checked_tools(ctx, agent, current, setup)
+        agent = _apply(user, workspace, agent, setup, tools, tools_after, ask_first)
     after = _read_setup(user, agent)
     ctx.deps.tool_helpers.navigate_to(
         AgentNavigationType(type="agent", agent_id=agent.id, agent_name=agent.name)
     )
-    next_steps = (
-        "Tell the user what the Agent does now. Name every trigger and action "
-        "that is turned off and say the Agent doesn't run by itself until they "
-        "turn the trigger on in the Agent's Configuration, where credentials for "
-        "actions are entered too."
-    )
+    next_steps = "Tell the user what the Agent does now. " + _what_runs(after)
     # An imported Agent's tools wait for an identity, then come on as set up.
     before_tools = (current or {}).get("allowed_tools") or []
     turned_on = [
@@ -1024,6 +1218,17 @@ def apply_agent_setup(
     }
 
 
+def _test_title(prompt: str) -> str:
+    """
+    :param prompt: The message a test opens with.
+    :return: The test conversation's title, which says once that it is a test.
+    """
+
+    if re.match(r"\s*test\b", prompt, re.IGNORECASE):
+        return prompt.strip()
+    return _("Test: %(prompt)s") % {"prompt": prompt}
+
+
 def test_agent(
     ctx: RunContext[AssistantDeps],
     agent_id: Annotated[int, Field(description="The Agent to test.")],
@@ -1041,7 +1246,7 @@ def test_agent(
     ],
 ) -> dict[str, Any]:
     """\
-    Start a test conversation with an Agent. Every tool that changes data, and every action, asks first in it, so the test changes nothing without the user's say-so.
+    Start a test conversation with an Agent. Every tool that changes data, every tool of a connected app and every action asks first in it, so the test changes nothing without the user's say-so.
 
     WHEN to use: Only when the user asks to test or try an Agent. Find the Agent the user names with list_agents and test it as it is: never build or change an Agent in order to test it. Only a test shows what the Agent itself does: adding rows or doing its work with other tools shows your own work instead.
     RETURNS: The test conversation's ID and title. The Agent replies in the background: read the reply with get_agent_test_result.
@@ -1059,7 +1264,7 @@ def test_agent(
             uuid4(),
             prompt,
             is_test=True,
-            title=_("Test: %(prompt)s") % {"prompt": prompt},
+            title=_test_title(prompt),
         )
     ctx.deps.tool_helpers.navigate_to(
         AgentNavigationType(type="agent", agent_id=agent.id, agent_name=agent.name)
@@ -1159,7 +1364,7 @@ def get_agent_test_result(
         "steps": [
             {
                 key: step.get(key)
-                for key in ("name", "status", "input", "error")
+                for key in ("tool", "status", "input", "error_code", "error_message")
                 if step.get(key) is not None
             }
             for step in (reply.steps or [])
