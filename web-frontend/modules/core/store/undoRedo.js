@@ -141,8 +141,21 @@ export const getters = {
   isRedoing(state) {
     return state.redoing
   },
-  getCurrentScope(state) {
-    return state.actionScopesStack[state.actionScopesStack.length - 1]
+  getCurrentScope(state, getters, rootState) {
+    const scope = state.actionScopesStack.at(-1)
+    // A modal has its own undo history, independent of the workspace sidebar.
+    if (state.actionScopesStack.length !== 1 || !scope.workspace) {
+      return scope
+    }
+    const applications = Object.entries(
+      rootState.application.expandedSidebarApplications
+    )
+      .filter(
+        ([id, workspaceId]) =>
+          workspaceId === scope.workspace && Number(id) !== scope.application
+      )
+      .map(([id]) => Number(id))
+    return applications.length ? { ...scope, applications } : scope
   },
 }
 

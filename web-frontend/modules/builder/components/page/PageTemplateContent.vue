@@ -29,6 +29,7 @@ const mode = 'editing'
 export default {
   name: 'PageTemplate',
   components: { PagePreview, PageHeader, PageSidePanels },
+  inject: { withoutLiveData: { default: false } },
   provide() {
     return {
       workspace: this.workspace,
@@ -42,6 +43,7 @@ export default {
         page: this.currentPage,
         mode,
         dataScope: DATA_SCOPES.EXCLUDE_TARGET_SUBTREE,
+        withoutLiveData: this.withoutLiveData,
       },
     }
   },
@@ -74,6 +76,7 @@ export default {
         page: this.currentPage,
         mode,
         dataScope: DATA_SCOPES.EXCLUDE_TARGET_SUBTREE,
+        withoutLiveData: this.withoutLiveData,
       }
     },
     sharedPage() {
@@ -103,7 +106,10 @@ export default {
        * Update data source content on backend context changes
        */
       handler(newDispatchContext, oldDispatchContext) {
-        if (!_.isEqual(newDispatchContext, oldDispatchContext)) {
+        if (
+          !this.withoutLiveData &&
+          !_.isEqual(newDispatchContext, oldDispatchContext)
+        ) {
           this.$store.dispatch(
             'dataSourceContent/debouncedFetchPageDataSourceContent',
             {

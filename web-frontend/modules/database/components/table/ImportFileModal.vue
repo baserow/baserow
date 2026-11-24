@@ -254,6 +254,10 @@ export default {
       required: false,
       default: () => [],
     },
+    undoInApplication: {
+      type: Boolean,
+      default: false,
+    },
   },
   emits: ['table-refresh'],
   setup() {
@@ -549,6 +553,9 @@ export default {
       const upsertField = this.useUpsertField ? this.upsertField : undefined
       const importConfiguration = {
         import_fields: writableFields.map(({ id }) => id),
+      }
+      if (this.undoInApplication) {
+        importConfiguration.undo_in_application = true
       }
 
       if (upsertField) {

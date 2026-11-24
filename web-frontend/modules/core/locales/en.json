@@ -222,12 +222,15 @@
   "sidebar": {
     "createWorkspace": "Create workspace",
     "addNewWorkspace": "Add new workspace",
+    "noWorkspacesFound": "No matching workspaces",
+    "workspaceActions": "{workspace} actions",
     "inviteOthers": "Invite others",
     "members": "Members",
     "logoff": "Log out",
     "errorNoWorkspace": "You don’t have any workspaces.",
     "adminTools": "Admin tools",
     "recents": "Recents",
+    "overview": "Overview",
     "allWorkspaces": "All workspaces",
     "recentlyViewed": "Recently viewed",
     "backToHome": "Back to home",
@@ -235,6 +238,10 @@
     "dashboard": "Dashboard",
     "trash": "Trash",
     "settings": "My settings",
+    "workspaceSettings": "Settings",
+    "help": "Help",
+    "knowledgeBase": "Knowledge base",
+    "apiDocumentation": "API documentation",
     "replayGuidedTour": "Replay guided tour",
     "notifications": "Notifications",
     "adminSettings": "Admin settings",
@@ -524,7 +531,11 @@
     "linkPasswordProtected": "Password protected",
     "pendingTitle": "Pending invitations",
     "pendingEmptyTitle": "No invitations are pending.",
-    "pendingEmptyDescription": "Invitations show up here until they are accepted."
+    "pendingEmptyDescription": "Invitations show up here until they are accepted.",
+    "pendingRoleHeading": "Workspace role",
+    "pendingInvitedTo": "Invited to: {targets}",
+    "pendingWorkspace": "Workspace",
+    "pendingMoreTargets": "+{count} more"
   },
   "invitationLinkPasswordModal": {
     "newTitle": "Protect link with a password",
@@ -612,8 +623,8 @@
     "sourceWorkspace": "Inherited from workspace (default: {count}).",
     "change": "Change",
     "descriptionNone": "No snapshots can be taken while it's 0.",
-    "descriptionDefault": "Up to {count}, the workspace default. Once it's reached, a new snapshot replaces the oldest unprotected one.",
-    "descriptionOwn": "Up to {count}. Once it's reached, a new snapshot replaces the oldest unprotected one.",
+    "descriptionDefault": "{count} snapshots maximum (workspace default). Once it's reached, a new snapshot replaces the oldest unprotected one.",
+    "descriptionOwn": "{count} snapshots maximum. Once it's reached, a new snapshot replaces the oldest unprotected one.",
     "upTo": "Up to {count}",
     "save": "Save",
     "useDefault": "Use workspace default ({count})",
@@ -1666,6 +1677,7 @@
     "modelScopeInstance": "Instance",
     "modelScopeWorkspace": "Workspace",
     "noFeatureModels": "No eligible models are available. Edit a model and choose which features may use it.",
+    "noFeatureModelsWithoutProviders": "Add a provider to choose a model for these features.",
     "featureSettingError": "The AI feature setting could not be saved.",
     "featureSettingErrorDescription": "Refresh the page and choose an available model.",
     "modelDiscoveryHelp": "Choose a model from the list or enter any custom identifier.",
@@ -1912,7 +1924,7 @@
   },
   "controlCenterGuidedTourStep": {
     "title": "Your Baserow Control Center",
-    "content": "The left sidebar helps you manage your workspace:\n\n- Home – Access your main dashboard.\n- Notifications – Stay updated on changes and mentions.\n- Invite Members – Collaborate by adding team members.\n- Trash – List and recover all your deleted items."
+    "content": "The left sidebar helps you manage your workspace:\n\n- Overview – Access your workspace homepage.\n- Notifications – Stay updated on changes and mentions.\n- Settings – Invite people, manage members, and recover deleted items.\n- Help – Find documentation and support."
   },
   "createNewGuidedTourStep": {
     "title": "Create a new database or application",

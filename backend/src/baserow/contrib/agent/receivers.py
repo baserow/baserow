@@ -30,7 +30,9 @@ def delete_owned_conversations(sender, instance: AbstractUser, **kwargs) -> None
     :param instance: The user being deleted.
     """
 
-    AgentConversation.objects_and_trash.filter(owner_user=instance).delete()
+    AgentConversation.objects_and_trash.filter(
+        owner_user=instance, shared=False
+    ).delete()
     TrashEntry.objects.filter(
         trash_item_type=AgentConversationTrashableItemType.type,
         trash_item_owner=instance,

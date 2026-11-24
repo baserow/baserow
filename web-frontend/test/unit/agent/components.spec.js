@@ -30,7 +30,9 @@ describe('Agent components', () => {
     })
     const [saved, draft] = wrapper.findAll('.agent-conversations__item')
 
-    expect(saved.text()).toBe('Saved conversation')
+    expect(saved.get('.agent-conversations__item-name').text()).toBe(
+      'Saved conversation'
+    )
     expect(draft.text()).toContain('agent.newConversation')
     expect(draft.text()).toContain('agent.draft')
   })
@@ -81,7 +83,7 @@ describe('Agent components', () => {
       items: [{ uuid: 'conversation', title: 'My conversation' }],
     })
 
-    expect(wrapper.get('.agent-conversations__item').text()).toBe(
+    expect(wrapper.get('.agent-conversations__item-name').text()).toBe(
       'My conversation'
     )
     expect(wrapper.find('[role="status"]').exists()).toBe(false)

@@ -1,5 +1,6 @@
 from django.core.management.base import BaseCommand
 
+from azure.core.exceptions import ResourceNotFoundError
 from PIL import Image
 
 from baserow.core.storage import get_default_storage
@@ -28,20 +29,22 @@ class Command(BaseCommand):
         setting ever changes then this file can be used to fix all the thumbnails.
         """
 
-        i = 0
         handler = UserFileHandler()
-        buffer_size = 100
-        queryset = UserFile.objects.filter(is_image=True)
-        count = queryset.count()
         storage = get_default_storage()
+        queryset = UserFile.objects.filter(
+            is_image=True, deleted_at__isnull=True
+        ).order_by("id")
+        regenerated = 0
+        last_id = 0
 
-        while i < count:
-            user_files = queryset[i : min(count, i + buffer_size)]
+        while user_files := list(queryset.filter(id__gt=last_id)[:100]):
+            last_id = user_files[-1].id
             for user_file in user_files:
-                i += 1
-
                 full_path = handler.user_file_path(user_file)
-                stream = storage.open(full_path)
+                try:
+                    stream = storage.open(full_path)
+                except FileNotFoundError:
+                    continue
 
                 try:
                     image = Image.open(stream)
@@ -52,9 +55,12 @@ class Command(BaseCommand):
                         only_with_name=options["name"],
                     )
                     image.close()
-                except IOError:
+                    regenerated += 1
+                except (IOError, ResourceNotFoundError):
                     pass
 
                 stream.close()
 
-        self.stdout.write(self.style.SUCCESS(f"{i} thumbnails have been regenerated."))
+        self.stdout.write(
+            self.style.SUCCESS(f"{regenerated} thumbnails have been regenerated.")
+        )

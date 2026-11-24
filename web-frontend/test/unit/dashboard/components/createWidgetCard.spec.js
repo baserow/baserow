@@ -2,6 +2,8 @@ import { mount } from '@vue/test-utils'
 
 import CreateWidgetCard from '@baserow/modules/dashboard/components/CreateWidgetCard'
 
+const tooltip = { mounted: vi.fn() }
+
 const widgetType = {
   isAvailable: () => true,
   getDeactivatedModal: () => null,
@@ -9,11 +11,13 @@ const widgetType = {
 
 function mountCreateWidgetCard(disabled) {
   return mount(CreateWidgetCard, {
+    global: { directives: { tooltip } },
     props: {
       dashboard: { workspace: { id: 1 } },
       widgetType,
       variation: {
         name: 'Summary',
+        description: 'A single number',
         createWidgetImage: '',
       },
       disabled,
@@ -39,5 +43,10 @@ describe('CreateWidgetCard', () => {
     expect(wrapper.emitted('widget-variation-selected')).toEqual([
       [wrapper.props('variation')],
     ])
+  })
+
+  test('shows its description when hovered', () => {
+    mountCreateWidgetCard(false)
+    expect(tooltip.mounted.mock.calls.at(-1)[1].value).toBe('A single number')
   })
 })

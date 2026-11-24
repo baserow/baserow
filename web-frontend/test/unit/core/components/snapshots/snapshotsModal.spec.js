@@ -74,8 +74,25 @@ describe('SnapshotsModal', () => {
     })
 
     expect(wrapper.vm.blockedReason).toBe('none')
+    // A max of 0 is a choice, so it isn't shown as an error.
+    expect(
+      wrapper.find('.snapshots-modal__capacity-alert').classes()
+    ).toContain('alert--info-neutral')
+    expect(
+      wrapper.find('.snapshots-modal__capacity-alert').html()
+    ).toMatchSnapshot()
+    expect(wrapper.find('.snapshots-modal__card').text()).not.toContain(
+      'snapshotsModal.maxSnapshotsZeroTitle'
+    )
     expect(wrapper.text()).toContain('snapshotsModal.maxSnapshotsZeroTitle')
     expect(wrapper.text()).toContain('snapshotsModal.maxSnapshotsZeroRaise')
+    expect(wrapper.text()).not.toContain('Plugin capacity warning')
+    await wrapper.setData({
+      snapshotCapacityMessages: { 0: 'Plugin capacity warning' },
+    })
+    expect(wrapper.find('.snapshots-modal__capacity-alert').text()).toContain(
+      'Plugin capacity warning'
+    )
     expect(findButton(wrapper, 'snapshotsModal.raiseAndCreate')).toBeTruthy()
 
     testApp.mock.onPost(listUrl).reply(202, {
@@ -102,6 +119,9 @@ describe('SnapshotsModal', () => {
     )
 
     expect(wrapper.vm.blockedReason).toBe('protected')
+    expect(wrapper.find('.snapshots-modal__capacity-alert').text()).toContain(
+      'snapshotsModal.allProtected'
+    )
     expect(wrapper.text()).toContain('snapshotsModal.allProtectedTitle')
     expect(wrapper.text()).toContain('snapshotsModal.allProtectedRaise')
     expect(wrapper.vm.raisedMaxSnapshots).toBe(3)
@@ -122,7 +142,7 @@ describe('SnapshotsModal', () => {
     expect(wrapper.text()).toContain('maxSnapshots.overAllowance')
   })
 
-  test('says why the max snapshots can not be raised', async () => {
+  test('offers unprotecting or deleting when the max cannot be raised', async () => {
     const full = await mountModal([snapshot(1, 1, true)], {
       max_snapshots: 1,
       effective_max_snapshots: 1,
@@ -131,7 +151,22 @@ describe('SnapshotsModal', () => {
     })
     expect(findButton(full, 'snapshotsModal.raiseAndCreate')).toBeFalsy()
     expect(full.text()).toContain('snapshotsModal.allProtectedCantRaise')
-    expect(full.text()).toContain('snapshotsModal.cantRaiseAllowance')
+    expect(full.find('.snapshots-modal__capacity-alert').classes()).toContain(
+      'alert--error'
+    )
+    expect(
+      full.find('.snapshots-modal__capacity-alert').html()
+    ).toMatchSnapshot()
+    expect(full.find('.snapshots-modal__card').exists()).toBe(true)
+    expect(
+      findButton(full, 'snapshotsModal.create').attributes('disabled')
+    ).toBeDefined()
+    full.vm.submitted({ name: 'Blocked' })
+    await flushPromises()
+    expect(testApp.mock.history.post).toHaveLength(0)
+    expect(full.find('.automatic-snapshot-schedule__warning').exists()).toBe(
+      false
+    )
 
     const atMaximum = await mountModal([snapshot(1, 1, true)], {
       max_snapshots: 1,
@@ -140,7 +175,7 @@ describe('SnapshotsModal', () => {
       max_snapshots_limit: 1,
     })
     expect(findButton(atMaximum, 'snapshotsModal.raiseAndCreate')).toBeFalsy()
-    expect(atMaximum.text()).toContain('snapshotsModal.cantRaiseAboveMaximum')
+    expect(atMaximum.text()).toContain('snapshotsModal.allProtectedCantRaise')
   })
 
   test('says snapshots are turned off without offering a max', async () => {
@@ -266,6 +301,53 @@ describe('SnapshotsModal', () => {
     expect(wrapper.find('.snapshots-modal__loading').exists()).toBe(false)
     resolveList()
     await flushPromises()
+  })
+
+  test('updates the capacity alert after protecting the snapshot just created without resetting', async () => {
+    const baseline = snapshot(1, 1, true)
+    const created = snapshot(2, 2)
+    const wrapper = await mountModal([baseline], {
+      max_snapshots: 2,
+      effective_max_snapshots: 2,
+      max_snapshots_limit: 2,
+      protected_count: 1,
+    })
+    testApp.mock.onGet(listUrl).reply(200, [created, baseline])
+    await wrapper.setData({
+      job: {
+        id: 1,
+        type: 'create_snapshot',
+        state: 'finished',
+        snapshot: created,
+      },
+    })
+    await flushPromises()
+    expect(wrapper.vm.createFinished).toBe(true)
+    expect(wrapper.find('.snapshots-modal__capacity-alert').exists()).toBe(
+      false
+    )
+
+    testApp.mock.onGet(usageUrl).reply(
+      200,
+      usage({
+        max_snapshots: 2,
+        effective_max_snapshots: 2,
+        max_snapshots_limit: 2,
+        protected_count: 2,
+      })
+    )
+    wrapper.vm.snapshotUpdated({ ...created, protected: true })
+    await flushPromises()
+    expect(wrapper.find('.snapshots-modal__capacity-alert').text()).toContain(
+      'snapshotsModal.allProtectedCantRaise'
+    )
+    expect(wrapper.vm.createFinished).toBe(true)
+
+    wrapper.vm.snapshotUpdated(created)
+    await flushPromises()
+    expect(wrapper.find('.snapshots-modal__capacity-alert').exists()).toBe(
+      false
+    )
   })
 
   test('loads the snapshots again when they were out of date', async () => {

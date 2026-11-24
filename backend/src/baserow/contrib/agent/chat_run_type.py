@@ -66,11 +66,13 @@ class AgentChatRunType(ChatRunType):
         """
         :param user: The user asking.
         :param run: The run writing a reply in a conversation.
-        :return: Whether the user may stop it: the owner, or for a shared
-            conversation a reader who may also update the Agent.
+        :return: Whether the user may stop it: the person the reply answers, or
+            for a shared conversation a reader who may also update the Agent.
         """
 
-        return AgentService().can_cancel_conversation_run(user, run.chat_id)
+        return AgentService().can_cancel_conversation_run(
+            user, run.chat_id, run.created_by_id
+        )
 
     def can_follow_chat(self, user: AbstractUser, chat_id: int) -> bool:
         """

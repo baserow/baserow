@@ -25,6 +25,7 @@
         :workspace="workspace"
         :empty-title="$t('inviteModal.pendingEmptyTitle')"
         :empty-description="$t('inviteModal.pendingEmptyDescription')"
+        :role-heading="$t('inviteModal.pendingRoleHeading')"
         @role-updated="updateItemRole"
       />
     </InviteInput>
@@ -39,6 +40,9 @@ import emailInvitations from '@baserow/modules/core/mixins/emailInvitations'
 import error from '@baserow/modules/core/mixins/error'
 import WorkspaceService from '@baserow/modules/core/services/workspace'
 import { notifyIf } from '@baserow/modules/core/utils/error'
+
+// How many targets are named under an invitation before the rest are counted.
+const MAX_TARGET_NAMES = 3
 
 /**
  * Invites people into the workspace by email and manages the pending
@@ -103,10 +107,7 @@ export default {
         return {
           key: `invitation:${invitation.id}`,
           name: invitation.email,
-          subtitle:
-            this.workspace._.roles.find(
-              (role) => role.uid === invitation.permissions
-            )?.invitationSubtitle ?? null,
+          ...this.getTargetsSubtitle(invitation),
           icon: 'iconoir-mail',
           color: 'neutral',
           roleUid: invitation.permissions,
@@ -162,6 +163,46 @@ export default {
     }
   },
   methods: {
+    /**
+     * Describes what the invitation is for: the names of the targets the
+     * registered invitation data types find on it, like the objects it grants a
+     * role on, with all of them described in the tooltip. An invitation without
+     * targets is for the workspace, unless its role says otherwise, like having
+     * no workspace role.
+     */
+    getTargetsSubtitle(invitation) {
+      const targets = this.$registry
+        .getOrderedList('invitationData')
+        .flatMap((type) => type.getTargets(this.workspace, invitation))
+      if (targets.length === 0) {
+        return {
+          subtitle:
+            this.workspace._.roles.find(
+              (role) => role.uid === invitation.permissions
+            )?.invitationSubtitle ??
+            this.$t('inviteModal.pendingInvitedTo', {
+              targets: this.$t('inviteModal.pendingWorkspace'),
+            }),
+          subtitleTooltip: null,
+        }
+      }
+      const names = targets.slice(0, MAX_TARGET_NAMES).map(({ name }) => name)
+      if (targets.length > MAX_TARGET_NAMES) {
+        names.push(
+          this.$t('inviteModal.pendingMoreTargets', {
+            count: targets.length - MAX_TARGET_NAMES,
+          })
+        )
+      }
+      return {
+        subtitle: this.$t('inviteModal.pendingInvitedTo', {
+          targets: names.join(', '),
+        }),
+        subtitleTooltip: targets
+          .map(({ description }) => description)
+          .join('\n'),
+      }
+    },
     /**
      * Updates a workspace invitation or cancels it entirely. Keep the row until
      * the request succeeds so a failure preserves both the role and the pending

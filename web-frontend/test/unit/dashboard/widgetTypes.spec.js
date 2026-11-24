@@ -23,6 +23,22 @@ describe('SummaryWidgetType', () => {
     )
   })
 
+  test.each([{ result: null }, { result: 0 }, { results: [] }, {}])(
+    'distinguishes successfully loaded %j from initial loading',
+    (result) => {
+      expect(widgetType.hasLoadedData(widget, {})).toBe(false)
+      expect(widgetType.isLoading(widget, { 42: { _loading: true } })).toBe(
+        true
+      )
+      const refreshing = { ...result, _loaded: true, _loading: true }
+      expect(widgetType.hasLoadedData(widget, { 42: refreshing })).toBe(true)
+      expect(widgetType.isLoading(widget, { 42: refreshing })).toBe(true)
+      expect(
+        widgetType.isLoading(widget, { 42: { ...result, _loaded: true } })
+      ).toBe(false)
+    }
+  )
+
   test('owns its header presentation', () => {
     expect(widgetType.showHeaderBorder).toBe(false)
   })
@@ -60,3 +76,15 @@ test.each([false, true])(
     expect(filter.component).toBeDefined()
   }
 )
+
+test('widgets describe themselves in the add widget modal', () => {
+  const featureApp = { ...app, $featureFlagIsEnabled: () => true }
+  const variations = [
+    ...new SummaryWidgetType({ app: featureApp }).variations,
+    ...new TextFilterWidgetType({ app: featureApp }).variations,
+  ]
+  expect(variations.map(({ description }) => description)).toEqual([
+    'summaryWidget.description',
+    'textFilterWidget.description',
+  ])
+})

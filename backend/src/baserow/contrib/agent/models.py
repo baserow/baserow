@@ -151,7 +151,7 @@ class AgentConversation(
 ):
     """
     A conversation with an agent: private to the user who started it, or shared
-    (no owner) when a trigger started it.
+    with everyone who may read the agent's conversations. A trigger's always is.
     """
 
     agent = models.ForeignKey(
@@ -163,7 +163,8 @@ class AgentConversation(
         settings.AUTH_USER_MODEL,
         null=True,
         blank=True,
-        on_delete=models.CASCADE,
+        # Shared history outlives its author; private conversations are deleted.
+        on_delete=models.SET_NULL,
         related_name="agent_conversations",
     )
     trigger = models.ForeignKey(
@@ -176,15 +177,8 @@ class AgentConversation(
     # The list indexes lead with the agent, so reads never need one on trashed.
     trashed = models.BooleanField(default=False, db_default=False)
     pinned = models.BooleanField(default=False, db_default=False)
-
-    @property
-    def is_shared(self) -> bool:
-        """
-        :return: Whether a trigger started the conversation: it has no owner and
-            everyone who may read the agent's conversations reads it.
-        """
-
-        return self.owner_user_id is None
+    shared = models.BooleanField(default=False, db_default=False)
+    started_by_trigger = models.BooleanField(default=False, db_default=False)
 
     @property
     def pending_count_user_ids(self) -> list[int] | None:
@@ -194,7 +188,7 @@ class AgentConversation(
             shared, since those who may decide them depends on their role.
         """
 
-        return None if self.is_shared else [self.owner_user_id]
+        return None if self.shared else [self.owner_user_id]
 
     class Meta:
         ordering = ("-pinned", "-updated_on", "-id")
@@ -246,6 +240,10 @@ class AgentMessage(BigAutoFieldMixin, CreatedAndUpdatedOnMixin, models.Model):
         max_length=16, choices=Role.choices, default=Role.USER, db_default=Role.USER
     )
     content = models.TextField()
+    # A reply's is the person it answers. None for a trigger or a deleted user.
+    sender = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, on_delete=models.SET_NULL, related_name="+"
+    )
     # Only the agent's replies have one.
     status = models.CharField(
         max_length=16, choices=AgentReplyStatus.choices, null=True

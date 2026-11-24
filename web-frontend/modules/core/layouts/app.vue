@@ -7,11 +7,10 @@
       <div class="layout__col-1" :style="{ width: col1Width + 'px' }">
         <SidebarAllWorkspaces
           v-if="sidebarType === SIDEBAR_TYPES.ALL_WORKSPACES"
-          :workspaces="workspaces"
           :selected-workspace="selectedWorkspace"
           :collapsed="isCollapsed"
           :width="col1Width"
-          @set-col1-width="col1Width = $event"
+          @set-col1-width="resizeCol1"
         />
         <Sidebar
           v-else
@@ -21,7 +20,7 @@
           :collapsed="isCollapsed"
           :width="col1Width"
           :right-sidebar-open="col3Visible"
-          @set-col1-width="col1Width = $event"
+          @set-col1-width="resizeCol1"
           @open-workspace-search="openWorkspaceSearch"
         />
       </div>
@@ -29,32 +28,46 @@
       <div
         class="layout__col-2"
         :style="{
-          left: col1Width + 'px',
-          right: col3Shown ? col3Width + 'px' : 0,
+          left: (isNarrowViewport ? collapsedSidebarWidth : col1Width) + 'px',
+          right: col3Shown && !isNarrowViewport ? col3Width + 'px' : 0,
         }"
       >
         <slot />
       </div>
 
       <div
+        v-if="isNarrowViewport && !isCollapsed"
+        class="layout__sidebar-backdrop"
+        aria-hidden="true"
+        @click="resizeCol1(collapsedSidebarWidth)"
+      />
+
+      <div
         v-if="col3Shown"
         class="layout__col-3"
-        :style="{ width: col3Width + 'px', right: 0 }"
+        :style="{
+          width: col3Width + 'px',
+          right: 0,
+          maxWidth: isNarrowViewport
+            ? `calc(100% - ${collapsedSidebarWidth}px)`
+            : undefined,
+        }"
       >
         <RightSidebar :workspace="selectedWorkspace" />
       </div>
 
       <HorizontalResize
+        v-if="!isNarrowViewport"
         class="layout__resize"
         :width="col1Width"
         :style="{ left: col1Width - 2 + 'px' }"
-        :min="52"
+        :min="collapsedSidebarWidth"
         :max="300"
         @move="resizeCol1"
       />
 
       <HorizontalResize
-        v-if="col3Shown"
+        v-if="col3Shown && !isNarrowViewport"
         class="layout__resize"
         :width="col3Width"
         :style="{ right: col3Width - 3 + 'px' }"
@@ -101,7 +114,16 @@ import { provideWorkspaceSidebarVisible } from '@baserow/modules/core/composable
 const store = useStore()
 const { $registry, $priorityBus, $realtime, $bus } = useNuxtApp()
 
-const col1Width = ref(240)
+const collapsedSidebarWidth = 52
+const defaultSidebarWidth = 240
+const desktopSidebarWidth = ref(defaultSidebarWidth)
+const narrowSidebarWidth = ref(defaultSidebarWidth)
+const isNarrowViewport = ref(false)
+let narrowViewportQuery
+
+const col1Width = computed(() =>
+  isNarrowViewport.value ? narrowSidebarWidth.value : desktopSidebarWidth.value
+)
 const col3Width = ref(400)
 const col3Visible = ref(false)
 const app = ref()
@@ -181,8 +203,15 @@ function openWorkspaceSearch() {
   }
 }
 
-function resizeCol1(v) {
-  col1Width.value = v
+function resizeCol1(width) {
+  const sidebarWidth = isNarrowViewport.value
+    ? narrowSidebarWidth
+    : desktopSidebarWidth
+  sidebarWidth.value = width
+}
+
+function updateNarrowViewport({ matches }) {
+  isNarrowViewport.value = matches
 }
 function resizeCol3(v) {
   col3Width.value = v
@@ -217,6 +246,10 @@ function keyDown(event) {
 }
 
 onMounted(() => {
+  narrowViewportQuery = window.matchMedia('(max-width: 575px)')
+  updateNarrowViewport(narrowViewportQuery)
+  narrowViewportQuery.addEventListener('change', updateNarrowViewport)
+
   $realtime.connect()
 
   const handler = (e) => keyDown(e)
@@ -232,6 +265,7 @@ onMounted(() => {
 })
 
 onBeforeUnmount(() => {
+  narrowViewportQuery?.removeEventListener('change', updateNarrowViewport)
   $realtime.disconnect()
 
   if (app.value?.keydownEvent) {

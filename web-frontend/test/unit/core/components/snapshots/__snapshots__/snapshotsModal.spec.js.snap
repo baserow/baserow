@@ -1,0 +1,32 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`SnapshotsModal > offers unprotecting or deleting when the max cannot be raised 1`] = `
+"<div class="alert alert--error snapshots-modal__capacity-alert">
+  <div class="alert__wrapper"><i class="alert__icon iconoir-warning-circle"></i>
+    <div class="alert__content">
+      <div class="alert__title">snapshotsModal.allProtectedTitle</div>
+      <div class="alert__message">snapshotsModal.allProtectedCantRaise - 1
+        <!--v-if-->
+      </div>
+      <!--v-if-->
+    </div>
+    <!--v-if-->
+  </div>
+</div>"
+`;
+
+exports[`SnapshotsModal > takes a snapshot and raises the max snapshots when it keeps none 1`] = `
+"<div class="alert alert--info-neutral snapshots-modal__capacity-alert">
+  <div class="alert__wrapper"><i class="alert__icon iconoir-info-empty"></i>
+    <div class="alert__content">
+      <div class="alert__title">snapshotsModal.maxSnapshotsZeroTitle</div>
+      <div class="alert__message">snapshotsModal.maxSnapshotsZero
+        <!--v-if-->
+        <!--v-if-->
+      </div>
+      <!--v-if-->
+    </div>
+    <!--v-if-->
+  </div>
+</div>"
+`;

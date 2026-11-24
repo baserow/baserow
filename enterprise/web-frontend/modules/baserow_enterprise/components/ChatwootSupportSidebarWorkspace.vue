@@ -1,30 +1,19 @@
 <template>
-  <li
-    class="tree__item"
-    :class="{
-      'tree__item--loading': loading,
-      'tree__action--deactivated': deactivated,
-    }"
-  >
-    <div class="tree__action">
-      <a
-        v-if="deactivated"
-        href="#"
-        class="tree__link"
-        @click.prevent="$refs.paidFeaturesModal.show()"
-      >
-        <i class="tree__icon iconoir-lock"></i>
-        <span class="tree__link-text">{{
-          $t('chatwootSupportSidebarWorkspace.directSupport')
-        }}</span>
-      </a>
-      <a v-else class="tree__link" @click="open">
-        <i class="tree__icon iconoir-chat-bubble-question"></i>
-        <span class="tree__link-text">{{
-          $t('chatwootSupportSidebarWorkspace.directSupport')
-        }}</span>
-      </a>
-    </div>
+  <li class="context__menu-item">
+    <button
+      type="button"
+      class="context__menu-item-link"
+      :class="{ 'context__menu-item-link--loading': loading }"
+      :disabled="loading"
+      @click="activate"
+    >
+      <i
+        class="context__menu-item-icon"
+        :class="deactivated ? 'iconoir-lock' : 'iconoir-chat-bubble-question'"
+        aria-hidden="true"
+      ></i>
+      {{ $t('chatwootSupportSidebarWorkspace.directSupport') }}
+    </button>
     <PaidFeaturesModal
       ref="paidFeaturesModal"
       :workspace="workspace"
@@ -36,6 +25,10 @@
 <script>
 import EnterpriseFeatures from '@baserow_enterprise/features'
 import PaidFeaturesModal from '@baserow_premium/components/PaidFeaturesModal'
+
+const CHATWOOT_BASE_URL = 'https://support.baserow.io'
+const CHATWOOT_WIDGET_ID = 'chatwoot_live_chat_widget'
+const CHATWOOT_TIMEOUT = 10_000
 
 /**
  * The Chatwoot docs can be found here:
@@ -50,29 +43,50 @@ export default {
       required: true,
     },
   },
+  emits: ['hide'],
   data() {
-    return {
-      ready: false,
-      loading: false,
-    }
+    return { loading: false }
   },
   computed: {
     deactivated() {
       return !this.$hasFeature(EnterpriseFeatures.SUPPORT, this.workspace.id)
     },
   },
-  mounted() {
-    // It could be that chatwoot is ready. In that case, $chatwoot should be set on the
-    // window object.
-    this.ready = Object.prototype.hasOwnProperty.call(window, '$chatwoot')
-    window.addEventListener('chatwoot:ready', this.onReady)
-  },
   beforeUnmount() {
-    window.removeEventListener('chatwoot:ready', this.onReady)
+    this.stopLoading()
   },
   methods: {
+    activate() {
+      if (this.loading) {
+        return
+      }
+
+      if (this.deactivated) {
+        this.$refs.paidFeaturesModal.show()
+      } else if (window.$chatwoot?.hasLoaded) {
+        this.open()
+      } else {
+        this.load()
+      }
+      this.$emit('hide')
+    },
     load() {
       this.loading = true
+      window.addEventListener('chatwoot:ready', this.onReady)
+      this._loadTimeout = window.setTimeout(this.onLoadError, CHATWOOT_TIMEOUT)
+
+      if (window.$chatwoot) {
+        // The SDK creates $chatwoot before the iframe is ready and skips a
+        // second initialization. Reload the iframe to keep the conversation.
+        const widget = document.getElementById(CHATWOOT_WIDGET_ID)
+        if (widget) {
+          widget.setAttribute('src', widget.src)
+        } else {
+          this.onLoadError()
+        }
+        return
+      }
+
       window.chatwootSettings = {
         hideMessageBubble: true,
         position: 'right',
@@ -81,34 +95,50 @@ export default {
         darkMode: 'light',
       }
 
-      const BASE_URL = 'https://support.baserow.io'
-      const g = document.createElement('script')
-      const s = document.getElementsByTagName('script')[0]
-      g.src = BASE_URL + '/packs/js/sdk.js'
-      g.defer = true
-      g.async = true
-      s.parentNode.insertBefore(g, s)
-      g.onload = function () {
-        window.chatwootSDK.run({
-          websiteToken: 'q4UGgPBqgB5RSEbzy3LbyGK8',
-          baseUrl: BASE_URL,
-        })
+      const script = document.createElement('script')
+      this._sdkScript = script
+      script.src = `${CHATWOOT_BASE_URL}/packs/js/sdk.js`
+      script.async = true
+      script.onload = () => {
+        try {
+          window.chatwootSDK.run({
+            websiteToken: 'q4UGgPBqgB5RSEbzy3LbyGK8',
+            baseUrl: CHATWOOT_BASE_URL,
+          })
+        } catch {
+          this.onLoadError()
+        }
       }
+      script.onerror = this.onLoadError
+      document.head.append(script)
+    },
+    stopLoading() {
+      window.clearTimeout(this._loadTimeout)
+      window.removeEventListener('chatwoot:ready', this.onReady)
+      if (this._sdkScript) {
+        this._sdkScript.onload = null
+        this._sdkScript.onerror = null
+        this._sdkScript.remove()
+        this._sdkScript = null
+      }
+      this.loading = false
+    },
+    onLoadError() {
+      this.stopLoading()
+      this.$store.dispatch('toast/error', {
+        title: this.$t('chatwootSupportSidebarWorkspace.loadError'),
+      })
     },
     onReady() {
-      this.ready = true
-      this.loading = false
-      this.open()
-    },
-    open() {
-      if (!this.ready) {
-        this.load()
-      }
-
-      if (!this.ready || this.loading) {
+      if (!window.$chatwoot?.hasLoaded) {
         return
       }
-
+      this.stopLoading()
+      if (!this.deactivated) {
+        this.open()
+      }
+    },
+    open() {
       const userObject = this.$store.getters['auth/getUserObject']
       window.$chatwoot.setLocale(this.$i18n.locale)
       window.$chatwoot.setUser(`${window.location.hostname}-${userObject.id}`, {

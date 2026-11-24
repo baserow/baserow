@@ -120,7 +120,8 @@ policy = <<EOF
                 "s3:GetObjectAcl",
                 "s3:GetObject",
                 "s3:DeleteObject",
-                "s3:PutObjectAcl"
+                "s3:PutObjectAcl",
+                "s3:ListBucket"
             ],
              "Principal": {
                 "AWS": "arn:aws:iam::xyz:user/YOUR_USER"

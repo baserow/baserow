@@ -13,6 +13,13 @@ class TableImportConfiguration(serializers.Serializer):
     Additional table import configuration.
     """
 
+    undo_in_application = serializers.BooleanField(
+        required=False,
+        help_text=(
+            "Register this import in the destination database's undo history. "
+            "By default it is registered in the table's history."
+        ),
+    )
     import_fields = serializers.ListField(
         child=serializers.IntegerField(min_value=1),
         min_length=1,

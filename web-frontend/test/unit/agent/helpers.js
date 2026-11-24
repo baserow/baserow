@@ -151,8 +151,11 @@ export const savedValues = (testApp) =>
     .filter(({ url }) => url === '/agent/10/configuration/')
     .map(({ data }) => JSON.parse(data))
 
+export const viewer = { id: 1, name: 'Viewer' }
+
 export async function createAgentPage() {
   const testApp = new TestApp()
+  testApp.authenticate({ id: viewer.id, first_name: viewer.name })
   const allowed = ref(() => true)
   await testApp.store.dispatch('workspace/forceCreate', clone(workspace))
   const agent = await testApp.store.dispatch(
@@ -279,6 +282,8 @@ export const conversation = (
   id,
   uuid,
   title,
+  shared: false,
+  started_by_trigger: false,
   created_on: '2026-10-14T10:00:00Z',
   updated_on: updatedOn,
 })
@@ -286,6 +291,7 @@ export const conversation = (
 export const sharedConversation = (uuid, title, triggerType = 'periodic') => ({
   ...conversation(uuid, title),
   shared: true,
+  started_by_trigger: true,
   trigger_type: triggerType,
 })
 
@@ -299,11 +305,13 @@ export const message = (
     errorCode = '',
     runId = null,
     steps = null,
+    sender = viewer,
   } = {}
 ) => ({
   id,
   uuid,
   role,
+  sender,
   content,
   created_on: '2026-10-14T10:00:00Z',
   status,
@@ -356,7 +364,7 @@ export const messages = (wrapper) =>
     .map((item) => item.text())
 
 export const conversationTitles = (wrapper) =>
-  wrapper.findAll('.agent-conversations__item').map((item) => item.text())
+  wrapper.findAll('.agent-conversations__item-name').map((item) => item.text())
 
 /** Open a conversation's ⋮ menu and choose an action by its label. */
 export async function chooseFromMenu(wrapper, title, action) {

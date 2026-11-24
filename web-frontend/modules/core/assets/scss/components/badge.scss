@@ -48,6 +48,27 @@
   @include rounded($rounded-3xl);
 }
 
+.badge--outline {
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, currentcolor 20%, transparent);
+  font-weight: 500;
+
+  &.badge--small {
+    padding: 0 7px 1px;
+    line-height: 12px;
+    letter-spacing: 0.02em;
+  }
+
+  &.badge--cyan {
+    color: $palette-cyan-900;
+  }
+
+  &.badge--neutral {
+    background: rgba($palette-neutral-1300, 6%);
+    box-shadow: inset 0 0 0 1px rgba($palette-neutral-1300, 6%);
+    color: $palette-neutral-900;
+  }
+}
+
 .badge--bold {
   font-weight: bold;
 }

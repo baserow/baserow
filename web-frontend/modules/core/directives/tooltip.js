@@ -19,6 +19,7 @@ const getOptions = (el, binding) => {
     contentIsHtml: false,
     value: null,
     contentClasses: '',
+    showOnFocus: false,
   }
 
   if (binding.arg && _.isObject(binding.arg)) {
@@ -49,7 +50,10 @@ const switchToTooltip = (el) => {
  *    // contentIsHtml informs the value is html and should not be escaped (sets .innerHtml directly)
  *  contentIsHtml: Bool,
  *    // contentClasses is a string with additional css classes for tooltip content container
- *  contentClasses: String
+ *  contentClasses: String,
+ *    // showOnFocus also shows the tooltip while the element has the keyboard focus,
+ *    // for content that must be reachable without a pointer
+ *  showOnFocus: Bool
  *  }
  *
  * <i v-tooltip:[configObject]="someValue"/>
@@ -317,6 +321,10 @@ export default {
 
     el.addEventListener('mouseenter', el.tooltipMouseEnterEvent)
     el.addEventListener('mouseleave', el.tooltipMoveLeaveEvent)
+    if (el.tooltipOptions.showOnFocus) {
+      el.addEventListener('focus', el.tooltipMouseEnterEvent)
+      el.addEventListener('blur', el.tooltipMoveLeaveEvent)
+    }
   },
 
   /**
@@ -335,6 +343,8 @@ export default {
     if (el._tooltipEventsAdded) {
       el.removeEventListener('mouseenter', el.tooltipMouseEnterEvent)
       el.removeEventListener('mouseleave', el.tooltipMoveLeaveEvent)
+      el.removeEventListener('focus', el.tooltipMouseEnterEvent)
+      el.removeEventListener('blur', el.tooltipMoveLeaveEvent)
       el._tooltipEventsAdded = false
     }
 

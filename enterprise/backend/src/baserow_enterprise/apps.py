@@ -189,6 +189,9 @@ class BaserowEnterpriseConfig(AppConfig):
         identity_extension_type_registry.register(EnterpriseIdentityExtensionType())
 
         from baserow.api.user.registries import member_data_registry
+        from baserow.api.workspaces.invitations.registries import (
+            invitation_data_registry,
+        )
         from baserow.core.action.registries import (
             action_scope_registry,
             action_type_registry,
@@ -200,6 +203,10 @@ class BaserowEnterpriseConfig(AppConfig):
             plugin_registry,
         )
         from baserow.core.trash.registries import trash_item_type_registry
+        from baserow_enterprise.api.invitation_data_types import (
+            EnterpriseInvitationScopesDataType,
+            EnterpriseInvitationTeamsDataType,
+        )
         from baserow_enterprise.api.member_data_types import (
             EnterpriseMemberTeamsDataType,
         )
@@ -302,11 +309,73 @@ class BaserowEnterpriseConfig(AppConfig):
         action_type_registry.register(DeleteScopedInvitationLinkActionType())
         action_type_registry.register(UpdateFieldPermissionsActionType())
 
+        from baserow_enterprise.automatic_snapshots.actions import (
+            CreateApplicationAutomaticSnapshotScheduleActionType,
+            CreateWorkspaceAutomaticSnapshotScheduleActionType,
+            DeleteApplicationAutomaticSnapshotScheduleActionType,
+            DeleteWorkspaceAutomaticSnapshotScheduleActionType,
+            UpdateApplicationAutomaticSnapshotScheduleActionType,
+            UpdateWorkspaceAutomaticSnapshotScheduleActionType,
+        )
+        from baserow_enterprise.automatic_snapshots.operations import (
+            ReadApplicationAutomaticSnapshotScheduleOperationType,
+            ReadWorkspaceAutomaticSnapshotScheduleOperationType,
+            UpdateApplicationAutomaticSnapshotScheduleOperationType,
+            UpdateWorkspaceAutomaticSnapshotScheduleOperationType,
+        )
+
+        action_type_registry.register(
+            CreateWorkspaceAutomaticSnapshotScheduleActionType()
+        )
+        action_type_registry.register(
+            UpdateWorkspaceAutomaticSnapshotScheduleActionType()
+        )
+        action_type_registry.register(
+            DeleteWorkspaceAutomaticSnapshotScheduleActionType()
+        )
+        action_type_registry.register(
+            CreateApplicationAutomaticSnapshotScheduleActionType()
+        )
+        action_type_registry.register(
+            UpdateApplicationAutomaticSnapshotScheduleActionType()
+        )
+        action_type_registry.register(
+            DeleteApplicationAutomaticSnapshotScheduleActionType()
+        )
+        operation_type_registry.register(
+            ReadWorkspaceAutomaticSnapshotScheduleOperationType()
+        )
+        operation_type_registry.register(
+            UpdateWorkspaceAutomaticSnapshotScheduleOperationType()
+        )
+        operation_type_registry.register(
+            ReadApplicationAutomaticSnapshotScheduleOperationType()
+        )
+        operation_type_registry.register(
+            UpdateApplicationAutomaticSnapshotScheduleOperationType()
+        )
+
+        from baserow.core.permission_manager import BasicPermissionManagerType
+
+        # Without RBAC, the basic permission manager allows every workspace member
+        # to do anything that isn't admin-only, so the schedules are made admin-only.
+        BasicPermissionManagerType.ADMIN_ONLY_OPERATIONS.extend(
+            [
+                ReadWorkspaceAutomaticSnapshotScheduleOperationType.type,
+                UpdateWorkspaceAutomaticSnapshotScheduleOperationType.type,
+                ReadApplicationAutomaticSnapshotScheduleOperationType.type,
+                UpdateApplicationAutomaticSnapshotScheduleOperationType.type,
+            ]
+        )
+
         trash_item_type_registry.register(TeamTrashableItemType())
 
         member_data_registry.register(EnterpriseMemberTeamsDataType())
         member_data_registry.register(EnterpriseRolesDataType())
         member_data_registry.register(EnterpriseRoleAssignmentCountDataType())
+
+        invitation_data_registry.register(EnterpriseInvitationScopesDataType())
+        invitation_data_registry.register(EnterpriseInvitationTeamsDataType())
 
         object_scope_type_registry.register(TeamObjectScopeType())
         object_scope_type_registry.register(TeamSubjectObjectScopeType())
@@ -536,6 +605,9 @@ class BaserowEnterpriseConfig(AppConfig):
         from baserow_enterprise.application_users.notification_types import (
             ApplicationUserLimitNotificationType,
         )
+        from baserow_enterprise.automatic_snapshots.notification_types import (
+            AutomaticSnapshotFailedNotificationType,
+        )
         from baserow_enterprise.data_scanner.notification_types import (
             DataScanNewResultsNotificationType,
         )
@@ -551,6 +623,8 @@ class BaserowEnterpriseConfig(AppConfig):
         notification_type_registry.register(TwoWaySyncUpdateFailedNotificationType())
         notification_type_registry.register(TwoWaySyncDeactivatedNotificationType())
         notification_type_registry.register(DataScanNewResultsNotificationType())
+
+        notification_type_registry.register(AutomaticSnapshotFailedNotificationType())
         notification_type_registry.register(ApplicationUserLimitNotificationType())
 
         from baserow_enterprise.views.operations import (
@@ -640,6 +714,7 @@ class BaserowEnterpriseConfig(AppConfig):
         # which need to be filled first.
         import baserow_enterprise.assistant.tasks  # noqa: F401
         import baserow_enterprise.audit_log.signals  # noqa: F401
+        import baserow_enterprise.automatic_snapshots.tasks  # noqa: F401
         import baserow_enterprise.data_scanner.tasks  # noqa: F401
         import baserow_enterprise.ws.signals  # noqa: F401
 

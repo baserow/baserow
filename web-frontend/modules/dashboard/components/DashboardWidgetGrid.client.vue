@@ -14,14 +14,15 @@
     }"
   >
     <DashboardWidgetGridLoading
-      v-if="!isLayoutReady && widgets.length > 0"
+      v-if="!isLayoutReady && (widgets.length > 0 || pendingWidget)"
       :class="{
         'dashboard-widget-grid__loading--overlay': hasMeasuredDimensions,
       }"
     />
     <GridLayout
-      v-if="hasMeasuredDimensions && layout.length > 0"
-      v-model:layout="layout"
+      v-if="hasMeasuredDimensions && displayedLayout.length > 0"
+      ref="grid"
+      v-model:layout="displayedLayout"
       :col-num="columns"
       :row-height="gridRowHeight"
       :margin="[gridGap, gridGap]"
@@ -33,7 +34,7 @@
       @layout-updated="persistLayout"
     >
       <GridItem
-        v-for="layoutItem in layout"
+        v-for="layoutItem in displayedLayout"
         :key="layoutItem.i"
         v-bind="getWidgetGridItemConstraints(getWidget(layoutItem), layoutItem)"
         :i="layoutItem.i"
@@ -47,6 +48,9 @@
           'dashboard-widget-grid__item--compact': layoutItem.h === 2,
           'dashboard-widget-grid__item--snap-resizing':
             isResizingWidget(layoutItem),
+          'dashboard-widget-grid__item--placing': placingItemIds.includes(
+            String(layoutItem.i)
+          ),
         }"
         :style="getGridItemResizeStyle(layoutItem)"
         :data-testid="`dashboard-widget-grid-item-${layoutItem.i}`"
@@ -58,8 +62,19 @@
         @move="startInteraction"
         @resize="updateResizeState"
       >
+        <div
+          v-if="layoutItem.i === PENDING_WIDGET_ID"
+          class="dashboard-widget"
+          role="status"
+          aria-busy="true"
+          :aria-label="
+            $t('dashboard.creatingWidget', { name: pendingWidget.title })
+          "
+        >
+          <SkeletonBlock height="100%" />
+        </div>
         <DashboardWidget
-          v-if="getWidget(layoutItem)"
+          v-else-if="getWidget(layoutItem)"
           :widget="getWidget(layoutItem)"
           :dashboard="dashboard"
           :store-prefix="storePrefix"
@@ -73,6 +88,7 @@
 </template>
 
 <script>
+import { reactive } from 'vue'
 import { GridItem, GridLayout } from 'grid-layout-plus'
 
 import DashboardWidget from '@baserow/modules/dashboard/components/widget/DashboardWidget'
@@ -82,6 +98,7 @@ import {
   DASHBOARD_GRID_COLUMNS,
   createWidgetGridLayout,
   getWidgetGridItemConstraints,
+  getWidgetPreviewPosition,
   resizeWidgetGridLayout,
   toWidgetLayoutPayload,
 } from '@baserow/modules/dashboard/utils/widgetGridLayout'
@@ -89,6 +106,7 @@ import { notifyIf } from '@baserow/modules/core/utils/error'
 
 const GRID_GAP = 16
 const GRID_ROW_HEIGHT = 24
+const PENDING_WIDGET_ID = 'pending'
 
 export default {
   name: 'DashboardWidgetGrid',
@@ -99,6 +117,9 @@ export default {
     GridLayout,
   },
   mixins: [dimensionMixin],
+  inject: {
+    widgetCreation: { from: 'dashboardWidgetCreation', default: null },
+  },
   props: {
     dashboard: {
       type: Object,
@@ -118,8 +139,13 @@ export default {
       isLayoutReady: false,
       layoutReadyFrame: null,
       layout: [],
+      revealedWidgetId: null,
+      // Widgets added after the first layout, until the grid placed them.
+      placingItemIds: [],
+      placingFrames: [],
       resizeState: null,
       DASHBOARD_GRID_COLUMNS,
+      PENDING_WIDGET_ID,
       gridGap: GRID_GAP,
       gridRowHeight: GRID_ROW_HEIGHT,
     }
@@ -131,10 +157,45 @@ export default {
       }
       return this.dimensions.width >= 700 ? 2 : 1
     },
+    pendingWidget() {
+      return this.widgetCreation?.widgetId === null ? this.widgetCreation : null
+    },
     widgets() {
       return this.$store.getters[
         `${this.storePrefix}dashboardApplication/getWidgets`
       ]
+    },
+    displayedLayout: {
+      get() {
+        if (!this.pendingWidget) return this.layout
+
+        const preview = getWidgetPreviewPosition(
+          this.layout,
+          this.pendingWidget.size,
+          this.columns
+        )
+        // The grid mutates its items during compaction. Keep that work separate
+        // from the layout being saved while the preview is shown.
+        return reactive([
+          ...this.layout.map((item) => ({ ...item })),
+          { i: PENDING_WIDGET_ID, ...preview },
+        ])
+      },
+      set(layout) {
+        if (!this.pendingWidget) this.layout = layout
+      },
+    },
+    placedCreationItemId() {
+      const id = this.pendingWidget
+        ? PENDING_WIDGET_ID
+        : this.widgetCreation?.widgetId
+      return id != null &&
+        id !== this.revealedWidgetId &&
+        this.isLayoutReady &&
+        this.displayedLayout.some((item) => item.i === id) &&
+        !this.placingItemIds.includes(String(id))
+        ? id
+        : null
     },
     widgetsById() {
       return Object.fromEntries(
@@ -154,10 +215,30 @@ export default {
       )
     },
     canManipulateLayout() {
-      return this.isEditMode && this.canUpdateLayout && !this.isPersisting
+      return (
+        this.isEditMode &&
+        this.canUpdateLayout &&
+        !this.isPersisting &&
+        !this.pendingWidget
+      )
     },
   },
   watch: {
+    pendingWidget(widget) {
+      if (widget && this.isLayoutReady) this.markPlacing([PENDING_WIDGET_ID])
+    },
+    placedCreationItemId: {
+      flush: 'post',
+      handler(id) {
+        if (id == null) return
+        const element = this.$refs.grid?.getItem(id)?.wrapper
+        if (!element) return
+        element.scrollIntoView({ block: 'nearest', inline: 'nearest' })
+        if (id !== PENDING_WIDGET_ID) {
+          this.revealedWidgetId = id
+        }
+      },
+    },
     columns() {
       this.syncLayoutFromWidgets()
     },
@@ -186,6 +267,7 @@ export default {
     if (this.layoutReadyFrame !== null) {
       cancelAnimationFrame(this.layoutReadyFrame)
     }
+    this.placingFrames.forEach((frame) => cancelAnimationFrame(frame))
     this.clearResizeState()
     window.removeEventListener('pointerup', this.clearResizeState, true)
     window.removeEventListener('pointercancel', this.clearResizeState, true)
@@ -241,7 +323,39 @@ export default {
       )
     },
     syncLayoutFromWidgets() {
+      const previousIds = new Set(this.layout.map((item) => String(item.i)))
       this.layout = createWidgetGridLayout(this.widgets, this.columns)
+      if (this.isLayoutReady) {
+        this.markPlacing(
+          this.layout
+            .map((item) => String(item.i))
+            .filter((id) => !previousIds.has(id))
+        )
+      }
+    },
+    /**
+     * A grid item mounts at the grid's origin and gets its position a tick
+     * later, which its position transition would animate as a slide. Turn the
+     * transition off until that first position is painted.
+     */
+    markPlacing(ids) {
+      if (!ids.length) return
+      this.placingItemIds = [...this.placingItemIds, ...ids]
+      const first = requestAnimationFrame(() => {
+        const second = requestAnimationFrame(() => {
+          this.placingItemIds = this.placingItemIds.filter(
+            (id) => !ids.includes(id)
+          )
+          this.placingFrames = this.placingFrames.filter(
+            (frame) => frame !== second
+          )
+        })
+        this.placingFrames = [
+          ...this.placingFrames.filter((frame) => frame !== first),
+          second,
+        ]
+      })
+      this.placingFrames = [...this.placingFrames, first]
     },
     markLayoutReady() {
       if (this.layoutReadyFrame !== null) {

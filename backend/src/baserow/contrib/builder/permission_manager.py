@@ -26,15 +26,23 @@ class AllowIfTemplatePermissionManagerType(CoreAllowIfTemplatePermissionManagerT
         ListPagesBuilderOperationType.type,
         ListElementsPageOperationType.type,
         ListBuilderWorkflowActionsPageOperationType.type,
-        DispatchDataSourceOperationType.type,
         ListDataSourcesPageOperationType.type,
     ]
+
+    BUILDER_LIVE_OPERATIONS_ON_TEMPLATES = [DispatchDataSourceOperationType.type]
 
     @property
     def OPERATION_ALLOWED_ON_TEMPLATES(self):
         return (
             self.prev_manager_type.OPERATION_ALLOWED_ON_TEMPLATES
             + self.BUILDER_OPERATION_ALLOWED_ON_TEMPLATES
+        )
+
+    @property
+    def LIVE_OPERATIONS_ON_TEMPLATES(self):
+        return (
+            self.prev_manager_type.LIVE_OPERATIONS_ON_TEMPLATES
+            + self.BUILDER_LIVE_OPERATIONS_ON_TEMPLATES
         )
 
     def __init__(self, prev_manager_type: PermissionManagerType):

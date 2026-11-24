@@ -7,7 +7,10 @@
         </h2>
         <p>{{ $t('generativeAIWorkspaceSettings.providerDescription') }}</p>
       </div>
-      <div class="ai-provider-workspace-settings__add-provider">
+      <div
+        v-if="!showEmptyState"
+        class="ai-provider-workspace-settings__add-provider"
+      >
         <Button
           icon="iconoir-plus"
           :disabled="availableProviderTypes.length === 0"
@@ -17,6 +20,14 @@
         </Button>
       </div>
     </header>
+
+    <AIProviderEmptyState
+      v-if="showEmptyState"
+      :title="$t('generativeAIWorkspaceSettings.noProviders')"
+      :description="$t('generativeAIWorkspaceSettings.noProvidersDescription')"
+      :disabled="availableProviderTypes.length === 0"
+      @add="openProviderForm(null)"
+    />
 
     <AIProviderFeatureSettings
       v-if="loaded && !loading && !initialLoadFailed"
@@ -39,16 +50,7 @@
         {{ $t('aiProviderAdmin.retry') }}
       </Button>
     </div>
-    <div v-else-if="providers.length === 0" class="placeholder">
-      <div class="placeholder__icon"><i class="iconoir-sparks" /></div>
-      <h2 class="placeholder__title">
-        {{ $t('generativeAIWorkspaceSettings.noProviders') }}
-      </h2>
-      <p class="placeholder__content">
-        {{ $t('generativeAIWorkspaceSettings.noProvidersDescription') }}
-      </p>
-    </div>
-    <div v-else class="ai-provider-admin__list">
+    <div v-else-if="providers.length > 0" class="ai-provider-admin__list">
       <section
         v-for="group in providerGroups"
         :key="group.providerType"
@@ -153,6 +155,7 @@
 
 <script>
 import ConfirmModal from '@baserow/modules/core/components/modals/ConfirmModal'
+import AIProviderEmptyState from '@baserow/modules/core/components/ai/AIProviderEmptyState'
 import AIProviderFeatureSettings from '@baserow/modules/core/components/ai/AIProviderFeatureSettings'
 import AIProviderFormModal from '@baserow/modules/core/components/ai/AIProviderFormModal'
 import AIProviderItem from '@baserow/modules/core/components/ai/AIProviderItem'
@@ -164,6 +167,7 @@ export default {
   name: 'AIProviderWorkspaceSettings',
   components: {
     ConfirmModal,
+    AIProviderEmptyState,
     AIProviderFeatureSettings,
     AIProviderFormModal,
     AIProviderItem,
@@ -217,6 +221,14 @@ export default {
     },
     loaded() {
       return this.$store.getters['aiProvider/isLoaded'](this.workspace.id)
+    },
+    showEmptyState() {
+      return (
+        this.loaded &&
+        !this.loading &&
+        !this.initialLoadFailed &&
+        this.providers.length === 0
+      )
     },
     availableProviderTypes() {
       const ownedTypes = new Set(

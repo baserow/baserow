@@ -1,10 +1,24 @@
+import type { Locator } from "@playwright/test";
 import { expect, test } from "../baserowTest";
 import { createDatabase } from "../../fixtures/database/database";
-import { createTable } from "../../fixtures/database/table";
+import { createTable, listTables } from "../../fixtures/database/table";
 import { getClient } from "../../client";
 
+async function clickTableMenuItem(row: Locator, name: string) {
+  const item = row.page().locator(".context__menu-item-link:visible", {
+    hasText: name,
+  });
+  await row.hover();
+  // The first click can land before the sidebar finishes rendering.
+  await expect(async () => {
+    await row.locator(".tree__options").click();
+    await expect(item).toBeVisible({ timeout: 1000 });
+  }).toPass({ timeout: 15000 });
+  await item.click();
+}
+
 test.describe("Import into existing table from the sidebar context menu", () => {
-  test("imports CSV rows into the table via the table three-dots menu", async ({
+  test("undo and redo target CSV rows imported into another database from the sidebar", async ({
     page,
     workspacePage,
   }) => {
@@ -20,30 +34,31 @@ test.describe("Import into existing table from the sidebar context menu", () => 
     );
     // One "Name" field with a single existing row ("First").
     const table = await createTable(user, "Target", db, [["Name"], ["First"]]);
+    const activeDb = await createDatabase(
+      user,
+      "Active DB",
+      workspacePage.workspace
+    );
+    const activeTable = await createTable(user, "Before rename", activeDb);
 
     await workspacePage.goto();
-    await page.getByTitle("SidebarImportDb").click();
+    const sidebar = page.locator(".sidebar");
+    await sidebar.getByTitle(activeDb.name, { exact: true }).click();
+    await sidebar.getByTitle(activeTable.name, { exact: true }).click();
+    await expect(page).toHaveURL(new RegExp(`/table/${activeTable.id}(?:/|$)`));
+    const activeRow = sidebar.locator(".tree__sub.active");
+    await clickTableMenuItem(activeRow, "Rename");
+    const editor = activeRow.locator('[contenteditable="true"]');
+    await editor.fill("After rename");
+    await editor.press("Enter");
+    await expect
+      .poll(async () => (await listTables(user, activeDb))[0].name)
+      .toBe("After rename");
+    await sidebar.getByTitle(db.name, { exact: true }).click();
 
-    // Scope interactions to this table's sidebar row so the selectors can't
-    // match the table name rendered elsewhere (e.g. the page header).
-    const sidebarRow = page.locator("li.tree__sub", { hasText: "Target" });
-    await sidebarRow.locator("a.tree__sub-link").click();
+    const targetRow = sidebar.locator("li.tree__sub", { hasText: table.name });
+    await clickTableMenuItem(targetRow, "Import file");
 
-    // Open the table's three-dots menu. The Context self-hides if it doesn't
-    // fit the viewport and the first click can land before hydration settles,
-    // so retry until the "Import file" item is actually visible.
-    await sidebarRow.hover();
-    const optsBtn = sidebarRow.locator(".tree__options");
-    const importItem = page.locator(
-      '.context__menu-item-link:visible:has-text("Import file")'
-    );
-    await expect(async () => {
-      await optsBtn.click();
-      await expect(importItem).toBeVisible({ timeout: 1000 });
-    }).toPass({ timeout: 15000 });
-    await importItem.click();
-
-    // The import modal for THIS existing table.
     const modal = page
       .locator(".modal__box")
       .filter({ hasText: "Import into Target" });
@@ -67,25 +82,22 @@ test.describe("Import into existing table from the sidebar context menu", () => 
 
     await modal.getByRole("button", { name: "Import" }).click();
 
-    // The import must actually add the rows: 1 existing + 3 imported = 4.
-    await expect
-      .poll(
-        async () => {
-          const resp: any = await getClient(user).get(
-            `database/rows/table/${table.id}/?size=200&user_field_names=true`
-          );
-          return resp.data.count;
-        },
-        { timeout: 30000 }
-      )
-      .toBe(4);
+    const rowNames = async () => {
+      const { data } = await getClient(user).get(
+        `database/rows/table/${table.id}/?user_field_names=true`
+      );
+      return data.results.map((row: { Name: string }) => row.Name);
+    };
+    const imported = ["First", "Alice", "Bob", "Carol"];
+    await expect.poll(rowNames, { timeout: 30000 }).toEqual(imported);
+    await expect(modal).toBeHidden();
+    await expect(page).toHaveURL(new RegExp(`/table/${activeTable.id}(?:/|$)`));
 
-    const resp: any = await getClient(user).get(
-      `database/rows/table/${table.id}/?size=200&user_field_names=true`
-    );
-    const names = resp.data.results.map((r: any) => r.Name);
-    expect(names).toEqual(
-      expect.arrayContaining(["First", "Alice", "Bob", "Carol"])
-    );
+    await page.keyboard.press("ControlOrMeta+z");
+    await expect.poll(rowNames).toEqual(["First"]);
+    expect((await listTables(user, activeDb))[0].name).toBe("After rename");
+    await page.keyboard.press("ControlOrMeta+Shift+z");
+    await expect.poll(rowNames).toEqual(imported);
+    expect((await listTables(user, activeDb))[0].name).toBe("After rename");
   });
 });

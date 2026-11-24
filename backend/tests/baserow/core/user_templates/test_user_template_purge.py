@@ -23,9 +23,12 @@ from baserow.core.models import (
     Application,
     InstallTemplateJob,
     Template,
+    UserFile,
     Workspace,
 )
 from baserow.core.storage import get_default_storage
+from baserow.core.trash.handler import TrashHandler
+from baserow.core.user_files.handler import UserFileHandler
 from baserow.core.user_templates import tasks
 from baserow.core.user_templates.archive import template_archive_dir
 from baserow.core.user_templates.constants import USER_TEMPLATE_DELETION_GRACE_PERIOD
@@ -35,14 +38,21 @@ from baserow.core.user_templates.models import (
     DownloadUserTemplateJob,
     UserTemplateContentToDelete,
 )
-from baserow.core.user_templates.tasks import delete_orphaned_user_template_workspaces
+from baserow.core.user_templates.tasks import (
+    delete_files_of_removed_user_templates,
+    delete_orphaned_user_template_workspaces,
+)
 from tests.baserow.core.user_templates.utils import (
     ICON,
+    assert_files_kept,
+    assert_template_files_deleted,
     create_content,
+    live_template_files,
     long_ago,
     purge,
     store_template_archive,
     template_archive_names,
+    upload_images,
 )
 
 pytestmark = [
@@ -197,6 +207,53 @@ def test_purge_removes_a_deleted_template_after_the_grace_period(data_fixture):
     assert_family_kept(other)
     # Only the lookup of the templates to remove.
     assert len(queries) == 1
+
+
+def removed_template_workspace(data_fixture):
+    """A template workspace removed before its files were deleted with it."""
+
+    workspace = data_fixture.create_workspace()
+    workspace_id = workspace.id
+    upload_images("red", "green", template_workspace_id=workspace_id)
+    TrashHandler.permanently_delete(workspace)
+    return workspace_id
+
+
+def test_sweep_deletes_files_of_removed_templates(data_fixture):
+    broken_id = removed_template_workspace(data_fixture)
+    removed_id = removed_template_workspace(data_fixture)
+    workspace, archive = create_content(data_fixture)
+    data_fixture.create_user_template(workspace=workspace, archive=archive)
+    user = data_fixture.create_user()
+    trashed = data_fixture.create_workspace(user=user)
+    TrashHandler.trash(user, trashed, None, trashed)
+    kept = [
+        *upload_images("red", template_workspace_id=workspace.id),
+        *upload_images("red", template_workspace_id=trashed.id),
+        *upload_images("red"),
+    ]
+    not_a_template_file = data_fixture.create_user_file(unique="tplnotaworkspaceid")
+    refused = UserFile.objects.template_files(broken_id).order_by("id").first()
+    delete_user_file_from_storage = UserFileHandler.delete_user_file_from_storage
+
+    def refuse_one_file(handler, user_file, *args, **kwargs):
+        if user_file.id == refused.id:
+            raise ValueError("Storage unavailable.")
+        return delete_user_file_from_storage(handler, user_file, *args, **kwargs)
+
+    with patch.object(
+        UserFileHandler,
+        "delete_user_file_from_storage",
+        autospec=True,
+        side_effect=refuse_one_file,
+    ):
+        delete_files_of_removed_user_templates()
+
+    assert live_template_files(broken_id) == {refused}
+    assert_template_files_deleted(removed_id)
+    assert_files_kept(kept)
+    not_a_template_file.refresh_from_db()
+    assert not_a_template_file.deleted_at is None
 
 
 def test_purge_keeps_templates_that_arent_due(data_fixture):
@@ -421,7 +478,7 @@ def test_purge_removes_what_an_unfinished_job_left(data_fixture):
         archive_name=job_archive,
     )
 
-    purge()
+    delete_orphaned_user_template_workspaces()
 
     assert_family_removed(family)
     assert not CreateUserTemplateJob.objects.filter(id=job.id).exists()
@@ -433,24 +490,35 @@ def test_purge_removes_what_an_unfinished_job_left(data_fixture):
 def test_purge_retries_content_whose_deletion_failed(data_fixture):
     family = create_family(data_fixture)
     archives = [archive for _, archive in family["contents"]]
+    workspace_id = family["root"].workspace_id
+    deleted, failing = upload_images("red", "green", template_workspace_id=workspace_id)
+    storage = get_default_storage()
+    delete = storage.__class__.delete
+
+    def delete_only_the_first_file(path):
+        if deleted.name not in path:
+            raise OSError("Storage unavailable.")
+        delete(storage, path)
 
     with patch.object(
-        get_default_storage().__class__,
-        "delete",
-        side_effect=OSError("Storage unavailable."),
+        storage.__class__, "delete", side_effect=delete_only_the_first_file
     ):
         purge()
 
     assert not Template.objects.filter(id=family["root"].id).exists()
-    assert all(get_default_storage().exists(archive) for archive in archives)
+    assert all(storage.exists(archive) for archive in archives)
     assert sorted(
         UserTemplateContentToDelete.objects.values_list("archive_name", flat=True)
     ) == sorted(archives)
+    assert Workspace.objects.filter(id=workspace_id).exists()
+    assert not storage.exists(UserFileHandler().user_file_path(deleted))
+    assert_files_kept([failing])
 
     delete_orphaned_user_template_workspaces()
 
     assert_family_removed(family)
     assert not UserTemplateContentToDelete.objects.exists()
+    assert_template_files_deleted(workspace_id)
 
 
 def add_template_archives(family):
@@ -476,16 +544,27 @@ def assert_template_archives_removed(family):
         assert not get_default_storage().exists(template_archive_dir(revision.id))
 
 
-def test_purge_removes_the_archives_of_every_revision(data_fixture):
+def test_purge_removes_the_archives_and_files_of_every_revision(data_fixture):
     family = create_family(data_fixture)
     other = create_family(data_fixture, marked_for_deletion_at=timezone.now())
     add_template_archives(family)
     other_names = add_template_archives(other)
+    workspace_ids = [workspace.id for workspace, _ in family["contents"]]
+    for workspace_id in workspace_ids:
+        upload_images("red", "green", template_workspace_id=workspace_id)
+    kept = [
+        *upload_images("red"),
+        *upload_images("red", template_workspace_id=workspace_ids[0] * 10),
+        *upload_images("red", template_workspace_id=other["root"].workspace_id),
+    ]
 
     purge()
 
     assert_family_removed(family)
     assert_template_archives_removed(family)
+    for workspace_id in workspace_ids:
+        assert_template_files_deleted(workspace_id)
+    assert_files_kept(kept)
     assert not UserTemplateContentToDelete.objects.exists()
     assert sorted(
         sum((template_archive_names(revision) for revision in other["family"]), [])

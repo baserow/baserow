@@ -69,6 +69,29 @@ function firstAvailableRow(layout, item, minimumY = 0) {
   return candidate.y
 }
 
+function projectWidgetWidth(width, columns) {
+  return width > DASHBOARD_GRID_COLUMNS / 2 ? columns : 1
+}
+
+/** Find the first available slot in the layout currently on screen. */
+export function getWidgetPreviewPosition(layout, { width, height }, columns) {
+  const w =
+    columns === DASHBOARD_GRID_COLUMNS
+      ? width
+      : projectWidgetWidth(width, columns)
+  let bestX = 0
+  let bestY = Infinity
+  for (let x = 0; x <= columns - w; x++) {
+    const y = firstAvailableRow(layout, { x, w, h: height })
+    if (y < bestY) {
+      bestX = x
+      bestY = y
+      if (y === 0) break
+    }
+  }
+  return { x: bestX, y: bestY, w, h: height }
+}
+
 /**
  * Plans a resize from the saved layout so reversing the gesture also restores
  * neighbors. Width growth pushes right first; height growth pushes downward.
@@ -129,7 +152,7 @@ export function createWidgetGridLayout(
     if (columns === DASHBOARD_GRID_COLUMNS) {
       item.y = firstAvailableRow(layout, item, item.y)
     } else {
-      item.w = item.w > DASHBOARD_GRID_COLUMNS / 2 ? columns : 1
+      item.w = projectWidgetWidth(item.w, columns)
       if (x + item.w > columns) {
         y += rowHeight
         x = 0

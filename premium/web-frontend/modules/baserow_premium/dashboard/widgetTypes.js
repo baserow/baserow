@@ -9,9 +9,15 @@ import PremiumFeatures from '@baserow_premium/features'
 import PaidFeaturesModal from '@baserow_premium/components/PaidFeaturesModal'
 import { ChartPaidFeature } from '@baserow_premium/paidFeatures'
 
+// Chart and pie preview sizes mirror grid_layout in
+// baserow_premium.dashboard.widgets.widget_types.
 export class ChartWidgetType extends DataSourceWidgetType {
   static getType() {
     return 'chart'
+  }
+
+  get initialGridSize() {
+    return { width: 6, height: 9 }
   }
 
   get name() {
@@ -34,6 +40,7 @@ export class ChartWidgetType extends DataSourceWidgetType {
     return [
       {
         name: this.app.$i18n.t('chartWidget.bar'),
+        description: this.app.$i18n.t('chartWidget.barDescription'),
         createWidgetImage: ChartBarWidgetSvg,
         type: this,
         params: {
@@ -43,6 +50,7 @@ export class ChartWidgetType extends DataSourceWidgetType {
       },
       {
         name: this.app.$i18n.t('chartWidget.line'),
+        description: this.app.$i18n.t('chartWidget.lineDescription'),
         createWidgetImage: ChartLineWidgetSvg,
         type: this,
         params: {
@@ -99,6 +107,10 @@ export class PieChartWidgetType extends ChartWidgetType {
     return 'pie_chart'
   }
 
+  get initialGridSize() {
+    return { width: 3, height: 9 }
+  }
+
   get name() {
     return this.app.$i18n.t('pieChartWidget.name')
   }
@@ -111,6 +123,7 @@ export class PieChartWidgetType extends ChartWidgetType {
     return [
       {
         name: this.app.$i18n.t('pieChartWidget.pie'),
+        description: this.app.$i18n.t('pieChartWidget.pieDescription'),
         createWidgetImage: ChartPieWidgetSvg,
         type: this,
         params: {
@@ -120,6 +133,7 @@ export class PieChartWidgetType extends ChartWidgetType {
       },
       {
         name: this.app.$i18n.t('pieChartWidget.doughnut'),
+        description: this.app.$i18n.t('pieChartWidget.doughnutDescription'),
         createWidgetImage: ChartDonutWidgetSvg,
         type: this,
         params: {

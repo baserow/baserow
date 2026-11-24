@@ -1,0 +1,8 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`automatic snapshot failure notification > shows the application and safe error, and closes the panel on click 1`] = `
+"<a href="/workspace/42" class="notification-panel__notification-link">
+  <div class="notification-panel__notification-content-title"><span scope="global" tag="span">automaticSnapshotFailedNotification.title <strong>&lt;script&gt;CRM&lt;/script&gt;</strong></span></div>
+  <div class="notification-panel__notification-content-desc">automaticSnapshotFailedNotification.description {"error":"The snapshot could not be created."}</div>
+</a>"
+`;

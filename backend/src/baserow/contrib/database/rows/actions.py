@@ -36,6 +36,7 @@ from baserow.core.action.registries import (
     ActionTypeDescription,
     UndoableActionType,
 )
+from baserow.core.action.scopes import ApplicationActionScopeType
 from baserow.core.trash.handler import TrashHandler
 from baserow.core.utils import Progress
 
@@ -381,11 +382,12 @@ class ImportRowsActionType(UndoableActionType):
                 "Can't create rows because it has a data sync."
             )
 
+        configuration = data.get("configuration") or {}
         created_rows, error_report = RowHandler().import_rows(
             user,
             table,
             data=data["data"],
-            configuration=data.get("configuration") or {},
+            configuration=configuration,
             progress=progress,
         )
         if error_report:
@@ -398,9 +400,12 @@ class ImportRowsActionType(UndoableActionType):
             table.database.name,
             [row.id for row in created_rows],
         )
-        cls.register_action(
-            user, params, scope=cls.scope(table.id), workspace=workspace
+        scope = (
+            ApplicationActionScopeType.value(table.database_id)
+            if configuration.get("undo_in_application")
+            else cls.scope(table.id)
         )
+        cls.register_action(user, params, scope=scope, workspace=workspace)
 
         return created_rows, error_report
 

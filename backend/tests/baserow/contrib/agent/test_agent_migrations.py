@@ -1,3 +1,5 @@
+from uuid import uuid4
+
 from django.db import connection
 
 import pytest
@@ -39,3 +41,53 @@ def test_0019_clears_run_as_bindings_to_legacy_agents(
         cursor.execute(f'TRUNCATE "{Workspace._meta.db_table}" CASCADE')
 
     assert bindings == [(None, None), ("auth.User", 1)]
+
+
+@pytest.mark.once_per_day_in_ci
+def test_0022_shares_trigger_conversations_and_names_message_senders(
+    migrator, teardown_table_metadata
+):
+    old_state = migrator.migrate(
+        [("agent", "0021_agentapplication_pending_tool_choices")]
+    )
+    ContentType = old_state.apps.get_model("contenttypes", "ContentType")
+    User = old_state.apps.get_model("auth", "User")
+    Workspace = old_state.apps.get_model("core", "Workspace")
+    AgentApplication = old_state.apps.get_model("agent", "AgentApplication")
+    AgentConversation = old_state.apps.get_model("agent", "AgentConversation")
+    AgentMessage = old_state.apps.get_model("agent", "AgentMessage")
+    agent = AgentApplication.objects.create(
+        workspace=Workspace.objects.create(name="Agents"),
+        name="Agent",
+        order=1,
+        content_type=ContentType.objects.get_or_create(
+            app_label="agent", model="agentapplication"
+        )[0],
+    )
+    owner = User.objects.create(username="owner@example.com")
+    for owner_user, title in [(owner, "Private"), (None, "Triggered")]:
+        conversation = AgentConversation.objects.create(
+            agent=agent, uuid=uuid4(), title=title, owner_user=owner_user
+        )
+        AgentMessage.objects.create(
+            conversation=conversation, uuid=uuid4(), content=title
+        )
+
+    new_state = migrator.migrate([("agent", "0022_conversation_sharing")])
+
+    rows = sorted(
+        new_state.apps.get_model("agent", "AgentMessage").objects.values_list(
+            "content",
+            "conversation__shared",
+            "conversation__started_by_trigger",
+            "sender_id",
+        )
+    )
+    with connection.cursor() as cursor:
+        cursor.execute(f'TRUNCATE "{Workspace._meta.db_table}" CASCADE')
+        cursor.execute(f'TRUNCATE "{User._meta.db_table}" CASCADE')
+
+    assert rows == [
+        ("Private", False, False, owner.id),
+        ("Triggered", True, True, None),
+    ]

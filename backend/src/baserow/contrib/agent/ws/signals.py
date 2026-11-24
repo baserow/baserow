@@ -12,8 +12,10 @@ from baserow.contrib.agent.action_tools.signals import (
     agent_action_updated,
 )
 from baserow.contrib.agent.api.action_tools.serializers import AgentActionSerializer
-from baserow.contrib.agent.api.serializers import AgentConversationSerializer
-from baserow.contrib.agent.handler import AgentHandler
+from baserow.contrib.agent.api.serializers import (
+    AgentConversationSerializer,
+    get_listed_conversation_context,
+)
 from baserow.contrib.agent.models import AgentAction, AgentConversation
 from baserow.contrib.agent.operations import (
     ReadAgentConfigurationOperationType,
@@ -100,7 +102,7 @@ def _notify_readers(
         **data,
     }
     web_socket_id = getattr(user, "web_socket_id", None)
-    if not conversation.is_shared:
+    if not conversation.shared:
         send = partial(
             broadcast_to_users.delay,
             [conversation.owner_user_id],
@@ -122,16 +124,16 @@ def _notify_readers(
 
 
 def _serialize_listed(
-    conversation: AgentConversation, conversation_runs: dict[int, UUID | str]
+    conversation: AgentConversation,
+    conversation_runs: dict[int, UUID | str] | None = None,
 ) -> dict:
-    """Serialize the conversation as the conversation list shows it."""
+    """
+    :param conversation: The conversation to serialize.
+    :param conversation_runs: The run replying in it, read when omitted.
+    :return: The conversation as the conversation list shows it.
+    """
 
-    context = {
-        "conversation_runs": conversation_runs,
-        "conversation_pending_approvals": (
-            AgentHandler().get_conversation_pending_approval_counts([conversation.id])
-        ),
-    }
+    context = get_listed_conversation_context([conversation.id], conversation_runs)
     return AgentConversationSerializer(conversation, context=context).data
 
 
@@ -176,9 +178,7 @@ def conversation_updated(
         user,
         "agent_conversation_updated",
         values=values,
-        conversation=_serialize_listed(
-            conversation, AgentHandler().get_conversation_runs([conversation.id])
-        ),
+        conversation=_serialize_listed(conversation),
     )
 
 

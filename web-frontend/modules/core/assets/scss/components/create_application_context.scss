@@ -1,3 +1,3 @@
 .create-application-context {
-  max-width: 296px;
+  max-width: min(296px, calc(100vw - 16px));
 }

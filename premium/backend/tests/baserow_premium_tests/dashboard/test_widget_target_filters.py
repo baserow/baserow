@@ -201,7 +201,7 @@ def test_chart_filter_options_metadata_and_import(
     )
     owner.mode = "dropdown"
     owner.options = BaserowFormulaObject.create(
-        f"get('data_source_context.{source.id}.fields.field_{field.id}.select_options.*.value')"
+        f"get('table_context.{service.table_id}.field_{field.id}.*.value')"
     )
     assert (
         service.get_type().get_context_data(service)["fields"][field.db_column][
@@ -209,17 +209,14 @@ def test_chart_filter_options_metadata_and_import(
         ][0]["value"]
         == "Europe"
     )
-    copied_source = premium_data_fixture.create_dashboard_local_baserow_grouped_aggregate_rows_data_source(
-        dashboard=dashboard, table=service.table
-    )
     imported = import_formula(
         owner.options,
         {
-            "dashboard_data_sources": {source.id: copied_source.id},
+            "database_tables": {service.table_id: service.table_id},
             "database_fields": {field.id: 9876},
         },
         data_provider_type_registry=dashboard_options_data_provider_registry,
     )
     assert imported["formula"] == (
-        f"get('data_source_context.{copied_source.id}.fields.field_9876.select_options.*.value')"
+        f"get('table_context.{service.table_id}.field_9876.*.value')"
     )

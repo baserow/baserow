@@ -369,6 +369,9 @@ describe('Agent conversations', () => {
 
     expect(messages(wrapper)).toEqual(['Earlier'])
     expect(composerExists(wrapper)).toBe(false)
+    expect(wrapper.get('.agent-chat__shared').text()).toBe(
+      'agent.cannotSendMessages'
+    )
     expect(wrapper.find('.agent-conversations__footer').exists()).toBe(false)
     expect(warning(wrapper).exists()).toBe(false)
   })
@@ -782,10 +785,8 @@ describe('Agent conversations', () => {
     await selectConversation(wrapper, 'A')
     await composer(wrapper).setValue('Unsent text')
     await wrapper.get('.agent-conversations__content').trigger('scroll')
-    await filterConversations(wrapper, 'agent.waitingForApprovalFilter')
-    expect(conversationTitles(wrapper)).toEqual([
-      'Waitingagent.waitingForApproval',
-    ])
+    await filterConversations(wrapper, 'agent.waiting')
+    expect(conversationTitles(wrapper)).toEqual(['Waiting'])
     expect(composer(wrapper).element.value).toBe('Unsent text')
     expect(messages(wrapper)).toEqual(['Hello'])
     stale.resolve(
@@ -793,9 +794,7 @@ describe('Agent conversations', () => {
       conversationsPage([conversation('old', 'Old')], 'stale-cursor')
     )
     await flushPromises()
-    expect(conversationTitles(wrapper)).toEqual([
-      'Waitingagent.waitingForApproval',
-    ])
+    expect(conversationTitles(wrapper)).toEqual(['Waiting'])
     await filterConversations(wrapper, 'agent.pinned')
     expect(conversationTitles(wrapper)).toEqual(['B'])
     const reads = testApp.mock.history.get.filter(({ url }) =>
@@ -846,7 +845,9 @@ describe('Agent conversations', () => {
     await sendMessage(wrapper, 'Still there?')
 
     expect(conversationTitles(wrapper)).toEqual(['B'])
-    expect(selected(wrapper).text()).toBe('B')
+    expect(
+      selected(wrapper).get('.agent-conversations__item-name').text()
+    ).toBe('B')
   })
 
   test('pins through PATCH, restores a failed unpin, and preserves the open conversation', async () => {
@@ -874,7 +875,139 @@ describe('Agent conversations', () => {
     await chooseFromMenu(wrapper, 'B', 'agent.unpin')
     expect(conversationTitles(wrapper)).toEqual(['B', 'A'])
     expect(composer(wrapper).element.value).toBe('Draft')
-    expect(selected(wrapper).text()).toBe('B')
+    expect(
+      selected(wrapper).get('.agent-conversations__item-name').text()
+    ).toBe('B')
+  })
+
+  test.each([
+    ['agent.private', { shared: false }, ['Mine']],
+    ['agent.shared', { shared: true }, ['Team', 'Ticket']],
+    ['agent.triggered', { started_by_trigger: true }, ['Ticket']],
+    ['agent.failed', { last_reply_failed: true }, ['Ticket']],
+  ])(
+    'filters %s conversations on the server',
+    async (label, params, titles) => {
+      const all = conversationsPage([
+        conversation('mine', 'Mine'),
+        { ...conversation('team', 'Team'), shared: true },
+        {
+          ...conversation('ticket', 'Ticket'),
+          shared: true,
+          started_by_trigger: true,
+          last_reply_failed: true,
+        },
+      ])
+      mockConversations(testApp, all, all)
+      const wrapper = await mount()
+
+      await filterConversations(wrapper, label)
+
+      expect(conversationTitles(wrapper)).toEqual(titles)
+      const reads = testApp.mock.history.get.filter(({ url }) =>
+        url.endsWith('/conversations/')
+      )
+      expect(reads.at(-1).params).toEqual({
+        cursor: null,
+        limit: 100,
+        ...params,
+      })
+    }
+  )
+
+  const modalButton = (label) =>
+    Array.from(document.querySelectorAll('.modal__box button')).find(
+      (button) => button.textContent.trim() === label
+    )
+
+  test.each([
+    ['share', 'agent.private', 'agent.share', 'onPost', 'chat/share/'],
+    ['unpin', 'agent.pinned', 'agent.unpin', 'onPatch', 'chat/'],
+  ])(
+    'lists a conversation again when the %s that took it out of the filter fails',
+    async (_, filter, action, method, path) => {
+      const chat = { ...conversation('chat', 'Chat'), pinned: true }
+      mockConversations(
+        testApp,
+        conversationsPage([chat]),
+        conversationsPage([chat])
+      )
+      testApp.dontFailOnErrorResponses()
+      testApp.mock[method](`/agent/10/conversations/${path}`).reply(500)
+      const wrapper = await mount()
+      await filterConversations(wrapper, filter)
+
+      await chooseFromMenu(wrapper, 'Chat', action)
+      modalButton('agent.share')?.click()
+      await flushPromises()
+
+      expect(conversationTitles(wrapper)).toEqual(['Chat'])
+    }
+  )
+
+  test('shares a private conversation only once its owner confirms', async () => {
+    const chat = conversation('chat', 'Chat')
+    mockConversations(testApp, conversationsPage([chat]))
+    testApp.mock
+      .onPost('/agent/10/conversations/chat/share/')
+      .reply(200, { ...chat, shared: true })
+    const wrapper = await mount()
+
+    await chooseFromMenu(wrapper, 'Chat', 'agent.share')
+    expect(document.querySelector('.modal__box').textContent).toContain(
+      'agent.shareConversationWarning'
+    )
+    expect(testApp.mock.history.post).toHaveLength(0)
+    modalButton('agent.share').click()
+    await flushPromises()
+
+    expect(testApp.mock.history.post.map(({ url }) => url)).toEqual([
+      '/agent/10/conversations/chat/share/',
+    ])
+    expect(wrapper.find('.agent-conversations__private').exists()).toBe(false)
+  })
+
+  test("names others' messages in a shared conversation and tells a Viewer they can't reply", async () => {
+    allowed.value = (operation) =>
+      withoutConfiguration(operation) && !operation.includes('create')
+    mockConversations(
+      testApp,
+      conversationsPage([{ ...conversation('team', 'Team'), shared: true }])
+    )
+    mockMessages(
+      testApp,
+      'team',
+      page([
+        message('mine', 'From me', { id: 1 }),
+        message('ada', 'From Ada', { id: 2, sender: { id: 2, name: 'Ada' } }),
+        message('gone', 'From a deleted user', { id: 3, sender: null }),
+      ])
+    )
+    const wrapper = await mount()
+
+    await selectConversation(wrapper, 'Team')
+
+    expect(
+      wrapper
+        .findAll('.chat-message__bubble')
+        .map((bubble) => [
+          bubble.find('.chat-message__sender').exists()
+            ? bubble.get('.chat-message__sender').text()
+            : null,
+          bubble.classes('chat-message__bubble--peer'),
+        ])
+    ).toEqual([
+      [null, false],
+      ['Ada', true],
+      ['agent.deletedSender', true],
+    ])
+    expect(
+      wrapper.findAll('.chat-message__text').map((text) => text.text())
+    ).toEqual(['From Ada', 'From a deleted user'])
+    expect(composerExists(wrapper)).toBe(false)
+    expect(wrapper.get('.agent-chat__shared').text()).toBe(
+      'agent.cannotSendMessages'
+    )
   })
 
   test('shows a shared conversation without a composer, with its trigger start card', async () => {

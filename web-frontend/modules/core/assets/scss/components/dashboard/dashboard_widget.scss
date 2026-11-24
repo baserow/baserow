@@ -86,6 +86,27 @@
   color: $palette-red-600;
 }
 
+.dashboard-widget__filter-status--values {
+  gap: 4px;
+  max-width: 160px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background-color: $palette-blue-50;
+  color: $palette-blue-800;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.dashboard-widget__filter-values {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dashboard-widget--filter-target {
+  border: 1.5px dashed $palette-blue-400;
+}
+
 .dashboard-widget--selected {
   border: 1.5px solid $palette-blue-500;
 }
@@ -216,6 +237,12 @@ body.dashboard-widget-grid--resizing * {
     }
   }
 
+  // A widget added to a ready grid appears in its place instead of sliding in
+  // from the grid's origin.
+  .dashboard-widget-grid__item--placing {
+    transition: none;
+  }
+
   &:not(.dashboard-widget-grid--layout-ready) {
     min-height: 240px;
 
@@ -275,4 +302,38 @@ body.dashboard-widget-grid--resizing * {
   background: transparent;
   box-shadow: none;
   overflow: visible;
+}
+
+// While the dashboard is edited, the controls of a widget can't be used: a
+// click goes through them and selects the widget. Its label and other content
+// still take the pointer, so they keep working as a drag handle.
+.dashboard-widget__content--locked {
+  cursor: pointer;
+
+  :is(input, textarea, select, button, a, .form-input, .dropdown) {
+    pointer-events: none;
+  }
+
+  // The actions the widget is given, like its context menu, stay usable.
+  .dashboard-widget__actions,
+  .dashboard-widget__actions * {
+    pointer-events: auto;
+  }
+}
+
+.dashboard-widget__refreshing {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  background-color: rgba($palette-neutral-900, 0.06);
+  pointer-events: none;
+
+  &::after {
+    @include loading(12px);
+
+    content: '';
+    position: absolute;
+    right: 12px;
+    bottom: 12px;
+  }
 }

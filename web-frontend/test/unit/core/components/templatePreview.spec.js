@@ -173,4 +173,31 @@ describe('TemplatePreview', () => {
       wrapper.findAll('.tree__sub-link').map((link) => link.text())
     ).toEqual(['Second table'])
   })
+
+  test.each([
+    { signedIn: false, type: 'official', withoutLiveData: true },
+    { signedIn: false, type: 'user', withoutLiveData: true },
+    { signedIn: true, type: 'official', withoutLiveData: false },
+    { signedIn: true, type: 'user', withoutLiveData: true },
+  ])(
+    'shows live data only signed in on an official template: signed in $signedIn, $type',
+    async ({ signedIn, type, withoutLiveData }) => {
+      if (signedIn) {
+        testApp.authenticate({ id: 1, username: 'viewer@baserow.io' })
+      }
+      const TableTemplate = {
+        inject: ['withoutLiveData'],
+        render() {
+          return h('div', { class: 'page' }, String(this.withoutLiveData))
+        },
+      }
+      const wrapper = await testApp.mount(TemplatePreview, {
+        props: { template: { ...template, type } },
+        global: { stubs: { TableTemplate } },
+      })
+      await flushPromises()
+
+      expect(wrapper.find('.page').text()).toBe(String(withoutLiveData))
+    }
+  )
 })

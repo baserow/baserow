@@ -199,6 +199,7 @@ export default defineNuxtPlugin({
     registry.registerNamespace('captchaProvider')
     registry.registerNamespace('invitationRoute')
     registry.registerNamespace('invitationTarget')
+    registry.registerNamespace('invitationData')
 
     const context = { app: nuxtApp }
 

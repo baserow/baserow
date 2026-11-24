@@ -1,6 +1,8 @@
 <template>
-  <div class="sidebar__section sidebar__section--scrollable">
-    <div class="sidebar__section-scrollable">
+  <div
+    class="sidebar__section sidebar__section--scrollable sidebar__section--workspace"
+  >
+    <div class="sidebar__section-scrollable" tabindex="-1">
       <div
         class="sidebar__section-scrollable-inner"
         data-highlight="applications"
@@ -21,17 +23,21 @@
             ) in groupedApplicationsForSelectedWorkspace"
             :key="applicationGroup.type"
           >
-            <div
-              class="tree__heading"
-              :class="{
-                'margin-bottom-2':
-                  applicationGroup.applications.length === 0 &&
-                  index < groupedApplicationsForSelectedWorkspace.length - 1,
-              }"
-            >
-              <div class="tree__heading-name">
+            <div class="tree__heading">
+              <button
+                type="button"
+                class="tree__heading-name"
+                tabindex="-1"
+                :aria-expanded="!collapsedGroups[applicationGroup.key]"
+                :aria-controls="`${sidebarId}-${applicationGroup.type}`"
+                @click="toggleApplicationGroup(applicationGroup.key)"
+              >
                 {{ applicationGroup.name }}
-              </div>
+                <span class="tree__heading-chevron" aria-hidden="true">
+                  <i class="iconoir-nav-arrow-down"></i>
+                  <i class="iconoir-nav-arrow-right"></i>
+                </span>
+              </button>
               <a
                 v-if="
                   canCreateApplication &&
@@ -52,42 +58,54 @@
                 ></component>
               </a>
             </div>
-            <ul
-              class="tree"
-              :class="{
-                'margin-bottom-0': pendingJobs[applicationGroup.type].length,
-              }"
-              :data-highlight="`applications-${applicationGroup.type}`"
+            <div
+              :id="`${sidebarId}-${applicationGroup.type}`"
+              class="tree__group"
+              :inert="collapsedGroups[applicationGroup.key] ? '' : null"
             >
-              <component
-                :is="getApplicationComponent(application)"
-                v-for="application in applicationGroup.applications"
-                :key="application.id"
-                v-sortable="{
-                  id: application.id,
-                  update: orderApplications,
-                  handle: '[data-sortable-handle]',
-                  marginTop: -1.5,
-                  enabled: $hasPermission(
-                    'workspace.order_applications',
-                    selectedWorkspace,
-                    selectedWorkspace.id
-                  ),
-                }"
-                :application="application"
-                :pending-jobs="pendingJobs[application.type]"
-                :workspace="selectedWorkspace"
-              ></component>
-            </ul>
-            <ul v-if="pendingJobs[applicationGroup.type].length" class="tree">
-              <component
-                :is="getPendingJobComponent(job)"
-                v-for="job in pendingJobs[applicationGroup.type]"
-                :key="job.id"
-                :job="job"
-              >
-              </component>
-            </ul>
+              <div class="tree__group-content">
+                <ul
+                  class="tree"
+                  :class="{
+                    'margin-bottom-0':
+                      pendingJobs[applicationGroup.type].length,
+                  }"
+                  :data-highlight="`applications-${applicationGroup.type}`"
+                >
+                  <component
+                    :is="getApplicationComponent(application)"
+                    v-for="application in applicationGroup.applications"
+                    :key="application.id"
+                    v-sortable="{
+                      id: application.id,
+                      update: orderApplications,
+                      handle: '[data-sortable-handle]',
+                      marginTop: -1.5,
+                      enabled: $hasPermission(
+                        'workspace.order_applications',
+                        selectedWorkspace,
+                        selectedWorkspace.id
+                      ),
+                    }"
+                    :application="application"
+                    :pending-jobs="pendingJobs[application.type]"
+                    :workspace="selectedWorkspace"
+                  ></component>
+                </ul>
+                <ul
+                  v-if="pendingJobs[applicationGroup.type].length"
+                  class="tree"
+                >
+                  <component
+                    :is="getPendingJobComponent(job)"
+                    v-for="job in pendingJobs[applicationGroup.type]"
+                    :key="job.id"
+                    :job="job"
+                  >
+                  </component>
+                </ul>
+              </div>
+            </div>
             <div
               v-if="index < groupedApplicationsForSelectedWorkspace.length - 1"
               class="tree__separator"
@@ -128,6 +146,7 @@
 </template>
 
 <script>
+import { useId } from 'vue'
 import { notifyIf } from '@baserow/modules/core/utils/error'
 import CreateApplicationContext from '@baserow/modules/core/components/application/CreateApplicationContext'
 
@@ -144,6 +163,15 @@ export default {
       required: true,
     },
   },
+  emits: ['expand'],
+  setup() {
+    const sidebarId = useId()
+    const collapsedGroups = useState(
+      'sidebar-collapsed-application-groups',
+      () => ({})
+    )
+    return { sidebarId, collapsedGroups }
+  },
   computed: {
     /**
      * Because all the applications that belong to the user are in the store we will
@@ -153,16 +181,18 @@ export default {
       const applicationTypes = this.$registry
         .getOrderedList('application')
         .map((applicationType) => {
+          const type = applicationType.getType()
           return {
             name: applicationType.getNamePlural(),
-            type: applicationType.getType(),
+            type,
+            key: `${this.selectedWorkspace.id}:${type}`,
             applicationType: applicationType,
             developmentStage: applicationType.developmentStage,
             applications: this.applications
               .filter((application) => {
                 return (
                   application.workspace.id === this.selectedWorkspace.id &&
-                  application.type === applicationType.getType() &&
+                  application.type === type &&
                   applicationType.isVisible(application)
                 )
               })
@@ -198,7 +228,29 @@ export default {
       )
     },
   },
+  mounted() {
+    this.$bus.$on('reveal-sidebar-application', this.revealApplication)
+  },
+  beforeUnmount() {
+    this.$bus.$off('reveal-sidebar-application', this.revealApplication)
+  },
   methods: {
+    revealApplication(application) {
+      if (application.workspace.id !== this.selectedWorkspace.id) {
+        return
+      }
+      this.$emit('expand')
+      this.collapsedGroups[`${this.selectedWorkspace.id}:${application.type}`] =
+        false
+      this.$store.commit('application/SET_SIDEBAR_EXPANDED', {
+        id: application.id,
+        workspaceId: this.selectedWorkspace.id,
+        expanded: true,
+      })
+    },
+    toggleApplicationGroup(key) {
+      this.collapsedGroups[key] = !this.collapsedGroups[key]
+    },
     getApplicationComponent(application) {
       return this.$registry
         .get('application', application.type)

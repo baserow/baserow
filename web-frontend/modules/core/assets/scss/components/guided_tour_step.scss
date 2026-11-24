@@ -10,6 +10,7 @@
   position: absolute;
   box-sizing: border-box;
   width: 326px;
+  max-height: calc(100vh - var(--guided-tour-top, 0px) + 12px);
   background-color: $palette-neutral-1200;
   display: flex;
   flex-direction: column;
@@ -133,6 +134,33 @@
       transform: translateX(-50%);
       border-width: 6px 8px 0;
       border-color: $palette-neutral-1200 transparent transparent transparent;
+    }
+  }
+
+  // On phones the card and its target may not fit side by side.
+  @media (max-width: 575px) {
+    position: fixed;
+    inset: auto 12px 12px;
+    margin-inline: auto;
+    max-width: calc(100% - 24px);
+    max-height: calc(100dvh - 24px);
+    transform: none;
+    transition: none;
+
+    &::after {
+      display: none;
+    }
+
+    &--center {
+      top: 50%;
+      bottom: auto;
+      transform: translateY(-50%);
+    }
+
+    &--right-bottom,
+    &--top-center {
+      top: 12px;
+      bottom: auto;
     }
   }
 }

@@ -1,3 +1,6 @@
+$tree-group-duration: 250ms;
+$tree-group-ease: cubic-bezier(0.22, 1, 0.36, 1);
+
 .tree {
   position: relative;
   list-style: none;
@@ -22,6 +25,10 @@
 
   @include rounded($rounded-md);
 
+  .sidebar__section--workspace & {
+    margin-block: 0;
+  }
+
   &.active {
     background-color: rgba($palette-neutral-1300, 0.04);
   }
@@ -44,6 +51,10 @@
   padding: 0 8px;
 
   @include rounded($rounded);
+
+  .sidebar__section--workspace & {
+    border-radius: $rounded-md;
+  }
 
   &.tree__action--disabled {
     opacity: 0.6;
@@ -88,6 +99,12 @@
 
   @include flex-align-items(8px);
 
+  .sidebar__section--workspace & {
+    height: 30px;
+    line-height: 20px;
+    font-size: 13px;
+  }
+
   .tree__action--deactivated & {
     color: $palette-neutral-500;
   }
@@ -118,12 +135,17 @@
 .tree__link-text {
   @extend %ellipsis;
 
-  display: flex;
   min-width: 0;
   color: $palette-neutral-900;
   font-weight: 500;
 
-  .active & {
+  .active &,
+  .sidebar__section--workspace
+    .tree__action:is(
+      .tree__action--highlighted,
+      :hover:not(.tree__action--disabled)
+    )
+    & {
     color: $palette-neutral-1200;
   }
 }
@@ -142,7 +164,17 @@
   color: $palette-neutral-700;
   font-size: 16px;
 
-  .active & {
+  .sidebar__section--workspace & {
+    line-height: 1;
+  }
+
+  .active &,
+  .sidebar__section--workspace
+    .tree__action:is(
+      .tree__action--highlighted,
+      :hover:not(.tree__action--disabled)
+    )
+    & {
     color: $palette-neutral-1200;
   }
 }
@@ -168,6 +200,18 @@
   list-style: none;
   padding: 0 0 2px;
   margin: 0;
+
+  .sidebar__section--workspace & {
+    padding: 0;
+
+    &:has(> .tree__sub)::before {
+      content: '';
+      position: absolute;
+      inset: 2px auto 2px 15.5px;
+      border-left: 1px solid $palette-neutral-200;
+      pointer-events: none;
+    }
+  }
 }
 
 .tree__sub {
@@ -193,6 +237,10 @@
   &::before {
     height: 32px;
     border-right: 1px solid $palette-neutral-200;
+
+    .sidebar__section--workspace & {
+      display: none;
+    }
   }
 
   &:not(:last-child) {
@@ -201,6 +249,11 @@
     &::before {
       height: 34px;
     }
+  }
+
+  .sidebar__section--workspace & {
+    height: 30px;
+    margin: 0 0 0 24px;
   }
 }
 
@@ -223,12 +276,25 @@
   align-items: center;
   gap: 5px;
 
+  .sidebar__section--workspace & {
+    height: 30px;
+    line-height: 20px;
+    padding-left: 8px;
+    font-size: 12px;
+  }
+
   &:hover {
     cursor: pointer;
     text-decoration: none;
   }
 
   .active > & {
+    color: $palette-neutral-1200;
+  }
+
+  .sidebar__section--workspace
+    .tree__sub:hover
+    > &:not(.tree__sub-link--disabled) {
     color: $palette-neutral-1200;
   }
 
@@ -269,15 +335,33 @@
   font-weight: 500;
   color: $palette-neutral-900;
 
+  .sidebar__section--workspace & {
+    margin: 0 0 0 24px;
+    height: 30px;
+    padding: 0 8px;
+    line-height: 20px;
+
+    @include flex-align-items(8px);
+    @include rounded($rounded-md);
+  }
+
   &:hover {
     text-decoration: none;
     color: $palette-neutral-1200;
+
+    .sidebar__section--workspace & {
+      background-color: rgba($palette-neutral-1300, 0.04);
+    }
   }
 }
 
 .tree__sub-add-icon {
   font-size: 16px;
   color: $palette-neutral-600;
+
+  .sidebar__section--workspace & {
+    color: $palette-neutral-700;
+  }
 
   .tree__sub-add:hover & {
     color: $palette-neutral-1200;
@@ -314,8 +398,19 @@
   color: $color-neutral-500;
   cursor: pointer;
 
+  .sidebar__section--workspace & {
+    inset: 5px 4px auto auto;
+    width: 20px;
+    height: 20px;
+    color: $palette-neutral-700;
+  }
+
   &:hover {
     color: $color-neutral-900;
+
+    .sidebar__section--workspace & {
+      color: $palette-neutral-1200;
+    }
   }
 }
 
@@ -323,6 +418,10 @@
   position: absolute;
   top: 8px;
   right: 8px;
+
+  .sidebar__section--workspace & {
+    top: 6px;
+  }
 
   .tree__action--has-options:hover > &,
   .tree__action--has-options:focus-within > &,
@@ -339,33 +438,114 @@
 }
 
 .tree__heading-name {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: $palette-neutral-900;
+  font-family: inherit;
   font-size: 11px;
   font-weight: 500;
-  color: $palette-neutral-900;
-  line-height: 16px;
+  line-height: 11px;
+  cursor: pointer;
+
+  @include flex-align-items(2px, inline-flex);
+
+  &:hover {
+    color: $palette-neutral-1200;
+  }
+
+  &:focus-visible {
+    outline: 2px solid $palette-blue-500;
+    outline-offset: 2px;
+  }
+}
+
+.tree__heading-chevron {
+  display: grid;
+  color: $palette-neutral-700;
+  font-size: 14px;
+  line-height: 1;
+
+  > i {
+    grid-area: 1 / 1;
+    opacity: 0;
+    transition: opacity 150ms $tree-group-ease;
+  }
+
+  .tree__heading-name[aria-expanded='true']:is(:hover, :focus-visible)
+    > &
+    > .iconoir-nav-arrow-down,
+  .tree__heading-name[aria-expanded='false'] > & > .iconoir-nav-arrow-right {
+    opacity: 1;
+  }
+}
+
+.tree__group {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: 1fr;
+  transition: grid-template-rows $tree-group-duration $tree-group-ease;
+
+  // Keep the starting height when a leaving panel becomes inert.
+  &:is(
+    .tree__group--collapsed,
+    [inert]:not(.tree-group-leave-from),
+    .tree-group-enter-from
+  ) {
+    grid-template-rows: 0fr;
+  }
+}
+
+.tree__group-content {
+  min-height: 0;
+  transition:
+    opacity $tree-group-duration $tree-group-ease,
+    filter $tree-group-duration $tree-group-ease,
+    overflow 0s linear $tree-group-duration;
+  transition-behavior: allow-discrete;
+
+  .tree__group:is(
+      .tree__group--collapsed,
+      [inert]:not(.tree-group-leave-from),
+      .tree-group-enter-from
+    )
+    > & {
+    overflow: clip;
+    opacity: 0;
+    filter: blur(2px);
+    transition-property: opacity, filter;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tree__group,
+  .tree__group-content,
+  .tree__heading-chevron > i {
+    transition: none;
+  }
 }
 
 .tree__heading-add {
-  color: $palette-neutral-600;
-  width: 16px;
-  height: 16px;
+  color: $palette-neutral-700;
+  width: 14px;
+  height: 14px;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 16px;
-  line-height: 16px;
-
-  @include rounded($rounded);
+  font-size: 14px;
+  line-height: 1;
 
   &:hover {
     text-decoration: none;
-    background-color: $palette-neutral-200;
-    outline: solid 2px $palette-neutral-200;
-    color: $palette-neutral-800;
+    color: $palette-neutral-1200;
   }
 }
 
 .tree__separator {
   border-bottom: solid 1px $palette-neutral-200;
   margin: 8px 8px 16px;
+
+  .sidebar__section--workspace & {
+    margin-top: 10px;
+  }
 }

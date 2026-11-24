@@ -1,57 +1,39 @@
 <template>
-  <nuxt-link
-    v-if="hasPermission"
-    v-slot="{ href, navigate, isExactActive, prefetch, shouldPrefetch }"
-    custom
-    prefetch-on="interaction"
-    :to="{
-      name: 'workspace-audit-log',
-      params: {
-        workspaceId: workspace.id,
-      },
-    }"
-  >
-    <li
-      class="tree__item"
-      :class="{
-        'tree__item--loading': loading,
-        'tree__action--deactivated': deactivated,
-        active: isExactActive,
-      }"
+  <li v-if="hasPermission" class="context__menu-item">
+    <button
+      v-if="deactivated"
+      type="button"
+      class="context__menu-item-link"
+      @click="($refs.paidFeaturesModal.show(), $emit('hide'))"
     >
-      <div class="tree__action">
-        <a
-          v-if="deactivated"
-          href="#"
-          class="tree__link"
-          @click.prevent="$refs.paidFeaturesModal.show()"
-        >
-          <i class="tree__icon iconoir-lock"></i>
-          <span class="tree__link-text">{{
-            $t('auditLogSidebarWorkspace.title')
-          }}</span>
-        </a>
-        <a
-          v-else
-          :href="href"
-          class="tree__link"
-          @click="navigate"
-          @pointerenter="shouldPrefetch('interaction') && prefetch()"
-          @focus="shouldPrefetch('interaction') && prefetch()"
-        >
-          <i class="tree__icon baserow-icon-history"></i>
-          <span class="tree__link-text">{{
-            $t('auditLogSidebarWorkspace.title')
-          }}</span>
-        </a>
-      </div>
-      <PaidFeaturesModal
-        ref="paidFeaturesModal"
-        :workspace="workspace"
-        initial-selected-type="audit_log"
-      ></PaidFeaturesModal>
-    </li>
-  </nuxt-link>
+      <i class="context__menu-item-icon iconoir-lock" aria-hidden="true"></i>
+      {{ $t('auditLogSidebarWorkspace.title') }}
+    </button>
+    <nuxt-link
+      v-else
+      class="context__menu-item-link"
+      exact-active-class="active"
+      prefetch-on="interaction"
+      :to="{
+        name: 'workspace-audit-log',
+        params: {
+          workspaceId: workspace.id,
+        },
+      }"
+      @click="$emit('hide')"
+    >
+      <i
+        class="context__menu-item-icon baserow-icon-history"
+        aria-hidden="true"
+      ></i>
+      {{ $t('auditLogSidebarWorkspace.title') }}
+    </nuxt-link>
+    <PaidFeaturesModal
+      ref="paidFeaturesModal"
+      :workspace="workspace"
+      initial-selected-type="audit_log"
+    ></PaidFeaturesModal>
+  </li>
 </template>
 
 <script>
@@ -67,11 +49,7 @@ export default {
       required: true,
     },
   },
-  data() {
-    return {
-      loading: false,
-    }
-  },
+  emits: ['hide'],
   computed: {
     deactivated() {
       return !this.$hasFeature(EnterpriseFeatures.AUDIT_LOG, this.workspace.id)

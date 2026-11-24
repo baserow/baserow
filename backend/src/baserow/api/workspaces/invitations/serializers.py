@@ -2,6 +2,7 @@ from drf_spectacular.openapi import OpenApiTypes
 from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
+from baserow.api.workspaces.invitations.registries import invitation_data_registry
 from baserow.core.models import WorkspaceInvitation
 
 
@@ -16,6 +17,30 @@ class WorkspaceInvitationSerializer(serializers.ModelSerializer):
             "created_on",
         )
         extra_kwargs = {"id": {"read_only": True}}
+
+
+def get_workspace_invitation_with_data_serializer():
+    """
+    Returns a serializer for the `WorkspaceInvitation` model that also documents
+    the data added by every type registered in the `InvitationDataRegistry`. It's
+    dynamically generated, because the types are registered by plugins.
+    """
+
+    attrs = {
+        data_type.type: data_type.get_serializer_field()
+        for data_type in invitation_data_registry.get_all()
+    }
+
+    class Meta(WorkspaceInvitationSerializer.Meta):
+        fields = WorkspaceInvitationSerializer.Meta.fields + tuple(attrs.keys())
+
+    attrs["Meta"] = Meta
+
+    return type(
+        "WorkspaceInvitationWithDataSerializer",
+        (WorkspaceInvitationSerializer,),
+        attrs,
+    )
 
 
 class CreateWorkspaceInvitationSerializer(serializers.ModelSerializer):
