@@ -38,7 +38,7 @@ Dashboard export paths pass the config through to their integrations and service
 
 | Module | What enforces it | Status | Owner |
 | --- | --- | --- | --- |
-| Integrations | `IntegrationHandler.import_integration` receives no config; pass it through if an import-side rule needs it | to do | WAB |
+| Integrations | `IntegrationHandler.import_integration` accepts `import_export_config` and forwards it to the integration type's `import_serialized` | done | WAB |
 | Dashboard | `DashboardApplicationType.export_serialized` passes the config to `IntegrationHandler.export_integration` | done | WAB |
 | Integrations | `sensitive_fields` on `SMTPIntegrationType`, `SlackBotIntegrationType`, `AIIntegrationType` (`ai_settings`) | done | WAB |
 | Builder, automation | `BuilderApplicationType.export_serialized` and `AutomationApplicationType.export_serialized` pass the config to `IntegrationHandler.export_integration` | done | WAB |
@@ -106,7 +106,7 @@ workspace export; see #6116.
 | Database | Rich text mentions in `LongTextFieldType` become a neutral `@user` | to do | core/database |
 | Premium | `AIFieldType.import_serialized` drops `ai_auto_update_user_id` only when not `is_duplicate`; must key on `is_user_template` | to do | core/database |
 | Integrations | `LocalBaserowTableServiceFilterableMixin.serialize_filters` clears user and collaborator filter values when `exclude_sensitive_data=True`, except a direct `get("provider.path")` reference. Raw values, constants and composed formulas are cleared; exports with sensitive-data removal disabled retain their values. | done | WAB |
-| Enterprise | SAML identity provider metadata removed (see Login provider secrets) | to do | WAB |
+| Enterprise | `SamlAppAuthProviderType.sensitive_fields` removes SAML identity provider metadata when `exclude_sensitive_data=True` (see Login provider secrets) | done | WAB |
 | Database | Row `created_by` and `last_modified_by` are mapped by email in `DatabaseApplicationType.import_serialized`; memberless target gives nobody | done | core/database |
 | Database | Collaborator cells (`MultipleCollaboratorsFieldType.set_import_serialized_value`) and user filters (`UserIsViewFilterType`, `MultipleCollaboratorsHasViewFilterType`) map by email; memberless target gives nobody | done | core/database |
 | Database | Form conditions (`FormViewType`) and conditional color filters (`ConditionalColorValueProviderType.set_import_serialized_value`) are exported with raw user ids; the filter import maps by email, so they become empty | done | core/database |
@@ -118,10 +118,9 @@ workspace export; see #6116.
 
 | Module | What enforces it | Status | Owner |
 | --- | --- | --- | --- |
-| Core | Template creation and content update must not send `application_imported` with the author, or the template's integrations run as the author | to do | core/database |
-| Integrations | An integration running as an identity (#6064): `authorized_subject_type` and `authorized_subject_id` are in `LocalBaserowIntegrationType.sensitive_fields`, so they are removed unless publishing | in #6064 | WAB |
-| Integrations | `authorized_user` is in `LocalBaserowIntegrationType.sensitive_fields`, so it is exported as `None` wherever the config is passed; the dashboard path relies on `import_serialized` mapping against `import_workspace_id` members | done | core/database |
-| Integrations | `LocalBaserowIntegrationType.after_import` sets the installer when install sends `application_imported` with the installer, as `CoreHandler.install_template` does | done | core/database |
+| Core | Template content is imported without sending `application_imported` with the author; installation calls `CoreHandler.mark_applications_installed_from_template` with the installer | done | core/database |
+| Integrations | `authorized_subject_type` and `authorized_subject_id` are in `LocalBaserowIntegrationType.sensitive_fields`; sensitive exports remove them, while publishing explicitly preserves them (#6064) | done | WAB |
+| Integrations | `LocalBaserowIntegrationType.after_import` authorizes the installer when `CoreHandler.mark_applications_installed_from_template` sends `application_imported`; this applies to official and user-template installation | done | core/database |
 | Enterprise | `LocalBaserowTableDataSyncType.import_serialized` always clears `authorized_user_id` | done | core/database |
 
 ## References outside the template
