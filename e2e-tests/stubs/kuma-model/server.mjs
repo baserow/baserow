@@ -23,6 +23,18 @@ function textOf(message) {
   return (message.content ?? []).map((part) => part.text ?? "").join("");
 }
 
+/** What a person wrote, also when a shared conversation wraps it with its sender. */
+function promptOf(message) {
+  const text = textOf(message);
+  try {
+    const wrapped = JSON.parse(text);
+    if (typeof wrapped?.message === "string") return wrapped.message;
+  } catch {
+    // Plain text, as in a private conversation.
+  }
+  return text;
+}
+
 function toolCall(name, args) {
   return {
     id: `call_${name}`,
@@ -41,10 +53,7 @@ function nextAnswer(body) {
       : { toolCall: toolCall(MODEL_CHECK_TOOL, { value: "e2e" }) };
   }
   const lastUser = messages.findLast((message) => message.role === "user");
-  // A shared conversation opens each message with a line naming its sender.
-  const prompt = lastUser
-    ? textOf(lastUser).replace(/^\[[^\]\n]*\]\n/, "")
-    : "";
+  const prompt = lastUser ? promptOf(lastUser) : "";
   if (
     prompt === "Create a support database." &&
     tools.includes("create_database")

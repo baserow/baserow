@@ -196,6 +196,9 @@ class BaserowEnterpriseConfig(AppConfig):
             plugin_registry,
         )
         from baserow.core.trash.registries import trash_item_type_registry
+        from baserow_enterprise.agent_permissions.actions import (
+            UpdateAgentParticipationRuleActionType,
+        )
         from baserow_enterprise.api.invitation_data_types import (
             EnterpriseInvitationScopesDataType,
             EnterpriseInvitationTeamsDataType,
@@ -284,6 +287,7 @@ class BaserowEnterpriseConfig(AppConfig):
         application_type_registry.register(EnterpriseBuilderApplicationType())
 
         action_type_registry.register(CreateTeamActionType())
+        action_type_registry.register(UpdateAgentParticipationRuleActionType())
         action_type_registry.register(UpdateTeamActionType())
         action_type_registry.register(DeleteTeamActionType())
         action_type_registry.register(CreateTeamSubjectActionType())

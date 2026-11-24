@@ -1,3 +1,4 @@
+from unittest.mock import patch
 from uuid import uuid4
 
 import pytest
@@ -84,6 +85,7 @@ def test_named_approvers_keep_access_and_only_author_can_share_or_delete(
     assert candidates() == []
     with pytest.raises(AgentToolApprovalNotPending):
         request(alice)
+    data_fixture.create_agent_message(conversation=conversation, sender=owner)
     approval = data_fixture.create_agent_tool_approval(conversation=conversation)
     assert candidates() == [alice, bob, other]
     assert candidates(limit=2) == [alice, bob]
@@ -96,6 +98,11 @@ def test_named_approvers_keep_access_and_only_author_can_share_or_delete(
     assert set(conversation.participants.all()) == {owner, alice, bob}
     assert candidates() == [other]
     assert service.can_follow_conversation(alice, conversation.pk)
+    with patch.object(
+        AgentService, "_can_read_agent_conversations", return_value=False
+    ):
+        assert not service.can_follow_conversation(alice, conversation.pk)
+        assert service.can_follow_conversation(owner, conversation.pk)
     assert not service.can_read_conversation(other, conversation.pk)
     with pytest.raises(PermissionDenied):
         service.delete_conversation(alice, agent.id, conversation.uuid)
@@ -115,6 +122,8 @@ def test_named_approvers_keep_access_and_only_author_can_share_or_delete(
     service.decide_approvals(
         bob, agent.id, conversation.uuid, [{"id": approval.pk, "approved": True}]
     )
+    resumed = service.prepare_reply(approval.reply.pk, approver_id=bob.pk)
+    assert resumed.conversation_user is None and resumed.timezone is None
     with pytest.raises(AgentToolApprovalNotPending):
         service.decide_approvals(
             alice, agent.id, conversation.uuid, [{"id": approval.pk, "approved": False}]

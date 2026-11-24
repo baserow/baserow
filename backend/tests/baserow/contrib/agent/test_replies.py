@@ -548,6 +548,28 @@ def test_a_message_or_a_name_cannot_pass_for_another_sender():
 
 
 @pytest.mark.django_db
+def test_a_person_continuing_a_triggered_conversation_keeps_its_data_untrusted(
+    data_fixture, configured_agent
+):
+    reply = queued_reply(data_fixture.create_agent_trigger(agent=configured_agent()))
+    member = data_fixture.create_user(workspace=reply.conversation.agent.workspace)
+    data_fixture.create_agent_message(
+        conversation=reply.conversation, sender=member, unattended=False
+    )
+    follow_up = data_fixture.create_agent_message(
+        conversation=reply.conversation,
+        sender=member,
+        role="assistant",
+        status="queued",
+        unattended=False,
+    )
+
+    request = AgentHandler().get_reply_request(AgentHandler().get_reply(follow_up.id))
+
+    assert request.started_by_trigger and request.conversation_user.id == member.id
+
+
+@pytest.mark.django_db
 @pytest.mark.parametrize(
     "shared,asked_approver,names_senders",
     [(False, False, False), (False, True, True), (True, False, True)],

@@ -11,6 +11,10 @@ from baserow.api.decorators import (
 from baserow.api.pagination import PageNumberPagination
 from baserow.api.serializers import get_example_pagination_serializer_class
 from baserow.contrib.agent.api.views import AGENT_EXCEPTIONS, AGENT_ID_PATH_PARAMETER
+from baserow.core.action.registries import action_type_registry
+from baserow_enterprise.agent_permissions.actions import (
+    UpdateAgentParticipationRuleActionType,
+)
 from baserow_enterprise.agent_permissions.service import AgentParticipationService
 from baserow_enterprise.api.field_permissions.serializers import (
     FieldPermissionSubjectOptionResponseSerializer,
@@ -68,9 +72,9 @@ class AgentParticipationRuleView(APIView):
     ) -> Response:
         """Replaces the rule of one capability."""
 
-        rule = AgentParticipationService().update_rule(
-            request.user, agent_id, capability, data["role"], data["subjects"]
-        )
+        rule = action_type_registry.get_by_type(
+            UpdateAgentParticipationRuleActionType
+        ).do(request.user, agent_id, capability, data["role"], data["subjects"])
         return Response(serialize_rule(rule, capability))
 
 

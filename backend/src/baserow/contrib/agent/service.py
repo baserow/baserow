@@ -64,6 +64,8 @@ from .validators import validate_message_content
 
 # Members checked per query while listing approvers, so few approvers stay cheap.
 APPROVER_CHECK_BATCH_SIZE = 100
+# The picker lists the first members by name; searching finds the others.
+MAX_APPROVER_CANDIDATES = 1000
 
 
 class AgentService:
@@ -445,8 +447,8 @@ class AgentService:
         :param conversation_uuid: The uuid of the conversation.
         :param for_update: Whether to lock the conversation until the transaction
             ends.
-        :raises PermissionException: When the user may not read the agent's
-            conversations, or doesn't own the private conversation.
+        :raises PermissionException: When the user may not read and chat with the
+            agent, or doesn't own the private conversation.
         :raises AgentConversationDoesNotExist: When the user sees no conversation
             with this uuid in the agent.
         :return: The conversation.
@@ -454,6 +456,13 @@ class AgentService:
 
         agent = self.get_authorized_agent(
             user, agent_id, ReadAgentConversationsOperationType.type
+        )
+        # An owner who may no longer chat can't bring others in on their behalf.
+        CoreHandler().check_permissions(
+            user,
+            CreateAgentMessageOperationType.type,
+            workspace=agent.workspace,
+            context=agent,
         )
         conversation = self.handler.get_conversation(
             agent, user, conversation_uuid, for_update=for_update
@@ -527,9 +536,10 @@ class AgentService:
         :param agent_id: The id of the agent.
         :param conversation_uuid: The uuid of the conversation.
         :param search: Only members whose name or email contains it.
-        :param limit: The most members to return.
-        :raises PermissionException: When the user doesn't own the private
-            conversation.
+        :param limit: The most members to return, at most
+            `MAX_APPROVER_CANDIDATES`.
+        :raises PermissionException: When the user may not chat with the agent or
+            doesn't own the private conversation.
         :raises AgentConversationDoesNotExist: When the user sees no conversation
             with this uuid in the agent.
         :return: The first members by name who may approve tool calls and don't
@@ -545,6 +555,7 @@ class AgentService:
         member_ids = self._get_member_ids(
             agent, list(conversation.participants.values_list("id", flat=True)), search
         )
+        limit = min(limit, MAX_APPROVER_CANDIDATES)
         approvers = []
         offset = 0
         while len(approvers) < limit:
@@ -574,8 +585,8 @@ class AgentService:
         :param agent_id: The id of the agent.
         :param conversation_uuid: The uuid of the conversation.
         :param user_ids: The ids of the members to add.
-        :raises PermissionException: When the user doesn't own the private
-            conversation.
+        :raises PermissionException: When the user may not chat with the agent or
+            doesn't own the private conversation.
         :raises AgentConversationDoesNotExist: When the user sees no conversation
             with this uuid in the agent.
         :raises AgentToolApprovalNotPending: When no reply waits.
@@ -729,7 +740,7 @@ class AgentService:
     def can_follow_conversation(self, user: AbstractUser, conversation_id: int) -> bool:
         """
         Check that the user may follow the conversation's runs: their own with one
-        query, as it runs on the websocket's shared thread, a shared one also with
+        query, as it runs on the websocket's shared thread, any other also with
         the permission to read the agent's conversations.
 
         :param user: The user following the conversation.
@@ -743,9 +754,10 @@ class AgentService:
         )
         if conversation is None:
             return False
-        return not conversation.shared or self._can_read_agent_conversations(
-            user, conversation.agent
-        )
+        # Only the owner's own runs skip the check, which keeps it to one query.
+        if not conversation.shared and conversation.owner_user_id == user.id:
+            return True
+        return self._can_read_agent_conversations(user, conversation.agent)
 
     def can_cancel_conversation_run(
         self, user: AbstractUser, conversation_id: int, reply_id: int

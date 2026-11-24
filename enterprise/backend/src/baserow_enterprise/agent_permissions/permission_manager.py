@@ -5,6 +5,7 @@ from django.contrib.auth import get_user_model
 from django.contrib.auth.models import AbstractUser
 from django.contrib.contenttypes.models import ContentType
 
+from baserow.contrib.agent.models import AgentApplication
 from baserow.contrib.agent.operations import (
     ApproveAgentToolCallsOperationType,
     ContinueAgentTriggeredConversationOperationType,
@@ -15,7 +16,9 @@ from baserow.contrib.agent.permission_manager import (
     AgentParticipationPermissionManagerType as CoreAgentParticipationPermissionManagerType,
 )
 from baserow.core.exceptions import PermissionDenied
+from baserow.core.handler import CoreHandler
 from baserow.core.models import Workspace
+from baserow.core.operations import ListApplicationsWorkspaceOperationType
 from baserow.core.subjects import UserSubjectType
 from baserow.core.types import PermissionCheck
 from baserow_enterprise.field_permissions.permission_manager import ALLOWED_ROLES_MAP
@@ -134,16 +137,22 @@ class AgentParticipationPermissionManagerType(
         """
         :param actor: The actor to describe permissions for.
         :param workspace: The workspace of the agents.
-        :return: The core manager's object, computed from the agents' rules when
-            the workspace has RBAC.
+        :return: The core manager's object, computed from the rules of the agents
+            the actor may list when the workspace has RBAC.
         """
 
         if not workspace or not RolePermissionManagerType().is_enabled(workspace):
             return super().get_permissions_object(actor, workspace)
+        listed_agents = CoreHandler().filter_queryset(
+            actor,
+            ListApplicationsWorkspaceOperationType.type,
+            AgentApplication.objects.filter(workspace=workspace, trashed=False),
+            workspace=workspace,
+        )
         checks = [
             PermissionCheck(actor, operation, rule.agent)
             for rule in AgentParticipationRule.objects.filter(
-                agent__workspace=workspace
+                agent__in=listed_agents
             ).select_related("agent")
             for operation, capability in CAPABILITY.items()
             if capability == rule.capability

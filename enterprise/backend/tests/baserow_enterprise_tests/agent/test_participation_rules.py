@@ -28,6 +28,7 @@ from baserow.core.exceptions import PermissionDenied
 from baserow.core.handler import CoreHandler
 from baserow.core.registries import ImportExportConfig, OperationType
 from baserow_enterprise.agent_permissions.models import AgentParticipationRule
+from baserow_enterprise.audit_log.models import AuditLogEntry
 from baserow_enterprise.role.handler import RoleAssignmentHandler
 from baserow_enterprise.role.models import Role
 from baserow_enterprise.structure_types import (
@@ -104,6 +105,8 @@ def test_paid_rules_and_custom_team_are_independent(
     conversation = fixture.create_agent_conversation(agent=agent, user=admin)
     approval = fixture.create_agent_tool_approval(conversation=conversation)
     recipients = reverse("api:agent:approvers", args=[agent.pk, conversation.uuid])
+    assert api_client.get(recipients, **auth).status_code == 401
+    assert put("chat", "EDITOR").status_code == 200
     response = api_client.get(recipients, **auth)
     assert response.status_code == 200
     assert [person["id"] for person in response.json()["results"]] == [editor.pk]
@@ -133,6 +136,22 @@ def test_paid_rules_and_custom_team_are_independent(
     )
     assert agent.pk in permissions["denied"][CreateAgentMessageOperationType.type]
     assert ApproveAgentToolCallsOperationType.type not in permissions["denied"]
+    outsider = fixture.create_user()
+    assert (
+        next(
+            item["permissions"]
+            for item in CoreHandler().get_permissions(outsider, workspace)
+            if item["name"] == "agent_participation"
+        )["denied"]
+        == {}
+    )
+    audited = AuditLogEntry.objects.filter(
+        action_type="update_agent_participation_rule", actor_id=admin.id
+    ).latest("id")
+    assert (audited.action_params["capability"], audited.action_params["role"]) == (
+        "chat",
+        "NOBODY",
+    )
     assert put("chat", "EDITOR").status_code == 200
     assert allowed(other, CreateAgentMessageOperationType)
 

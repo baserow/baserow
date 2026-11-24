@@ -1721,7 +1721,7 @@ class AgentHandler:
             reasoning_effort=agent.reasoning_effort,
             web_search_tool=web_search_tool,
             web_search_enabled=agent.web_search_enabled,
-            started_by_trigger=reply.unattended,
+            started_by_trigger=conversation.started_by_trigger,
             web_fetch_enabled=web_fetch_enabled,
         )
 
@@ -1785,16 +1785,16 @@ class AgentHandler:
             )
         return tuple(snapshots)
 
-    def _get_reply_timezone(self, reply: AgentMessage) -> str:
+    def _get_reply_timezone(self, reply: AgentMessage) -> str | None:
         """
         :param reply: The reply being written, with its sender.
         :return: The timezone the reply's tools read dates in: its sender's, or for
             a trigger's reply the trigger's, so "today" means the day the builder
-            scheduled it for.
+            scheduled it for. None when the sender was deleted.
         """
 
         if not reply.unattended:
-            return reply.sender.profile.timezone
+            return reply.sender.profile.timezone if reply.sender else None
         return trigger_timezone_name(reply.conversation.trigger.service.specific)
 
     def _get_unavailable_tool_messages(
@@ -1842,10 +1842,11 @@ class AgentHandler:
         """
         :param reply: The reply being written, with its sender.
         :return: The person it answers, named on one short line as the name ends
-            up in the instructions, or None for an unattended reply.
+            up in the instructions, or None for an unattended reply or a deleted
+            sender, whose reply someone they asked to approve may resume.
         """
 
-        if reply.unattended:
+        if reply.unattended or reply.sender is None:
             return None
         return AgentConversationUser.of(reply.sender)
 
