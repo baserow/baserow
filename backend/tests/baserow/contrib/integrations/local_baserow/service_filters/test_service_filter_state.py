@@ -369,3 +369,99 @@ def _filter(id, field_id, type, value, group=None, hidden=False):
 
 def _group(id, filter_type, parent=None):
     return StateGroup(id=id, filter_type=filter_type, parent_group=parent)
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("filter_type", ["empty", "not_empty", "is_even_and_whole"])
+def test_valueless_filters_reject_formulas(builder_setup, filter_type):
+    """Keep raw valueless filters valid, but reject formulas they cannot consume."""
+    s = builder_setup
+    ctx = validation_context(s, lambda formula: None)
+    operation = dict(field_id=s.amount.id, type=filter_type)
+    result = apply_operations(
+        FilterState("AND", (), ()),
+        [FilterOperation(op="add_filter", **operation, value="")],
+        ctx,
+    )
+    assert result.filters[0].type == filter_type
+    with pytest.raises(ServiceFilterValidationError, match="doesn't take a value"):
+        apply_operations(
+            FilterState("AND", (), ()),
+            [
+                FilterOperation(
+                    op="add_filter",
+                    **operation,
+                    value="1",
+                    value_is_formula=True,
+                )
+            ],
+            ctx,
+        )
+
+
+@pytest.mark.django_db
+def test_custom_filter_inherits_value_requirement(builder_setup):
+    """New filter types inherit validation behavior without adding their name to a list."""
+    from baserow.contrib.database.views.registries import view_filter_type_registry
+    from baserow.contrib.database.views.view_filters import IsEvenAndWholeViewFilterType
+
+    class CustomEvenFilter(IsEvenAndWholeViewFilterType):
+        type = "custom_even_filter"
+
+    view_filter_type_registry.register(CustomEvenFilter())
+    try:
+        s = builder_setup
+        ctx = validation_context(s, lambda formula: None)
+        with pytest.raises(ServiceFilterValidationError, match="doesn't take a value"):
+            apply_operations(
+                FilterState("AND", (), ()),
+                [
+                    FilterOperation(
+                        op="add_filter",
+                        field_id=s.amount.id,
+                        type="custom_even_filter",
+                        value="1",
+                        value_is_formula=True,
+                    )
+                ],
+                ctx,
+            )
+    finally:
+        view_filter_type_registry.unregister("custom_even_filter")
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "base_name, field_name, value, expected_error",
+    [
+        ("higher_than", "amount", "not-a-number", "is not a number"),
+        ("single_select_equal", "status", "999999999", "invalid select option"),
+    ],
+)
+def test_custom_filter_inherits_raw_value_validation(
+    builder_setup, base_name, field_name, value, expected_error
+):
+    """New numeric and select subtypes use their parent's validation automatically."""
+    from baserow.contrib.database.views.registries import view_filter_type_registry
+
+    base = type(view_filter_type_registry.get(base_name))
+    custom_type = type("CustomFilter", (base,), {"type": "custom_value_filter"})
+    view_filter_type_registry.register(custom_type())
+    try:
+        s = builder_setup
+        ctx = validation_context(s)
+        with pytest.raises(ServiceFilterValidationError, match=expected_error):
+            apply_operations(
+                FilterState("AND", (), ()),
+                [
+                    FilterOperation(
+                        op="add_filter",
+                        field_id=getattr(s, field_name).id,
+                        type="custom_value_filter",
+                        value=value,
+                    )
+                ],
+                ctx,
+            )
+    finally:
+        view_filter_type_registry.unregister("custom_value_filter")

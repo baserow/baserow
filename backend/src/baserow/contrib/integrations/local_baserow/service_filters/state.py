@@ -15,7 +15,6 @@ from pydantic import ConfigDict, Field, model_validator
 from baserow.contrib.database.fields.models import Field as DatabaseField
 from baserow.contrib.database.views.registries import view_filter_type_registry
 from baserow.contrib.database.views.view_filters import (
-    BaseDateMultiStepViewFilterType,
     DateEqualsDayOfMonthViewFilterType,
     TimezoneAwareDateViewFilterType,
 )
@@ -35,37 +34,6 @@ class BaseModel(PydanticBaseModel):
 
 
 FilterTypeLiteral = Literal["AND", "OR"]
-
-# Filter types which don't compare the field against a value.
-VALUELESS_FILTER_TYPES = {
-    "empty",
-    "not_empty",
-    "is_even_and_whole",
-    "has_empty_value",
-    "has_not_empty_value",
-}
-
-SELECT_OPTION_FILTER_TYPES = {
-    "single_select_equal",
-    "single_select_not_equal",
-    "single_select_is_any_of",
-    "single_select_is_none_of",
-    "multiple_select_has",
-    "multiple_select_has_not",
-    "has_any_select_option_equal",
-    "has_none_select_option_equal",
-}
-
-NUMBER_FILTER_TYPES = {
-    "higher_than",
-    "higher_than_or_equal",
-    "lower_than",
-    "lower_than_or_equal",
-    "length_is_lower_than",
-    "files_lower_than",
-    "link_row_has",
-    "link_row_has_not",
-}
 
 BOOLEAN_VALUES = {"1", "0", "true", "false"}
 
@@ -328,11 +296,11 @@ def _validate_raw_value(
     :return: An error message, or `None` when the value is fine.
     """
 
-    if filter_type in VALUELESS_FILTER_TYPES:
+    type_instance = view_filter_type_registry.get(filter_type)
+    if not type_instance.uses_value:
         return None
 
-    type_instance = view_filter_type_registry.get(filter_type)
-    if isinstance(type_instance, BaseDateMultiStepViewFilterType):
+    if type_instance.value_type == "date":
         try:
             timezone, filter_value, operator = type_instance.split_combined_value(
                 field, value
@@ -347,7 +315,7 @@ def _validate_raw_value(
             )
         return None
 
-    if filter_type in SELECT_OPTION_FILTER_TYPES:
+    if type_instance.value_type == "select_option":
         options = ctx.select_options.get(field.id, {})
         ids = [part.strip() for part in value.split(",") if part.strip()]
         invalid = [
@@ -360,14 +328,14 @@ def _validate_raw_value(
             )
         return None
 
-    if filter_type in NUMBER_FILTER_TYPES:
+    if type_instance.value_type == "number":
         try:
             float(value)
         except ValueError:
             return f"{value!r} is not a number."
         return None
 
-    if filter_type == "boolean" and value.lower() not in BOOLEAN_VALUES:
+    if type_instance.value_type == "boolean" and value.lower() not in BOOLEAN_VALUES:
         return f"invalid boolean value {value!r}. Use '1' for true or '0' for false."
 
     return None
@@ -407,7 +375,7 @@ def _check_filter(ctx: FilterValidationContext, state_filter: StateFilter) -> li
     value = state_filter.value
     if value["mode"] == BASEROW_FORMULA_MODE_RAW:
         error = _validate_raw_value(ctx, field, state_filter.type, value["formula"])
-    elif state_filter.type in VALUELESS_FILTER_TYPES:
+    elif not view_filter_type_registry.get(state_filter.type).uses_value:
         error = f"filter type {state_filter.type!r} doesn't take a value."
     else:
         error = _validate_formula_value(ctx, value["formula"])

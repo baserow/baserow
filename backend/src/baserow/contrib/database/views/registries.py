@@ -1224,6 +1224,12 @@ class ViewFilterType(Instance):
     allowing field types to alias themselves to another type for filtering purposes.
     """
 
+    value_type = "text"
+    """Raw value format: text, number, select_option, boolean or date."""
+
+    uses_value = True
+    """Whether this filter compares the field against a supplied value."""
+
     accepts_multiple_values = False
     """
     Whether `prepare_value` combines a list of resolved values into one filter
