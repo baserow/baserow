@@ -40,6 +40,7 @@ from baserow_enterprise.assistant.agents import (
     dynamic_unavailable_tools,
     main_agent,
 )
+from baserow_enterprise.assistant.assistant import _mode_for_ui_context
 from baserow_enterprise.assistant.deps import AgentMode, AssistantDeps
 from baserow_enterprise.assistant.model_profiles import (
     ResolvedAssistantModelProfile,
@@ -62,6 +63,7 @@ from baserow_enterprise.assistant.tools.toolset import (
     format_tool_arg_errors,
     inline_refs,
 )
+from baserow_enterprise.assistant.types import UIContext
 from baserow_enterprise.license_types import AdvancedLicenseType
 from baserow_premium.license.license_types import PremiumLicenseType
 from baserow_premium.license.plugin import LicensePlugin
@@ -689,6 +691,8 @@ def test_arg_error_report_never_raises_on_malformed_error_payloads() -> None:
     "args,expected",
     [
         ({"table_id": 0}, [("table_id", "list_tables", 0)]),
+        ({"agent_id": 0}, [("agent_id", "list_agents", 0)]),
+        ({"agent_id": None}, []),
         ({"navigate_to_page_id": 0}, [("navigate_to_page_id", "list_pages", 0)]),
         (
             {"view": {"cover_field_id": -1}},
@@ -809,6 +813,18 @@ def test_kuma_offers_agents_only_when_it_can_build_them(
     assert ("list_agents" in built.catalog) is agent_builder
     assert "Agent →" not in AGENT_SYSTEM_PROMPT
     assert ("Agent →" in dynamic_agent_knowledge(ctx)) is agent_builder
+    # An Agent's page starts Kuma in the agent mode only for who can build them.
+    on_agent_page = UIContext.model_validate(
+        {
+            "workspace": {"id": workspace.id, "name": workspace.name},
+            "user": {"id": user.id, "name": user.first_name, "email": user.email},
+            "agent": {"id": 1, "name": "Digest"},
+        }
+    )
+    assert (
+        _mode_for_ui_context(on_agent_page, built.deps.permitted_tools)
+        == AgentMode.AGENT
+    ) is agent_builder
     switched = switch_mode(ctx, "agent", thought="t")
     assert (built.deps.mode == AgentMode.AGENT) is agent_builder
     assert ("isn't available" in switched) is not agent_builder

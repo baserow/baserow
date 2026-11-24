@@ -369,6 +369,7 @@ class AgentConversationSerializer(serializers.ModelSerializer):
             "run_id",
             "pending_approval_count",
             "pinned",
+            "is_test",
             "shared",
             "trigger_id",
             "trigger_type",

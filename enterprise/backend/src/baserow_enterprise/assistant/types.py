@@ -74,6 +74,8 @@ class UIContext(BaseModel):
     workflow: Optional[WorkflowUIContext] = None
     # dashboard context
     dashboard: Optional[DashboardUIContext] = None
+    # Agent
+    agent: Optional[ApplicationUIContext] = None
     # user and time context
     user: UserUIContext
     timestamp: datetime = Field(

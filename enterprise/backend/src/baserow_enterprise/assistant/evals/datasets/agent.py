@@ -19,11 +19,8 @@ from baserow_enterprise.assistant.evals.types import (
     EvalRunOutput,
     EvalScenario,
 )
-from baserow_enterprise.assistant.tools.agent.tools import (
-    AgentSetup,
-    _apply,
-    _read_setup,
-)
+from baserow_enterprise.assistant.tools.agent.tools import _apply, _read_setup
+from baserow_enterprise.assistant.tools.agent.types import AgentSetup
 
 FEATURE_FLAGS = (FF_AGENT_BUILDER, FF_IDENTITIES)
 ROWS_CREATED = "local_baserow_rows_created"
@@ -88,11 +85,11 @@ def _leads_workspace(fx, with_agent: bool = False) -> EvalScenario:
                     "When a row is created in Leads, read its Message and set its "
                     "Priority to High, Medium or Low."
                 ),
-                new_identity={"name": "Lead triage", "role": "BUILDER"},
-                allowed_tools=[*READ_TOOLS, "update_rows"],
+                new_identity={"name": "Lead triage"},
                 add_triggers=[{"type": ROWS_CREATED, "table_id": leads.id}],
             ),
-            ["update_rows"],
+            [*READ_TOOLS, "update_rows"],
+            [*READ_TOOLS, "update_rows"],
         )
         agent.triggers.update(enabled=True)
         refs["agent"] = agent
@@ -194,6 +191,11 @@ def _check_builds_row_triage(
             allowed <= {*READ_TOOLS, "list_databases", "update_rows"},
             hint=f"allowed: {sorted(allowed)}",
         ),
+        CheckResult(
+            "its identity can change rows and no more",
+            (agent.get("run_as") or {}).get("role") == "EDITOR",
+            hint=f"run as: {agent.get('run_as')}",
+        ),
         _says_to_turn_the_trigger_on(output),
         _leads_unchanged(scenario),
     ]
@@ -231,8 +233,18 @@ def _check_builds_weekly_digest(
             hint=f"agents: {[a['name'] for a in agents]}",
         ),
         CheckResult(
-            "a schedule trigger, turned off",
-            [(t["type"], t["enabled"]) for t in triggers] == [("periodic", False)],
+            "a schedule trigger for Monday at 9:00, turned off",
+            [
+                (
+                    t["type"],
+                    t["enabled"],
+                    (t["schedule"] or {}).get("interval"),
+                    (t["schedule"] or {}).get("day_of_week"),
+                    (t["schedule"] or {}).get("hour"),
+                )
+                for t in triggers
+            ]
+            == [("periodic", False, "WEEK", "MONDAY", 9)],
             hint=f"triggers: {triggers}",
         ),
         CheckResult(
@@ -244,6 +256,11 @@ def _check_builds_weekly_digest(
             "only read tools",
             "list_table_rows" in allowed and allowed <= {*READ_TOOLS, "list_databases"},
             hint=f"allowed: {sorted(allowed)}",
+        ),
+        CheckResult(
+            "its identity only reads",
+            (agent.get("run_as") or {}).get("role") == "VIEWER",
+            hint=f"run as: {agent.get('run_as')}",
         ),
         CheckResult(
             "didn't ask for credentials in chat",
@@ -395,6 +412,86 @@ register_case(
         scenario="agent-leads-with-triage",
         checks=_check_tests_agent,
         max_iters=15,
+        feature_flags=FEATURE_FLAGS,
+    )
+)
+
+
+# ---------------------------------------------------------------------------
+# A builder can't create an identity: Kuma uses one the workspace has
+# ---------------------------------------------------------------------------
+
+PROMPT_BUILDER_BUILDS_DIGEST = (
+    "Build an agent called Lead digest that reads the Leads table and summarises "
+    "the newest leads when I ask it. It only reads."
+)
+
+
+@register_scenario("agent-leads-as-builder")
+def _leads_as_builder_scenario(fx: Fixtures) -> EvalScenario:
+    from baserow_enterprise.role.handler import RoleAssignmentHandler
+    from baserow_enterprise.role.models import Role
+
+    scenario = _leads_workspace(fx)
+    admin = scenario.user
+    builder = fx.create_user()
+    fx.create_user_workspace(workspace=scenario.workspace, user=builder)
+    RoleAssignmentHandler().assign_role(
+        builder, scenario.workspace, role=Role.objects.get(uid="BUILDER")
+    )
+    identity = fx.create_identity(workspace=scenario.workspace, name="Reader")
+    return EvalScenario(
+        user=builder,
+        workspace=scenario.workspace,
+        ui_context=build_database_ui_context(
+            builder,
+            scenario.workspace,
+            scenario.refs["leads"].database,
+            scenario.refs["leads"],
+        ),
+        refs={**scenario.refs, "identity": identity, "admin": admin},
+    )
+
+
+def _check_builder_builds_digest(
+    case: EvalCase, scenario: EvalScenario, output: EvalRunOutput
+) -> list[CheckResult]:
+    agents = [
+        _read_setup(scenario.refs["admin"], agent)
+        for agent in AgentApplication.objects.filter(
+            workspace=scenario.workspace, trashed=False
+        )
+    ]
+    agent = agents[0] if len(agents) == 1 else {}
+    run_as = agent.get("run_as") or {}
+    return [
+        CheckResult(
+            "created one Agent",
+            len(agents) == 1,
+            hint=f"agents: {[a['name'] for a in agents]}",
+        ),
+        CheckResult(
+            "it acts as the identity the workspace already has",
+            run_as.get("identity_id") == scenario.refs["identity"].id,
+            hint=f"run as: {run_as}",
+        ),
+        CheckResult(
+            "it may read the table",
+            "list_table_rows" in (agent.get("allowed_tools") or []),
+            hint=f"allowed: {agent.get('allowed_tools')}",
+        ),
+        _leads_unchanged(scenario),
+    ]
+
+
+register_case(
+    EvalCase(
+        id="agent/builder-uses-an-existing-identity",
+        dataset="kuma-agent",
+        prompt=PROMPT_BUILDER_BUILDS_DIGEST,
+        scenario="agent-leads-as-builder",
+        checks=_check_builder_builds_digest,
+        max_iters=25,
         feature_flags=FEATURE_FLAGS,
     )
 )

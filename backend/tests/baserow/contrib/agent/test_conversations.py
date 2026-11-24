@@ -72,6 +72,7 @@ def test_first_message_creates_a_private_conversation(
             "run_id": run_id,
             "pending_approval_count": 0,
             "pinned": False,
+            "is_test": False,
             "shared": False,
             "trigger_id": None,
             "trigger_type": None,

@@ -74,6 +74,7 @@ def update_of(
             "run_id": str(run_id) if run_id else None,
             "pending_approval_count": pending_approval_count,
             "pinned": conversation.pinned,
+            "is_test": conversation.is_test,
             "shared": conversation.owner_user_id is None,
             "trigger_id": conversation.trigger_id,
             "trigger_type": trigger_type,

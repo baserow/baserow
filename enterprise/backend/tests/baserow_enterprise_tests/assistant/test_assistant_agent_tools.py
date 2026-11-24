@@ -5,15 +5,16 @@ import pytest
 from baserow.contrib.agent.handler import AgentHandler
 from baserow.contrib.agent.models import AgentApplication, AgentMessage
 from baserow_enterprise.assistant.tools.agent.tools import (
-    AgentSetup,
     apply_agent_setup,
     get_agent,
     get_agent_test_result,
     list_agent_tools,
+    list_agents,
 )
 from baserow_enterprise.assistant.tools.agent.tools import (
     test_agent as start_agent_test,
 )
+from baserow_enterprise.assistant.tools.agent.types import AgentSetup
 from baserow_enterprise.assistant.tools.shared import ToolInputError
 from baserow_enterprise.assistant.types import AgentNavigationType
 
@@ -27,6 +28,18 @@ ENABLED_MODELS_PATH = (
 
 def _ctx(user, workspace):
     return make_test_ctx(user, workspace)
+
+
+def _workspace_with_roles(data_fixture, admin, builder, editor):
+    from baserow_enterprise.role.handler import RoleAssignmentHandler
+    from baserow_enterprise.role.models import Role
+
+    workspace = data_fixture.create_workspace(user=admin, members=[builder, editor])
+    for user, uid in ((builder, "BUILDER"), (editor, "EDITOR")):
+        RoleAssignmentHandler().assign_role(
+            user, workspace, role=Role.objects.get(uid=uid)
+        )
+    return workspace
 
 
 def _apply(ctx, setup, agent_id=None):
@@ -45,8 +58,8 @@ def test_an_agent_is_created_with_its_trigger_turned_off(data_fixture):
             name="Digest",
             instructions="Summarize open tickets.",
             run_as_identity_id=identity.id,
-            allowed_tools=["list_tables"],
-            add_triggers=[{"type": "periodic"}],
+            grant_tools=["list_tables"],
+            add_triggers=[{"type": "periodic", "schedule": {"interval": "DAY"}}],
         ),
         thought="t",
     )
@@ -80,9 +93,16 @@ def test_kuma_opens_the_agent_it_changed(data_fixture):
 @pytest.mark.parametrize(
     "setup",
     [
-        {"add_triggers": [{"type": "periodic", "enabled": True}]},
+        {
+            "add_triggers": [
+                {
+                    **{"type": "periodic", "schedule": {"interval": "DAY"}},
+                    "enabled": True,
+                }
+            ]
+        },
         {"update_triggers": [{"trigger_id": 1, "enabled": True}]},
-        {"allowed_tools": ["create_tables"], "ask_first_tools": []},
+        {"grant_tools": ["create_tables"], "ask_first_tools": []},
     ],
 )
 def test_kuma_has_no_way_to_turn_a_trigger_on_or_ask_first_off(data_fixture, setup):
@@ -120,11 +140,15 @@ def test_a_newly_allowed_tool_asks_first_and_the_users_choice_is_kept(data_fixtu
 
     result = _apply(
         _ctx(user, workspace),
-        {"allowed_tools": ["list_tables", "create_tables", "create_fields"]},
+        {"grant_tools": ["list_tables", "create_fields"]},
         agent.id,
     )["setup"]
 
-    assert result["allowed_tools"] == ["list_tables", "create_tables", "create_fields"]
+    assert set(result["allowed_tools"]) == {
+        "list_tables",
+        "create_tables",
+        "create_fields",
+    }
     assert result["ask_first_tools"] == ["create_fields"]
 
 
@@ -176,7 +200,7 @@ def test_tools_need_an_identity_to_act_as(data_fixture):
     workspace = data_fixture.create_workspace(user=user)
 
     with pytest.raises(ToolInputError, match="needs an identity"):
-        _apply(_ctx(user, workspace), {"name": "Bot", "allowed_tools": ["list_tables"]})
+        _apply(_ctx(user, workspace), {"name": "Bot", "grant_tools": ["list_tables"]})
     assert not AgentApplication.objects.filter(workspace=workspace).exists()
 
 
@@ -342,17 +366,6 @@ def test_a_too_long_agent_name_returns_an_error_to_kuma(data_fixture):
 
 
 @pytest.mark.django_db
-def test_an_identity_role_that_doesnt_exist_returns_an_error_to_kuma(data_fixture):
-    user = data_fixture.create_user()
-    workspace = data_fixture.create_workspace(user=user)
-    setup = {"name": "Bot", "new_identity": {"name": "Bot", "role": "NOPE"}}
-
-    with pytest.raises(ToolInputError, match="role doesn't exist"):
-        _apply(_ctx(user, workspace), setup)
-    assert not AgentApplication.objects.filter(workspace=workspace).exists()
-
-
-@pytest.mark.django_db
 def test_a_refused_trigger_returns_an_error_to_kuma(data_fixture, settings):
     settings.INTEGRATIONS_PERIODIC_MINUTE_MIN = 5
     user = data_fixture.create_user()
@@ -376,7 +389,7 @@ def test_a_schedule_runs_in_the_users_timezone(data_fixture):
     user.profile.timezone = "Europe/Amsterdam"
     user.profile.save()
     workspace = data_fixture.create_workspace(user=user)
-    schedule = {"interval": "WEEK", "day_of_week": 0, "hour": 8}
+    schedule = {"interval": "WEEK", "day_of_week": "MONDAY", "hour": 8}
 
     result = _apply(
         _ctx(user, workspace),
@@ -392,7 +405,7 @@ def test_a_schedule_runs_in_the_users_timezone(data_fixture):
         "interval": "WEEK",
         "hour": 8,
         "minute": 0,
-        "day_of_week": 0,
+        "day_of_week": "MONDAY",
         "day_of_month": 1,
         "timezone": "Europe/Amsterdam",
     }
@@ -430,7 +443,7 @@ def test_kuma_only_sets_a_model_that_is_enabled_for_agents(data_fixture, mocker)
         agent_id=agent.id,
     )
     assert result["setup"]["readiness"] == "ready"
-    assert "Offer a test" in result["next_steps"]
+    assert "offer a test" in result["next_steps"]
 
 
 @pytest.mark.django_db
@@ -448,7 +461,7 @@ def test_kuma_says_a_new_agent_isnt_ready_when_no_model_is_enabled(
     )
 
     assert "not ready" in result["next_steps"]
-    assert "Offer a test" not in result["next_steps"]
+    assert "offer a test" not in result["next_steps"]
     assert result["setup"]["readiness"] != "ready"
     assert "model_identifier" in result["setup"]["readiness_errors"]
 
@@ -469,7 +482,7 @@ def test_reverting_a_change_puts_back_what_it_can_and_says_what_stays(
         AgentSetup(
             name="Weekly digest",
             instructions="New",
-            add_triggers=[{"type": "periodic"}],
+            add_triggers=[{"type": "periodic", "schedule": {"interval": "DAY"}}],
         ),
         thought="t",
         agent_id=agent_id,
@@ -613,8 +626,8 @@ def test_new_instructions_apply_when_the_agent_cant_change_data_alone(
 @pytest.mark.parametrize(
     "change,refusal",
     [
-        ({"new_identity": {"name": "Bot", "role": "MEMBER"}}, "new identity"),
-        ({"run_as_identity_id": "other"}, "run it as the identity"),
+        ({"new_identity": {"name": "Bot"}}, "new identity"),
+        ({"run_as_identity_id": "other"}, "run it as another identity"),
     ],
 )
 def test_identity_changes_wait_until_the_triggers_are_off(
@@ -637,3 +650,337 @@ def test_identity_changes_wait_until_the_triggers_are_off(
     result = _apply(ctx, {**change, "turn_off_triggers": [trigger.id]}, agent.id)
     assert result["changed"]
     assert [t["enabled"] for t in result["setup"]["triggers"]] == [False]
+
+
+@pytest.mark.django_db
+def test_tools_are_granted_and_revoked_one_by_one(data_fixture):
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    identity = data_fixture.create_identity(workspace=workspace)
+    agent = data_fixture.create_agent_application(workspace=workspace)
+    AgentHandler().update_configuration(
+        agent,
+        run_as_subject_type="auth.User",
+        run_as_subject_id=identity.id,
+        allowed_tools=["list_tables", "create_tables", "update_rows"],
+        ask_first_tools=["update_rows"],
+    )
+    ctx = _ctx(user, workspace)
+
+    result = _apply(
+        ctx, {"grant_tools": ["delete_rows"], "revoke_tools": ["list_tables"]}, agent.id
+    )
+
+    # Tools the change doesn't name keep what the user set.
+    assert set(result["setup"]["allowed_tools"]) == {
+        "create_tables",
+        "update_rows",
+        "delete_rows",
+    }
+    assert set(result["setup"]["ask_first_tools"]) == {"update_rows", "delete_rows"}
+    assert result["revert"]["setup"] == {
+        "revoke_tools": ["delete_rows"],
+        "grant_tools": ["list_tables"],
+    }
+
+    with pytest.raises(ToolInputError, match="list_rows"):
+        _apply(ctx, {"grant_tools": ["list_rows"]}, agent.id)
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "tools,needed",
+    [
+        (["list_tables"], "VIEWER"),
+        (["list_tables", "update_rows"], "EDITOR"),
+        (["update_rows", "create_fields"], "BUILDER"),
+    ],
+)
+def test_a_new_identity_gets_the_lowest_role_that_covers_the_tools(
+    enable_enterprise, synced_roles, data_fixture, tools, needed
+):
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+
+    result = _apply(
+        _ctx(user, workspace),
+        {"name": "Bot", "new_identity": {"name": "Bot"}, "grant_tools": tools},
+    )
+
+    assert result["setup"]["run_as"]["role"] == needed
+
+
+@pytest.mark.django_db
+def test_without_the_roles_licence_a_new_identity_is_a_member(data_fixture):
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+
+    result = _apply(
+        _ctx(user, workspace),
+        {
+            "name": "Bot",
+            "new_identity": {"name": "Bot"},
+            "grant_tools": ["list_tables"],
+        },
+    )
+
+    assert result["setup"]["run_as"]["role"] == "MEMBER"
+
+
+@pytest.mark.django_db
+def test_kuma_says_when_the_identitys_role_is_below_the_tools(
+    enable_enterprise, synced_roles, data_fixture
+):
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    ctx = _ctx(user, workspace)
+    agent_id = _apply(
+        ctx,
+        {
+            "name": "Bot",
+            "new_identity": {"name": "Bot"},
+            "grant_tools": ["list_tables"],
+        },
+    )["setup"]["agent_id"]
+
+    result = _apply(ctx, {"grant_tools": ["update_rows"]}, agent_id)
+
+    assert "has the VIEWER role" in result["next_steps"]
+    assert "need EDITOR" in result["next_steps"]
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("name", ["Reset at https://evil.example/login", "a" * 151])
+def test_an_identity_name_follows_the_identities_api(name):
+    from pydantic import ValidationError
+
+    with pytest.raises(ValidationError):
+        AgentSetup(name="Bot", new_identity={"name": name})
+
+
+def test_the_setup_refuses_what_the_agent_api_refuses():
+    from pydantic import ValidationError
+
+    for setup in (
+        {"instructions": "a" * 100_001},
+        {"add_triggers": [{"type": "local_baserow_rows_created"}]},
+        {"add_triggers": [{"type": "periodic", "schedule": {"interval": "WEEK"}}]},
+        {"add_actions": [{"type": "http_request", "name": "notify sales!"}]},
+    ):
+        with pytest.raises(ValidationError):
+            AgentSetup(**setup)
+
+
+@pytest.mark.django_db
+def test_list_agent_tools_says_which_identities_the_user_can_use(
+    enable_enterprise, synced_roles, data_fixture
+):
+    admin = data_fixture.create_user()
+    builder = data_fixture.create_user()
+    editor = data_fixture.create_user()
+    workspace = _workspace_with_roles(data_fixture, admin, builder, editor)
+    identity = data_fixture.create_identity(workspace=workspace, name="Bot")
+
+    def identities(user):
+        return list_agent_tools(_ctx(user, workspace), thought="t")["identities"]
+
+    assert identities(admin)["can_create"] is True
+    assert identities(builder)["can_create"] is False
+    assert [i["identity_id"] for i in identities(builder)["selectable"]] == [
+        identity.id
+    ]
+    with pytest.raises(ToolInputError, match="Builder role"):
+        identities(editor)
+
+
+@pytest.mark.django_db
+def test_a_builder_is_told_to_pick_an_identity_and_an_editor_which_role_they_need(
+    enable_enterprise, synced_roles, data_fixture
+):
+    admin = data_fixture.create_user()
+    builder = data_fixture.create_user()
+    editor = data_fixture.create_user()
+    workspace = _workspace_with_roles(data_fixture, admin, builder, editor)
+    identity = data_fixture.create_identity(workspace=workspace, name="Bot")
+    setup = {"name": "Digest", "new_identity": {"name": "Digest"}}
+
+    with pytest.raises(ToolInputError, match="Only a workspace admin") as refused:
+        _apply(_ctx(builder, workspace), setup)
+    assert str(identity.id) in refused.value.hint
+    assert not AgentApplication.objects.filter(workspace=workspace).exists()
+
+    built = _apply(
+        _ctx(builder, workspace),
+        {"name": "Digest", "run_as_identity_id": identity.id},
+    )
+    assert built["setup"]["run_as"]["identity_id"] == identity.id
+
+    with pytest.raises(ToolInputError, match="Builder role"):
+        _apply(_ctx(editor, workspace), {"name": "Mine"})
+    assert AgentApplication.objects.filter(workspace=workspace).count() == 1
+
+
+@pytest.mark.django_db
+def test_an_identity_turns_on_the_tools_an_imported_agent_waits_with(data_fixture):
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    identity = data_fixture.create_identity(workspace=workspace)
+    agent = data_fixture.create_agent_application(workspace=workspace)
+    agent.pending_tool_choices = {
+        "allowed_tools": ["list_tables", "update_rows"],
+        "ask_first_tools": [],
+    }
+    agent.save()
+
+    result = _apply(
+        _ctx(user, workspace), {"run_as_identity_id": identity.id}, agent.id
+    )
+
+    # The template let update_rows run unasked; through Kuma it asks first.
+    assert result["tools_turned_on"] == [
+        {"name": "list_tables", "asks_first": False},
+        {"name": "update_rows", "asks_first": True},
+    ]
+    assert "tools_turned_on" in result["next_steps"]
+
+
+@pytest.mark.django_db
+def test_a_schedule_is_changed_by_replacing_its_trigger(data_fixture):
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    ctx = _ctx(user, workspace)
+    daily = {"type": "periodic", "schedule": {"interval": "DAY", "hour": 9}}
+    created = _apply(ctx, {"name": "Digest", "add_triggers": [daily]})["setup"]
+    [old] = created["triggers"]
+
+    later = {"type": "periodic", "schedule": {"interval": "DAY", "hour": 10}}
+    result = _apply(
+        ctx,
+        {"remove_triggers": [old["trigger_id"]], "add_triggers": [later]},
+        created["agent_id"],
+    )
+
+    [trigger] = result["setup"]["triggers"]
+    assert (trigger["schedule"]["hour"], trigger["enabled"]) == (10, False)
+    assert trigger["trigger_id"] != old["trigger_id"]
+
+
+@pytest.mark.django_db
+def test_listing_agents_leaves_out_their_instructions(data_fixture):
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    agent = data_fixture.create_agent_application(
+        workspace=workspace, name="Digest", instructions="Summarize. " * 500
+    )
+
+    [listed] = list_agents(_ctx(user, workspace), thought="t")["agents"]
+
+    assert (listed["agent_id"], listed["name"]) == (agent.id, "Digest")
+    assert "instructions" not in listed
+
+
+@pytest.mark.django_db
+def test_an_agent_id_that_isnt_real_never_creates_an_agent(data_fixture):
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+
+    with pytest.raises(ToolInputError, match="does not exist"):
+        _apply(_ctx(user, workspace), {"name": "Digest"}, agent_id=0)
+    assert not AgentApplication.objects.filter(workspace=workspace).exists()
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "status,pending,says",
+    [
+        ("running", False, "still replying"),
+        ("completed", True, "not in this chat"),
+        ("completed", False, "Don't answer it yourself"),
+        ("failed", False, "didn't complete"),
+    ],
+)
+def test_a_test_result_says_what_to_tell_the_user(data_fixture, status, pending, says):
+    from baserow.contrib.agent.models import AgentToolApproval
+
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    agent = data_fixture.create_agent_application(workspace=workspace)
+    conversation = data_fixture.create_agent_conversation(
+        user=user, agent=agent, is_test=True, title="Test: Hi"
+    )
+    reply = AgentMessage.objects.create(
+        conversation=conversation,
+        uuid=uuid4(),
+        role=AgentMessage.Role.ASSISTANT,
+        content="Which ticket?",
+        status=status,
+    )
+    if pending:
+        AgentToolApproval.objects.create(
+            reply=reply,
+            tool_call_id="call",
+            step_id="step",
+            pause=1,
+            tool_name="update_rows",
+        )
+    ctx = _ctx(user, workspace)
+    if status == "running":
+        ctx.deps.tool_helpers.raise_if_cancelled = lambda: None
+        import baserow_enterprise.assistant.tools.agent.tools as agent_tools
+
+        agent_tools.TEST_RESULT_WAIT_SECONDS, wait = (
+            0,
+            agent_tools.TEST_RESULT_WAIT_SECONDS,
+        )
+    try:
+        result = get_agent_test_result(ctx, agent.id, conversation.uuid, thought="t")
+    finally:
+        if status == "running":
+            agent_tools.TEST_RESULT_WAIT_SECONDS = wait
+
+    assert says in result["next_steps"]
+    assert 'conversation "Test: Hi"' in result["next_steps"]
+
+
+@pytest.mark.django_db
+def test_a_new_identity_covers_the_tools_the_agent_already_has(
+    enable_enterprise, synced_roles, data_fixture
+):
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    ctx = _ctx(user, workspace)
+    created = _apply(
+        ctx,
+        {
+            "name": "Bot",
+            "new_identity": {"name": "Bot"},
+            "grant_tools": ["update_rows"],
+        },
+    )["setup"]
+
+    result = _apply(ctx, {"new_identity": {"name": "Its own"}}, created["agent_id"])
+
+    assert result["setup"]["run_as"]["name"] == "Its own"
+    assert result["setup"]["run_as"]["role"] == "EDITOR"
+
+
+@pytest.mark.django_db
+def test_web_search_isnt_turned_on_for_an_agent_that_changes_data_alone(data_fixture):
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    alone = _agent_that_may_run_alone(data_fixture, workspace, True)
+    asking = _agent_that_may_run_alone(data_fixture, workspace, True, None)
+    ctx = _ctx(user, workspace)
+
+    with pytest.raises(ToolInputError, match="search the web"):
+        _apply(ctx, {"web_search_enabled": True}, alone.id)
+
+    result = _apply(ctx, {"web_search_enabled": True}, asking.id)
+    assert result["setup"]["web_search_enabled"] is True
+
+
+def test_an_agent_acts_as_one_identity():
+    from pydantic import ValidationError
+
+    with pytest.raises(ValidationError, match="not both"):
+        AgentSetup(run_as_identity_id=1, new_identity={"name": "Bot"})
