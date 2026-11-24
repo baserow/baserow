@@ -186,6 +186,7 @@ from baserow.core.fields import SyncedDateTimeField
 from baserow.core.formula import BaserowFormulaException
 from baserow.core.formula.parser.exceptions import FormulaFunctionTypeDoesNotExist
 from baserow.core.handler import CoreHandler
+from baserow.core.identities.import_export import imported_identity_emails
 from baserow.core.models import UserFile, UserProfile, WorkspaceUser
 from baserow.core.registries import ImportExportConfig
 from baserow.core.storage import (
@@ -8571,6 +8572,9 @@ class MultipleCollaboratorsFieldType(
             )
             for user in collaborators:
                 cache[cache_entry][user.email] = user.id
+            # The identities this import created, by their exported address.
+            for email, identity in imported_identity_emails(id_mapping).items():
+                cache[cache_entry][email] = identity.id
 
         through_model = row._meta.get_field(field_name).remote_field.through
         through_model_fields = through_model._meta.get_fields()
@@ -8630,6 +8634,12 @@ class MultipleCollaboratorsFieldType(
                     workspace_id, include_identities=True
                 )
             }
+            # The identities this import created, by their exported address.
+            for email, identity in imported_identity_emails(id_mapping).items():
+                cache[cache_key][email] = {
+                    "id": identity.id,
+                    "name": identity.first_name,
+                }
 
         email_to_id = cache[cache_key]
         return [

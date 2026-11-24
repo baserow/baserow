@@ -134,10 +134,10 @@ export class ApplicationType extends Registerable {
   }
 
   /**
-   * Whether an installed application of this type can act as an identity that
-   * the install creates for it, with access to only the installed applications.
+   * Whether an installed application of this type acts as an identity that the
+   * install creates for it, with access to only the installed applications.
    */
-  createsIdentityOnInstall() {
+  createsIdentityOnInstall(application) {
     return false
   }
 

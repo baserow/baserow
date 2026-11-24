@@ -80,8 +80,8 @@ class IdentityExtensionType(Instance):
 
     def filter_readable_application_roles(self, roles: list, user, workspace) -> list:
         """
-        Leaves out the application roles the user may not read, like the roles an
-        identity had, which an Agent waiting for one carries to its copies.
+        Leaves out the application roles the user may not read, like the roles of
+        the identity an application waits for, which its exports carry.
 
         :param roles: (application id, role uid) pairs.
         :param user: The user who would see them.

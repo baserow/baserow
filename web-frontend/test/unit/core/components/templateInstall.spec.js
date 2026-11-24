@@ -647,7 +647,12 @@ describe('TemplateInstall', () => {
   })
 
   describe('identities for Agents', () => {
-    const agent = { id: 3, type: 'agent', name: 'Helper' }
+    const agent = {
+      id: 3,
+      type: 'agent',
+      name: 'Helper',
+      waits_for_identity: true,
+    }
     const database = { id: 4, type: 'database', name: 'CRM' }
     const site = { id: 5, type: 'builder', name: 'Site' }
 
@@ -676,7 +681,7 @@ describe('TemplateInstall', () => {
       }
     })
 
-    const option = (wrapper) => wrapper.find('.template-install__identities')
+    const option = (wrapper) => wrapper.find('.template-install__summary')
 
     test('is hidden without a plugin that can scope identities', async () => {
       signIn()
@@ -717,6 +722,19 @@ describe('TemplateInstall', () => {
       expect(option(wrapper).exists()).toBe(true)
     })
 
+    test('is hidden when no Agent came with an identity', async () => {
+      signIn()
+      registerPlugin()
+      const wrapper = await testApp.mount(TemplateInstall, {
+        props: {
+          template,
+          applications: [database, { ...agent, waits_for_identity: false }],
+        },
+      })
+
+      expect(option(wrapper).exists()).toBe(false)
+    })
+
     test('is hidden while the Agent builder is off', async () => {
       signIn()
       registerPlugin()
@@ -749,7 +767,7 @@ describe('TemplateInstall', () => {
       expect(option(wrapper).exists()).toBe(false)
     })
 
-    test('is off by default and asks for identities once ticked', async () => {
+    test('says what the install creates and sends no option for it', async () => {
       signIn()
       registerPlugin()
       mockInstall(1)
@@ -757,15 +775,10 @@ describe('TemplateInstall', () => {
         props: { template, applications: [database, agent] },
       })
 
-      expect(option(wrapper).exists()).toBe(true)
+      expect(option(wrapper).text()).toBe('templateInstall.createsIdentities')
+      expect(option(wrapper).find('input').exists()).toBe(false)
       await clickUse(wrapper)
       expect(testApp.mock.history.post.map((r) => r.params)).toStrictEqual([{}])
-
-      await option(wrapper).find('.checkbox__native').setValue(true)
-      await clickUse(wrapper)
-      expect(testApp.mock.history.post[1].params).toStrictEqual({
-        create_identities: true,
-      })
     })
   })
 })

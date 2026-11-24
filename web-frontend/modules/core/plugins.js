@@ -342,7 +342,7 @@ export class BaserowPlugin extends Registerable {
   /**
    * Whether the user can create, in the workspace, an identity that has access to
    * only some of its applications, and make an application act as it. A template
-   * install then offers an identity for each Agent it installs.
+   * install then creates the identity its Agents work as.
    * @returns {boolean}
    */
   canCreateScopedIdentities(workspace) {

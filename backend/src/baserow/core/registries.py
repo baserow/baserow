@@ -53,8 +53,10 @@ if TYPE_CHECKING:
     from django.contrib.auth.models import AbstractUser
     from django.contrib.contenttypes.models import ContentType
 
+    from baserow.core.identities.import_export import IdentityExport
     from baserow.core.models import (
         Application,
+        IdentityDefinition,
         Template,
         Workspace,
         WorkspaceInvitation,
@@ -172,6 +174,13 @@ class ImportExportConfig:
     The import stores content for a template (a template workspace or a user
     template copy), not for use. Settings that depend on the destination, like
     an AI model, are resolved when the template is installed instead.
+    """
+
+    identity_export: Optional["IdentityExport"] = None
+    """
+    Collects the identities the exported applications act as, when the export
+    carries them beside its applications. An application type gets the key it
+    refers to an identity by from it, see `IdentityExport.key_for`.
     """
 
 
@@ -441,24 +450,62 @@ class ApplicationType(
     # by subclasses for runtime formula validation to work correctly.
     data_provider_type_registry = None
 
-    def create_install_identities(
+    # Whether applications of this type act as an identity. An identity created
+    # by an import gets no role on them, so that it can't change what it, or
+    # another identity, is allowed to do.
+    binds_identities = False
+
+    def can_bind_imported_identities(
+        self, user: "AbstractUser", workspace: "Workspace"
+    ) -> bool:
+        """
+        Whether an import by the user creates the identities that applications of
+        this type act as. Only asked of a type some imported application of which
+        refers to an identity.
+
+        :param user: The user who imports.
+        :param workspace: The workspace the applications are imported into.
+        :return: False to leave the applications waiting for an identity.
+        """
+
+        return True
+
+    def imported_identity_changes_data(
+        self, definition: "IdentityDefinition", applications: List["Application"]
+    ) -> bool:
+        """
+        Whether one of the imported applications that wait for the identity of the
+        definition needs it to change data. Decides the role the identity gets on
+        the other imported applications when its definition has no roles.
+
+        :param definition: The definition of the identity.
+        :param applications: The imported applications of this type.
+        :return: True if the identity must be able to change data.
+        """
+
+        return False
+
+    def bind_imported_identity(
         self,
         user: "AbstractUser",
-        workspace: "Workspace",
+        definition: "IdentityDefinition",
+        identity: "AbstractUser",
         applications: List["Application"],
-        installed_applications: List["Application"],
-    ) -> None:
+    ) -> bool:
         """
-        Called in the transaction of a template install when the installer asked
-        for an identity for each installed application that acts as one, with
-        access to only the installed applications. A type that acts as an identity
-        creates and binds them through the permission checked identity service.
+        Makes the imported applications that wait for the identity of the
+        definition act as the identity an import created for it, through the
+        permission checked services of the type.
 
-        :param user: The user who installs the template.
-        :param workspace: The workspace the template is installed into.
-        :param applications: The installed applications of this type.
-        :param installed_applications: Every installed application.
+        :param user: The user who imports.
+        :param definition: The definition the applications point at.
+        :param identity: The identity created from the definition.
+        :param applications: The imported applications of this type.
+        :return: Whether one of them acts as the identity now. An identity that
+            nothing acts as is deleted again.
         """
+
+        return False
 
     def supports_integration_type(self, integration_type) -> bool:
         """

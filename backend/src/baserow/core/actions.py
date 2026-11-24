@@ -1,5 +1,4 @@
 import dataclasses
-from collections import defaultdict
 from typing import Any, Dict, List, Optional
 
 from django.contrib.auth.models import AbstractUser
@@ -777,7 +776,6 @@ class InstallTemplateActionType(UndoableActionType):
         progress_builder: Optional[ChildProgressBuilder] = None,
         *,
         content: Optional[TemplateContent] = None,
-        create_identities: bool = False,
     ) -> List[Application]:
         """
         Install a template into the provided workspace. See
@@ -793,8 +791,6 @@ class InstallTemplateActionType(UndoableActionType):
             track the progress of the installation.
         :param content: The serialized content of a user template and the transfer of
             its files.
-        :param create_identities: Create an identity for each installed application
-            that acts as one, with access to only the installed applications.
         :return: The list of installed applications.
         """
 
@@ -814,9 +810,6 @@ class InstallTemplateActionType(UndoableActionType):
                 progress_builder=progress_builder,
             )
 
-        if create_identities:
-            cls._create_identities(user, workspace, installed_applications)
-
         params = cls.Params(
             workspace.id,
             workspace.name,
@@ -830,25 +823,6 @@ class InstallTemplateActionType(UndoableActionType):
         )
 
         return installed_applications
-
-    @classmethod
-    def _create_identities(
-        cls,
-        user: AbstractUser,
-        workspace: Workspace,
-        installed_applications: List[Application],
-    ) -> None:
-        """Lets each installed application type create the identities it acts as."""
-
-        by_type = defaultdict(list)
-        for application in installed_applications:
-            by_type[application_type_registry.get_by_model(application)].append(
-                application
-            )
-        for application_type, applications in by_type.items():
-            application_type.create_install_identities(
-                user, workspace, applications, installed_applications
-            )
 
     @classmethod
     def scope(cls, workspace_id: int) -> ActionScopeStr:

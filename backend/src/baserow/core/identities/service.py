@@ -279,6 +279,46 @@ class IdentityService:
         )
         return self._send_created(user, workspace, identity)
 
+    @transaction.atomic
+    def scope_identity(
+        self,
+        user: AbstractUser,
+        identity: User,
+        applications: list,
+        can_change_data: bool,
+        roles: list[tuple[int, str]] | None = None,
+    ) -> None:
+        """
+        Gives an identity made by `create_scoped_identity` without applications its
+        access to them, once they exist. See `create_scoped_identity`.
+
+        :param user: The user who created the identity.
+        :param identity: The identity, which has no access yet.
+        :param applications: The applications of the workspace it may access.
+        :param can_change_data: Whether it may change them or only read them, when
+            no `roles` are given.
+        :param roles: The role to give on each application, by application id.
+        :raises PermissionDenied: If no extension can scope the identity for the
+            user, or the user may not scope it or change one of the applications.
+        :raises IdentityCannotBeScoped: If the identity has workspace access.
+        """
+
+        workspace = IdentityHandler.get_workspace(identity)
+        CoreHandler().check_permissions(
+            user,
+            CreateScopedIdentityOperationType.type,
+            workspace=workspace,
+            context=workspace,
+        )
+        scoper = identity_extension_type_registry.get_application_scoper(
+            user, workspace
+        )
+        if scoper is None:
+            raise PermissionDenied()
+        scoper.scope_to_applications(
+            identity, applications, can_change_data, user, roles=roles
+        )
+
     def can_copy_binding(
         self, workspace: Workspace, import_export_config: ImportExportConfig
     ) -> bool:

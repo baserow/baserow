@@ -1,4 +1,5 @@
 import base64
+import dataclasses
 import hashlib
 import json
 import os
@@ -33,6 +34,11 @@ from baserow.config.settings.base import BASEROW_DEFAULT_ZIP_COMPRESS_LEVEL
 from baserow.contrib.database.constants import EXPORT_WORKSPACE_CREATE_ARCHIVE
 from baserow.core.deferred_callbacks import deferred_callback_context
 from baserow.core.handler import CoreHandler
+from baserow.core.identities.import_export import (
+    WORKSPACE_OBJECTS,
+    IdentityExport,
+    IdentityImport,
+)
 from baserow.core.import_export.exceptions import (
     ImportExportApplicationIdsNotFound,
     ImportExportResourceDoesNotExist,
@@ -329,6 +335,15 @@ class ImportExportHandler:
                 {"version": EXPORT_FORMAT_VERSION, "configuration": {}, "items": []},
             )["items"].append(application)
 
+        if import_export_config.identity_export is not None:
+            workspace_objects = import_export_config.identity_export.serialize(
+                import_export_config.exported_by,
+                [application["id"] for application in exported_applications],
+            )
+            # Left out when empty, so that such a file is the same as before.
+            if workspace_objects is not None:
+                manifest_data[WORKSPACE_OBJECTS] = workspace_objects
+
         zip_file.add(json.dumps(manifest_data, indent=INDENT), MANIFEST_NAME)
         return manifest_data
 
@@ -527,6 +542,9 @@ class ImportExportHandler:
         zip_file = ExportZipFile(
             compress_level=BASEROW_DEFAULT_ZIP_COMPRESS_LEVEL,
             compress_type=zipstream.ZIP_DEFLATED,
+        )
+        import_export_config = dataclasses.replace(
+            import_export_config, identity_export=IdentityExport()
         )
 
         progress = ChildProgressBuilder.build(progress_builder, child_total=100)
@@ -902,6 +920,12 @@ class ImportExportHandler:
 
         imported_applications = []
         id_mapping: Dict[str, Any] = {}
+        identity_import = IdentityImport(
+            workspace,
+            manifest.get(WORKSPACE_OBJECTS),
+            user,
+            import_export_config,
+        )
         # The file may not hold the databases and automations its applications
         # reference, or only some applications are picked. Such references are
         # cleared rather than kept as ids of the instance the file came from, which
@@ -956,6 +980,17 @@ class ImportExportHandler:
         )
 
         try:
+            # Before the applications, whose data refers to the identities.
+            identity_import.before_applications(
+                id_mapping,
+                [
+                    (application_manifest.get("id"), application_type)
+                    for application_type in prioritized_applications
+                    for application_manifest in manifest["applications"][
+                        application_type
+                    ]["items"]
+                ],
+            )
             # Callbacks registered during the loop run when this context exits, by
             # which point every application exists.
             with deferred_callback_context():
@@ -977,6 +1012,7 @@ class ImportExportHandler:
                         imported_application.order = next_application_order_value
                         next_application_order_value += 1
                         imported_applications.append(imported_application)
+            identity_import.after_applications(id_mapping, imported_applications)
         except Exception:  # noqa
             # Trash the already imported applications so the user won't see
             # a partial import, but he will be able to restore them if he
@@ -984,6 +1020,8 @@ class ImportExportHandler:
             # Outside the loop, so a failing deferred callback lands here too.
             for application in imported_applications:
                 TrashHandler.trash(user, workspace, application, application)
+            # Their identities aren't kept: nothing acts as them.
+            identity_import.discard(id_mapping)
             raise
 
         Application.objects.bulk_update(imported_applications, ["order"])

@@ -2654,6 +2654,8 @@ class CoreHandler:
         progress_builder: Optional[ChildProgressBuilder] = None,
         *,
         atomic_per_application: bool = False,
+        workspace_objects: Optional[Dict[str, Any]] = None,
+        imported_by: Optional[AbstractUser] = None,
     ) -> Tuple[List[Application], Dict[str, Any]]:
         """
         Imports multiple exported applications into the given workspace. It is
@@ -2678,6 +2680,10 @@ class CoreHandler:
         :param atomic_per_application: Whether each application is imported in its
             own atomic block, so that a failure leaves no half-imported application
             behind when the caller has no transaction of its own.
+        :param workspace_objects: What the export holds beside its applications,
+            like the identities they act as. See `IdentityImport`.
+        :param imported_by: The user who imports, who the identities are created
+            on behalf of. Without one, the applications wait for their identity.
         :raises TemplateImportWithoutFilesZip: If the files must belong to the
             workspace but none are provided, so the copy would share them.
         :return: The newly created applications based on the import and a dict
@@ -2699,6 +2705,12 @@ class CoreHandler:
             # a user template holds only some applications of its source. Such
             # references must be cleared, not kept as ids of the source.
             seed_id_mappings(id_mapping)
+
+        from baserow.core.identities.import_export import IdentityImport
+
+        identity_import = IdentityImport(
+            workspace, workspace_objects, imported_by, import_export_config
+        )
 
         storage = storage or get_default_storage()
 
@@ -2733,6 +2745,14 @@ class CoreHandler:
             ):
                 imported_applications = []
                 next_application_order_value = Application.get_last_order(workspace)
+                # Before the applications, whose data refers to the identities.
+                identity_import.before_applications(
+                    id_mapping,
+                    [
+                        (application.get("id"), application["type"])
+                        for application in prioritized_applications
+                    ],
+                )
                 for application in prioritized_applications:
                     application_type = application_type_registry.get(
                         application["type"]
@@ -2757,6 +2777,8 @@ class CoreHandler:
                     next_application_order_value += 1
                     imported_applications.append(imported_application)
                 Application.objects.bulk_update(imported_applications, ["order"])
+            # After the deferred callbacks, so that every application is complete.
+            identity_import.after_applications(id_mapping, imported_applications)
         finally:
             if files_zip is not None:
                 files_zip.close()
@@ -3025,6 +3047,9 @@ class CoreHandler:
             (t for t in installed_templates if t.slug == slug), None
         )
         hash_json = json.dumps(parsed_json["export"])
+        if parsed_json.get("workspace_objects"):
+            # Only added when present, so the hash of every other template is kept.
+            hash_json += json.dumps(parsed_json["workspace_objects"])
         export_hash = hashlib.sha256(hash_json.encode("utf-8")).hexdigest()
         keywords = (
             ",".join(parsed_json["keywords"]) if "keywords" in parsed_json else ""
@@ -3068,6 +3093,7 @@ class CoreHandler:
                 files_buffer=files_buffer,
                 import_export_config=config,
                 storage=storage,
+                workspace_objects=parsed_json.get("workspace_objects"),
             )
             imported_id_mapping = id_mapping
 
@@ -3194,6 +3220,8 @@ class CoreHandler:
             ),
             storage=storage,
             progress_builder=progress_builder,
+            workspace_objects=parsed_json.get("workspace_objects"),
+            imported_by=user,
         )
 
         if files_buffer:

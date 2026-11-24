@@ -31,14 +31,10 @@
           "
         ></DropdownItem>
       </Dropdown>
-      <div v-if="canCreateIdentities" class="template-install__identities">
-        <Checkbox v-model="createIdentities">
-          {{ $t('templateInstall.createIdentities') }}
-        </Checkbox>
-        <p class="template-install__identities-hint">
-          {{ $t('templateInstall.createIdentitiesHint') }}
-        </p>
-      </div>
+      <p v-if="createsIdentities" class="template-install__summary">
+        <i class="template-install__summary-icon iconoir-user"></i>
+        {{ $t('templateInstall.createsIdentities') }}
+      </p>
     </template>
     <div class="template-install__actions">
       <template v-if="installable">
@@ -163,8 +159,8 @@ const props = defineProps({
     required: false,
     default: false,
   },
-  // The applications of the template, which tell whether an identity can be
-  // created for each installed Agent.
+  // The applications of the template, which tell whether the install creates
+  // an identity for its Agents.
   applications: {
     type: Array,
     required: false,
@@ -255,24 +251,24 @@ const selectedWorkspace = computed(
     workspaces.value.find(({ id }) => id === selectedWorkspaceId.value) || null
 )
 
-// Off by default: the Agents then wait for an identity to be picked.
-const createIdentities = ref(false)
-
 /**
- * Whether an identity with access to only the template's other applications can
- * be created for each installed Agent. That takes roles, and the permission to
- * create such identities, which the backend checks again.
+ * Whether the install creates the identity the template's Agents work as, with
+ * access to only the template's other applications. That takes roles, and the
+ * permission to create such identities, which the backend checks.
  */
-const canCreateIdentities = computed(() => {
+const createsIdentities = computed(() => {
   const workspace = selectedWorkspace.value
   if (!isAuthenticated.value || workspace === null) {
     return false
   }
-  const types = props.applications
-    .filter((application) => $registry.exists('application', application.type))
-    .map((application) => $registry.get('application', application.type))
   return (
-    types.some((type) => type.createsIdentityOnInstall()) &&
+    props.applications.some(
+      (application) =>
+        $registry.exists('application', application.type) &&
+        $registry
+          .get('application', application.type)
+          .createsIdentityOnInstall(application)
+    ) &&
     Object.values($registry.getAll('plugin')).some((plugin) =>
       plugin.canCreateScopedIdentities(workspace)
     )
@@ -328,11 +324,7 @@ async function use() {
     const { data } = await TemplateService($client).asyncInstall(
       workspaceId,
       props.template.id,
-      {
-        latest: props.latest,
-        revisionId: props.template.revision_id ?? null,
-        createIdentities: canCreateIdentities.value && createIdentities.value,
-      }
+      { latest: props.latest, revisionId: props.template.revision_id ?? null }
     )
     // The user logged out while installing.
     if (!isSameUser()) {
