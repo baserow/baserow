@@ -26,7 +26,11 @@ export class WidgetType extends Registerable {
     }
   }
 
-  /** Size of the creation preview, in dashboard grid units. */
+  /**
+   * Preview size in grid units. Keep it aligned with `grid_layout.default_width`
+   * and `default_height` in `baserow.contrib.dashboard.widgets.registries` and
+   * `baserow.contrib.dashboard.widgets.widget_types`.
+   */
   get initialGridSize() {
     return { width: 3, height: 9 }
   }
