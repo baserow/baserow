@@ -15,7 +15,7 @@ from .database_previews import (
     table_reference,
 )
 from .previews import StepPreview, mask, name_field_references
-from .registries import AgentToolType
+from .registries import AgentToolNeeds, AgentToolType
 
 
 def _without(values: dict[str, Any], key: str) -> dict[str, Any]:
@@ -85,6 +85,8 @@ class DatabaseAgentToolType(AgentToolType):
 class TableReadAgentToolType(DatabaseAgentToolType):
     """A read of one table, titled with the table's name."""
 
+    needs = AgentToolNeeds.READ
+
     def get_step_preview(
         self, ctx: ToolContext, arguments: dict[str, Any]
     ) -> StepPreview:
@@ -93,11 +95,13 @@ class TableReadAgentToolType(DatabaseAgentToolType):
 
 class ListDatabasesAgentToolType(DatabaseAgentToolType):
     type = "list_databases"
+    needs = AgentToolNeeds.READ
     function = databases.list_databases
 
 
 class CreateDatabaseAgentToolType(DatabaseAgentToolType):
     type = "create_database"
+    needs = AgentToolNeeds.BUILD
     function = databases.create_database
     changes_data = True
 
@@ -114,6 +118,7 @@ class CreateDatabaseAgentToolType(DatabaseAgentToolType):
 
 class UpdateDatabaseAgentToolType(DatabaseAgentToolType):
     type = "update_database"
+    needs = AgentToolNeeds.BUILD
     function = databases.update_database
     changes_data = True
 
@@ -138,11 +143,13 @@ class UpdateDatabaseAgentToolType(DatabaseAgentToolType):
 
 class ListTablesAgentToolType(DatabaseAgentToolType):
     type = "list_tables"
+    needs = AgentToolNeeds.READ
     function = tables.list_tables
 
 
 class GetTableSchemaAgentToolType(DatabaseAgentToolType):
     type = "get_table_schema"
+    needs = AgentToolNeeds.READ
     function = tables.get_table_schema
     step_count_argument = "table_ids"
 
@@ -170,6 +177,7 @@ class ListViewsAgentToolType(TableReadAgentToolType):
 
 class CreateTablesAgentToolType(DatabaseAgentToolType):
     type = "create_tables"
+    needs = AgentToolNeeds.BUILD
     function = tables.create_tables
     changes_data = True
     step_count_argument = "tables"
@@ -201,6 +209,7 @@ class CreateTablesAgentToolType(DatabaseAgentToolType):
 
 class CreateFieldsAgentToolType(DatabaseAgentToolType):
     type = "create_fields"
+    needs = AgentToolNeeds.BUILD
     function = fields.create_fields
     changes_data = True
     step_count_argument = "fields"
@@ -228,6 +237,7 @@ class CreateFieldsAgentToolType(DatabaseAgentToolType):
 
 class UpdateFieldsAgentToolType(DatabaseAgentToolType):
     type = "update_fields"
+    needs = AgentToolNeeds.BUILD
     function = fields.update_fields
     changes_data = True
     step_count_argument = "fields"
@@ -255,6 +265,7 @@ class UpdateFieldsAgentToolType(DatabaseAgentToolType):
 
 class DeleteFieldsAgentToolType(DatabaseAgentToolType):
     type = "delete_fields"
+    needs = AgentToolNeeds.BUILD
     function = fields.delete_fields
     changes_data = True
     step_count_argument = "field_ids"
@@ -276,6 +287,7 @@ class DeleteFieldsAgentToolType(DatabaseAgentToolType):
 
 class CreateViewsAgentToolType(DatabaseAgentToolType):
     type = "create_views"
+    needs = AgentToolNeeds.BUILD
     function = views.create_views
     changes_data = True
     step_count_argument = "views"
@@ -297,6 +309,7 @@ class CreateViewsAgentToolType(DatabaseAgentToolType):
 
 class CreateViewFiltersAgentToolType(DatabaseAgentToolType):
     type = "create_view_filters"
+    needs = AgentToolNeeds.BUILD
     function = views.create_view_filters
     changes_data = True
 
@@ -345,6 +358,7 @@ class CreateViewFiltersAgentToolType(DatabaseAgentToolType):
 
 class CreateRowsAgentToolType(DatabaseAgentToolType):
     type = "create_rows"
+    needs = AgentToolNeeds.CHANGE_ROWS
     function = rows.create_rows
     changes_data = True
     step_count_argument = "rows"
@@ -366,6 +380,7 @@ class CreateRowsAgentToolType(DatabaseAgentToolType):
 
 class UpdateRowsAgentToolType(DatabaseAgentToolType):
     type = "update_rows"
+    needs = AgentToolNeeds.CHANGE_ROWS
     function = rows.update_rows
     changes_data = True
     step_count_argument = "rows"
@@ -397,6 +412,7 @@ class UpdateRowsAgentToolType(DatabaseAgentToolType):
 
 class DeleteRowsAgentToolType(DatabaseAgentToolType):
     type = "delete_rows"
+    needs = AgentToolNeeds.CHANGE_ROWS
     function = rows.delete_rows
     changes_data = True
     step_count_argument = "row_ids"

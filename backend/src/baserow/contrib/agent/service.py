@@ -575,12 +575,17 @@ class AgentService:
         uuid: UUID,
         message_uuid: UUID,
         content: str,
+        is_test: bool = False,
+        title: str | None = None,
     ) -> AgentMessageCreated:
         """
         Start a private conversation, or return its first message on a retry.
 
         :param user: The user starting the conversation.
         :param agent_id: The id of the agent.
+        :param is_test: Whether Kuma starts it to test the Agent, so every tool
+            that changes data asks first.
+        :param title: The title, instead of one taken from the first message.
         :param uuid: The uuid of the conversation.
         :param message_uuid: The uuid of the first message.
         :param content: The content of the first message.
@@ -613,7 +618,7 @@ class AgentService:
             return retry
         self._require_ready(agent)
         result = self.handler.create_conversation(
-            agent, user, uuid, message_uuid, content
+            agent, user, uuid, message_uuid, content, is_test=is_test, title=title
         )
         if result.created:
             agent_conversation_activity.send(

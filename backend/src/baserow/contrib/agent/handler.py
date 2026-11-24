@@ -1,3 +1,4 @@
+import dataclasses
 from collections import defaultdict
 from collections.abc import Iterable
 from typing import Any
@@ -945,6 +946,8 @@ class AgentHandler:
         uuid: UUID,
         message_uuid: UUID,
         content: str,
+        is_test: bool = False,
+        title: str | None = None,
     ) -> AgentMessageCreated:
         """
         Create a private conversation, titled after its first message.
@@ -954,6 +957,9 @@ class AgentHandler:
         :param uuid: The uuid of the conversation.
         :param message_uuid: The uuid of the first message.
         :param content: The content of the first message.
+        :param is_test: Whether Kuma starts it to test the Agent, so every tool
+            that changes data asks first.
+        :param title: The title, instead of one taken from the first message.
         :raises AgentConversationDoesNotExist: When a concurrent request created a
             conversation with this uuid for another owner or agent.
         :raises AgentMessageConflict: When a concurrent request created it with
@@ -968,7 +974,8 @@ class AgentHandler:
                     uuid=uuid,
                     agent=agent,
                     owner_user=user,
-                    title=normalize_title(content),
+                    title=normalize_title(title or content),
+                    is_test=is_test,
                 )
         except IntegrityError:
             # A concurrent request created this uuid after the retry check.
@@ -1579,6 +1586,31 @@ class AgentHandler:
         )
         mcp_servers = self.get_mcp_servers(agent)
         action_tools = self.get_action_tools(agent)
+        if conversation.is_test:
+            # A test Kuma started can't change anything without the owner's say-so.
+            tools = {
+                **tools,
+                "ask_first_tools": [
+                    name
+                    for name in tools["allowed_tools"]
+                    if name in tools["ask_first_tools"]
+                    or agent_tool_type_registry.get(name).changes_data
+                ],
+            }
+            for tool in action_tools:
+                tool.action.ask_first = True
+            mcp_servers = tuple(
+                dataclasses.replace(
+                    server,
+                    # Whether an MCP tool only reads is the remote server's own
+                    # word, so in a test every one of them asks first.
+                    tools=tuple(
+                        dataclasses.replace(tool, ask_first=True)
+                        for tool in server.tools
+                    ),
+                )
+                for server in mcp_servers
+            )
         resume = (
             None
             if transcript is None
@@ -2134,6 +2166,7 @@ class AgentHandler:
             {
                 "title": conversation.title,
                 "pinned": conversation.pinned,
+                "is_test": conversation.is_test,
                 "owner_user_id": conversation.owner_user_id,
                 "shared": conversation.shared,
                 "started_by_trigger": conversation.started_by_trigger,
@@ -2212,6 +2245,7 @@ class AgentHandler:
                 uuid=uuid4(),
                 title=data["title"],
                 pinned=data.get("pinned", False),
+                is_test=data.get("is_test", False),
                 owner_user_id=existing(data["owner_user_id"]),
                 shared=data["shared"],
                 started_by_trigger=data["started_by_trigger"],

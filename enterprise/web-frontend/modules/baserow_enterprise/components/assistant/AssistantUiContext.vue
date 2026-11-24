@@ -34,6 +34,8 @@ export default {
         return this.uiContext.page.name
       } else if (this.uiContext.dashboard) {
         return this.uiContext.dashboard.name
+      } else if (this.uiContext.agent) {
+        return this.uiContext.agent.name
       } else if (this.uiContext.application) {
         return this.uiContext.application.name
       } else if (this.uiContext.workspace) {

@@ -11,6 +11,9 @@ from contextlib import ExitStack, contextmanager
 from types import ModuleType
 from typing import Any, TypeVar
 
+from django.conf import settings
+from django.test import override_settings
+
 from pydantic_ai import Agent
 from pydantic_ai._utils import run_until_complete  # noqa: PLC2701
 from pydantic_ai.exceptions import UnexpectedModelBehavior, UsageLimitExceeded
@@ -362,8 +365,10 @@ def run_case(
     ensure_worker_safe()
     load_all()
     fixtures = make_fixtures()
+    flags = [*settings.FEATURE_FLAGS, *case.feature_flags]
     try:
-        return _run_scenario(case, model, fixtures)
+        with override_settings(FEATURE_FLAGS=flags):
+            return _run_scenario(case, model, fixtures)
     finally:
         fixtures.remove_added_licence()
 

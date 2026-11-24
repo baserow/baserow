@@ -35,10 +35,21 @@ from baserow.contrib.agent.registries import agent_tool_type_registry
 from baserow.contrib.automation.models import Automation
 from baserow.core.exceptions import PermissionDenied
 from baserow.core.models import Workspace
-from baserow_enterprise.assistant.agents import dynamic_unavailable_tools, main_agent
+from baserow_enterprise.assistant.agents import (
+    dynamic_agent_knowledge,
+    dynamic_unavailable_tools,
+    main_agent,
+)
+from baserow_enterprise.assistant.assistant import _mode_for_ui_context
 from baserow_enterprise.assistant.deps import AgentMode, AssistantDeps
 from baserow_enterprise.assistant.model_profiles import (
     ResolvedAssistantModelProfile,
+)
+from baserow_enterprise.assistant.prompts import AGENT_SYSTEM_PROMPT
+from baserow_enterprise.assistant.tools.core.tools import (
+    _only_modes_the_user_has,
+    core_toolset,
+    switch_mode,
 )
 from baserow_enterprise.assistant.tools.registries import assistant_tool_registry
 from baserow_enterprise.assistant.tools.routing import (
@@ -50,12 +61,14 @@ from baserow_enterprise.assistant.tools.routing import (
 from baserow_enterprise.assistant.tools.search_user_docs.tool_types import (
     SearchDocsToolType,
 )
+from baserow_enterprise.assistant.tools.shared import ToolInputError
 from baserow_enterprise.assistant.tools.toolset import (
     InlineRefsToolset,
     _find_placeholder_ids,
     format_tool_arg_errors,
     inline_refs,
 )
+from baserow_enterprise.assistant.types import UIContext
 from baserow_enterprise.license_types import AdvancedLicenseType
 from baserow_premium.license.license_types import PremiumLicenseType
 from baserow_premium.license.plugin import LicensePlugin
@@ -508,12 +521,19 @@ APPLICATION = AgentMode.APPLICATION
 AUTOMATION = AgentMode.AUTOMATION
 DASHBOARD = AgentMode.DASHBOARD
 EXPLAIN = AgentMode.EXPLAIN
+AGENT = AgentMode.AGENT
 EVERYWHERE = frozenset(AgentMode)
 
 # Adding a tool must fail here, so its reach is a decision and not a default.
 TOOL_VISIBILITY: dict[str, frozenset[AgentMode]] = {
     "add_element_action_field_mapping": frozenset({APPLICATION}),
     "add_nodes": frozenset({AUTOMATION}),
+    "apply_agent_setup": frozenset({AGENT}),
+    "get_agent": frozenset({AGENT}),
+    "get_agent_test_result": frozenset({AGENT}),
+    "list_agent_tools": frozenset({AGENT}),
+    "list_agents": frozenset({AGENT}),
+    "test_agent": frozenset({AGENT}),
     "ask_user": EVERYWHERE,
     "create_element_actions": frozenset({APPLICATION}),
     "create_database": frozenset({DATABASE}),
@@ -679,6 +699,8 @@ def test_arg_error_report_never_raises_on_malformed_error_payloads() -> None:
     "args,expected",
     [
         ({"table_id": 0}, [("table_id", "list_tables", 0)]),
+        ({"agent_id": 0}, [("agent_id", "list_agents", 0)]),
+        ({"agent_id": None}, []),
         ({"navigate_to_page_id": 0}, [("navigate_to_page_id", "list_pages", 0)]),
         (
             {"view": {"cover_field_id": -1}},
@@ -783,3 +805,44 @@ def test_fixer_crash_degrades_to_model_retry_with_the_report() -> None:
         with pytest.raises(ModelRetry, match="did NOT run"):
             asyncio.run(toolset.call_tool("create_fields", {"fields": []}, None, None))
     inner_call.assert_not_awaited()
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("agent_builder", [False, True])
+def test_kuma_offers_agents_only_when_it_can_build_them(
+    data_fixture: Any, settings, agent_builder: bool
+) -> None:
+    settings.FEATURE_FLAGS = ["agent-builder"] if agent_builder else []
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    built = build_production_toolset(user, workspace)
+    ctx = SimpleNamespace(deps=built.deps)
+
+    assert ("list_agents" in built.catalog) is agent_builder
+    assert "Agent →" not in AGENT_SYSTEM_PROMPT
+    assert ("Agent →" in dynamic_agent_knowledge(ctx)) is agent_builder
+    # An Agent's page starts Kuma in the agent mode only for who can build them.
+    on_agent_page = UIContext.model_validate(
+        {
+            "workspace": {"id": workspace.id, "name": workspace.name},
+            "user": {"id": user.id, "name": user.first_name, "email": user.email},
+            "agent": {"id": 1, "name": "Digest"},
+        }
+    )
+    assert (
+        _mode_for_ui_context(on_agent_page, built.deps.permitted_tools)
+        == AgentMode.AGENT
+    ) is agent_builder
+    # Without the agent tools, switch_mode doesn't say an agent mode exists.
+    offered = asyncio.run(
+        _only_modes_the_user_has(ctx, core_toolset.tools["switch_mode"].tool_def)
+    ).parameters_json_schema["properties"]["mode"]
+    assert ("agent" in offered["enum"]) is agent_builder
+    assert ("'agent'" in offered["description"]) is agent_builder
+    if agent_builder:
+        switch_mode(ctx, "agent", thought="t")
+        assert built.deps.mode == AgentMode.AGENT
+    else:
+        with pytest.raises(ToolInputError, match="is not a mode"):
+            switch_mode(ctx, "agent", thought="t")
+        assert built.deps.mode != AgentMode.AGENT

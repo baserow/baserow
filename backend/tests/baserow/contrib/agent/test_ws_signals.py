@@ -76,6 +76,7 @@ def update_of(
             "last_reply_failed": False,
             "pending_approval_count": pending_approval_count,
             "pinned": conversation.pinned,
+            "is_test": conversation.is_test,
             "shared": conversation.shared,
             "started_by_trigger": conversation.started_by_trigger,
             "owner": owner and {"id": owner.id, "name": owner.first_name},

@@ -106,6 +106,11 @@ class UIContextSerializer(serializers.Serializer):
         required=False,
         help_text="The application the user is currently in, e.g. 'dashboard'.",
     )
+    # agent builder context
+    agent = UIContextApplicationSerializer(
+        required=False,
+        help_text="The Agent the user is currently in, if any.",
+    )
     # user context
     timezone = serializers.CharField(
         required=False,

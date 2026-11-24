@@ -399,6 +399,7 @@ class AgentConversationSerializer(serializers.ModelSerializer):
             "last_reply_failed",
             "pending_approval_count",
             "pinned",
+            "is_test",
             "shared",
             "started_by_trigger",
             "owner",

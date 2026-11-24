@@ -297,9 +297,18 @@ def _extract_tool_thought(event: FunctionToolCallEvent) -> str | None:
     return thought if isinstance(thought, str) and thought.strip() else None
 
 
-def _mode_for_ui_context(ui_context: UIContext) -> AgentMode:
-    """Return the mode implied by the current UI."""
+def _mode_for_ui_context(
+    ui_context: UIContext, permitted_tools: frozenset[str] = frozenset()
+) -> AgentMode:
+    """
+    :param ui_context: What the user is looking at.
+    :param permitted_tools: The tools the user may use, as an Agent's page only
+        implies the agent mode for a user who can build Agents.
+    :return: The mode implied by the current UI.
+    """
 
+    if ui_context.agent and "apply_agent_setup" in permitted_tools:
+        return AgentMode.AGENT
     if ui_context.application or ui_context.page:
         return AgentMode.APPLICATION
     if ui_context.automation or ui_context.workflow:
@@ -801,7 +810,7 @@ class BackgroundAssistant(Assistant):
         :param ui_context: What the user was looking at.
         """
 
-        self._deps.mode = _mode_for_ui_context(ui_context)
+        self._deps.mode = _mode_for_ui_context(ui_context, self._deps.permitted_tools)
         self._tool_helpers.request_context["ui_context"] = ui_context.format()
         self._loaded_history = await self._load_message_history() or []
 

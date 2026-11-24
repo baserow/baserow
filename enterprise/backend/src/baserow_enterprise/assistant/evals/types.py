@@ -55,6 +55,8 @@ class EvalCase:
     requires_knowledge_base: bool = False
     metadata: Mapping[str, Any] = field(default_factory=dict)
     reference_answer: str | None = None
+    # Feature flags turned on while the case runs, such as one its tools need.
+    feature_flags: tuple[str, ...] = ()
 
 
 CheckSuite = Callable[["EvalCase", EvalScenario, EvalRunOutput], list[CheckResult]]

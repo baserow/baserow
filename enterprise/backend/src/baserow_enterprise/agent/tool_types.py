@@ -7,6 +7,7 @@ from baserow.contrib.agent.database_previews import (
     table_reference,
 )
 from baserow.contrib.agent.previews import StepPreview
+from baserow.contrib.agent.registries import AgentToolNeeds
 from baserow.contrib.agent.tool_types import DatabaseAgentToolType
 from baserow.core.tools import ToolContext
 from baserow_enterprise.license.row_comment_tools import RowCommentToolLicense
@@ -25,6 +26,9 @@ def _row_reference(row_id: int, names: dict[int, str]) -> dict[str, Any]:
 
 class RowCommentAgentToolType(RowCommentToolLicense, DatabaseAgentToolType):
     """Row comment tools available to Agents in Advanced workspaces."""
+
+    # Reading comments needs the same permission as writing them.
+    needs = AgentToolNeeds.COMMENT
 
 
 class ListRowCommentsAgentToolType(RowCommentAgentToolType):

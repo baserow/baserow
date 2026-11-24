@@ -77,6 +77,7 @@ def test_first_message_creates_a_private_conversation(
             "last_reply_failed": False,
             "pending_approval_count": 0,
             "pinned": False,
+            "is_test": False,
             "shared": False,
             "started_by_trigger": False,
             "owner": {"id": api_user.id, "name": api_user.first_name},

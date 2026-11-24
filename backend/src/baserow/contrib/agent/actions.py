@@ -49,6 +49,8 @@ class CreateAgentConversationActionType(ActionType):
         uuid: UUID,
         message_uuid: UUID,
         content: str,
+        is_test: bool = False,
+        title: str | None = None,
     ) -> AgentMessageCreated:
         """
         Start a conversation, registering the action by ids and only once.
@@ -58,11 +60,13 @@ class CreateAgentConversationActionType(ActionType):
         :param uuid: The uuid of the conversation.
         :param message_uuid: The uuid of the first message.
         :param content: The content of the first message.
+        :param is_test: Whether Kuma starts it to test the Agent.
+        :param title: The title, instead of one taken from the first message.
         :return: The conversation and its first message, and whether they are new.
         """
 
         result = AgentService().create_conversation(
-            user, agent_id, uuid, message_uuid, content
+            user, agent_id, uuid, message_uuid, content, is_test=is_test, title=title
         )
         if result.created:
             cls.register_action(
