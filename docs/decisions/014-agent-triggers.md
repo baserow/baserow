@@ -107,9 +107,13 @@ Viewers read conversations, and may trash and restore their own private ones, su
 one left from an older role. Renaming needs the editor role, the lowest role that may
 create a conversation.
 
-The author can remove a private conversation from their list or delete it for all
-participants. Shared deletion, restoration, renaming and stopping require the existing
-management permissions. Realtime delivery checks conversation visibility.
+Everyone in a private conversation can remove it from their own list ("Delete for me"),
+and the others keep it; only its owner deletes it for everyone. The owner leaving alone
+trashes it, as deleting does. Once the owner has left, the last person to leave deletes
+it for good, because only an owner's trash may list a private conversation: without one,
+every trash reader would see it. Shared deletion, restoration, renaming and stopping
+require the existing management permissions. A reply stopped by someone else says who
+stopped it. Realtime delivery checks conversation visibility.
 
 The opening message, with role `trigger`, holds the resolved trigger message, a runtime
 formula over the event payload. A message with no text opens with the trigger and when

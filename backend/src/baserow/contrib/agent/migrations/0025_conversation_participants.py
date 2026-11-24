@@ -1,3 +1,4 @@
+import django.db.models.deletion
 from django.conf import settings
 from django.db import migrations, models
 
@@ -14,6 +15,16 @@ class Migration(migrations.Migration):
             name="participants",
             field=models.ManyToManyField(
                 related_name="participating_agent_conversations",
+                to=settings.AUTH_USER_MODEL,
+            ),
+        ),
+        migrations.AddField(
+            model_name="agentmessage",
+            name="stopped_by",
+            field=models.ForeignKey(
+                null=True,
+                on_delete=django.db.models.deletion.SET_NULL,
+                related_name="+",
                 to=settings.AUTH_USER_MODEL,
             ),
         ),

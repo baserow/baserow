@@ -642,9 +642,9 @@ class LeaveAgentConversationView(APIView):
         tags=["Agent applications"],
         operation_id="leave_agent_conversation",
         description=(
-            "Removes the authenticated owner from their private conversation, which "
-            "those they asked to approve keep. Without anyone else in it, moves it "
-            "to the trash instead."
+            "Removes the authenticated user from a private conversation they take "
+            "part in, which the others keep. Its owner alone in it moves it to the "
+            "trash instead, and the last one to leave after the owner deletes it."
         ),
         parameters=[AGENT_ID_PATH_PARAMETER, CLIENT_SESSION_ID_SCHEMA_PARAMETER],
         request=None,
@@ -654,7 +654,7 @@ class LeaveAgentConversationView(APIView):
     def post(
         self, request: Request, agent_id: int, conversation_uuid: UUID
     ) -> Response:
-        """Leaves a private conversation of the authenticated owner."""
+        """Leaves a private conversation the authenticated user takes part in."""
 
         conversation = action_type_registry.get_by_type(
             LeaveAgentConversationActionType

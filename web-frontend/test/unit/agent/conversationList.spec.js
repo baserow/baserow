@@ -362,4 +362,36 @@ describe('Agent conversation list', () => {
 
     expect(wrapper.emitted('delete')).toEqual([[shared]])
   })
+
+  test('lets someone asked to approve only remove the conversation from their list', async () => {
+    const asked = {
+      uuid: 'asked',
+      title: 'Refund',
+      owner: { id: 2, name: 'Ada' },
+      participants: [
+        { id: 1, name: 'Me' },
+        { id: 2, name: 'Ada' },
+      ],
+    }
+    const wrapper = await mountList([asked])
+    await wrapper.get('.agent-conversations__options').trigger('click')
+    const links = wrapper
+      .findComponent(Context)
+      .findAll('.context__menu-item-link')
+    expect(links.map((link) => link.text())).toEqual(['agent.deleteForMe'])
+    await links[0].trigger('click')
+    await flushPromises()
+
+    const modal = document.querySelector('.modal__box')
+    expect(modal.textContent).toContain('agent.leaveConversationWarning')
+    const buttons = [...modal.querySelectorAll('button')]
+    expect(buttons.map((button) => button.textContent.trim())).not.toContain(
+      'agent.deleteForEveryone'
+    )
+    buttons
+      .find((button) => button.textContent.includes('agent.deleteForMe'))
+      .click()
+    await flushPromises()
+    expect(wrapper.emitted('leave')).toEqual([[asked]])
+  })
 })

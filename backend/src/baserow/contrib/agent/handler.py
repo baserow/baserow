@@ -856,6 +856,24 @@ class AgentHandler:
 
         agent = conversation.agent
         TrashHandler.trash(user, agent.workspace, agent, conversation)
+        self._stop_active_run(conversation)
+
+    def delete_conversation_forever(self, conversation: AgentConversation) -> None:
+        """
+        Delete a conversation and stop the reply still being written in it.
+
+        :param conversation: The conversation, locked so no new reply can start.
+        """
+
+        self._stop_active_run(conversation)
+        # A queryset delete keeps the instance's id for the action and signals.
+        AgentConversation.objects.filter(id=conversation.id).delete()
+
+    def _stop_active_run(self, conversation: AgentConversation) -> None:
+        """
+        :param conversation: The conversation being removed.
+        """
+
         run = ChatRunHandler().get_active_run(AGENT_RUN_TYPE, conversation.id)
         if run is not None:
             # Runs are locked before their conversation, so stop it after commit.
@@ -1815,9 +1833,7 @@ class AgentHandler:
 
         return (
             conversation.shared
-            or conversation.participants.exclude(
-                id=conversation.owner_user_id
-            ).exists()
+            or conversation.participants.exclude(id=conversation.owner_user_id).exists()
         )
 
     def _get_conversation_user(
@@ -1986,7 +2002,7 @@ class AgentHandler:
 
         # The caller's lock on the run or the reply serializes everything ending it.
         reply = (
-            AgentMessage.objects.select_related("conversation")
+            AgentMessage.objects.select_related("conversation", "stopped_by")
             .filter(id=reply_id)
             .first()
         )

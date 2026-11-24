@@ -26,7 +26,7 @@ from .constants import (
 )
 from .exceptions import AgentConversationDoesNotExist, AgentNotReady, AgentTriggerOff
 from .handler import AgentHandler
-from .models import AgentReplyStatus
+from .models import AgentMessage, AgentReplyStatus
 from .replies import AgentResponder, create_reply_model
 from .service import AgentService
 from .signals import agent_conversation_activity
@@ -73,6 +73,9 @@ class AgentChatRunType(ChatRunType):
         return AgentService().can_cancel_conversation_run(
             user, run.chat_id, run.context["reply_id"]
         )
+
+    def on_cancel_requested(self, run: ChatRun, user: AbstractUser) -> None:
+        AgentMessage.objects.filter(id=run.context["reply_id"]).update(stopped_by=user)
 
     def can_follow_chat(self, user: AbstractUser, chat_id: int) -> bool:
         """

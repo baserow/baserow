@@ -546,6 +546,11 @@ class AgentMessageSerializer(serializers.ModelSerializer):
         help_text="The person who sent the message, or whom the reply answers. "
         "Null for a trigger or a deleted user.",
     )
+    stopped_by = AgentConversationUserSerializer(
+        read_only=True,
+        allow_null=True,
+        help_text="The person who stopped the reply, if a person did and still exists.",
+    )
     steps = AgentMessageStepSerializer(many=True, allow_null=True, read_only=True)
     approvals = AgentToolApprovalSerializer(
         many=True,
@@ -571,6 +576,7 @@ class AgentMessageSerializer(serializers.ModelSerializer):
             "created_on",
             "status",
             "error_code",
+            "stopped_by",
             "run_id",
             "steps",
             "approvals",

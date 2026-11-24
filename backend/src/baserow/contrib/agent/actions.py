@@ -388,9 +388,10 @@ class LeaveAgentConversationActionType(ActionType):
         cls, user: AbstractUser, agent_id: int, conversation_uuid: UUID
     ) -> AgentConversation:
         """
-        Leave a private conversation, or trash it when nobody else is in it.
+        Leave a private conversation the others keep, or remove it when nobody
+        else is in it.
 
-        :param user: The owner leaving.
+        :param user: The participant leaving.
         :param agent_id: The id of the agent.
         :param conversation_uuid: The uuid of the conversation.
         :return: The conversation.

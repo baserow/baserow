@@ -280,7 +280,7 @@ class AgentService:
         )
         conversation = self.handler.get_conversation(agent, user, conversation_uuid)
         return conversation, conversation.messages.select_related(
-            "sender"
+            "sender", "stopped_by"
         ).prefetch_related("approvals")
 
     @staticmethod
@@ -611,33 +611,37 @@ class AgentService:
         self, user: AbstractUser, agent_id: int, conversation_uuid: UUID
     ) -> AgentConversation:
         """
-        Remove the owner from their private conversation, which those they asked
-        to approve keep. Without anyone else in it, it goes to the trash instead.
+        Remove the user from a private conversation they take part in, which the
+        others keep. Its owner left alone trashes it, as deleting does. Once the
+        owner has left, the last one to leave deletes it for good: only an owner's
+        trash may list a private conversation.
 
-        :param user: The owner leaving.
+        :param user: The participant leaving.
         :param agent_id: The id of the agent.
         :param conversation_uuid: The uuid of the conversation.
-        :raises PermissionException: When the user doesn't own the private
-            conversation, or may not delete conversations of the agent.
+        :raises PermissionException: When the conversation is shared, or the user
+            may not delete conversations of the agent.
         :raises AgentConversationDoesNotExist: When the user sees no conversation
             with this uuid in the agent.
-        :return: The conversation, trashed when nobody else was in it.
+        :return: The conversation, trashed when its owner was alone in it.
         """
 
-        conversation = self._get_own_private_conversation(
-            user, agent_id, conversation_uuid, for_update=True
+        agent = self.get_authorized_agent(
+            user, agent_id, DeleteAgentConversationOperationType.type
         )
+        conversation = self.handler.get_conversation(
+            agent, user, conversation_uuid, for_update=True
+        )
+        if conversation.shared:
+            raise PermissionDenied()
         if not conversation.participants.exclude(id=user.id).exists():
-            return self.delete_conversation(user, agent_id, conversation_uuid)
-        CoreHandler().check_permissions(
-            user,
-            DeleteAgentConversationOperationType.type,
-            workspace=conversation.agent.workspace,
-            context=conversation.agent,
-        )
-        conversation.participants.remove(user)
+            if conversation.owner_user_id == user.id:
+                return self.delete_conversation(user, agent_id, conversation_uuid)
+            self.handler.delete_conversation_forever(conversation)
+        else:
+            conversation.participants.remove(user)
+            self._send_participants_updated(user, conversation)
         agent_conversation_left.send(self, conversation=conversation, user=user)
-        self._send_participants_updated(user, conversation)
         application_pending_count_updated.send(
             self, application=conversation.agent, user_ids=[user.id]
         )

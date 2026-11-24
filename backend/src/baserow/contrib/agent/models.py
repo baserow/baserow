@@ -263,6 +263,10 @@ class AgentMessage(BigAutoFieldMixin, CreatedAndUpdatedOnMixin, models.Model):
     sender = models.ForeignKey(
         settings.AUTH_USER_MODEL, null=True, on_delete=models.SET_NULL, related_name="+"
     )
+    # Who stopped the reply, when a person did.
+    stopped_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, on_delete=models.SET_NULL, related_name="+"
+    )
     # Whether a trigger asked for the reply, which a deleted sender can't tell.
     unattended = models.BooleanField(default=False, db_default=False)
     # Only the agent's replies have one.

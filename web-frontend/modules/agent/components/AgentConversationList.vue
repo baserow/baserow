@@ -260,6 +260,15 @@
             {{ $t('action.delete') }}
           </a>
         </li>
+        <li v-if="canLeaveItem(menuItem)" class="context__menu-item">
+          <a
+            class="context__menu-item-link context__menu-item-link--delete"
+            @click="leave"
+          >
+            <i class="context__menu-item-icon iconoir-bin"></i>
+            {{ $t('agent.deleteForMe') }}
+          </a>
+        </li>
       </ul>
     </Context>
     <AgentShareConversationModal
@@ -361,9 +370,13 @@ const managesItem = (item) =>
   )
 const canUpdateItem = (item) => props.canUpdate && managesItem(item)
 const canDeleteItem = (item) => props.canDelete && managesItem(item)
+// Those asked to approve may only remove it from their own list.
+const canLeaveItem = (item) =>
+  props.canDelete && !item.shared && !managesItem(item)
 // A draft exists only in this tab until its first message is sent.
 const hasOptions = (item) =>
-  !item.local && (canUpdateItem(item) || canDeleteItem(item))
+  !item.local &&
+  (canUpdateItem(item) || canDeleteItem(item) || canLeaveItem(item))
 const isListed = (uuid) => props.items.some((item) => item.uuid === uuid)
 
 watch([() => props.items, renamingUuid], ([items, renaming]) => {
@@ -461,5 +474,11 @@ function remove() {
   menu.value.hide()
   if (!item.shared && item.participants.length > 1) deleteModal.value.show(item)
   else emit('delete', item)
+}
+
+function leave() {
+  const item = menuItem.value
+  menu.value.hide()
+  deleteModal.value.show(item, { forEveryone: false })
 }
 </script>

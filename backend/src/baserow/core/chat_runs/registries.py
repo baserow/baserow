@@ -126,6 +126,16 @@ class ChatRunType(Instance):
 
         return None
 
+    def on_cancel_requested(self, run: ChatRun, user: AbstractUser) -> None:
+        """Record who stopped the run, in the transaction that accepts the request.
+
+        Called once per run, before a queued run ends, and never for a stop that
+        comes too late or repeats one.
+
+        :param run: The run, locked until the transaction ends.
+        :param user: The user who stopped it.
+        """
+
     def on_run_not_started(self, run: ChatRun) -> dict | None:
         """Save the outcome of a queued run that never started.
 

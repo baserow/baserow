@@ -97,9 +97,8 @@ def test_named_approvers_keep_access_and_only_author_can_share_or_delete(
     assert candidates() == [other]
     assert service.can_follow_conversation(alice, conversation.pk)
     assert not service.can_read_conversation(other, conversation.pk)
-    for method in [service.leave_conversation, service.delete_conversation]:
-        with pytest.raises(PermissionDenied):
-            method(alice, agent.id, conversation.uuid)
+    with pytest.raises(PermissionDenied):
+        service.delete_conversation(alice, agent.id, conversation.uuid)
     with pytest.raises(AgentConversationDoesNotExist):
         service.share_conversation(alice, agent.id, conversation.uuid)
 
@@ -122,6 +121,11 @@ def test_named_approvers_keep_access_and_only_author_can_share_or_delete(
         )
     approval.refresh_from_db()
     assert approval.decided_by == bob
+
+    assert not service.leave_conversation(bob, agent.id, conversation.uuid).trashed
+    assert set(conversation.participants.all()) == {alice}
+    service.leave_conversation(alice, agent.id, conversation.uuid)
+    assert not AgentConversation.objects_and_trash.filter(pk=conversation.pk).exists()
 
 
 def test_departed_author_cannot_recover_private_history_with_request_uuids(

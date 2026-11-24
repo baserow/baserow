@@ -12,7 +12,7 @@
         {{ $t('agent.deleteParticipatedConversation') }}
       </h2>
       <p :id="descriptionId">
-        {{ $t('agent.deleteParticipatedConversationWarning') }}
+        {{ $t(warning) }}
       </p>
       <div class="actions actions--right actions--gap">
         <Button type="secondary" @click="modal.hide()">
@@ -21,7 +21,7 @@
         <Button type="secondary" @click="choose('leave')">
           {{ $t('agent.deleteForMe') }}
         </Button>
-        <Button type="danger" @click="choose('delete')">
+        <Button v-if="forEveryone" type="danger" @click="choose('delete')">
           {{ $t('agent.deleteForEveryone') }}
         </Button>
       </div>
@@ -30,18 +30,32 @@
 </template>
 
 <script setup>
-import { ref, useId } from 'vue'
+import { computed, ref, useId } from 'vue'
 
 /** Asks whether to leave a private conversation others take part in, or delete it. */
 const emit = defineEmits(['leave', 'delete'])
 
 const modal = ref(null)
 const conversation = ref(null)
+const forEveryone = ref(true)
 const titleId = useId()
 const descriptionId = useId()
+const warning = computed(() => {
+  if (forEveryone.value) return 'agent.deleteParticipatedConversationWarning'
+  return conversation.value?.participants.length > 1
+    ? 'agent.leaveConversationWarning'
+    : 'agent.leaveLastConversationWarning'
+})
 
-function show(item) {
+/**
+ * @param {object} item The conversation.
+ * @param {object} [options]
+ * @param {boolean} [options.forEveryone] Whether its owner may also delete it
+ *   for everyone, rather than only leave it.
+ */
+function show(item, { forEveryone: everyone = true } = {}) {
   conversation.value = item
+  forEveryone.value = everyone
   modal.value.show()
 }
 

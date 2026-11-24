@@ -63,4 +63,4 @@ class ChatRunService:
 
     def request_cancel(self, user: AbstractUser, run_id: UUID) -> ChatRunStatus:
         self.get_run(user, run_id, cancel=True)
-        return ChatRunHandler().request_cancel(run_id)
+        return ChatRunHandler().request_cancel(run_id, user)

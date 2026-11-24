@@ -37,6 +37,7 @@ from baserow.contrib.agent.actions import (
     CreateAgentConversationActionType,
     CreateAgentMessageActionType,
 )
+from baserow.contrib.agent.api.serializers import AgentMessageSerializer
 from baserow.contrib.agent.chat_run_type import AgentChatRunType
 from baserow.contrib.agent.constants import (
     ASK_FIRST_INSTRUCTIONS,
@@ -83,6 +84,7 @@ from baserow.core.chat_runs.constants import ChatRunStopReason
 from baserow.core.chat_runs.handler import ChatRunHandler
 from baserow.core.chat_runs.journal import ChatRunJournal
 from baserow.core.chat_runs.models import ChatRun
+from baserow.core.chat_runs.service import ChatRunService
 from baserow.core.chat_runs.steps import ChatRunSteps
 from baserow.core.exceptions import PermissionDenied
 from baserow.core.generative_ai.registries import generative_ai_model_type_registry
@@ -1342,6 +1344,29 @@ def test_the_person_a_shared_reply_answers_stops_it_whoever_resumed_it(
     run.refresh_from_db()
     assert AgentChatRunType().can_cancel(sender, run)
     assert not AgentChatRunType().can_cancel(member, run)
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("status", ["queued", "running"])
+def test_a_reply_names_the_first_person_who_stopped_it(
+    data_fixture, configured_agent, status
+):
+    sender, admin = data_fixture.create_user(), data_fixture.create_user()
+    agent = configured_agent(user=admin)
+    data_fixture.create_user_workspace(user=sender, workspace=agent.workspace)
+    conversation = start(sender, agent).conversation
+    AgentService().share_conversation(sender, agent.id, conversation.uuid)
+    run = run_of(conversation)
+    ChatRun.objects.filter(id=run.id).update(status=status)
+
+    for user in (admin, sender):
+        ChatRunService().request_cancel(user, run.id)
+
+    reply = AgentMessage.objects.get(conversation=conversation, role="assistant")
+    assert AgentMessageSerializer(reply).data["stopped_by"] == {
+        "id": admin.id,
+        "name": admin.first_name,
+    }
 
 
 @pytest.mark.django_db
