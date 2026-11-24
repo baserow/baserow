@@ -217,6 +217,18 @@ export class BaserowPlugin extends Registerable {
   }
 
   /**
+   * Every registered plugin can display multiple additional items in the context
+   * menu of a workspace, and in the Settings menu of the workspace in the sidebar.
+   * Like the components of `getSidebarWorkspaceMenuComponents`, they render their
+   * own `<li class="context__menu-item">`, receive the workspace as `workspace`
+   * prop, and emit `hide` to close the menu.
+   * @returns {*[]}
+   */
+  getAdditionalWorkspaceContextComponents(workspace) {
+    return []
+  }
+
+  /**
    * Every registered plugin can display multiple additional context items in the
    * application context displayed by the sidebar when opening the context menu of
    * an application.

@@ -106,11 +106,12 @@
           @hidden="onMenuHidden('settings')"
           @keydown.esc.stop.prevent="closeMenu('settings')"
         >
-          <template #default="{ actions, hide }">
+          <template #default="{ actions, hide, additionalComponents }">
             <SidebarWorkspaceSettingsItems
               :actions="actions"
               :workspace="selectedWorkspace"
               :extensions="getMenuComponents('settings')"
+              :additional-components="additionalComponents"
               @hide="hide()"
             />
           </template>

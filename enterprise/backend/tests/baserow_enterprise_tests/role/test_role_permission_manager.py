@@ -2386,3 +2386,71 @@ def test_workspace_admin_is_not_an_admin_of_another_workspaces_objects(data_fixt
     result = perm_manager.check_multiple_permissions(checks, workspace)
 
     assert all(isinstance(result[check], PermissionException) for check in checks)
+
+
+@pytest.mark.django_db
+def test_roles_resolved_for_workspaces_keep_checks_query_count_constant(
+    data_fixture, enterprise_data_fixture
+):
+    enterprise_data_fixture.enable_enterprise()
+    admin_role = Role.objects.get(uid="ADMIN")
+    viewer_role = Role.objects.get(uid="VIEWER")
+
+    def check_in_workspaces(num_workspaces, prefetch):
+        user = data_fixture.create_user()
+        for index in range(num_workspaces):
+            workspace = data_fixture.create_workspace()
+            if index % 3 == 0:
+                data_fixture.create_user_workspace(
+                    user=user, workspace=workspace, permissions="ADMIN"
+                )
+            elif index % 3 == 1:
+                # Only an admin through the role of a team.
+                data_fixture.create_user_workspace(
+                    user=user, workspace=workspace, permissions="NO_ROLE_LOW_PRIORITY"
+                )
+                team = enterprise_data_fixture.create_team(
+                    workspace=workspace, members=[user]
+                )
+                RoleAssignmentHandler().assign_role(team, workspace, role=admin_role)
+            else:
+                data_fixture.create_user_workspace(
+                    user=user, workspace=workspace, permissions="BUILDER"
+                )
+                database = data_fixture.create_database_application(workspace=workspace)
+                RoleAssignmentHandler().assign_role(
+                    user, workspace, role=viewer_role, scope=database.application_ptr
+                )
+
+        with local_cache.context(), CaptureQueriesContext(connection) as queries:
+            workspaces = list(
+                CoreHandler().get_enhanced_workspace_queryset(
+                    user.workspace_set.order_by("id")
+                )
+            )
+            if prefetch:
+                RoleAssignmentHandler().get_roles_per_scope_for_workspaces(
+                    workspaces, user
+                )
+            results = [
+                CoreHandler().check_permissions(
+                    user,
+                    UpdateWorkspaceOperationType.type,
+                    workspace=workspace,
+                    context=workspace,
+                    raise_permission_exceptions=False,
+                )
+                for workspace in workspaces
+            ]
+        return results, len(queries.captured_queries)
+
+    # Warms up the caches that are only filled once per process.
+    check_in_workspaces(3, prefetch=True)
+
+    results_3, num_queries_3 = check_in_workspaces(3, prefetch=True)
+    results_9, num_queries_9 = check_in_workspaces(9, prefetch=True)
+    results_9_without_prefetch, _ = check_in_workspaces(9, prefetch=False)
+
+    assert num_queries_3 == num_queries_9
+    assert results_9 == results_9_without_prefetch == [True, True, False] * 3
+    assert results_3 == [True, True, False]
