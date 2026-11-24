@@ -603,7 +603,7 @@
     "dataScanner": "Data scanner",
     "dataScannerContent": "Scan all data in your Baserow instance for sensitive patterns like IBAN numbers or medical IDs, or match against known value lists. Configure automatic scanning schedules and view detailed results.",
     "semanticSearch": "Semantic search",
-    "semanticSearchContent": "Find rows by the meaning of their text instead of exact words, and use the results in automations and applications."
+    "semanticSearchContent": "Find rows by the meaning of their text instead of exact words, and use the results in automations, applications and agents."
   },
   "assistantSidebarItem": {
     "title": "Kuma AI"

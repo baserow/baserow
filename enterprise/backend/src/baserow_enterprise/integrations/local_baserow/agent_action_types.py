@@ -8,10 +8,19 @@ from baserow.contrib.agent.action_tools.registries import (
 )
 from baserow.contrib.agent.models import AgentAction
 from baserow.core.formula.types import BaserowFormulaObject
+from baserow.core.services.exceptions import (
+    ServiceImproperlyConfiguredDispatchException,
+)
+from baserow.core.services.types import DispatchResult
+from baserow.core.tools.results import fit_text_values, json_length
 from baserow.core.trash.handler import TrashHandler
 from baserow_enterprise.integrations.local_baserow.models import (
     LocalBaserowSemanticSearch,
 )
+from baserow_enterprise.integrations.local_baserow.service_types import ROW_PROPERTY
+
+SEMANTIC_SEARCH_ACTION_MAX_RESULT_CHARACTERS = 20_000
+"""The most the model reads of the rows found, as JSON, before they are cut."""
 
 
 class LocalBaserowSemanticSearchAgentActionType(AgentActionType):
@@ -56,11 +65,37 @@ class LocalBaserowSemanticSearchAgentActionType(AgentActionType):
             "max_results": self.service_type.get_max_result_limit(service),
         }
 
+    def get_tool_result(self, action: AgentAction, result: DispatchResult) -> Any:
+        """
+        :return: The rows found, best match first, as long as they fit in
+            ``SEMANTIC_SEARCH_ACTION_MAX_RESULT_CHARACTERS``, as the model reads
+            them in every later turn. The text values of the first row that
+            doesn't fit are cut to the space left, and the rows after it are left
+            out, so the best matches stay whole.
+        """
+
+        results = []
+        space = SEMANTIC_SEARCH_ACTION_MAX_RESULT_CHARACTERS
+        for item in result.data["results"]:
+            size = json_length(item)
+            if size > space:
+                row = item[ROW_PROPERTY]
+                # What the rest of the result takes, as the row's JSON is part of it.
+                row_space = space - (size - json_length(row))
+                cut_row = fit_text_values(row, row_space)
+                if cut_row is not None:
+                    results.append({**item, ROW_PROPERTY: cut_row})
+                return {**result.data, "results": results, "truncated": True}
+            results.append(item)
+            space -= size
+        return {**result.data, "results": results}
+
     def get_configuration_errors(self, action: AgentAction) -> dict[str, str]:
         """
         Also require the integration and the table the search reads through, as
-        an Agent has no user to read with, and fixed filter values, as filters are
-        resolved when the call is sent, without its inputs.
+        an Agent has no user to read with, a field of the table that can be
+        searched, and fixed filter values, as filters are resolved when the call
+        is sent, without its inputs.
 
         :param action: The action, with its agent and workspace.
         :return: An error code by field, empty when the action can be called.
@@ -72,11 +107,27 @@ class LocalBaserowSemanticSearchAgentActionType(AgentActionType):
             errors["integration_id"] = "required"
         if not service.table_id:
             errors["table_id"] = "required"
-        elif "integration_id" not in errors and not self._is_table_in_reach(service):
-            errors["table_id"] = "unavailable"
+        elif "integration_id" not in errors:
+            if not self._is_table_in_reach(service):
+                errors["table_id"] = "unavailable"
+            elif not self._has_fields_to_search(service):
+                errors["search_field_ids"] = "unavailable"
         if not self._are_filters_fixed(service):
-            errors["filters"] = "invalid"
+            errors["filters"] = "fixed_value"
         return errors
+
+    def _has_fields_to_search(self, service: LocalBaserowSemanticSearch) -> bool:
+        """
+        :param service: The action's service, with a table in reach.
+        :return: Whether a call would find a field to search in, so that an action
+            that would always fail isn't offered to the model.
+        """
+
+        try:
+            self.service_type.get_fields_to_search(service)
+        except ServiceImproperlyConfiguredDispatchException:
+            return False
+        return True
 
     def _is_table_in_reach(self, service: LocalBaserowSemanticSearch) -> bool:
         """

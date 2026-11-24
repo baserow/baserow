@@ -15,6 +15,7 @@ from baserow.contrib.integrations.local_baserow.integration_types import (
 from baserow.core.registries import application_type_registry
 from baserow.core.trash.handler import TrashHandler
 from baserow_enterprise.integrations.local_baserow.agent_action_types import (
+    SEMANTIC_SEARCH_ACTION_MAX_RESULT_CHARACTERS,
     LocalBaserowSemanticSearchAgentActionType,
 )
 
@@ -126,7 +127,7 @@ def test_a_filter_can_only_hold_fixed_values(data_fixture, search_setup):
     service_filter.value = f"get('tool_input.{action.inputs[0]['id']}')"
     service_filter.save()
     assert action_type.get_configuration_errors(reload(action)) == {
-        "filters": "invalid"
+        "filters": "fixed_value"
     }
 
 
@@ -145,6 +146,53 @@ def test_a_table_out_of_reach_is_unavailable(data_fixture, search_setup):
     assert AgentActionHandler().get_configuration_errors(reload(action)) == {
         "table_id": "unavailable"
     }
+
+
+@pytest.mark.django_db
+def test_a_search_without_a_field_to_search_in_is_left_out(data_fixture, search_setup):
+    user, agent, table, fields, action = search_setup
+    action = configure(data_fixture, user, agent, table, action)
+    FieldHandler().update_field(user, fields[0], semantic_search_enabled=False)
+
+    assert AgentActionHandler().get_configuration_errors(reload(action)) == {
+        "search_field_ids": "unavailable"
+    }
+    assert AgentActionHandler().get_callable_actions(agent) == []
+
+
+@pytest.mark.django_db
+def test_the_model_reads_the_best_matches_whole_and_the_rest_cut(
+    data_fixture, search_setup
+):
+    user, agent, _, _, action = search_setup
+    long_text = "Chocolate cake recipe with flour, sugar and eggs. " * 1000
+    table, fields, _ = data_fixture.build_table(
+        user=user,
+        database=data_fixture.create_database_application(workspace=agent.workspace),
+        columns=[("Document", "long_text")],
+        rows=[[long_text], [long_text], [long_text]],
+    )
+    FieldHandler().update_field(user, fields[0], semantic_search_enabled=True)
+    index(table)
+    action = configure(data_fixture, user, agent, table, action)
+    action_type = LocalBaserowSemanticSearchAgentActionType()
+
+    result = action_type.dispatch(
+        action, action_type.prepare(action, {"query": "chocolate cake"})
+    )
+    tool_result = action_type.get_tool_result(action, result)
+
+    assert len(json.dumps(result.data)) > SEMANTIC_SEARCH_ACTION_MAX_RESULT_CHARACTERS
+    assert tool_result["truncated"] is True
+    assert (
+        len(json.dumps(tool_result, ensure_ascii=False))
+        <= SEMANTIC_SEARCH_ACTION_MAX_RESULT_CHARACTERS + 100
+    )
+    best = tool_result["results"][0]
+    assert best == {**result.data["results"][0], "row": best["row"]}
+    assert best["row"]["Document"].endswith("…")
+    assert long_text.startswith(best["row"]["Document"][:-1])
+    assert len(tool_result["results"]) < len(result.data["results"])
 
 
 @pytest.mark.django_db

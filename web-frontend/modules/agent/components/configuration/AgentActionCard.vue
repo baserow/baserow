@@ -155,6 +155,7 @@
               <component
                 :is="formComponent"
                 ref="form"
+                small
                 :application="agent"
                 :service="action.service"
                 :service-type="serviceType"

@@ -14,6 +14,7 @@ export class LocalBaserowSemanticSearchToolPresentationType extends ActionToolPr
       max_results: 'localBaserowSemanticSearchForm.maxResults',
       integration_id: 'localBaserowServiceForm.integrationDropdownLabel',
       table_id: 'localBaserowTableSelector.tableFieldLabel',
+      search_field_ids: 'localBaserowSemanticSearchForm.fields',
       filters: 'agentSemanticSearch.filters',
     }
   }

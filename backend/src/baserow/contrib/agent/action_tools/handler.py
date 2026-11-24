@@ -142,16 +142,14 @@ class AgentActionHandler:
     def get_callable_actions(self, agent: AgentApplication) -> list[AgentAction]:
         """
         :param agent: The Agent.
-        :return: Its actions the model may call: switched on, of an available
-            type and completely configured.
+        :return: Its actions the model may call: switched on and completely
+            configured, which includes a type usable in the Agent's workspace.
         """
 
-        available = set(self.available_action_types())
         return [
             action
             for action in self.list_actions(agent, only_enabled=True)
-            if action.service.get_type().type in available
-            and not self.get_configuration_errors(action)
+            if not self.get_configuration_errors(action)
         ]
 
     @staticmethod

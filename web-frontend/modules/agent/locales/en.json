@@ -444,6 +444,7 @@
     "actionErrorInvalid": "Invalid value or missing input variable",
     "actionErrorUnavailable": "Unavailable",
     "actionErrorFixedHost": "Start with a fixed address up to the host, as the request sends values you set",
+    "actionErrorFixedValue": "Use fixed values, as input variables can't be used here",
     "actionFieldType": "Action type",
     "actionFieldIntegration": "Integration",
     "actionLimitReached": "This agent has reached its action limit ({limit}).",
