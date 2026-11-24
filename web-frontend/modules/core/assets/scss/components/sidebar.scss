@@ -224,7 +224,6 @@ $sidebar-home-inset: calc(($sidebar-home-size - $sidebar-brand-height) / 2);
   }
 
   .sidebar--collapsed & {
-    position: relative;
     justify-content: center;
     width: 32px;
     padding: 0;
@@ -471,18 +470,11 @@ $sidebar-home-inset: calc(($sidebar-home-size - $sidebar-brand-height) / 2);
 }
 
 .sidebar__unread-notifications-icon {
+  flex: none;
   width: 8px;
   height: 8px;
   border-radius: 100%;
-  background-color: $color-primary-500;
-  margin-left: 4px;
-
-  .sidebar--collapsed .sidebar__account-trigger & {
-    position: absolute;
-    top: 2px;
-    inset-inline-end: 2px;
-    margin: 0;
-  }
+  background-color: $palette-blue-500;
 }
 
 .sidebar__impersonate {

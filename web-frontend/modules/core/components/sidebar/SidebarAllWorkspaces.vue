@@ -28,14 +28,12 @@
       :collapsed="collapsed"
       :width="width"
       :selected-workspace="selectedWorkspace"
-      :has-unread-notifications="unreadNotificationsInAnyWorkspace"
       @set-col1-width="$emit('set-col1-width', $event)"
     ></SidebarFoot>
   </div>
 </template>
 
 <script>
-import { mapGetters } from 'vuex'
 import sidebarTabOrder from '@baserow/modules/core/directives/sidebarTabOrder'
 
 import Logo from '@baserow/modules/core/components/Logo'
@@ -73,9 +71,6 @@ export default {
         .map((plugin) => plugin.getImpersonateComponent())
         .filter((component) => component !== null)
     },
-    ...mapGetters({
-      unreadNotificationsInAnyWorkspace: 'notification/anyWorkspaceWithUnread',
-    }),
   },
 }
 </script>
