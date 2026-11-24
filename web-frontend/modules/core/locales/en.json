@@ -1673,6 +1673,7 @@
     "modelScopeInstance": "Instance",
     "modelScopeWorkspace": "Workspace",
     "noFeatureModels": "No eligible models are available. Edit a model and choose which features may use it.",
+    "noFeatureModelsWithoutProviders": "Add a provider to choose a model for these features.",
     "featureSettingError": "The AI feature setting could not be saved.",
     "featureSettingErrorDescription": "Refresh the page and choose an available model.",
     "modelDiscoveryHelp": "Choose a model from the list or enter any custom identifier.",

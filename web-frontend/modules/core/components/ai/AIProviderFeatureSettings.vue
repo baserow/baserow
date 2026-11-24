@@ -85,7 +85,11 @@
       </Dropdown>
     </div>
     <p v-if="!hasEligibleModels" class="ai-provider-feature-settings__hint">
-      {{ $t('aiProviderAdmin.noFeatureModels') }}
+      {{
+        providers.length === 0
+          ? $t('aiProviderAdmin.noFeatureModelsWithoutProviders')
+          : $t('aiProviderAdmin.noFeatureModels')
+      }}
     </p>
   </section>
 </template>
