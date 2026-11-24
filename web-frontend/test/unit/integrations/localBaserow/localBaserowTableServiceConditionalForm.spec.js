@@ -227,6 +227,46 @@ describe('LocalBaserowTableServiceConditionalForm', () => {
   })
 
   test.each([
+    [undefined, ['tool_input']],
+    [[], []],
+  ])(
+    'filter values read what the host allows them, %s, or else what the form allows',
+    async (filterDataProvidersAllowed, expected) => {
+      const FormulaComponent = defineComponent({
+        props: { dataProvidersAllowed: { type: Array, required: true } },
+        template: `<span class="formula" :data-providers="dataProvidersAllowed.join()" />`,
+      })
+      const wrapper = await mountComponent(
+        {
+          modelValue: [
+            {
+              id: 'filter-1',
+              field: 1,
+              type: 'equal',
+              value: { formula: 'Alice', mode: 'raw' },
+              group: null,
+            },
+          ],
+        },
+        {
+          stubs: { ViewFieldConditionsForm: ViewFieldConditionsFormStub },
+          provide: {
+            formulaComponent: FormulaComponent,
+            dataProvidersAllowed: ['tool_input'],
+            ...(filterDataProvidersAllowed
+              ? { filterDataProvidersAllowed }
+              : {}),
+          },
+        }
+      )
+
+      expect(wrapper.get('.formula').attributes('data-providers')).toBe(
+        expected.join()
+      )
+    }
+  )
+
+  test.each([
     ['raw', undefined, 'raw'],
     ['simple', undefined, 'simple'],
     ['advanced', undefined, 'advanced'],

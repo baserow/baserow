@@ -125,6 +125,17 @@ export default {
     InjectedFormulaInput,
     ViewFieldConditionsForm,
   },
+  inject: {
+    dataProvidersAllowed: { default: null },
+    /** What filter values may read, when a host allows less than elsewhere. */
+    filterDataProvidersAllowed: { default: null },
+  },
+  provide() {
+    return {
+      dataProvidersAllowed:
+        this.filterDataProvidersAllowed ?? this.dataProvidersAllowed,
+    }
+  },
   props: {
     defaultFilterValue: {
       type: Object,

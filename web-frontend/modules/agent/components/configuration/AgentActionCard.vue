@@ -258,6 +258,8 @@ const formComponent = computed(() => {
 provide('formulaComponent', AgentFormulaInput)
 provideWorkspaceAccessLink()
 provide('dataProvidersAllowed', ['tool_input'])
+// Filters are resolved when the call is sent, without its inputs.
+provide('filterDataProvidersAllowed', [])
 provide('workspace', toRef(props, 'workspace'))
 provide(
   'applicationContext',
