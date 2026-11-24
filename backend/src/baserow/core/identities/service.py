@@ -233,31 +233,20 @@ class IdentityService:
 
     @transaction.atomic
     def create_scoped_identity(
-        self,
-        user: AbstractUser,
-        workspace: Workspace,
-        name: str,
-        applications: list,
-        can_change_data: bool,
-        roles: list[tuple[int, str]] | None = None,
+        self, user: AbstractUser, workspace: Workspace, name: str
     ) -> User:
         """
-        Creates an identity with no access to the workspace except the given
-        applications. It's never made a member of the whole workspace: without an
-        extension that can scope it, nothing is created. Unlike `create_identity`,
-        builders may, because the identity can't reach more than they can change.
+        Creates an identity with no access to the workspace, to give access to some
+        applications with `scope_identity`. It's never made a member of the whole
+        workspace: without an extension that can scope it, nothing is created.
+        Unlike `create_identity`, builders may, because the identity can't reach
+        more than they can change.
 
         :param user: The user creating the identity.
         :param workspace: The workspace in which to create the identity.
         :param name: The name of the identity.
-        :param applications: The applications of the workspace it may access.
-        :param can_change_data: Whether it may change them or only read them, when
-            no `roles` are given.
-        :param roles: The role to give on each application, by application id, as
-            exported for the identity of a template.
         :raises PermissionDenied: If no extension can scope the identity for the
-            user, or the user may not create it or change one of the applications.
-        :raises IdentityCannotBeScoped: If the new identity has workspace access.
+            user, or the user may not create it.
         :return: The newly created identity.
         """
 
@@ -267,16 +256,13 @@ class IdentityService:
             workspace=workspace,
             context=workspace,
         )
-        scoper = identity_extension_type_registry.get_application_scoper(
-            user, workspace
-        )
-        if scoper is None:
+        if (
+            identity_extension_type_registry.get_application_scoper(user, workspace)
+            is None
+        ):
             raise PermissionDenied()
         # The default role of an extension that can scope has no workspace access.
         identity = self._create_with_extensions(user, workspace, {"name": name})
-        scoper.scope_to_applications(
-            identity, applications, can_change_data, user, roles=roles
-        )
         return self._send_created(user, workspace, identity)
 
     @transaction.atomic
@@ -285,19 +271,19 @@ class IdentityService:
         user: AbstractUser,
         identity: User,
         applications: list,
-        can_change_data: bool,
-        roles: list[tuple[int, str]] | None = None,
+        roles: list[tuple[int, str]],
     ) -> None:
         """
-        Gives an identity made by `create_scoped_identity` without applications its
-        access to them, once they exist. See `create_scoped_identity`.
+        Gives an identity made by `create_scoped_identity` its access to some
+        applications.
 
         :param user: The user who created the identity.
         :param identity: The identity, which has no access yet.
-        :param applications: The applications of the workspace it may access.
-        :param can_change_data: Whether it may change them or only read them, when
-            no `roles` are given.
-        :param roles: The role to give on each application, by application id.
+        :param applications: The applications of the workspace it may get a role
+            on.
+        :param roles: The role to give on each of them, by application id. An
+            application without one, or with a role that can't be given on a
+            single application, gets none.
         :raises PermissionDenied: If no extension can scope the identity for the
             user, or the user may not scope it or change one of the applications.
         :raises IdentityCannotBeScoped: If the identity has workspace access.
@@ -315,9 +301,7 @@ class IdentityService:
         )
         if scoper is None:
             raise PermissionDenied()
-        scoper.scope_to_applications(
-            identity, applications, can_change_data, user, roles=roles
-        )
+        scoper.scope_to_applications(identity, applications, user, roles)
 
     def can_copy_binding(
         self, workspace: Workspace, import_export_config: ImportExportConfig

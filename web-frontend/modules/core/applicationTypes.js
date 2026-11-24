@@ -142,6 +142,14 @@ export class ApplicationType extends Registerable {
   }
 
   /**
+   * Whether an application of this type in an export file can refer to one of
+   * the identities of the file, which an import then creates.
+   */
+  canReferToExportedIdentities() {
+    return false
+  }
+
+  /**
    * Should return an array where the first element is the describing name of the
    * dependents in singular and the second element in plural. Can be null if there
    * aren't any dependants.

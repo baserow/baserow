@@ -72,6 +72,10 @@ export class AgentApplicationType extends ApplicationType {
     return this.canBeCreated() && application.waits_for_identity === true
   }
 
+  canReferToExportedIdentities() {
+    return this.canBeCreated()
+  }
+
   get developmentStage() {
     return DEVELOPMENT_STAGES.BETA
   }

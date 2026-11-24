@@ -258,7 +258,10 @@ class InstallTemplateJobType(JobType):
             template = handler.get_template(values["template_id"])
             handler.get_valid_template_path_or_raise(template)
 
-        return {"workspace": workspace, "template": template}
+        return {
+            "workspace": workspace,
+            "template": template,
+        }
 
     def enhance_queryset(self, queryset):
         return queryset.select_related(
@@ -288,12 +291,7 @@ class InstallTemplateJobType(JobType):
 
         installed_applications = action_type_registry.get_by_type(
             InstallTemplateActionType
-        ).do(
-            job.user,
-            job.workspace,
-            job.template,
-            progress_builder=progress_builder,
-        )
+        ).do(job.user, job.workspace, job.template, progress_builder=progress_builder)
 
         job.installed_applications = [app.id for app in installed_applications]
         job.save(update_fields=("installed_applications",))

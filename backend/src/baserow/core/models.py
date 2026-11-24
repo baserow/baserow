@@ -1728,8 +1728,9 @@ class IdentityDefinition(CreatedAndUpdatedOnMixin, models.Model):
     # The address of the exported identity. A key that the imported data refers to
     # the identity by, never an address of the new one.
     source_email = models.CharField(max_length=254, null=True)
-    # A list of {"scope_type", "scope_id", "role"} on things of the workspace, or
-    # None when the access of the exported identity couldn't be exported this way.
+    # The role the exported identity had on its workspace, as {"scope_type":
+    # "workspace", "role"}, and those it had on single applications of this one,
+    # as {"scope_type": "application", "scope_id", "role"}.
     roles = models.JSONField(null=True)
 
 

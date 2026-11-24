@@ -41,47 +41,41 @@ class IdentityExtensionType(Instance):
 
         return False
 
-    def scope_to_applications(
-        self, identity, applications, can_change_data, user, roles=None
-    ):
+    def scope_to_applications(self, identity, applications, user, roles):
         """
-        Gives a new identity, which has no access by default, access to the given
-        applications only. Only called when `can_scope_to_applications` is True.
-        The identity must never get more than the user may change.
+        Gives a new identity, which has no access by default, access to some of
+        the given applications only. Only called when `can_scope_to_applications`
+        is True. The identity must never get more than the user may change.
 
         :param identity: The identity to give access to.
-        :param applications: The applications it may access.
-        :param can_change_data: Whether it may change them or only read them, when
-            no `roles` are given.
+        :param applications: The applications it may get a role on.
         :param user: The user who scopes the identity.
-        :param roles: The role uid to give on each application, by application id,
-            as returned by `get_application_roles` for another identity. When given,
-            the applications without one get no role.
+        :param roles: (application id, role uid) pairs: the role to give on each
+            application. The uid is one `get_application_roles` returns, or the
+            role an identity has on a workspace. The applications without a role
+            that can be given on a single application get none.
         :raises IdentityCannotBeScoped: If the identity already has more access.
         """
 
         raise NotImplementedError()
 
-    def get_application_roles(
-        self, identity, user=None
-    ) -> list[tuple[int, str]] | None:
+    def get_application_roles(self, identity) -> list[tuple[int, str]] | None:
         """
-        The roles an identity with no workspace access has on single applications,
-        for an export to recreate them with `scope_to_applications`.
+        The roles an identity has on single applications, beside its role on the
+        workspace, for an export to recreate them with `scope_to_applications`.
 
         :param identity: The identity whose roles are exported.
-        :param user: The user who exports them, if any, who must be allowed to see
-            them.
-        :return: (application id, role uid) pairs, or None when its access can't be
-            exported this way.
+        :return: (application id, role uid) pairs, with the role that gives no
+            access for an application whose roles can't be recreated this way, or
+            None when the extension has no such roles.
         """
 
         return None
 
     def filter_readable_application_roles(self, roles: list, user, workspace) -> list:
         """
-        Leaves out the application roles the user may not read, like the roles of
-        the identity an application waits for, which its exports carry.
+        Leaves out the applications whose roles the user may not read, so that an
+        export doesn't tell them what an identity can reach there.
 
         :param roles: (application id, role uid) pairs.
         :param user: The user who would see them.
@@ -148,17 +142,14 @@ class IdentityExtensionTypeRegistry(Registry[IdentityExtensionType]):
             None,
         )
 
-    def get_application_roles(
-        self, identity, user=None
-    ) -> list[tuple[int, str]] | None:
+    def get_application_roles(self, identity) -> list[tuple[int, str]] | None:
         """
-        :return: The (application id, role uid) pairs that recreate the access of an
-            identity scoped to some applications, or None when no extension can
-            export it.
+        :return: The (application id, role uid) pairs an identity has beside its
+            role on the workspace, or None when no extension has any.
         """
 
         for extension in self.get_all():
-            roles = extension.get_application_roles(identity, user)
+            roles = extension.get_application_roles(identity)
             if roles is not None:
                 return roles
         return None

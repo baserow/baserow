@@ -1,4 +1,3 @@
-from collections import defaultdict
 from typing import Any
 
 from django.contrib.auth.models import AbstractUser
@@ -23,10 +22,48 @@ from baserow.core.utils import exception_capturer, find_unused_name
 # workspace owns and its applications refer to.
 WORKSPACE_OBJECTS = "workspace_objects"
 IDENTITIES = "identities"
+WORKSPACE_SCOPE = "workspace"
 APPLICATION_SCOPE = "application"
+# Written for an application whose roles can't be exported, so that the role on
+# the workspace isn't given on it instead.
+NO_ACCESS_ROLE_UID = "NO_ACCESS"
 # The import's maps, kept in the `id_mapping` the applications are imported with.
+IDENTITIES_MAPPING = "identities"
 DEFINITIONS_MAPPING = "identity_definitions"
 EMAILS_MAPPING = "identity_emails"
+IMPORTER_MAPPING = "identity_importer"
+
+
+def imported_identity(id_mapping: dict, key: Any) -> User | None:
+    """
+    :param id_mapping: The export-to-import id map.
+    :param key: The key an exported application refers to an identity by.
+    :return: The identity this import created for the key, if it did.
+    """
+
+    return (id_mapping.get(IDENTITIES_MAPPING) or {}).get(_usable(key))
+
+
+def imported_identity_definition(
+    id_mapping: dict, key: Any
+) -> IdentityDefinition | None:
+    """
+    :param id_mapping: The export-to-import id map.
+    :param key: The key an exported application refers to an identity by.
+    :return: The definition to wait for, when the identity of the key wasn't
+        created.
+    """
+
+    return (id_mapping.get(DEFINITIONS_MAPPING) or {}).get(_usable(key))
+
+
+def identity_importer(id_mapping: dict) -> AbstractUser | None:
+    """
+    :param id_mapping: The export-to-import id map.
+    :return: The user the identities of this import were created on behalf of.
+    """
+
+    return id_mapping.get(IMPORTER_MAPPING)
 
 
 def imported_identity_emails(id_mapping: dict) -> dict[str, User]:
@@ -37,6 +74,10 @@ def imported_identity_emails(id_mapping: dict) -> dict[str, User]:
     """
 
     return id_mapping.get(EMAILS_MAPPING) or {}
+
+
+def _usable(key: Any) -> str | None:
+    return key if isinstance(key, str) and key else None
 
 
 def delete_unused_identity_definitions(definition_ids: list[int]) -> None:
@@ -55,22 +96,19 @@ def delete_unused_identity_definitions(definition_ids: list[int]) -> None:
 
 class IdentityExport:
     """
-    Collects the identities the exported applications act as, so that they're
+    Collects the identities the exported applications refer to, so that they're
     exported once, beside the applications, and the applications only hold a key.
     """
 
     def __init__(self) -> None:
         self._sources: dict[str, User | IdentityDefinition] = {}
-        self._used_by: dict[str, set[int]] = defaultdict(set)
 
-    def key_for(
-        self, source: User | IdentityDefinition, application: Application
-    ) -> str:
+    def key_for(self, source: User | IdentityDefinition) -> str:
         """
-        Records that the application acts as an identity, or waits for one.
+        Records that an exported application refers to an identity, or waits for
+        one.
 
         :param source: The identity, or the definition of one that doesn't exist yet.
-        :param application: The exported application that refers to it.
         :return: The key the application refers to it by in the export.
         """
 
@@ -78,15 +116,14 @@ class IdentityExport:
         kind = "definition" if isinstance(source, IdentityDefinition) else "identity"
         key = salted_hmac(f"exported-{kind}", str(source.id)).hexdigest()
         self._sources[key] = source
-        self._used_by[key].add(application.id)
         return key
 
     def serialize(
         self, exported_by: AbstractUser | None, application_ids: list[int]
     ) -> dict[str, Any] | None:
         """
-        :param exported_by: The user who exports, if any. The roles they may not
-            read are left out.
+        :param exported_by: The user who exports, if any. An application whose
+            roles they may not read is exported as one the identity can't access.
         :param application_ids: The exported applications. Roles on others are left
             out.
         :return: The part of the export that holds the identities, or None when the
@@ -96,46 +133,96 @@ class IdentityExport:
         identities = []
         for key, source in self._sources.items():
             if isinstance(source, IdentityDefinition):
-                name, email = source.name, source.source_email
-                roles = self._definition_roles(source, exported_by)
+                name, email, workspace = (
+                    source.name,
+                    source.source_email,
+                    source.workspace,
+                )
+                workspace_role, application_roles = _split_roles(source.roles or [])
             else:
                 name, email = source.first_name, source.email
-                roles = identity_extension_type_registry.get_application_roles(
-                    source, exported_by
+                workspace = IdentityHandler.get_workspace(source)
+                workspace_role = IdentityHandler.get_role_uid(source)
+                application_roles = dict(
+                    identity_extension_type_registry.get_application_roles(source) or []
                 )
             identities.append(
                 {
                     "key": key,
                     "name": name,
                     "email": email,
-                    "roles": None
-                    if roles is None
-                    else [
-                        {
-                            "scope_type": APPLICATION_SCOPE,
-                            "scope_id": application_id,
-                            "role": role_uid,
-                        }
-                        for application_id, role_uid in roles
-                        if application_id in application_ids
-                    ],
-                    "used_by": sorted(self._used_by[key]),
+                    "roles": self._roles(
+                        workspace_role,
+                        application_roles,
+                        workspace,
+                        exported_by,
+                        application_ids,
+                    ),
                 }
             )
         return {IDENTITIES: identities} if identities else None
 
     @staticmethod
-    def _definition_roles(
-        definition: IdentityDefinition, exported_by: AbstractUser | None
-    ) -> list | None:
-        if definition.roles is None:
-            return None
-        roles = [(role["scope_id"], role["role"]) for role in definition.roles]
-        if exported_by is None:
-            return roles
-        return identity_extension_type_registry.filter_readable_application_roles(
-            roles, exported_by, definition.workspace
-        )
+    def _roles(
+        workspace_role: str | None,
+        application_roles: dict[int, str],
+        workspace: Workspace,
+        exported_by: AbstractUser | None,
+        application_ids: list[int],
+    ) -> list[dict]:
+        """
+        :return: The role on the workspace, and the role on each exported
+            application that has its own.
+        """
+
+        readable = set(application_ids)
+        if exported_by is not None:
+            readable = {
+                application_id
+                for application_id, _ in (
+                    identity_extension_type_registry.filter_readable_application_roles(
+                        [(application_id, None) for application_id in application_ids],
+                        exported_by,
+                        workspace,
+                    )
+                )
+            }
+        roles = []
+        if workspace_role:
+            roles.append({"scope_type": WORKSPACE_SCOPE, "role": workspace_role})
+        for application_id in sorted(application_ids):
+            if application_id not in readable:
+                # It may have a narrower role there than on the workspace.
+                role = NO_ACCESS_ROLE_UID
+            elif application_id in application_roles:
+                role = application_roles[application_id]
+            else:
+                continue
+            roles.append(
+                {
+                    "scope_type": APPLICATION_SCOPE,
+                    "scope_id": application_id,
+                    "role": role,
+                }
+            )
+        return roles
+
+
+def _split_roles(roles: list[dict]) -> tuple[str | None, dict[int, str]]:
+    """
+    :param roles: The roles of an exported identity, as parsed by an import.
+    :return: Its role on the workspace, and its roles by application id.
+    """
+
+    workspace_role = next(
+        (role["role"] for role in roles if role["scope_type"] == WORKSPACE_SCOPE),
+        None,
+    )
+    return workspace_role, {
+        role["scope_id"]: role["role"]
+        for role in roles
+        if role["scope_type"] == APPLICATION_SCOPE
+    }
 
 
 class IdentityImport:
@@ -143,14 +230,15 @@ class IdentityImport:
     Brings the identities of an export or a template into a workspace, around the
     import of its applications.
 
-    Before the applications, every identity one of them refers to becomes a
-    definition, and the identity itself when the importing user may create it. It
-    has no access yet, and exists first so that the imported data that refers to it
-    resolves to it. After the applications, it gets its roles on them, and the
-    applications that wait for it are made to act as it.
+    Before the applications, every identity one of them refers to is created,
+    when the importing user may. It has no access yet, and exists first so that
+    the imported applications and their data resolve to it like any other
+    reference. An identity that isn't created becomes a definition, which the
+    applications wait for. After the applications, each created identity gets its
+    roles on them.
 
-    A definition whose identity wasn't created stays, and its applications wait.
-    A failure to create an identity never fails the import.
+    A failure to create an identity or to give it its roles never fails the
+    import.
     """
 
     def __init__(
@@ -174,7 +262,10 @@ class IdentityImport:
         self.import_export_config = import_export_config
         self._entries = self._parse(workspace_objects)
         self._definitions: list[IdentityDefinition] = []
-        self._identities: dict[int, User] = {}
+        # The created identities, with the roles they came with.
+        self._identities: list[tuple[User, list[dict]]] = []
+        # The exported ids of the applications that refer to an identity.
+        self._referring: set[int] = set()
 
     @staticmethod
     def _parse(workspace_objects: Any) -> list[dict]:
@@ -188,40 +279,49 @@ class IdentityImport:
             key, name = identity.get("key"), identity.get("name")
             if not (isinstance(key, str) and key and key not in keys):
                 continue
-            if not (isinstance(name, str) and name.strip()):
+            if not (isinstance(name, str) and name.strip() and "\x00" not in name):
                 continue
             keys.add(key)
-            email, roles = identity.get("email"), identity.get("roles")
-            used_by = identity.get("used_by")
+            email = identity.get("email")
+            # Only an address no person can have is a key for an identity.
+            if not (
+                isinstance(email, str)
+                and len(email) <= 254
+                and "\x00" not in email
+                and email.endswith(f"@{IDENTITY_EMAIL_DOMAIN}")
+            ):
+                email = None
             entries.append(
                 {
                     "key": key,
                     "name": name.strip()[:150],
-                    # Only an address no person can have is a key for an identity.
-                    "email": email
-                    if isinstance(email, str)
-                    and email.endswith(f"@{IDENTITY_EMAIL_DOMAIN}")
-                    else None,
-                    "roles": None
-                    if roles is None
-                    else [
-                        role
-                        for role in (roles if isinstance(roles, list) else [])
-                        if isinstance(role, dict)
-                        and role.get("scope_type") == APPLICATION_SCOPE
-                        and type(role.get("scope_id")) is int
-                        and isinstance(role.get("role"), str)
-                    ],
-                    "used_by": {
-                        application_id
-                        for application_id in (
-                            used_by if isinstance(used_by, list) else []
-                        )
-                        if type(application_id) is int
-                    },
+                    "email": email,
+                    "roles": IdentityImport._parse_roles(identity.get("roles")),
                 }
             )
         return entries
+
+    @staticmethod
+    def _parse_roles(serialized: Any) -> list[dict]:
+        roles, has_workspace_role = [], False
+        for role in serialized if isinstance(serialized, list) else []:
+            if not (isinstance(role, dict) and isinstance(role.get("role"), str)):
+                continue
+            if role.get("scope_type") == WORKSPACE_SCOPE and not has_workspace_role:
+                has_workspace_role = True
+                roles.append({"scope_type": WORKSPACE_SCOPE, "role": role["role"]})
+            elif (
+                role.get("scope_type") == APPLICATION_SCOPE
+                and type(role.get("scope_id")) is int
+            ):
+                roles.append(
+                    {
+                        "scope_type": APPLICATION_SCOPE,
+                        "scope_id": role["scope_id"],
+                        "role": role["role"],
+                    }
+                )
+        return roles
 
     def _can_create(self) -> bool:
         from baserow.core.identities.service import IdentityService
@@ -234,21 +334,34 @@ class IdentityImport:
         )
 
     def before_applications(
-        self, id_mapping: dict, applications: list[tuple[int, str]]
+        self, id_mapping: dict, serialized_applications: list[dict]
     ) -> None:
         """
-        Creates the definitions, and the identities the user may create.
+        Creates the identities the applications refer to, or their definitions
+        when the user may not create them.
 
         :param id_mapping: The export-to-import id map, filled in.
-        :param applications: The exported id and the type of every application that
-            is about to be imported.
+        :param serialized_applications: The applications that are about to be
+            imported.
         """
 
+        identities = id_mapping.setdefault(IDENTITIES_MAPPING, {})
         definitions = id_mapping.setdefault(DEFINITIONS_MAPPING, {})
         emails = id_mapping.setdefault(EMAILS_MAPPING, {})
+        id_mapping[IMPORTER_MAPPING] = self.user
         if not self._entries:
             return
-        types = dict(applications)
+        referred = set()
+        for application in serialized_applications:
+            keys = application_type_registry.get(
+                application["type"]
+            ).get_imported_identity_keys(application, self.user)
+            if keys:
+                referred.update(keys)
+                self._referring.add(application.get("id"))
+        entries = [entry for entry in self._entries if entry["key"] in referred]
+        if not entries:
+            return
         can_create = self._can_create()
         names = (
             set(
@@ -259,57 +372,41 @@ class IdentityImport:
             if can_create
             else set()
         )
-        # An application acts as one identity at most, so a file can't make more
-        # identities than it has applications that act as one.
-        limit = sum(
-            application_type_registry.get(type_name).binds_identities
-            for type_name in types.values()
-        )
-        for entry in self._entries:
-            if len(self._definitions) >= limit:
-                break
-            consumer_types = {
-                application_type_registry.get(types[application_id])
-                for application_id in entry["used_by"]
-                if application_id in types
-            }
-            # Nothing that is imported acts as it.
-            if not consumer_types:
-                continue
-            definition = IdentityDefinition.objects.create(
-                workspace=self.workspace,
-                name=entry["name"],
-                source_email=entry["email"],
-                # By exported ids, until the applications exist.
-                roles=entry["roles"],
-            )
-            definitions[entry["key"]] = definition
-            self._definitions.append(definition)
-            if not can_create or not any(
-                consumer_type.can_bind_imported_identities(self.user, self.workspace)
-                for consumer_type in consumer_types
-            ):
-                continue
-            identity = self._create(definition, names)
+        source_emails = set()
+        for entry in entries:
+            # What refers to an address goes to the first identity that had it.
+            email = None if entry["email"] in source_emails else entry["email"]
+            source_emails.add(email)
+            identity = self._create(entry, names) if can_create else None
             if identity is None:
+                definition = IdentityDefinition.objects.create(
+                    workspace=self.workspace,
+                    name=entry["name"],
+                    source_email=email,
+                    # By exported ids, until the applications exist.
+                    roles=entry["roles"],
+                )
+                definitions[entry["key"]] = definition
+                self._definitions.append(definition)
                 continue
             names.add(identity.first_name)
-            self._identities[definition.id] = identity
-            if definition.source_email:
-                emails[definition.source_email] = identity
+            identities[entry["key"]] = identity
+            self._identities.append((identity, entry["roles"]))
+            if email:
+                emails[email] = identity
 
-    def _create(self, definition: IdentityDefinition, names: set[str]) -> User | None:
+    def _create(self, entry: dict, names: set[str]) -> User | None:
         from baserow.core.action.registries import action_type_registry
         from baserow.core.identities.actions import CreateScopedIdentityActionType
 
         # Identity names reach emails, so they get the check of the identities API.
         try:
-            no_url_validation(definition.name)
+            no_url_validation(entry["name"])
         except ValidationError:
             logger.warning(
-                "Not creating the imported identity of definition {}: its name "
-                "can't be the name of an identity.",
-                definition.id,
+                "Not creating the imported identity {}: its name can't be the "
+                "name of an identity.",
+                entry["key"],
             )
             return None
         try:
@@ -319,160 +416,134 @@ class IdentityImport:
                 ).do(
                     self.user,
                     self.workspace,
-                    name=find_unused_name([definition.name], names, max_length=150),
-                    applications=[],
-                    can_change_data=False,
+                    name=find_unused_name([entry["name"]], names, max_length=150),
                 )
         except SoftTimeLimitExceeded:
             raise
         except Exception as error:
-            self._report(definition, error)
+            self._report("create", entry["key"], error)
             return None
 
     @staticmethod
-    def _report(definition: IdentityDefinition, error: Exception) -> None:
+    def _report(step: str, subject: Any, error: Exception) -> None:
         if isinstance(error, (PermissionException, IdentityCannotBeScoped)):
             logger.warning(
-                "Not creating the imported identity of definition {}: {}",
-                definition.id,
-                repr(error),
+                "Could not {} the imported identity {}: {}", step, subject, repr(error)
             )
             return
-        logger.exception(
-            "Could not create the imported identity of definition {}.", definition.id
-        )
+        logger.exception("Could not {} the imported identity {}.", step, subject)
         exception_capturer(error)
 
     def after_applications(
         self, id_mapping: dict, applications: list[Application]
     ) -> None:
         """
-        Gives the created identities their roles on the imported applications, and
-        makes the applications that wait for them act as them.
+        Gives the created identities their roles on the imported applications.
 
         :param id_mapping: The export-to-import id map.
         :param applications: The imported applications.
         """
 
-        if not self._definitions:
-            return
         imported_ids = id_mapping.get("applications") or {}
         for definition in self._definitions:
-            if definition.roles is not None:
-                # Roles on things outside this import are dropped.
-                definition.roles = [
-                    {**role, "scope_id": imported_ids[role["scope_id"]]}
-                    for role in definition.roles
-                    if role["scope_id"] in imported_ids
-                ]
-                definition.save(update_fields=["roles"])
-        by_type = defaultdict(list)
-        for application in applications:
-            by_type[application_type_registry.get_by_model(application)].append(
-                application
+            # Roles on things outside this import are dropped.
+            definition.roles = [
+                {**role, "scope_id": imported_ids[role["scope_id"]]}
+                if role["scope_type"] == APPLICATION_SCOPE
+                else role
+                for role in definition.roles
+                if role["scope_type"] != APPLICATION_SCOPE
+                or role["scope_id"] in imported_ids
+            ]
+            definition.save(update_fields=["roles"])
+        if not self._identities:
+            return
+        # Not the ones that refer to an identity, so that an identity can't change
+        # what it, or another one, is allowed to do.
+        referring = {
+            imported_ids[application_id]
+            for application_id in self._referring
+            if application_id in imported_ids
+        }
+        exported_ids = {new_id: old_id for old_id, new_id in imported_ids.items()}
+        scoped = [
+            application
+            for application in applications
+            if application.id not in referring
+        ]
+        for identity, roles in self._identities:
+            workspace_role, application_roles = _split_roles(roles)
+            self._scope(
+                identity,
+                scoped,
+                [
+                    (
+                        application.id,
+                        # Its own role on the application, or else the one it had
+                        # on the whole workspace.
+                        application_roles.get(
+                            exported_ids.get(application.id), workspace_role
+                        ),
+                    )
+                    for application in scoped
+                ],
             )
-        for definition in self._definitions:
-            identity = self._identities.get(definition.id)
-            if identity is not None and not self._scope_and_bind(
-                definition, identity, by_type
-            ):
-                self._remove(id_mapping, definition, identity)
-        delete_unused_identity_definitions(
-            [definition.id for definition in self._definitions]
-        )
 
-    def _scope_and_bind(
-        self, definition: IdentityDefinition, identity: User, by_type: dict
-    ) -> bool:
-        """
-        :return: Whether an imported application acts as the identity now.
-        """
-
+    def _scope(
+        self,
+        identity: User,
+        applications: list[Application],
+        roles: list[tuple[int, str | None]],
+    ) -> None:
         from baserow.core.identities.service import IdentityService
 
-        needs = [
-            application_type.imported_identity_changes_data(definition, applications)
-            for application_type, applications in by_type.items()
-        ]
         try:
             with transaction.atomic():
                 IdentityService().scope_identity(
                     self.user,
                     identity,
-                    # Not the ones that act as an identity, so that an identity
-                    # can't change what it, or another one, is allowed to do.
-                    [
-                        application
-                        for application_type, applications in by_type.items()
-                        if not application_type.binds_identities
-                        for application in applications
-                    ],
-                    can_change_data=any(needs),
-                    roles=None
-                    if definition.roles is None
-                    else [
-                        (role["scope_id"], role["role"]) for role in definition.roles
-                    ],
-                )
-                # A list, so that every type binds.
-                return any(
-                    [
-                        application_type.bind_imported_identity(
-                            self.user, definition, identity, applications
-                        )
-                        for application_type, applications in by_type.items()
-                    ]
+                    applications,
+                    [(application_id, role) for application_id, role in roles if role],
                 )
         except SoftTimeLimitExceeded:
             raise
         except Exception as error:
-            self._report(definition, error)
-            return False
+            # It keeps no access, which whoever manages identities can change.
+            self._report("give roles to", identity.id, error)
 
     def discard(self, id_mapping: dict) -> None:
         """
-        Deletes the identities and the definitions this import created, when it
-        failed and has no transaction to roll them back with.
+        Trashes the identities this import created, when it failed and has no
+        transaction to roll them back with. Like the applications it did import,
+        which are trashed too, they can be restored. The definitions are kept for
+        the trashed applications that wait for them.
 
         :param id_mapping: The export-to-import id map.
-        """
-
-        for definition in self._definitions:
-            identity = self._identities.pop(definition.id, None)
-            if identity is not None:
-                self._remove(id_mapping, definition, identity)
-        IdentityDefinition.objects.filter(
-            id__in=[definition.id for definition in self._definitions]
-        ).delete()
-        self._definitions = []
-
-    def _remove(
-        self, id_mapping: dict, definition: IdentityDefinition, identity: User
-    ) -> None:
-        """
-        Deletes an identity this import created that nothing acts as, so that it
-        isn't left in the workspace, and records it like its creation. What the
-        imported data attributed to it is left as after any deleted identity.
         """
 
         from baserow.core.action.registries import action_type_registry
         from baserow.core.identities.actions import DeleteIdentityActionType
         from baserow.core.identities.signals import identity_deleted
-        from baserow.core.trash.handler import TrashHandler
 
-        if definition.source_email:
-            id_mapping[EMAILS_MAPPING].pop(definition.source_email, None)
         deleted = action_type_registry.get_by_type(DeleteIdentityActionType)
-        deleted.register_action(
-            user=self.user,
-            params=deleted.Params(
-                self.workspace.id,
-                self.workspace.name,
-                identity.id,
-                identity.first_name,
-            ),
-            scope=deleted.scope(self.workspace.id),
-            workspace=self.workspace,
+        for identity, _ in self._identities:
+            IdentityHandler().delete_identity(self.user, identity)
+            # Recorded like its creation.
+            deleted.register_action(
+                user=self.user,
+                params=deleted.Params(
+                    self.workspace.id,
+                    self.workspace.name,
+                    identity.id,
+                    identity.first_name,
+                ),
+                scope=deleted.scope(self.workspace.id),
+                workspace=self.workspace,
+            )
+            identity_deleted.send(self, user=self.user, identity=identity)
+        self._identities = []
+        for mapping in (IDENTITIES_MAPPING, EMAILS_MAPPING):
+            id_mapping.get(mapping, {}).clear()
+        delete_unused_identity_definitions(
+            [definition.id for definition in self._definitions]
         )
-        identity_deleted.send(self, user=self.user, identity=identity)
-        TrashHandler.permanently_delete(identity.profile)

@@ -89,32 +89,16 @@ class CreateScopedIdentityActionType(ActionType):
         identity_name: str
 
     @classmethod
-    def do(
-        cls,
-        user: AbstractUser,
-        workspace: Workspace,
-        name: str,
-        applications: list,
-        can_change_data: bool,
-        roles: list[tuple[int, str]] | None = None,
-    ) -> User:
+    def do(cls, user: AbstractUser, workspace: Workspace, name: str) -> User:
         """
-        Creates an identity without workspace access that can reach only the given
-        applications, and records who did it. See
-        `IdentityService.create_scoped_identity`. Its roles on the applications are
-        recorded by their own action.
+        Creates an identity without workspace access, and records who did it. See
+        `IdentityService.create_scoped_identity`. The roles it's given on
+        applications afterwards are recorded by their own action.
 
         :return: The newly created identity.
         """
 
-        identity = IdentityService().create_scoped_identity(
-            user,
-            workspace,
-            name=name,
-            applications=applications,
-            can_change_data=can_change_data,
-            roles=roles,
-        )
+        identity = IdentityService().create_scoped_identity(user, workspace, name=name)
         cls.register_action(
             user=user,
             params=cls.Params(

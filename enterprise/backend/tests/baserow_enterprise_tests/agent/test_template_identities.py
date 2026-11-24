@@ -24,7 +24,7 @@ from baserow.core.handler import CoreHandler
 from baserow.core.identities.actions import CreateScopedIdentityActionType
 from baserow.core.identities.exceptions import IdentityCannotBeScoped
 from baserow.core.identities.handler import IdentityHandler
-from baserow.core.identities.import_export import IdentityExport
+from baserow.core.identities.import_export import IdentityExport, imported_identity
 from baserow.core.identities.service import IdentityService
 from baserow.core.import_export.handler import MANIFEST_NAME, ImportExportHandler
 from baserow.core.job_types import InstallTemplateJobType
@@ -32,10 +32,12 @@ from baserow.core.jobs.constants import JOB_FINISHED
 from baserow.core.jobs.handler import JobHandler
 from baserow.core.models import IdentityDefinition, Template, User
 from baserow.core.registries import ImportExportConfig, application_type_registry
+from baserow.core.snapshots.handler import SnapshotHandler
 from baserow.core.storage import get_default_storage
 from baserow.core.subjects import UserSubjectType
 from baserow.core.trash.handler import TrashHandler
 from baserow.core.user_templates.handler import UserTemplateHandler
+from baserow.core.utils import Progress
 from baserow_enterprise.audit_log.models import AuditLogEntry
 from baserow_enterprise.exceptions import ScopeNotExist
 from baserow_enterprise.identities.identity_extension_types import (
@@ -83,7 +85,7 @@ def make_agent(fixture, workspace, name, tools, identity=None):
         provider_type="openai",
         model_identifier="test-model",
     )
-    # With workspace access, its roles aren't exported, so the tools pick them.
+    # With workspace access, it gets that role on each installed application.
     identity = identity or fixture.create_identity(
         workspace=workspace, name="Author", role_uid="BUILDER"
     )
@@ -274,6 +276,18 @@ def referring_to(identity) -> dict:
     }
 
 
+def role_on(application, role_uid) -> dict:
+    return {
+        "scope_type": "application",
+        "scope_id": application.id,
+        "role": role_uid,
+    }
+
+
+def workspace_role(role_uid) -> dict:
+    return {"scope_type": "workspace", "role": role_uid}
+
+
 def roles_of(identity):
     return set(
         RoleAssignment.objects.filter(subject_id=identity.id).values_list(
@@ -362,24 +376,63 @@ def test_install_scopes_a_new_identity_to_the_template_applications(
 
 
 @pytest.mark.django_db(transaction=True)
-def test_an_agent_that_only_reads_gets_a_viewer_identity(
-    enterprise_data_fixture, admin, settings, tmp_path
+@pytest.mark.parametrize("role_uid", ["VIEWER", "COMMENTER", "EDITOR", "BUILDER"])
+def test_an_identity_with_workspace_access_gets_its_role_on_each_application(
+    enterprise_data_fixture, admin, settings, tmp_path, role_uid
 ):
-    template = sync_template(
-        enterprise_data_fixture, settings, tmp_path, [READ_TOOLS, WRITE_TOOLS]
+    source = enterprise_data_fixture.create_workspace()
+    database = enterprise_data_fixture.create_database_application(
+        workspace=source, name="CRM"
     )
+    site = enterprise_data_fixture.create_builder_application(
+        workspace=source, name="Site"
+    )
+    author = enterprise_data_fixture.create_identity(
+        workspace=source, name="Author", role_uid=role_uid
+    )
+    # Tools that change data don't make it a builder.
+    agent = make_agent(enterprise_data_fixture, source, "Helper", WRITE_TOOLS, author)
+    template = sync_applications(settings, tmp_path, [database, site, agent])
     workspace = enterprise_data_fixture.create_workspace(user=admin)
 
     install(admin, workspace, template)
 
-    database = Database.objects.get(workspace=workspace)
-    reader, writer = AgentApplication.objects.filter(workspace=workspace).order_by(
-        "name"
+    identity = run_identity(AgentApplication.objects.get(workspace=workspace))
+    assert IdentityHandler.get_role_uid(identity) == "NO_ACCESS"
+    assert roles_of(identity) == {
+        (Database.objects.get(workspace=workspace).id, role_uid),
+        (Builder.objects.get(workspace=workspace).id, role_uid),
+    }
+
+
+@pytest.mark.django_db(transaction=True)
+def test_the_roles_of_an_identity_with_workspace_access_on_single_applications_win(
+    enterprise_data_fixture, admin, settings, tmp_path
+):
+    source = enterprise_data_fixture.create_workspace()
+    crm, ops, hidden = [
+        enterprise_data_fixture.create_database_application(workspace=source, name=name)
+        for name in ("CRM", "Ops", "Hidden")
+    ]
+    author = enterprise_data_fixture.create_identity(
+        workspace=source, name="Author", role_uid="BUILDER"
     )
-    reader_identity, writer_identity = run_identity(reader), run_identity(writer)
-    assert reader_identity.id != writer_identity.id
-    assert roles_of(reader_identity) == {(database.id, "VIEWER")}
-    assert roles_of(writer_identity) == {(database.id, "BUILDER")}
+    for scope, uid in ((crm, "VIEWER"), (hidden, "NO_ACCESS")):
+        RoleAssignmentHandler().assign_role(
+            author, source, role=Role.objects.get(uid=uid), scope=scope.application_ptr
+        )
+    agent = make_agent(enterprise_data_fixture, source, "Helper", WRITE_TOOLS, author)
+    template = sync_applications(settings, tmp_path, [crm, ops, hidden, agent])
+    workspace = enterprise_data_fixture.create_workspace(user=admin)
+
+    install(admin, workspace, template)
+
+    identity = run_identity(AgentApplication.objects.get(workspace=workspace))
+    # Builder only where it had no role of its own, and nothing on the hidden one.
+    assert roles_of(identity) == {
+        (Database.objects.get(workspace=workspace, name="CRM").id, "VIEWER"),
+        (Database.objects.get(workspace=workspace, name="Ops").id, "BUILDER"),
+    }
 
 
 @pytest.mark.django_db(transaction=True)
@@ -463,11 +516,8 @@ def test_an_installer_without_the_permission_leaves_the_agent_waiting(
     assert agent.identity_definition_id == definition.id
     assert definition.name == "Author"
     assert definition.roles == [
-        {
-            "scope_type": "application",
-            "scope_id": Database.objects.get(workspace=workspace).id,
-            "role": "VIEWER",
-        }
+        workspace_role("NO_ACCESS"),
+        role_on(Database.objects.get(workspace=workspace), "VIEWER"),
     ]
 
 
@@ -484,16 +534,16 @@ def test_scoping_refuses_an_application_the_installer_cant_update(
         builder, workspace, role=Role.objects.get(uid="NO_ACCESS"), scope=hidden
     )
 
+    identity = IdentityService().create_scoped_identity(
+        builder, workspace, name="Helper"
+    )
+
     with pytest.raises(PermissionException):
-        IdentityService().create_scoped_identity(
-            builder,
-            workspace,
-            name="Helper",
-            applications=[hidden],
-            can_change_data=True,
+        IdentityService().scope_identity(
+            builder, identity, [hidden], [(hidden.id, "VIEWER")]
         )
 
-    assert not IdentityHandler().get_queryset(workspace).exists()
+    assert roles_of(identity) == set()
 
 
 @pytest.mark.django_db(transaction=True)
@@ -682,11 +732,9 @@ def test_a_malformed_identities_section_is_ignored(
         {"name": None},
         {"name": "  "},
         {"name": ["Author"]},
-        # Nothing that is installed acts as it.
-        {"used_by": "x"},
-        {"used_by": []},
-        {"used_by": ["1"]},
-        {"used_by": [999999]},
+        {"name": "Auth\x00r"},
+        # Nothing that is installed refers to it.
+        {"key": "another"},
     ],
 )
 def test_a_malformed_exported_identity_is_ignored(
@@ -713,9 +761,8 @@ def test_a_malformed_exported_identity_is_ignored(
 @pytest.mark.parametrize(
     "roles,expected_role",
     [
-        # No roles were exported, so the identity gets the role its tools need.
-        (None, "BUILDER"),
         # Roles that can't be read give no access.
+        (None, None),
         ("x", None),
         ({"a": 1}, None),
         (["x", [1, "VIEWER"]], None),
@@ -732,6 +779,8 @@ def test_a_malformed_exported_identity_is_ignored(
             None,
         ),
         ([{"scope_type": "application", "scope_id": 999999, "role": "VIEWER"}], None),
+        ([{"scope_type": "workspace", "role": "NO_ROLE"}], None),
+        ([{"scope_type": "workspace", "role": ["EDITOR"]}], None),
         # What can be read is kept.
         (
             [
@@ -739,6 +788,37 @@ def test_a_malformed_exported_identity_is_ignored(
                 {"scope_type": "application", "scope_id": DATABASE, "role": "VIEWER"},
             ],
             "VIEWER",
+        ),
+        # The role on the workspace is given on the application.
+        ([{"scope_type": "workspace", "role": "EDITOR"}], "EDITOR"),
+        # A member of a workspace without roles can change its applications.
+        ([{"scope_type": "workspace", "role": "MEMBER"}], "BUILDER"),
+        # Only the first role on the workspace counts.
+        (
+            [
+                {"scope_type": "workspace", "role": "VIEWER"},
+                {"scope_type": "workspace", "role": "ADMIN"},
+            ],
+            "VIEWER",
+        ),
+        # Unless the application has its own, also one that gives no access.
+        (
+            [
+                {"scope_type": "workspace", "role": "BUILDER"},
+                {"scope_type": "application", "scope_id": DATABASE, "role": "VIEWER"},
+            ],
+            "VIEWER",
+        ),
+        (
+            [
+                {"scope_type": "workspace", "role": "BUILDER"},
+                {
+                    "scope_type": "application",
+                    "scope_id": DATABASE,
+                    "role": "NO_ACCESS",
+                },
+            ],
+            None,
         ),
     ],
 )
@@ -802,7 +882,7 @@ def test_an_old_template_file_installs_with_the_agent_waiting(
 
 
 @pytest.mark.django_db(transaction=True)
-def test_an_identity_with_workspace_access_exports_no_roles(
+def test_an_identity_is_exported_once_beside_the_applications(
     enterprise_data_fixture, admin
 ):
     source = enterprise_data_fixture.create_workspace(user=admin)
@@ -820,15 +900,13 @@ def test_an_identity_with_workspace_access_exports_no_roles(
 
     (_, serialized), workspace_objects = export_for_template([database, agent])
 
-    # Without roles, an install falls back to the roles the tools need.
     assert workspace_objects == {
         "identities": [
             {
                 "key": serialized["run_as_identity_key"],
                 "name": "Author",
                 "email": identity.email,
-                "roles": None,
-                "used_by": [agent.id],
+                "roles": [workspace_role("BUILDER"), role_on(database, "VIEWER")],
             }
         ]
     }
@@ -862,10 +940,15 @@ def test_exported_identity_roles_need_permission_to_read_them(
         return workspace_objects["identities"][0]["roles"]
 
     assert exported_roles(admin) == [
-        {"scope_type": "application", "scope_id": database.id, "role": "VIEWER"}
+        workspace_role("NO_ACCESS"),
+        role_on(database, "VIEWER"),
     ]
-    # Left out, so an install gives no access rather than the tools' defaults.
-    assert exported_roles(builder) == []
+    # Hidden, and exported as no access so an install gives none there.
+    assert exported_roles(builder) == [
+        workspace_role("NO_ACCESS"),
+        role_on(database, "NO_ACCESS"),
+        role_on(agent, "NO_ACCESS"),
+    ]
 
 
 @pytest.mark.django_db(transaction=True)
@@ -878,7 +961,7 @@ def test_roles_on_applications_that_arent_exported_are_left_out(
 
     _, workspace_objects = export_for_template([agent])
 
-    assert workspace_objects["identities"][0]["roles"] == []
+    assert workspace_objects["identities"][0]["roles"] == [workspace_role("NO_ACCESS")]
 
 
 @pytest.mark.django_db(transaction=True)
@@ -904,7 +987,49 @@ def test_an_application_with_table_roles_isnt_exported(enterprise_data_fixture, 
 
     # Editor on all of the CRM would reach the table the identity can't.
     assert workspace_objects["identities"][0]["roles"] == [
-        {"scope_type": "application", "scope_id": ops.id, "role": "EDITOR"}
+        workspace_role("NO_ACCESS"),
+        role_on(crm, "NO_ACCESS"),
+        role_on(ops, "EDITOR"),
+    ]
+
+
+@pytest.mark.django_db(transaction=True)
+def test_an_application_a_team_of_the_identity_has_a_say_on_isnt_exported(
+    enterprise_data_fixture, admin
+):
+    source = enterprise_data_fixture.create_workspace(user=admin)
+    crm, ops, wiki, docs = [
+        enterprise_data_fixture.create_database_application(workspace=source)
+        for _ in range(4)
+    ]
+    salaries = enterprise_data_fixture.create_database_table(database=crm)
+    identity = enterprise_data_fixture.create_identity(
+        workspace=source, role_uid="BUILDER"
+    )
+    team = enterprise_data_fixture.create_team(workspace=source, members=[identity])
+    handler = RoleAssignmentHandler()
+    for scope in (crm.application_ptr, ops.application_ptr):
+        handler.assign_role(
+            identity, source, role=Role.objects.get(uid="EDITOR"), scope=scope
+        )
+    # On a table of an application, on one where the identity has its own role,
+    # and on one where it has none.
+    for scope in (salaries, ops.application_ptr, wiki.application_ptr):
+        handler.assign_role(
+            team, source, role=Role.objects.get(uid="VIEWER"), scope=scope
+        )
+    agent = make_agent(enterprise_data_fixture, source, "Helper", WRITE_TOOLS, identity)
+
+    _, workspace_objects = export_for_template([crm, ops, wiki, docs, agent])
+
+    assert workspace_objects["identities"][0]["roles"] == [
+        workspace_role("BUILDER"),
+        # The team only views a table of it.
+        role_on(crm, "NO_ACCESS"),
+        # Its own role counts before the team's.
+        role_on(ops, "EDITOR"),
+        # The team narrows the role on the workspace.
+        role_on(wiki, "NO_ACCESS"),
     ]
 
 
@@ -936,59 +1061,39 @@ def test_without_the_agent_builder_the_agent_keeps_waiting(
     job = install(admin, workspace, template)
 
     assert job.state == JOB_FINISHED
-    assert_waits(AgentApplication.objects.get(workspace=workspace))
+    assert_waits(
+        AgentApplication.objects.get(workspace=workspace), with_definition=False
+    )
     assert not IdentityHandler().get_queryset(workspace).exists()
 
 
 @pytest.mark.django_db(transaction=True)
-def test_a_failed_role_assignment_keeps_the_agent_pending_and_installs(
+def test_a_failed_role_assignment_leaves_the_identity_without_access(
     enterprise_data_fixture, admin, settings, tmp_path
 ):
     template = sync_template(enterprise_data_fixture, settings, tmp_path, [WRITE_TOOLS])
     workspace = enterprise_data_fixture.create_workspace(user=admin)
+    error = Role.DoesNotExist("boom")
 
-    with patch.object(
-        RoleAssignmentHandler,
-        "assign_role_batch",
-        side_effect=Role.DoesNotExist("boom"),
+    with (
+        patch.object(RoleAssignmentHandler, "assign_role_batch", side_effect=error),
+        patch("baserow.core.identities.import_export.exception_capturer") as capturer,
     ):
         job = install(admin, workspace, template)
 
     assert job.state == JOB_FINISHED
-    agent = AgentApplication.objects.get(workspace=workspace)
+    capturer.assert_called_once_with(error)
     assert Database.objects.filter(workspace=workspace).exists()
-    # It still waits, so the identity can be picked by hand.
-    assert_waits(agent)
-    assert agent.pending_tool_choices == WRITE_CHOICES
-    assert not RoleAssignment.objects.filter(
-        workspace=workspace,
-        subject_id__in=IdentityHandler().get_queryset(workspace).values("id"),
-    ).exists()
+    # The Agent acts as it, and whoever manages identities gives it its access.
+    identity = run_identity(AgentApplication.objects.get(workspace=workspace))
+    assert roles_of(identity) == set()
 
 
 @pytest.mark.django_db(transaction=True)
-def test_a_failed_role_assignment_leaves_no_identity_behind(
+def test_an_agent_without_tools_gets_its_identity_too(
     enterprise_data_fixture, admin, settings, tmp_path
 ):
-    template = sync_template(enterprise_data_fixture, settings, tmp_path, [WRITE_TOOLS])
-    workspace = enterprise_data_fixture.create_workspace(user=admin)
-
-    with patch.object(
-        RoleAssignmentHandler,
-        "assign_role_batch",
-        side_effect=Role.DoesNotExist("boom"),
-    ):
-        install(admin, workspace, template)
-
-    # Nothing acts as it, so it would only be clutter.
-    assert not IdentityHandler().get_queryset(workspace).exists()
-
-
-@pytest.mark.django_db(transaction=True)
-def test_an_agent_without_tools_leaves_no_identity_behind(
-    enterprise_data_fixture, admin, settings, tmp_path
-):
-    # Its Agent has nothing to turn on, so it isn't made to act as an identity.
+    # Its triggers need the identity as much as tools do.
     template = sync_template(
         enterprise_data_fixture,
         settings,
@@ -1002,12 +1107,35 @@ def test_an_agent_without_tools_leaves_no_identity_behind(
 
     assert job.state == JOB_FINISHED, job.human_readable_error
     agent = AgentApplication.objects.get(workspace=workspace)
-    acting_as = {agent.run_as_subject_id} - {None}
-    assert (
-        set(IdentityHandler().get_queryset(workspace).values_list("id", flat=True))
-        == acting_as
-    )
+    assert roles_of(run_identity(agent)) == {
+        (Database.objects.get(workspace=workspace).id, "EDITOR")
+    }
+    assert agent.pending_tool_choices is None
     assert not IdentityDefinition.objects.filter(workspace=workspace).exists()
+
+
+@pytest.mark.django_db(transaction=True)
+def test_an_agent_without_tools_waits_for_its_identity_too(
+    enterprise_data_fixture, admin, settings, tmp_path
+):
+    template = sync_template(
+        enterprise_data_fixture,
+        settings,
+        tmp_path,
+        [([], [])],
+        source_roles={"CRM": "EDITOR"},
+    )
+    workspace = enterprise_data_fixture.create_workspace(user=admin)
+
+    (agent,) = install_waiting(admin, workspace, template)
+
+    assert agent.run_as_subject_id is None
+    assert agent.identity_definition_id is not None
+    # A template saved from it carries the identity on.
+    (serialized,), workspace_objects = export_for_template([agent])
+    assert [identity["key"] for identity in workspace_objects["identities"]] == [
+        serialized["run_as_identity_key"]
+    ]
 
 
 @pytest.mark.django_db(transaction=True)
@@ -1058,7 +1186,9 @@ def test_a_user_template_install_scopes_identities_too(enterprise_data_fixture, 
     installed = AgentApplication.objects.get(workspace=target)
     identity = run_identity(installed)
     assert identity.first_name == "Author"
-    assert roles_of(identity) == {(Database.objects.get(workspace=target).id, "VIEWER")}
+    assert roles_of(identity) == {
+        (Database.objects.get(workspace=target).id, "BUILDER")
+    }
     assert installed.pending_tool_choices is None
     assert not IdentityDefinition.objects.filter(workspace=target).exists()
     # The template keeps its own, for the next install.
@@ -1088,7 +1218,7 @@ def test_a_user_template_install_recreates_the_template_identity_roles(
             )
         ],
     )
-    # Tools that change data, so the fallback would give builder on both databases.
+    # Tools that change data don't give it more than it had.
     agent = make_agent(enterprise_data_fixture, source, "Helper", WRITE_TOOLS, identity)
     copy = UserTemplateHandler().copy_applications(
         admin, [crm, ops, agent], name="Copy"
@@ -1106,6 +1236,29 @@ def test_a_user_template_install_recreates_the_template_identity_roles(
     assert roles_of(run_identity(installed)) == {
         (Database.objects.get(workspace=target, name="CRM").id, "VIEWER")
     }
+
+
+@pytest.mark.django_db(transaction=True)
+@pytest.mark.parametrize(
+    "email",
+    [f"{'a' * 300}@identities.invalid", "a\x00b@identities.invalid", 1, ["x"]],
+)
+def test_an_address_that_cant_be_stored_is_left_out(
+    enterprise_data_fixture, admin, settings, tmp_path, email
+):
+    template = sync_template(enterprise_data_fixture, settings, tmp_path, [WRITE_TOOLS])
+    edit_template(
+        tmp_path,
+        lambda content: content["workspace_objects"]["identities"][0].update(
+            email=email
+        ),
+    )
+    workspace = enterprise_data_fixture.create_workspace(user=admin)
+
+    (agent,) = install_waiting(admin, workspace, template)
+
+    assert_waits(agent)
+    assert IdentityDefinition.objects.get(workspace=workspace).source_email is None
 
 
 @pytest.mark.django_db(transaction=True)
@@ -1210,7 +1363,7 @@ def test_an_identity_with_access_cant_be_scoped(enterprise_data_fixture, admin):
 
     with pytest.raises(IdentityCannotBeScoped):
         EnterpriseIdentityExtensionType().scope_to_applications(
-            identity, [database], False, admin
+            identity, [database], admin, [(database.id, "VIEWER")]
         )
 
 
@@ -1268,11 +1421,13 @@ def test_the_roles_of_an_agent_waiting_for_an_identity_need_permission_to_read_t
         "name": "Waiting",
         "email": None,
         "roles": viewer,
-        "used_by": [agent.id],
     }
     assert exported(admin)["roles"] == viewer
-    # Left out, so an install gives no access rather than the tools' defaults.
-    assert exported(builder)["roles"] == []
+    # Hidden, and exported as no access so an install gives none there.
+    assert exported(builder)["roles"] == [
+        role_on(database, "NO_ACCESS"),
+        role_on(agent, "NO_ACCESS"),
+    ]
 
 
 @pytest.mark.django_db(transaction=True)
@@ -1308,7 +1463,7 @@ def test_agents_of_the_same_identity_share_one_new_identity(
 
 
 @pytest.mark.django_db(transaction=True)
-def test_agents_sharing_an_identity_with_workspace_access_get_the_widest_default(
+def test_agents_sharing_an_identity_with_workspace_access_share_one_too(
     enterprise_data_fixture, admin, settings, tmp_path
 ):
     source = enterprise_data_fixture.create_workspace()
@@ -1388,9 +1543,9 @@ def test_waiting_installs_of_the_same_template_dont_share_a_definition(
         [first, second]
     )
     assert first_export["run_as_identity_key"] != second_export["run_as_identity_key"]
-    assert [identity["used_by"] for identity in workspace_objects["identities"]] == [
-        [first.id],
-        [second.id],
+    assert [identity["key"] for identity in workspace_objects["identities"]] == [
+        first_export["run_as_identity_key"],
+        second_export["run_as_identity_key"],
     ]
 
 
@@ -1452,7 +1607,6 @@ def test_the_exported_key_doesnt_hold_the_id_of_the_identity(
     # Exported once, for both Agents.
     (exported,) = workspace_objects["identities"]
     assert exported["key"] == first["run_as_identity_key"]
-    assert exported["used_by"] == sorted(agent.id for agent in agents)
 
 
 @pytest.mark.django_db(transaction=True)
@@ -1538,14 +1692,7 @@ def test_a_file_import_recreates_the_identity(enterprise_data_fixture, admin):
                 "key": ANY,
                 "name": "Author",
                 "email": author.email,
-                "roles": [
-                    {
-                        "scope_type": "application",
-                        "scope_id": database.id,
-                        "role": "EDITOR",
-                    }
-                ],
-                "used_by": [agent.id],
+                "roles": [workspace_role("NO_ACCESS"), role_on(database, "EDITOR")],
             }
         ]
     }
@@ -1612,7 +1759,9 @@ def test_an_identity_of_an_application_that_isnt_imported_isnt_created(
     assert [
         identity.first_name for identity in IdentityHandler().get_queryset(target)
     ] == ["Kept"]
-    assert roles_of(identity) == {(Database.objects.get(workspace=target).id, "VIEWER")}
+    assert roles_of(identity) == {
+        (Database.objects.get(workspace=target).id, "BUILDER")
+    }
     assert not IdentityDefinition.objects.filter(workspace=target).exists()
 
 
@@ -1709,44 +1858,113 @@ def test_a_definition_is_deleted_when_an_identity_is_picked_by_hand(
 
 
 @pytest.mark.django_db(transaction=True)
-def test_another_application_type_shares_the_identity_of_an_agent(
+def test_an_application_of_another_type_can_refer_to_several_identities(
     enterprise_data_fixture, admin, settings, tmp_path
 ):
     database, site, agent = make_source(
         enterprise_data_fixture, [READ_TOOLS], with_site=True
     )
     author = run_identity(agent)
+    editor = enterprise_data_fixture.create_identity(
+        workspace=site.workspace, name="Editor", role_uid="EDITOR"
+    )
     site_type = application_type_registry.get_by_model(site)
-    export_site = site_type.export_serialized
+    export_site, import_site = site_type.export_serialized, site_type.import_serialized
+    resolved = []
 
-    def export_acting_as_the_author(application, config, *args, **kwargs):
+    def export_referring(application, config, *args, **kwargs):
         serialized = export_site(application, config, *args, **kwargs)
-        serialized["acts_as"] = config.identity_export.key_for(author, application)
+        serialized["acts_as"] = [
+            config.identity_export.key_for(identity) for identity in (author, editor)
+        ]
         return serialized
 
-    # A site that acts as the identity of the Agent, only in this test.
-    with patch.object(site_type, "export_serialized", export_acting_as_the_author):
+    def import_resolving(workspace, serialized, config, id_mapping, *args, **kwargs):
+        resolved.extend(
+            imported_identity(id_mapping, key) for key in serialized["acts_as"]
+        )
+        return import_site(workspace, serialized, config, id_mapping, *args, **kwargs)
+
+    # A site that refers to the identity of the Agent and to one of its own, only
+    # in this test.
+    with patch.object(site_type, "export_serialized", export_referring):
         export, workspace_objects = export_for_template([database, site, agent])
-    (exported,) = workspace_objects["identities"]
-    assert exported["used_by"] == sorted([site.id, agent.id])
+    assert len(workspace_objects["identities"]) == 2
     write_template(tmp_path, "agent-kit", export, workspace_objects)
     settings.APPLICATION_TEMPLATES_DIR = str(tmp_path)
     CoreHandler().sync_templates(pattern="agent-kit")
     workspace = enterprise_data_fixture.create_workspace(user=admin)
 
-    with patch.object(site_type, "bind_imported_identity") as bind_site:
+    with (
+        patch.object(
+            site_type,
+            "get_imported_identity_keys",
+            lambda serialized, imported_by: set(serialized["acts_as"]),
+        ),
+        patch.object(site_type, "import_serialized", import_resolving),
+    ):
         job = install(admin, workspace, Template.objects.get(slug="agent-kit"))
 
     assert job.state == JOB_FINISHED, job.human_readable_error
     identity = run_identity(AgentApplication.objects.get(workspace=workspace))
-    assert IdentityHandler().get_queryset(workspace).count() == 1
-    new_site = Builder.objects.get(workspace=workspace)
-    # The site is handed the identity the Agent acts as.
-    bind_site.assert_called_once_with(admin, ANY, identity, [new_site])
-    assert roles_of(identity) == {
-        (Database.objects.get(workspace=workspace).id, "VIEWER"),
-        (new_site.id, "VIEWER"),
-    }
+    # The site resolves both, and the first is the one the Agent acts as.
+    assert [identity.first_name for identity in resolved] == ["Author", "Editor"]
+    assert resolved[0].id == identity.id
+    assert IdentityHandler().get_queryset(workspace).count() == 2
+    # No role on the site, which refers to an identity like the Agent does.
+    database_id = Database.objects.get(workspace=workspace).id
+    assert roles_of(resolved[0]) == {(database_id, "BUILDER")}
+    assert roles_of(resolved[1]) == {(database_id, "EDITOR")}
+
+
+@pytest.mark.django_db(transaction=True)
+def test_what_refers_to_an_address_two_identities_share_goes_to_the_first(
+    enterprise_data_fixture, admin, settings, tmp_path
+):
+    source = enterprise_data_fixture.create_workspace()
+    author = enterprise_data_fixture.create_identity(
+        workspace=source, name="Author", role_uid="BUILDER"
+    )
+    database = database_referring_to(enterprise_data_fixture, source, author)
+    first, second = [
+        make_agent(
+            enterprise_data_fixture,
+            source,
+            name,
+            READ_TOOLS,
+            identity,
+        )
+        for name, identity in (
+            ("First", author),
+            (
+                "Second",
+                enterprise_data_fixture.create_identity(
+                    workspace=source, name="Other", role_uid="BUILDER"
+                ),
+            ),
+        )
+    ]
+    template = sync_applications(settings, tmp_path, [database, first, second])
+
+    def share_the_address(content):
+        identities = content["workspace_objects"]["identities"]
+        # The second identity says it had the address of the first.
+        identities[1]["email"] = author.email
+        # So does one that nothing refers to, which doesn't count.
+        identities.insert(0, {**identities[0], "key": "unused", "name": "Unused"})
+
+    edit_template(tmp_path, share_the_address)
+    workspace = enterprise_data_fixture.create_workspace(user=admin)
+
+    job = install(admin, workspace, template)
+
+    assert job.state == JOB_FINISHED, job.human_readable_error
+    agents = AgentApplication.objects.filter(workspace=workspace).order_by("name")
+    identity, other = [run_identity(agent) for agent in agents]
+    assert identity.id != other.id
+    assert references_of(Database.objects.get(workspace=workspace)) == referring_to(
+        identity
+    )
 
 
 @pytest.mark.django_db(transaction=True)
@@ -1773,7 +1991,11 @@ def test_a_failed_file_import_leaves_no_identity_behind(enterprise_data_fixture,
     ):
         import_zip(admin, target, export_path)
 
+    # Trashed, like the applications of a failed import.
     assert not IdentityHandler().get_queryset(target).exists()
+    assert User.objects_and_identities.filter(
+        profile__trashed=True, first_name="Author", workspaceuser__workspace=target
+    ).exists()
     assert not IdentityDefinition.objects.filter(workspace=target).exists()
     assert list(
         AuditLogEntry.objects.filter(
@@ -1785,7 +2007,7 @@ def test_a_failed_file_import_leaves_no_identity_behind(enterprise_data_fixture,
 
 
 @pytest.mark.django_db(transaction=True)
-def test_a_file_cant_make_more_identities_than_it_has_agents(
+def test_identities_nothing_refers_to_arent_created(
     enterprise_data_fixture, admin, settings, tmp_path
 ):
     template = sync_template(
@@ -1843,6 +2065,36 @@ def test_a_duplicate_of_a_waiting_agent_waits_for_the_same_identity(
 
 
 @pytest.mark.django_db(transaction=True)
+def test_a_restored_snapshot_of_a_waiting_agent_waits_for_the_same_identity(
+    enterprise_data_fixture, admin, settings, tmp_path
+):
+    template = sync_template(
+        enterprise_data_fixture,
+        settings,
+        tmp_path,
+        [READ_TOOLS],
+        source_roles={"CRM": "VIEWER"},
+    )
+    workspace = enterprise_data_fixture.create_workspace(user=admin)
+    (agent,) = install_waiting(admin, workspace, template)
+    snapshot = enterprise_data_fixture.create_snapshot(
+        snapshot_from_application=agent, name=agent.name, created_by=admin
+    )
+    snapshots = SnapshotHandler()
+
+    # A snapshot is taken into no workspace.
+    snapshots.perform_create(snapshot, Progress(total=100))
+    snapshot.refresh_from_db()
+    restored = snapshots.perform_restore(
+        snapshot, Progress(total=100), restored_by=admin
+    )
+
+    restored = AgentApplication.objects.get(id=restored.id)
+    assert restored.identity_definition_id == agent.identity_definition_id
+    assert_waits(restored)
+
+
+@pytest.mark.django_db(transaction=True)
 def test_a_waiting_agent_says_it_came_with_an_identity(
     enterprise_data_fixture, admin, settings, tmp_path
 ):
@@ -1856,8 +2108,8 @@ def test_a_waiting_agent_says_it_came_with_an_identity(
     workspace = enterprise_data_fixture.create_workspace(user=admin)
     install_waiting(admin, workspace, template)
 
-    # The Agent without tools has nothing to turn on, so no identity came with it.
+    # Also the one without tools, whose triggers need the identity.
     assert {
         agent.name: AgentApplicationSerializer(agent).data["waits_for_identity"]
         for agent in AgentApplication.objects.filter(workspace=workspace)
-    } == {"Agent 0": True, "Agent 1": False}
+    } == {"Agent 0": True, "Agent 1": True}

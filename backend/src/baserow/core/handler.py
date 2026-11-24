@@ -2684,6 +2684,8 @@ class CoreHandler:
             like the identities they act as. See `IdentityImport`.
         :param imported_by: The user who imports, who the identities are created
             on behalf of. Without one, the applications wait for their identity.
+            Must be given inside a transaction, which is what removes the
+            identities when the import fails.
         :raises TemplateImportWithoutFilesZip: If the files must belong to the
             workspace but none are provided, so the copy would share them.
         :return: The newly created applications based on the import and a dict
@@ -2747,11 +2749,7 @@ class CoreHandler:
                 next_application_order_value = Application.get_last_order(workspace)
                 # Before the applications, whose data refers to the identities.
                 identity_import.before_applications(
-                    id_mapping,
-                    [
-                        (application.get("id"), application["type"])
-                        for application in prioritized_applications
-                    ],
+                    id_mapping, prioritized_applications
                 )
                 for application in prioritized_applications:
                     application_type = application_type_registry.get(

@@ -2,7 +2,17 @@ import abc
 import dataclasses
 from collections import defaultdict
 from functools import cached_property
-from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Optional, TypeVar, Union
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Dict,
+    Iterable,
+    List,
+    Optional,
+    Set,
+    TypeVar,
+    Union,
+)
 from zipfile import ZipFile
 
 from django.core.files.storage import Storage
@@ -56,7 +66,6 @@ if TYPE_CHECKING:
     from baserow.core.identities.import_export import IdentityExport
     from baserow.core.models import (
         Application,
-        IdentityDefinition,
         Template,
         Workspace,
         WorkspaceInvitation,
@@ -178,7 +187,7 @@ class ImportExportConfig:
 
     identity_export: Optional["IdentityExport"] = None
     """
-    Collects the identities the exported applications act as, when the export
+    Collects the identities the exported applications refer to, when the export
     carries them beside its applications. An application type gets the key it
     refers to an identity by from it, see `IdentityExport.key_for`.
     """
@@ -450,62 +459,22 @@ class ApplicationType(
     # by subclasses for runtime formula validation to work correctly.
     data_provider_type_registry = None
 
-    # Whether applications of this type act as an identity. An identity created
-    # by an import gets no role on them, so that it can't change what it, or
-    # another identity, is allowed to do.
-    binds_identities = False
-
-    def can_bind_imported_identities(
-        self, user: "AbstractUser", workspace: "Workspace"
-    ) -> bool:
+    def get_imported_identity_keys(
+        self, serialized_values: Dict[str, Any], imported_by: Optional["AbstractUser"]
+    ) -> Set[str]:
         """
-        Whether an import by the user creates the identities that applications of
-        this type act as. Only asked of a type some imported application of which
-        refers to an identity.
+        The keys of the identities an exported application of this type refers
+        to, see `IdentityExport.key_for`. An import creates those identities
+        before the application, which resolves them with `imported_identity`, or
+        else waits for what `imported_identity_definition` returns. An identity
+        gets no role on an application that refers to one.
 
-        :param user: The user who imports.
-        :param workspace: The workspace the applications are imported into.
-        :return: False to leave the applications waiting for an identity.
+        :param serialized_values: The exported application. Untrusted.
+        :param imported_by: The user who imports, if any.
+        :return: The keys, or an empty set to have no identity created.
         """
 
-        return True
-
-    def imported_identity_changes_data(
-        self, definition: "IdentityDefinition", applications: List["Application"]
-    ) -> bool:
-        """
-        Whether one of the imported applications that wait for the identity of the
-        definition needs it to change data. Decides the role the identity gets on
-        the other imported applications when its definition has no roles.
-
-        :param definition: The definition of the identity.
-        :param applications: The imported applications of this type.
-        :return: True if the identity must be able to change data.
-        """
-
-        return False
-
-    def bind_imported_identity(
-        self,
-        user: "AbstractUser",
-        definition: "IdentityDefinition",
-        identity: "AbstractUser",
-        applications: List["Application"],
-    ) -> bool:
-        """
-        Makes the imported applications that wait for the identity of the
-        definition act as the identity an import created for it, through the
-        permission checked services of the type.
-
-        :param user: The user who imports.
-        :param definition: The definition the applications point at.
-        :param identity: The identity created from the definition.
-        :param applications: The imported applications of this type.
-        :return: Whether one of them acts as the identity now. An identity that
-            nothing acts as is deleted again.
-        """
-
-        return False
+        return set()
 
     def supports_integration_type(self, integration_type) -> bool:
         """

@@ -449,6 +449,7 @@
     "onlyStructureDescription": "If enabled, only the structure of the applications will be exported. The data will not be included."
   },
   "importWorkspaceModal": {
+    "createsIdentities": "Also creates the identities that come with the selected applications, with access to only those applications.",
     "title": "Import Baserow data",
     "description": "You can import an existing Baserow data by uploading the .zip file from other Baserow instance.",
     "import": "Import data",
@@ -782,7 +783,7 @@
     "noWorkspace": "A template is installed into a workspace. Create a workspace first, then install the template into it.",
     "noWorkspaceAskInvite": "You aren't a member of any workspace. A template is installed into a workspace, so you will need to be invited to a workspace by an administrator first.",
     "createWorkspace": "Create workspace",
-    "createsIdentities": "Also creates an identity, the account its Agents work through, limited to this template's applications."
+    "createsIdentities": "Also creates the identities that come with this template, with access to only its applications."
   },
   "templateDetails": {
     "back": "Back to Templates",
@@ -916,7 +917,7 @@
     "noticeTitle": "What is not copied",
     "noticeSecrets": "Most passwords, tokens and API keys of integrations and data syncs.",
     "noticePasswords": "Values of password fields in your tables, including the passwords of your application users.",
-    "noticePeople": "People: collaborator field values, the user that automatic AI field updates run as, and role assignments, except the roles of an Agent's identity on the copied applications.",
+    "noticePeople": "People: collaborator field values, the user that automatic AI field updates run as, and role assignments, except those the identities that come with the copied applications have on them.",
     "noticePersonalViews": "Personal views.",
     "noticeReferences": "Connections to databases that are not included. Data sources, filters and triggers using them need to be set up again.",
     "noticeRest": "Everything else is shared as it is.",

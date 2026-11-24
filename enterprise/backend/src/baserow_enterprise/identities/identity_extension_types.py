@@ -56,6 +56,9 @@ SCOPED_IDENTITY_ROLE_UIDS = [
     BUILDER_ROLE_UID,
     ADMIN_ROLE_UID,
 ]
+# The roles of a workspace without roles on applications, as the role that gives
+# the same on an application.
+WORKSPACE_ROLE_ALIASES = {"MEMBER": BUILDER_ROLE_UID}
 
 
 class IdentityTeamSummarySerializer(serializers.Serializer):
@@ -140,17 +143,14 @@ class EnterpriseIdentityExtensionType(IdentityExtensionType):
 
         return LicenseHandler.user_has_feature(RBAC, user, workspace)
 
-    def scope_to_applications(
-        self, identity, applications, can_change_data, user, roles=None
-    ):
+    def scope_to_applications(self, identity, applications, user, roles):
         """
-        Gives the identity a role on each application: the given role, or else the
-        builder role if it may change them and the viewer role otherwise. The user
-        must be allowed to change every application, so the identity never gets
-        more than them: the admin role is given only on the applications whose
-        roles the user may change, and the builder role on the others. Without
-        applications or roles it keeps no access, and its tools are checked against
-        that when they run. The assignments are recorded like those of the role
+        Gives the identity the given role on each application. The user must be
+        allowed to change every application that gets one, so the identity never
+        gets more than them: the admin role is given only on the applications
+        whose roles the user may change, and the builder role on the others.
+        Without roles it keeps no access, and its tools are checked against that
+        when they run. The assignments are recorded like those of the role
         endpoints, so they show in the audit log.
         """
 
@@ -161,15 +161,15 @@ class EnterpriseIdentityExtensionType(IdentityExtensionType):
             raise IdentityCannotBeScoped(
                 "Only an identity without access can be scoped."
             )
-        if roles is None:
-            default = BUILDER_ROLE_UID if can_change_data else VIEWER_ROLE_UID
-            role_uids = {application.id: default for application in applications}
-        else:
-            role_uids = {
-                application_id: role_uid
-                for application_id, role_uid in roles
-                if role_uid in SCOPED_IDENTITY_ROLE_UIDS
-            }
+        role_uids = {
+            application_id: WORKSPACE_ROLE_ALIASES.get(role_uid, role_uid)
+            for application_id, role_uid in roles
+        }
+        role_uids = {
+            application_id: role_uid
+            for application_id, role_uid in role_uids.items()
+            if role_uid in SCOPED_IDENTITY_ROLE_UIDS
+        }
         # Roles on applications are stored for the base model, which the role
         # endpoints resolve the `application` scope to.
         scopes = list(
@@ -225,50 +225,54 @@ class EnterpriseIdentityExtensionType(IdentityExtensionType):
             check_role_permissions=False,
         )
 
-    def get_application_roles(self, identity, user=None):
+    def get_application_roles(self, identity):
         """
-        Exports the roles of an identity without workspace access on single
-        applications. Nothing is exported for an identity with workspace access,
-        whose application roles alone don't say what it can reach. The roles an exporting user may not
-        read, and those on an application with roles on its tables or views, are
-        left out, so the new identity never gets more than the exported one.
+        Exports the roles of an identity on single applications. An application
+        with a role that can't be given on one, or whose tables or views have
+        roles, or where a team of the identity has a say, is exported as one it
+        can't access, so the new identity never gets more than the exported one.
         """
 
         workspace = IdentityHandler().get_workspace(identity)
-        if (
-            not LicenseHandler.workspace_has_feature(RBAC, workspace)
-            or IdentityHandler.get_role_uid(identity) != NO_ACCESS_ROLE_UID
-        ):
+        if not LicenseHandler.workspace_has_feature(RBAC, workspace):
             return None
-        identity_assignments = RoleAssignment.objects.filter(
-            workspace=workspace,
-            subject_type=ContentType.objects.get_for_model(User),
-            subject_id=identity.id,
-        )
+        user_type = ContentType.objects.get_for_model(User)
         application_type = ContentType.objects.get_for_model(Application)
-        assignments = list(
-            identity_assignments.filter(
-                scope_type=application_type, role__uid__in=SCOPED_IDENTITY_ROLE_UIDS
-            )
-            .order_by("scope_id")
-            .values_list("scope_id", "role__uid")
+        identity_assignments = RoleAssignment.objects.filter(
+            workspace=workspace, subject_type=user_type, subject_id=identity.id
+        )
+        roles = {
+            application_id: role_uid
+            if role_uid in SCOPED_IDENTITY_ROLE_UIDS
+            else NO_ACCESS_ROLE_UID
+            for application_id, role_uid in identity_assignments.filter(
+                scope_type=application_type
+            ).values_list("scope_id", "role__uid")
+        }
+        team_assignments = RoleAssignment.objects.filter(
+            workspace=workspace,
+            subject_type=ContentType.objects.get_for_model(Team),
+            subject_id__in=TeamSubject.objects.filter(
+                subject_type=user_type, subject_id=identity.id
+            ).values("team_id"),
         )
         # A role on a table or view of an application changes what the role on the
-        # application gives, so such an application is left out and the new
-        # identity gets no access to it, rather than more than the template's.
-        refined = self._applications_with_narrower_roles(
+        # application gives, also when a team of the identity has it. So does the
+        # role of a team on an application where the identity has none.
+        narrowed = self._applications_of(
             identity_assignments.exclude(scope_type=application_type)
+        ) | self._applications_of(team_assignments.exclude(scope_type=application_type))
+        narrowed |= set(
+            team_assignments.filter(scope_type=application_type)
+            .exclude(scope_id__in=roles)
+            .values_list("scope_id", flat=True)
         )
-        assignments = [role for role in assignments if role[0] not in refined]
-        if user is not None:
-            # Roles the user may not read are left out, so the new identity gets
-            # no access to their applications.
-            assignments = self.filter_readable_application_roles(
-                assignments, user, workspace
-            )
-        return [[scope_id, role_uid] for scope_id, role_uid in assignments]
+        roles.update(
+            {application_id: NO_ACCESS_ROLE_UID for application_id in narrowed}
+        )
+        return sorted(roles.items())
 
-    def _applications_with_narrower_roles(self, assignments) -> set[int]:
+    def _applications_of(self, assignments) -> set[int]:
         """
         :param assignments: Role assignments on scopes other than an application.
         :return: The ids of the applications that contain one of their scopes.
@@ -292,6 +296,9 @@ class EnterpriseIdentityExtensionType(IdentityExtensionType):
     def filter_readable_application_roles(self, roles, user, workspace):
         """Keeps the roles on applications of the workspace whose roles the user may read."""
 
+        # Without roles on applications, there's nothing to hide.
+        if not LicenseHandler.workspace_has_feature(RBAC, workspace):
+            return roles
         readable = CoreHandler().check_multiple_permissions(
             [
                 PermissionCheck(
