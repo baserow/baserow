@@ -124,7 +124,7 @@ class AgentActionHandler:
         """
 
         if type_name not in self.available_action_types() or not (
-            agent_action_type_registry.get(type_name).is_available(agent.workspace)
+            agent_action_type_registry.get(type_name).is_usable(agent.workspace)
         ):
             raise AgentActionTypeNotAvailable(type_name)
 

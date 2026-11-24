@@ -50,7 +50,7 @@ class AgentActionType(Instance, ABC):
 
         return service_type_registry.get(self.type)
 
-    def is_available(self, workspace: Workspace) -> bool:
+    def is_usable(self, workspace: Workspace) -> bool:
         """
         :param workspace: The Agent's workspace.
         :return: Whether the service type can be used in that workspace.
@@ -98,7 +98,7 @@ class AgentActionType(Instance, ABC):
         service = action.service.specific
         errors = ServiceHandler().get_configuration_errors(service, action.agent_id)
         errors.update(get_formula_errors(service, action.inputs))
-        if not self.is_available(action.agent.workspace):
+        if not self.is_usable(action.agent.workspace):
             errors["type"] = "unavailable"
         if self.acts_as_run_identity and identity is None:
             errors["run_as"] = "required"

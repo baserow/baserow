@@ -249,9 +249,8 @@ class AgentActionService:
             set(values) - LOCKED_ACTION_EDITABLE_FIELDS
         )
         type_name = action.service.get_type().type
-        if changes_settings and not agent_action_type_registry.get(
-            type_name
-        ).is_available(action.agent.workspace):
+        action_type = agent_action_type_registry.get(type_name)
+        if changes_settings and not action_type.is_usable(action.agent.workspace):
             raise AgentActionTypeNotAvailable(type_name)
 
     @transaction.atomic
