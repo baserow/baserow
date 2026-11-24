@@ -173,6 +173,19 @@ export default {
           },
           run: () => this.hide(),
         },
+        // Members who can't list the workspace members still reach the
+        // integrations that every application in the workspace can use.
+        integrations: this.hasWorkspacePermission('workspace.list_integrations')
+          ? {
+              icon: 'iconoir-ev-plug',
+              label: 'workspaceIntegrations.tabTitle',
+              to: {
+                name: 'settings-integrations',
+                params: { workspaceId: this.workspace.id },
+              },
+              run: () => this.hide(),
+            }
+          : null,
         trash: {
           icon: 'iconoir-refresh-double',
           label: 'workspaceContext.viewTrash',

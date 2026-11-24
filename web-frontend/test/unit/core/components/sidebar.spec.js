@@ -182,6 +182,46 @@ describe('Workspace sidebar', () => {
     expect(document.activeElement).toBe(help.element)
   })
 
+  test.each([true, false])(
+    'links to the workspace integrations from the settings menu only when they may be listed (%s)',
+    async (canListIntegrations) => {
+      await testApp.store.dispatch('workspace/forceCreate', {
+        id: 1,
+        name: 'Design',
+      })
+      testApp.mock.onGet('/workspaces/1/permissions/').reply(200, [])
+      testApp.mock.onGet('/workspaces/1/roles/').reply(200, [])
+      const wrapper = await testApp.mount(SidebarMenu, {
+        props: { selectedWorkspace: testApp.store.getters['workspace/get'](1) },
+        global: {
+          mocks: {
+            $hasPermission: (permission) =>
+              permission !== 'workspace.list_integrations' ||
+              canListIntegrations,
+          },
+          stubs: {
+            Teleport: false,
+            NotificationPanel: true,
+            InviteModal: true,
+            WorkspaceSettingsModal: true,
+          },
+        },
+      })
+
+      await wrapper
+        .get('[data-highlight="workspace-settings"] button')
+        .trigger('click')
+      await flushPromises()
+      const link = testApp.body
+        .get('.sidebar-workspace-menu:not(.visibility-hidden)')
+        .find('a[href="/workspace/1/settings/integrations"]')
+      expect(link.exists()).toBe(canListIntegrations)
+      if (canListIntegrations) {
+        expect(link.text()).toBe('workspaceIntegrations.tabTitle')
+      }
+    }
+  )
+
   test('discards workspace actions when the selected workspace changes', async () => {
     const { store, mock } = testApp
     for (const [id, name] of [

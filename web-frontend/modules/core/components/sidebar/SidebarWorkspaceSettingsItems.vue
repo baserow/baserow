@@ -14,6 +14,7 @@
       @hide="$emit('hide')"
     />
     <WorkspaceActionItem v-if="canListMembers" :action="actions.members" />
+    <WorkspaceActionItem :action="actions.integrations" />
     <WorkspaceActionItem
       v-for="tab in actions.settingsTabs"
       :key="tab.type"
