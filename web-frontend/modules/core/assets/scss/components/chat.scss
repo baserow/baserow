@@ -57,7 +57,7 @@ $chat-ease: cubic-bezier(0.22, 1, 0.36, 1);
   display: flex;
   flex-direction: column;
   flex: 1 0 auto;
-  gap: 22px;
+  gap: 28px;
   width: 100%;
   max-width: 900px;
   margin: 0 auto;
@@ -108,6 +108,23 @@ $chat-ease: cubic-bezier(0.22, 1, 0.36, 1);
   white-space: pre-wrap;
 }
 
+.chat-message__bubble--peer {
+  padding: 10px 16px 12px;
+  border: 0;
+  background: $palette-neutral-50;
+}
+
+.chat-message__sender {
+  margin-bottom: 2px;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 18px;
+}
+
+.chat-message__text {
+  white-space: pre-wrap;
+}
+
 .chat-message__bubble--thinking {
   border-color: $palette-cyan-200;
   background: $palette-cyan-50;
@@ -135,8 +152,8 @@ $chat-ease: cubic-bezier(0.22, 1, 0.36, 1);
   display: flex;
   align-items: center;
   gap: 10px;
-  height: 22px;
-  padding: 8px 4px 0;
+  height: 18px;
+  padding: 4px 4px 0;
   white-space: nowrap;
   opacity: 0;
   transition: opacity 0.15s $chat-ease;

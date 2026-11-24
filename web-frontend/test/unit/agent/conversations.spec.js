@@ -978,8 +978,9 @@ describe('Agent conversations', () => {
       testApp,
       'team',
       page([
-        message('ada', 'From Ada', { id: 1, sender: { id: 2, name: 'Ada' } }),
-        message('gone', 'From a deleted user', { id: 2, sender: null }),
+        message('mine', 'From me', { id: 1 }),
+        message('ada', 'From Ada', { id: 2, sender: { id: 2, name: 'Ada' } }),
+        message('gone', 'From a deleted user', { id: 3, sender: null }),
       ])
     )
     const wrapper = await mount()
@@ -987,9 +988,22 @@ describe('Agent conversations', () => {
     await selectConversation(wrapper, 'Team')
 
     expect(
-      wrapper.findAll('.chat-message__note').map((note) => note.text())
-    ).toEqual(['Ada', 'agent.deletedSender'])
-    expect(wrapper.find('.chat-message--own').exists()).toBe(false)
+      wrapper
+        .findAll('.chat-message__bubble')
+        .map((bubble) => [
+          bubble.find('.chat-message__sender').exists()
+            ? bubble.get('.chat-message__sender').text()
+            : null,
+          bubble.classes('chat-message__bubble--peer'),
+        ])
+    ).toEqual([
+      [null, false],
+      ['Ada', true],
+      ['agent.deletedSender', true],
+    ])
+    expect(
+      wrapper.findAll('.chat-message__text').map((text) => text.text())
+    ).toEqual(['From Ada', 'From a deleted user'])
     expect(composerExists(wrapper)).toBe(false)
     expect(wrapper.get('.agent-chat__shared').text()).toBe(
       'agent.cannotSendMessages'

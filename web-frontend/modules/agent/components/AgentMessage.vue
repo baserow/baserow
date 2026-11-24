@@ -42,10 +42,16 @@
         :item-errors="entry.group.itemErrors || []"
       />
     </template>
-    <span v-if="fromUser && !ownMessage" class="chat-message__note">
-      {{ message.sender?.name || $t('agent.deletedSender') }}
-    </span>
-    <div v-if="fromUser" class="chat-message__bubble">
+    <div
+      v-if="fromUser && !ownMessage"
+      class="chat-message__bubble chat-message__bubble--peer"
+    >
+      <div class="chat-message__sender">
+        {{ message.sender?.name || $t('agent.deletedSender') }}
+      </div>
+      <div class="chat-message__text">{{ message.content }}</div>
+    </div>
+    <div v-else-if="fromUser" class="chat-message__bubble">
       {{ message.content }}
     </div>
     <div

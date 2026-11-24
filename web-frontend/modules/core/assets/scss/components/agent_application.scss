@@ -93,6 +93,9 @@
 }
 
 .agent-conversations__list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
   list-style: none;
   padding: 0;
   margin: 0;
@@ -108,11 +111,11 @@
 
 .agent-conversations__item {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 10px;
   width: 100%;
   height: 48px;
-  padding: 0 8px;
+  padding: 6px 8px;
   border: 0;
   background: transparent;
   color: $palette-neutral-1200;
@@ -135,13 +138,14 @@
   }
 
   &.agent-conversations__item--renaming {
+    align-items: center;
     cursor: default;
   }
 }
 
 .agent-conversations__status {
   position: absolute;
-  right: 0;
+  right: -3px;
   bottom: 0;
   width: 7px;
   height: 7px;
@@ -171,8 +175,8 @@
   position: relative;
   display: grid;
   place-items: center;
-  flex: 0 0 24px;
-  height: 24px;
+  flex: 0 0 16px;
+  height: 20px;
 }
 
 .agent-conversations__title {
@@ -276,8 +280,9 @@
 .agent-conversations__row {
   position: relative;
 
-  &.agent-conversations__row--manageable .agent-conversations__item {
-    padding-right: 28px;
+  &.agent-conversations__row--manageable
+    .agent-conversations__title:not(:has(.agent-conversations__private)) {
+    padding-right: 20px;
   }
 
   &:hover
@@ -293,6 +298,10 @@
     .agent-conversations__options {
       opacity: 1;
       pointer-events: auto;
+    }
+
+    .agent-conversations__private {
+      visibility: hidden;
     }
   }
 }
