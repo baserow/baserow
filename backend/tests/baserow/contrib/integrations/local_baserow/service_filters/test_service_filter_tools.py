@@ -18,6 +18,7 @@ from mcp.shared.memory import (
     create_connected_server_and_client_session as client_session,
 )
 
+from baserow.contrib.builder.data_sources.actions import UpdateDataSourceActionType
 from baserow.contrib.builder.data_sources.builder_dispatch_context import (
     BuilderDispatchContext,
 )
@@ -40,6 +41,7 @@ from baserow.contrib.integrations.local_baserow.service_filters.registries impor
 )
 from baserow.contrib.integrations.local_baserow.service_filters.state import (
     FilterOperation,
+    ServiceFilterValidationError,
 )
 from baserow.contrib.integrations.local_baserow.service_filters.tools import (
     list_filterable_data_sources,
@@ -425,6 +427,40 @@ def test_filters_saved_meanwhile_are_kept(seeded):
         (seeded.name.id, "equal", "Bob", "raw"),
     ]
     assert [f.field_id for f in state.filters] == [seeded.amount.id, seeded.name.id]
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("remove_table", [False, True])
+def test_table_changed_during_filter_generation_is_rejected(
+    seeded, data_fixture, remove_table
+):
+    """Reject stale field operations without overwriting the newly saved table."""
+    context = ctx(seeded)
+    target = resolve_service_filter_target(
+        context, "builder_data_source", seeded.data_source.id
+    )
+    prepared = prepare_service_filters(context, target)
+    table = (
+        None
+        if remove_table
+        else data_fixture.create_database_table(database=seeded.table.database)
+    )
+    data_source = DataSourceHandler().get_data_source_for_update(seeded.data_source.id)
+    UpdateDataSourceActionType.do(
+        seeded.user,
+        data_source,
+        service_type=target.service.get_type(),
+        table_id=table.id if table else None,
+    )
+
+    with pytest.raises(ServiceFilterValidationError, match="table was changed"):
+        save_service_filter_operations(
+            context, prepared, ops(add(seeded.name.id, "equal", "Bob"))
+        )
+
+    target.service.refresh_from_db()
+    assert target.service.table_id == (table.id if table else None)
+    assert filters_of(target.service) == []
 
 
 @pytest.mark.django_db

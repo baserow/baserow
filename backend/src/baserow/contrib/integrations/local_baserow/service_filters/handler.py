@@ -258,13 +258,12 @@ def save_service_filter_operations(
         ServiceHandler().get_service_for_update(target.service.id)
         target.service.refresh_from_db(fields=["filter_type", "table"])
         values = {}
-        if target.saves_table:
-            if target.service.table_id is None:
-                values["table_id"] = target.table.id
-            elif target.service.table_id != target.table.id:
-                raise ServiceFilterValidationError(
-                    ["The table was changed while the filters were worked out."]
-                )
+        if target.saves_table and target.service.table_id is None:
+            values["table_id"] = target.table.id
+        elif target.service.table_id != target.table.id:
+            raise ServiceFilterValidationError(
+                ["The table was changed while the filters were worked out."]
+            )
         current_state = FilterState.from_service(target.service)
         new_state = apply_operations(current_state, operations, prepared.validation)
         if new_state == current_state:
