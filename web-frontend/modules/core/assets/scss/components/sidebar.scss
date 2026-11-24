@@ -671,12 +671,13 @@ $sidebar-home-inset: calc(($sidebar-home-size - $sidebar-brand-height) / 2);
   border: 1px solid $palette-neutral-400;
   cursor: pointer;
 
+  @include elevation($elevation-low);
   @include rounded($rounded-md);
 }
 
 .sidebar__search-icon {
   color: $palette-neutral-700;
-  font-size: 16px;
+  font-size: 14px;
   flex-shrink: 0;
 }
 
