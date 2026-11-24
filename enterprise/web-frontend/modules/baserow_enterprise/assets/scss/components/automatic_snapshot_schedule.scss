@@ -112,20 +112,16 @@
 .automatic-snapshot-schedule__last-run {
   margin-top: 4px;
   color: $palette-neutral-900;
-
-  details {
-    display: inline;
-    margin-left: 8px;
-  }
-
-  summary {
-    display: inline;
-    cursor: pointer;
-  }
 }
 
-.automatic-snapshot-schedule__last-run-error {
-  margin-top: 8px;
-  white-space: pre-wrap;
+.automatic-snapshot-schedule__last-run-info {
+  margin-left: 4px;
+  color: $palette-neutral-600;
+  vertical-align: middle;
+  cursor: help;
+}
+
+.automatic-snapshot-schedule__last-run-tooltip {
+  white-space: pre-line;
   overflow-wrap: anywhere;
 }

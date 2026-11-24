@@ -83,33 +83,20 @@
           <span v-if="activeScheduleDetail">{{ activeScheduleDetail }}</span>
           <template v-if="overview?.last_run">
             <span v-if="activeScheduleDetail"> · </span>
-            <span
-              >{{ $t('automaticSnapshots.lastExecution') }}:
-              {{
-                overview.last_run.error
+            <span>{{
+              $t('automaticSnapshots.lastRun', {
+                status: overview.last_run.error
                   ? $t('automaticSnapshots.executionFailed')
-                  : $t('automaticSnapshots.executionSucceeded')
-              }}</span
-            >
-            <details>
-              <summary :aria-label="$t('automaticSnapshots.executionDetails')">
-                ⓘ
-              </summary>
-              <div class="automatic-snapshot-schedule__last-run-error">
-                {{
-                  formatRunTime(
-                    activeSchedule || {
-                      interval: 'DAY',
-                      timezone: moment.tz.guess(),
-                    },
-                    overview.last_run.finished_at
-                  )
-                }}
-                <div v-if="overview.last_run.error">
-                  {{ overview.last_run.error }}
-                </div>
-              </div>
-            </details>
+                  : $t('automaticSnapshots.executionSucceeded'),
+              })
+            }}</span>
+            <i
+              v-tooltip:[lastRunTooltipOptions]="lastRunDetails"
+              class="iconoir-info-circle automatic-snapshot-schedule__last-run-info"
+              role="img"
+              tabindex="0"
+              :aria-label="lastRunDetails"
+            ></i>
           </template>
         </div>
       </div>
@@ -324,6 +311,19 @@ const activeScheduleDetail = computed(() => {
     date: formatRunTime(schedule, schedule.next_run_at),
   })
 })
+
+// When the last run finished and, if it failed, why.
+const lastRunDetails = computed(() => {
+  const lastRun = overview.value?.last_run
+  if (!lastRun) {
+    return ''
+  }
+  const finishedAt = formatRunTime(activeSchedule.value, lastRun.finished_at)
+  return lastRun.error ? `${finishedAt}\n${lastRun.error}` : finishedAt
+})
+const lastRunTooltipOptions = {
+  contentClasses: 'automatic-snapshot-schedule__last-run-tooltip',
+}
 
 function newScheduleValues() {
   if (workspaceDefault.value) {
