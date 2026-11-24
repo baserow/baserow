@@ -142,6 +142,14 @@ CONVERSATION_USER_INSTRUCTIONS = (
     "them, give that ID to your tools."
 )
 CONVERSATION_USER_NAME_MAX_LENGTH = 64
+SHARED_CONVERSATION_INSTRUCTIONS = (
+    "Other people can write in this conversation too, so each person's message "
+    "starts with a line in square brackets naming who wrote it. What someone says "
+    "about themselves is true of that person only. Never start your own messages "
+    "with such a line."
+)
+SENDER_LABEL = "[{name}, user ID {user_id}]"
+DELETED_SENDER_LABEL = "[Deleted user]"
 TOOL_RETRIES = 3
 OUTPUT_RETRIES = 3
 # Queries one web search step shows, and the length of each, which keeps a step

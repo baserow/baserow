@@ -19,6 +19,7 @@ from .action_tools.handler import AgentActionHandler
 from .action_tools.signals import agent_action_updated
 from .constants import AgentReadinessState
 from .exceptions import (
+    AgentConversationDoesNotExist,
     AgentConversationReadOnly,
     AgentConversationWaitingForApproval,
     AgentNotReady,
@@ -343,7 +344,7 @@ class AgentService:
         :param conversation_uuid: The uuid of the conversation.
         :raises PermissionException: When the user may not update conversations of
             the agent.
-        :raises AgentConversationDoesNotExist: When the user sees no conversation
+        :raises AgentConversationDoesNotExist: When the user owns no conversation
             with this uuid in the agent.
         :return: The conversation, with no new values when it was shared already.
         """
@@ -354,6 +355,8 @@ class AgentService:
         conversation = self.handler.get_conversation(
             agent, user, conversation_uuid, for_update=True
         )
+        if conversation.owner_user_id != user.id:
+            raise AgentConversationDoesNotExist
         updated = self.handler.share_conversation(conversation)
         if updated.new_values:
             agent_conversation_updated.send(
@@ -484,25 +487,26 @@ class AgentService:
         )
 
     def can_cancel_conversation_run(
-        self, user: AbstractUser, conversation_id: int
+        self, user: AbstractUser, conversation_id: int, sender_id: int | None
     ) -> bool:
         """
-        Check that the user may stop the reply running in the conversation: reading
-        is enough for their own, a shared one also needs the access of a
-        configuration update.
+        Check that the user may stop a reply running in the conversation: reading
+        is enough for one that answers them, another person's or a trigger's in a
+        shared conversation also needs the access of a configuration update.
 
         :param user: The user asking.
         :param conversation_id: The id of the conversation.
+        :param sender_id: The id of the user the reply answers, or None for a
+            trigger's reply.
         :return: Whether the user may stop the run.
         """
 
         conversation = self._get_accessible_conversation(user, conversation_id)
         if conversation is None:
             return False
-        operations = [
-            ReadAgentConversationsOperationType.type,
-            *self.handler.get_shared_change_operations(conversation),
-        ]
+        operations = [ReadAgentConversationsOperationType.type]
+        if sender_id != user.id:
+            operations += self.handler.get_shared_change_operations(conversation)
         agent = conversation.agent
         allowed = CoreHandler().check_multiple_permissions(
             [PermissionCheck(user, operation, agent) for operation in operations],

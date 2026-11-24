@@ -89,7 +89,8 @@ reply runs for the person it answers. A shared conversation outlives its owner's
 account; a private one is deleted with it.
 
 Renaming, trashing, restoring and stopping a shared conversation additionally require
-`application.update`. Following its runs live requires `read_conversations`. Anyone
+`application.update`, except that the person a reply answers can always stop it.
+Following its runs live requires `read_conversations`. Anyone
 who may send the agent messages continues a person's shared conversation; sending a
 message in a trigger-started one is refused in this release, and continuing it is a
 later change.

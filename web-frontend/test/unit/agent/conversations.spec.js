@@ -369,6 +369,9 @@ describe('Agent conversations', () => {
 
     expect(messages(wrapper)).toEqual(['Earlier'])
     expect(composerExists(wrapper)).toBe(false)
+    expect(wrapper.get('.agent-chat__shared').text()).toBe(
+      'agent.cannotSendMessages'
+    )
     expect(wrapper.find('.agent-conversations__footer').exists()).toBe(false)
     expect(warning(wrapper).exists()).toBe(false)
   })
@@ -912,6 +915,36 @@ describe('Agent conversations', () => {
     }
   )
 
+  const modalButton = (label) =>
+    Array.from(document.querySelectorAll('.modal__box button')).find(
+      (button) => button.textContent.trim() === label
+    )
+
+  test.each([
+    ['share', 'agent.private', 'agent.share', 'onPost', 'chat/share/'],
+    ['unpin', 'agent.pinned', 'agent.unpin', 'onPatch', 'chat/'],
+  ])(
+    'lists a conversation again when the %s that took it out of the filter fails',
+    async (_, filter, action, method, path) => {
+      const chat = { ...conversation('chat', 'Chat'), pinned: true }
+      mockConversations(
+        testApp,
+        conversationsPage([chat]),
+        conversationsPage([chat])
+      )
+      testApp.dontFailOnErrorResponses()
+      testApp.mock[method](`/agent/10/conversations/${path}`).reply(500)
+      const wrapper = await mount()
+      await filterConversations(wrapper, filter)
+
+      await chooseFromMenu(wrapper, 'Chat', action)
+      modalButton('agent.share')?.click()
+      await flushPromises()
+
+      expect(conversationTitles(wrapper)).toEqual(['Chat'])
+    }
+  )
+
   test('shares a private conversation only once its owner confirms', async () => {
     const chat = conversation('chat', 'Chat')
     mockConversations(testApp, conversationsPage([chat]))
@@ -919,10 +952,6 @@ describe('Agent conversations', () => {
       .onPost('/agent/10/conversations/chat/share/')
       .reply(200, { ...chat, shared: true })
     const wrapper = await mount()
-    const modalButton = (label) =>
-      Array.from(document.querySelectorAll('.modal__box button')).find(
-        (button) => button.textContent.trim() === label
-      )
 
     await chooseFromMenu(wrapper, 'Chat', 'agent.share')
     expect(document.querySelector('.modal__box').textContent).toContain(
@@ -963,7 +992,7 @@ describe('Agent conversations', () => {
     expect(wrapper.find('.chat-message--own').exists()).toBe(false)
     expect(composerExists(wrapper)).toBe(false)
     expect(wrapper.get('.agent-chat__shared').text()).toBe(
-      'agent.sharedReadOnly'
+      'agent.cannotSendMessages'
     )
   })
 

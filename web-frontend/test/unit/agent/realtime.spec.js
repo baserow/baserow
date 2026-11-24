@@ -70,6 +70,7 @@ describe('Agent conversation realtime updates', () => {
       updatedOn = '2026-10-22T10:00:00Z',
       agentId = agentData.id,
       title = '',
+      failed = false,
     } = {}
   ) => {
     receivers.agent_conversation_activity(
@@ -81,6 +82,7 @@ describe('Agent conversation realtime updates', () => {
           ...conversation(uuid, title, updatedOn),
           run_id: runId,
           pending_approval_count: 0,
+          last_reply_failed: failed,
         },
       }
     )
@@ -484,6 +486,25 @@ describe('Agent conversation realtime updates', () => {
     })
     expect(replying()).toEqual([])
     expect(testApp.mock.history.get).toHaveLength(reads)
+  })
+
+  test('marks a listed conversation failed, then clears it from the Failed filter once a reply succeeds', async () => {
+    mockConversations(
+      testApp,
+      conversationsPage([first]),
+      conversationsPage([{ ...first, last_reply_failed: true }])
+    )
+    const wrapper = await mount()
+
+    await update(first.uuid, { failed: true })
+    expect(wrapper.find('.agent-conversations__status--failed').exists()).toBe(
+      true
+    )
+
+    await filterConversations(wrapper, 'agent.failed')
+    expect(conversationTitles(wrapper)).toEqual([first.title])
+    await update(first.uuid, { updatedOn: '2026-10-22T10:00:01Z' })
+    expect(conversationTitles(wrapper)).toEqual([])
   })
 
   test('does not read private data without conversation access or for another Agent', async () => {

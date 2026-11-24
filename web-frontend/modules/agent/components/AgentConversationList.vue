@@ -339,7 +339,7 @@ function startedBy(item) {
       t('agent.startedByTrigger')
     )
   }
-  if (!item.owner) return ''
+  if (!item.owner) return item.shared ? t('agent.deletedSender') : ''
   return item.owner.id === store.getters['auth/getUserId']
     ? t('agent.you')
     : item.owner.name

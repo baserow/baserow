@@ -439,6 +439,31 @@ class AgentConversationSerializer(serializers.ModelSerializer):
         return None if trigger is None else trigger.name
 
 
+def get_listed_conversation_context(
+    conversation_ids: list[int],
+    conversation_runs: dict[int, UUID | str] | None = None,
+) -> dict[str, object]:
+    """
+    :param conversation_ids: The ids of the conversations to serialize.
+    :param conversation_runs: The run replying in each, read when omitted.
+    :return: The context ``AgentConversationSerializer`` needs to show each
+        conversation as its list does.
+    """
+
+    handler = AgentHandler()
+    if conversation_runs is None:
+        conversation_runs = handler.get_conversation_runs(conversation_ids)
+    return {
+        "conversation_runs": conversation_runs,
+        "failed_conversation_ids": handler.get_failed_conversation_ids(
+            conversation_ids
+        ),
+        "conversation_pending_approvals": (
+            handler.get_conversation_pending_approval_counts(conversation_ids)
+        ),
+    }
+
+
 class AgentConversationUpdateSerializer(
     UnknownFieldRaisesExceptionSerializerMixin, serializers.Serializer
 ):

@@ -85,6 +85,7 @@ from .serializers import (
     AgentRunAsOptionSerializer,
     AgentToolDecisionsSerializer,
     AgentToolSerializer,
+    get_listed_conversation_context,
 )
 
 AGENT_ID_PATH_PARAMETER = OpenApiParameter(
@@ -144,38 +145,30 @@ def _serialize_conversation(conversation: AgentConversation) -> dict:
     :return: The conversation with its running reply and pending approval count.
     """
 
-    handler = AgentHandler()
-    context = {
-        "conversation_runs": handler.get_conversation_runs([conversation.id]),
-        "failed_conversation_ids": handler.get_failed_conversation_ids(
-            [conversation.id]
-        ),
-        "conversation_pending_approvals": (
-            handler.get_conversation_pending_approval_counts([conversation.id])
-        ),
-    }
+    context = get_listed_conversation_context([conversation.id])
     return AgentConversationSerializer(conversation, context=context).data
 
 
-def _accepted_context(result: AgentMessageCreated) -> dict[str, dict[int, UUID]]:
+def _accepted_context(result: AgentMessageCreated) -> dict[str, object]:
     """
     Build the serializer context for the reply and the conversation independently.
     New sends retain their run even if a fast reply ends before serialization.
 
     :param result: The accepted message with its reply and run.
-    :return: The context, with the run id by reply id under ``active_runs`` and by
-        conversation id under ``conversation_runs``.
+    :return: The context showing the conversation as its list does, with the run
+        id by reply id under ``active_runs``.
     """
 
+    conversation_runs = (
+        {result.conversation.id: result.conversation_run_id}
+        if result.conversation_run_id is not None
+        else {}
+    )
     return {
+        **get_listed_conversation_context([result.conversation.id], conversation_runs),
         "active_runs": (
             {result.reply.id: result.run_id}
             if result.reply is not None and result.run_id is not None
-            else {}
-        ),
-        "conversation_runs": (
-            {result.conversation.id: result.conversation_run_id}
-            if result.conversation_run_id is not None
             else {}
         ),
     }
@@ -454,16 +447,7 @@ class AgentConversationsView(RealtimeRecoveryPrimaryReadMixin, APIView):
             if len(conversations) > limit
             else None
         )
-        page_ids = [item.id for item in page]
-        context = {
-            "conversation_runs": AgentHandler().get_conversation_runs(page_ids),
-            "failed_conversation_ids": (
-                AgentHandler().get_failed_conversation_ids(page_ids)
-            ),
-            "conversation_pending_approvals": (
-                AgentHandler().get_conversation_pending_approval_counts(page_ids)
-            ),
-        }
+        context = get_listed_conversation_context([item.id for item in page])
         return Response(
             {
                 "results": AgentConversationSerializer(

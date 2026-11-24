@@ -857,13 +857,14 @@ def test_a_conversation_is_listed_as_failed_until_a_later_reply_succeeds(
     conversation = data_fixture.create_agent_conversation(user=api_user, agent=agent)
 
     def listed_as_failed() -> bool:
-        results = api_client.get(agent_url(agent, "conversations")).json()["results"]
-        failed = api_client.get(
-            agent_url(agent, "conversations"), {"last_reply_failed": True}
-        ).json()["results"]
-        assert len(failed) == results[0]["last_reply_failed"]
-        return results[0]["last_reply_failed"]
+        url = agent_url(agent, "conversations")
+        failed = api_client.get(url).json()["results"][0]["last_reply_failed"]
+        for value in (True, False):
+            filtered = api_client.get(url, {"last_reply_failed": value}).json()
+            assert len(filtered["results"]) == (failed is value)
+        return failed
 
+    assert listed_as_failed() is False
     for status, failed in [
         (AgentReplyStatus.FAILED, True),
         (AgentReplyStatus.COMPLETED, False),
@@ -873,6 +874,32 @@ def test_a_conversation_is_listed_as_failed_until_a_later_reply_succeeds(
             conversation=conversation, role="assistant", status=status
         )
         assert listed_as_failed() is failed
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "status,state",
+    [
+        (AgentReplyStatus.FAILED, {"last_reply_failed": True}),
+        (AgentReplyStatus.WAITING, {"pending_approval_count": 1}),
+    ],
+)
+def test_a_retry_returns_the_conversation_as_its_list_shows_it(
+    data_fixture, configured_agent, api_client, api_user, status, state
+):
+    agent = configured_agent(user=api_user)
+    url = agent_url(agent, "conversations")
+    payload = new_conversation()
+    api_client.post(url, payload)
+    reply = AgentMessage.objects.get(role="assistant")
+    AgentMessage.objects.filter(id=reply.id).update(status=status)
+    if status == AgentReplyStatus.WAITING:
+        data_fixture.create_agent_tool_approval(reply=reply)
+
+    retried = api_client.post(url, payload).json()["conversation"]
+
+    assert retried == api_client.get(url).json()["results"][0]
+    assert state.items() <= retried.items()
 
 
 @pytest.mark.django_db
@@ -961,6 +988,8 @@ def test_a_shared_conversation_is_read_and_continued_by_every_member(
         service.share_conversation(member, agent.id, conversation.uuid)
     shared = api_client.post(share_url).json()
     assert api_client.post(share_url).status_code == 200
+    with pytest.raises(AgentConversationDoesNotExist):
+        service.share_conversation(member, agent.id, conversation.uuid)
 
     assert (shared["shared"], shared["pending_approval_count"]) == (True, 1)
     pending_count_updated.assert_called_once_with(ANY, application=agent, user_ids=None)

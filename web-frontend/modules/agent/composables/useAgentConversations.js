@@ -216,10 +216,14 @@ export function useAgentConversations(agent, configuration) {
     () =>
       canMessageSelected.value && !selectedConversation.value.started_by_trigger
   )
+  // A running reply is the newest message, and who asked for it may stop it.
   const canStopSelected = computed(
     () =>
       Boolean(selectedConversation.value) &&
-      (!selectedConversation.value.shared || canUpdateAgent.value)
+      (!selectedConversation.value.shared ||
+        canUpdateAgent.value ||
+        currentHistory.value?.items.at(-1)?.sender?.id ===
+          store.getters['auth/getUserId'])
   )
   // Sending is blocked while a reply waits, so the waiting reply is the newest.
   const pendingApprovalCount = computed(
@@ -794,7 +798,7 @@ export function useAgentConversations(agent, configuration) {
       // A filter switch can have replaced the object this request changed.
       receiveConversation(data)
     } catch (error) {
-      applyConversationValues(conversation, previous)
+      revertConversationValues(conversation, previous)
       if (isDeletedElsewhere(error)) removeConversation(conversation.uuid)
       else notifyIf(error)
     }
@@ -809,7 +813,7 @@ export function useAgentConversations(agent, configuration) {
       )
       receiveConversation(data)
     } catch (error) {
-      applyConversationValues(conversation, { shared: false })
+      revertConversationValues(conversation, { shared: false })
       if (isDeletedElsewhere(error)) removeConversation(conversation.uuid)
       else notifyIf(error)
     }
@@ -823,6 +827,14 @@ export function useAgentConversations(agent, configuration) {
     if (conversations.value.includes(conversation)) {
       placeConversation(conversation)
     }
+  }
+
+  /** Undo a failed local change, listing the conversation again if it left. */
+  function revertConversationValues(conversation, previous) {
+    Object.assign(conversation, previous)
+    // A filter switch can have loaded a newer copy, which is kept.
+    const known = findConversation(conversation.uuid)
+    if (!known || known === conversation) placeConversation(conversation)
   }
 
   function isDeletedElsewhere(error) {
@@ -935,6 +947,7 @@ export function useAgentConversations(agent, configuration) {
           'run_id',
           'updated_on',
           'pending_approval_count',
+          'last_reply_failed',
         ])
         if (byNewest(conversation, activity) >= 0) {
           applyConversationValues(conversation, activity)

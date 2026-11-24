@@ -21,6 +21,7 @@ from django.db.models import (
     When,
     prefetch_related_objects,
 )
+from django.db.models.functions import Coalesce
 from django.utils import timezone
 from django.utils.dateparse import parse_datetime
 
@@ -72,7 +73,6 @@ from .action_tools.tools import BoundActionTool
 from .constants import (
     AGENT_RUN_LIMIT_REACHED,
     AGENT_RUN_TYPE,
-    CONVERSATION_USER_NAME_MAX_LENGTH,
     DEACTIVATED_TOOLS_INSTRUCTIONS,
     DISALLOWED_TOOL_CALL_NOTE,
     HISTORY_MESSAGE_LIMIT,
@@ -1450,18 +1450,20 @@ class AgentHandler:
         )
 
     @staticmethod
-    def _latest_reply_status() -> Subquery:
+    def _latest_reply_status() -> Coalesce:
         """
-        :return: The status of the latest reply in the outer conversation.
+        :return: The status of the latest reply in the outer conversation, empty
+            without a reply so a negated filter keeps the conversation.
         """
 
-        return Subquery(
+        latest = (
             AgentMessage.objects.filter(
                 conversation_id=OuterRef("pk"), role=AgentMessage.Role.ASSISTANT
             )
             .order_by("-id")
             .values("status")[:1]
         )
+        return Coalesce(Subquery(latest), Value(""))
 
     def get_failed_conversation_ids(self, conversation_ids: list[int]) -> set[int]:
         """
@@ -1629,6 +1631,7 @@ class AgentHandler:
             action_tools=action_tools,
             timezone=self._get_reply_timezone(reply),
             conversation_user=self._get_conversation_user(reply),
+            names_senders=conversation.shared and not conversation.started_by_trigger,
             mcp_servers=mcp_servers,
             reasoning_effort=agent.reasoning_effort,
             web_search_tool=web_search_tool,
@@ -1748,11 +1751,7 @@ class AgentHandler:
 
         if reply.conversation.started_by_trigger:
             return None
-        sender = reply.sender
-        name = " ".join(sender.first_name.split())
-        return AgentConversationUser(
-            sender.id, name[:CONVERSATION_USER_NAME_MAX_LENGTH]
-        )
+        return AgentConversationUser.of(reply.sender)
 
     def _get_paused_transcript(
         self, reply: AgentMessage
@@ -1782,12 +1781,15 @@ class AgentHandler:
         Find what a reply answers: the message right before it.
 
         :param reply: The reply.
-        :return: The prompt, and the recent messages before it, oldest first.
+        :return: The prompt, and the recent messages before it with their senders,
+            oldest first.
         """
 
-        prompt, *history = reply.conversation.messages.filter(id__lt=reply.id).order_by(
-            "-id"
-        )[: HISTORY_MESSAGE_LIMIT + 1]
+        prompt, *history = (
+            reply.conversation.messages.filter(id__lt=reply.id)
+            .select_related("sender")
+            .order_by("-id")[: HISTORY_MESSAGE_LIMIT + 1]
+        )
         return prompt.content, history[::-1]
 
     def _get_reply_resume(

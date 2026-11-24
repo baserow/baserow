@@ -468,8 +468,8 @@ const showComposer = computed(
 const readOnlyNote = computed(() => {
   const conversation = state.selectedConversation
   if (conversation?.started_by_trigger) return 'agent.sharedNoMessages'
-  if (conversation?.shared && !state.canWriteSelected) {
-    return 'agent.sharedReadOnly'
+  if (conversation && !conversation.local && !state.canWriteSelected) {
+    return 'agent.cannotSendMessages'
   }
   return ''
 })

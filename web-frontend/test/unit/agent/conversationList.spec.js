@@ -296,6 +296,7 @@ describe('Agent conversation list', () => {
             shared: true,
             owner: { id: 2, name: 'Ada' },
           },
+          { uuid: 'orphan', title: 'Orphan', shared: true, owner: null },
         ],
       },
     })
@@ -308,12 +309,19 @@ describe('Agent conversation list', () => {
       'iconoir-chat-bubble',
       'iconoir-chat-bubble',
       'iconoir-chat-bubble',
+      'iconoir-chat-bubble',
     ])
     expect(
       wrapper
         .findAll('.agent-conversations__detail')
         .map((detail) => detail.text())
-    ).toEqual(['Every morning', 'agent.startedByTrigger', 'agent.you', 'Ada'])
+    ).toEqual([
+      'Every morning',
+      'agent.startedByTrigger',
+      'agent.you',
+      'Ada',
+      'agent.deletedSender',
+    ])
     expect(wrapper.findAll('.agent-conversations__private')).toHaveLength(1)
   })
 
