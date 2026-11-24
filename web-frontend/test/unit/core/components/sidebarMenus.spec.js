@@ -1,5 +1,5 @@
 import { flushPromises } from '@vue/test-utils'
-import { afterEach, beforeEach, describe, expect, test } from 'vitest'
+import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 
 import { TestApp } from '@baserow/test/helpers/testApp'
 import Sidebar from '@baserow/modules/core/components/sidebar/Sidebar.vue'
@@ -7,8 +7,12 @@ import Sidebar from '@baserow/modules/core/components/sidebar/Sidebar.vue'
 describe('Sidebar menu lifecycle', () => {
   let testApp
 
-  beforeEach(() => {
+  beforeEach(async () => {
     testApp = new TestApp()
+    await testApp.store.dispatch('workspace/forceCreate', {
+      id: 1,
+      name: 'Design',
+    })
   })
 
   afterEach(async () => {
@@ -16,16 +20,12 @@ describe('Sidebar menu lifecycle', () => {
   })
 
   async function mountSidebar(options = {}) {
-    await testApp.store.dispatch('workspace/forceCreate', {
-      id: 1,
-      name: 'Design',
-    })
     const workspace = testApp.store.getters['workspace/get'](1)
     return testApp.mount(Sidebar, {
       ...options,
       props: {
         applications: [],
-        workspaces: [workspace],
+        workspaces: testApp.store.getters['workspace/getAll'],
         selectedWorkspace: workspace,
       },
       global: {
@@ -37,6 +37,28 @@ describe('Sidebar menu lifecycle', () => {
         },
       },
     })
+  }
+
+  async function openWorkspacePicker(route) {
+    testApp.authenticate({
+      id: 1,
+      first_name: 'Ada',
+      completed_onboarding: true,
+    })
+    testApp.mock.onGet('/settings/').reply(200, {})
+    testApp.mock.onGet('/applications/').reply(200, [])
+    testApp.mock.onGet('/workspaces/').reply(200, [
+      { id: 1, name: 'Design' },
+      { id: 2, name: 'Engineering' },
+    ])
+    testApp.mock.onGet(/\/workspaces\/\d+\/permissions\//).reply(200, [])
+    await testApp.store.dispatch('workspace/fetchAll')
+    await testApp.store.dispatch('workspace/selectById', 1)
+    const sidebar = await mountSidebar({ route })
+    const trigger = sidebar.get('.sidebar__workspace-trigger')
+    await trigger.trigger('click')
+    await flushPromises()
+    return trigger
   }
 
   test('shows an empty state when the workspace search has no matches', async () => {
@@ -57,6 +79,89 @@ describe('Sidebar menu lifecycle', () => {
     expect(picker.get('.sidebar-workspace-picker__item').text()).toContain(
       'Design'
     )
+  })
+
+  test('marks only the pending workspace and allows retry after a failed switch', async () => {
+    testApp.dontFailOnErrorResponses()
+    await testApp.store.dispatch('workspace/forceCreate', {
+      id: 2,
+      name: 'Engineering',
+    })
+    const response = Promise.withResolvers()
+    const url = '/workspaces/2/permissions/'
+    testApp.mock.onGet(url).reply(() => response.promise)
+    const sidebar = await mountSidebar()
+    const trigger = sidebar.get('.sidebar__workspace-trigger')
+    await trigger.trigger('click')
+    await flushPromises()
+
+    const options = testApp.body.findAll(
+      'button.sidebar-workspace-picker__item'
+    )
+    const engineering = options.find((item) =>
+      item.text().includes('Engineering')
+    )
+    const design = options.find((item) => item.text().includes('Design'))
+    await engineering.trigger('click')
+    expect(engineering.attributes('aria-busy')).toBe('true')
+    expect(
+      engineering.get('.sidebar-workspace-picker__loading').isVisible()
+    ).toBe(true)
+    expect(design.attributes('aria-busy')).toBeUndefined()
+    await engineering.trigger('click')
+    response.resolve([503, {}])
+    await flushPromises()
+
+    expect(trigger.attributes('aria-expanded')).toBe('true')
+    expect(engineering.attributes('aria-disabled')).toBeUndefined()
+    expect(
+      engineering.find('.sidebar-workspace-picker__loading').exists()
+    ).toBe(false)
+    expect(
+      testApp.mock.history.get.filter((request) => request.url === url)
+    ).toHaveLength(1)
+    await engineering.trigger('click')
+    await flushPromises()
+    expect(
+      testApp.mock.history.get.filter((request) => request.url === url)
+    ).toHaveLength(2)
+  })
+
+  test('releases the picker when selecting the current workspace clears the query', async () => {
+    const trigger = await openWorkspacePicker('/workspace/1?ref=sidebar')
+    const current = testApp.body.get('[data-workspace-option][aria-current]')
+    await current.trigger('click')
+    await vi.waitFor(() => {
+      expect(testApp.nuxtApp.$router.currentRoute.value.fullPath).toBe(
+        '/workspace/1'
+      )
+      expect(trigger.attributes('aria-expanded')).toBe('false')
+    })
+    await trigger.trigger('click')
+    await flushPromises()
+    expect(current.attributes('aria-disabled')).toBeUndefined()
+  })
+
+  test('keeps the current workspace selected when navigation is refused', async () => {
+    const trigger = await openWorkspacePicker('/workspace/1')
+    const router = testApp.nuxtApp.$router
+    const guard = vi.fn(() => false)
+    const removeGuard = router.beforeEach(guard)
+    try {
+      const engineering = testApp.body.get(
+        'button.sidebar-workspace-picker__item:not([aria-current])'
+      )
+      await engineering.trigger('click')
+      await vi.waitFor(() => {
+        expect(guard).toHaveBeenCalledOnce()
+        expect(engineering.attributes('aria-busy')).toBeUndefined()
+      })
+      expect(trigger.attributes('aria-expanded')).toBe('true')
+      expect(router.currentRoute.value.fullPath).toBe('/workspace/1')
+      expect(testApp.store.getters['workspace/getSelected'].id).toBe(1)
+    } finally {
+      removeGuard()
+    }
   })
 
   test.each(['open', 'opening'])(

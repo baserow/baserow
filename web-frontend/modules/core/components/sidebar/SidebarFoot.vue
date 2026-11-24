@@ -26,10 +26,6 @@
             <span v-show="!collapsed" class="sidebar__account-name">{{
               firstName
             }}</span>
-            <span
-              v-if="hasUnreadNotifications"
-              class="sidebar__unread-notifications-icon"
-            ></span>
           </button>
           <SidebarAccountMenu
             ref="accountContext"
@@ -93,10 +89,6 @@ export default {
     selectedWorkspace: {
       type: Object,
       default: null,
-    },
-    hasUnreadNotifications: {
-      type: Boolean,
-      default: false,
     },
     collapsed: {
       type: Boolean,

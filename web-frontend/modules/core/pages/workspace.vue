@@ -103,42 +103,23 @@
                 :key="index"
               ></component>
               <a
-                href="https://academy.baserow.io/"
+                v-for="resource in workspaceLearningResources"
+                :key="resource.url"
+                :href="resource.url"
                 target="_new"
                 rel="noopener noreferrer"
                 class="dashboard__resource"
               >
                 <div class="dashboard__resource-inner">
                   <span class="dashboard__resource-icon">
-                    <i class="iconoir-graduation-cap"></i
-                  ></span>
-
+                    <i :class="resource.icon" aria-hidden="true"></i>
+                  </span>
                   <div class="dashboard__resource-content">
                     <h4 class="dashboard__resource-title">
-                      {{ $t('dashboard.academy') }}
+                      {{ $t(resource.title) }}
                     </h4>
                     <p class="dashboard__resource-text">
-                      {{ $t('dashboard.academyMessage') }}
-                    </p>
-                  </div>
-                </div>
-              </a>
-              <a
-                href="https://baserow.io/blog/category/tutorials"
-                target="_new"
-                class="dashboard__resource"
-              >
-                <div class="dashboard__resource-inner">
-                  <span class="dashboard__resource-icon">
-                    <i class="iconoir-light-bulb"></i
-                  ></span>
-
-                  <div class="dashboard__resource-content">
-                    <h4 class="dashboard__resource-title">
-                      {{ $t('dashboard.tutorials') }}
-                    </h4>
-                    <p class="dashboard__resource-text">
-                      {{ $t('dashboard.tutorialsMessage') }}
+                      {{ $t(resource.description) }}
                     </p>
                   </div>
                 </div>
@@ -229,6 +210,7 @@
 <script setup>
 import { ref, computed, watchEffect } from 'vue'
 import { useRoute, useNuxtApp, createError } from '#app'
+import { workspaceLearningResources } from '@baserow/modules/core/utils/workspaceLearningResources'
 import { visibleApplications } from '@baserow/modules/core/utils/workspace'
 import { useHead } from '#imports'
 import { usePageAsyncData } from '@baserow/modules/core/composables/usePageAsyncData'
