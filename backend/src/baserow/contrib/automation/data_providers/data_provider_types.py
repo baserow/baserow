@@ -9,7 +9,7 @@ from baserow.contrib.automation.history.exceptions import (
 )
 from baserow.contrib.automation.nodes.exceptions import AutomationNodeDoesNotExist
 from baserow.contrib.automation.nodes.handler import AutomationNodeHandler
-from baserow.core.formula.exceptions import InvalidFormulaContext
+from baserow.core.formula.exceptions import InvalidFormulaContext, InvalidRuntimeFormula
 from baserow.core.formula.registries import DataProviderType
 from baserow.core.utils import get_value_at_path
 
@@ -147,6 +147,12 @@ class CurrentNodeDataProviderType(AutomationDataProviderType):
     """
 
     type = "current_node"
+
+    def is_valid(self, path, validation_context=None):
+        if (validation_context or {}).get("allow_current_node") is False:
+            raise InvalidRuntimeFormula(
+                "The current node's result is only available in its retry condition"
+            )
 
     def get_data_chunk(
         self, dispatch_context: AutomationDispatchContext, path: List[str]

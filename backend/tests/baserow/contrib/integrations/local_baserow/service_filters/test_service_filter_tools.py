@@ -464,6 +464,27 @@ def test_table_changed_during_filter_generation_is_rejected(
 
 
 @pytest.mark.django_db
+@pytest.mark.parametrize(
+    "formula",
+    [
+        "get('current_node.id')",
+        "GET(('current_node[0].id'))",
+        "concat('row ', get('current_node.id'))",
+    ],
+)
+def test_automation_filters_cannot_read_current_node(seeded, formula):
+    with rejected("only available in its retry condition"):
+        update_service_filters(
+            ctx(seeded),
+            "automation_node",
+            seeded.node.id,
+            ops(add(seeded.name.id, "equal", formula, True)),
+        )
+
+    assert filters_of(seeded.node.service) == []
+
+
+@pytest.mark.django_db
 def test_automation_filters_only_read_previous_nodes(seeded):
     trigger_value = f"get('previous_node.{seeded.trigger.id}.0.field_{seeded.name.id}')"
     result = update_service_filters(

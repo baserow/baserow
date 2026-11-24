@@ -87,7 +87,7 @@ class AutomationNodeServiceFilterTargetType(ServiceFilterTargetType):
 
         def check(formula: str) -> str | None:
             try:
-                check_automation_formula("value", formula)
+                check_automation_formula("value", formula, allow_current_node=False)
             except InvalidAutomationFormula as exc:
                 return exc.error
             for _, _, node_id, _ in previous_node_paths(formula):
