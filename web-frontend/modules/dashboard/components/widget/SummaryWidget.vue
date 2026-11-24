@@ -45,24 +45,22 @@ export default {
       ](this.dataSource?.id)
     },
     result() {
-      if (this.dataSource) {
-        const data = this.dataForDataSource
-        if (data && data.result !== undefined) {
-          const serviceType = this.$registry.get(
-            'service',
-            this.dataSource.type
-          )
-          const resultData =
-            data.result === null
-              ? {
-                  ...data,
-                  result: this.$registry
-                    .get('viewAggregation', this.dataSource.aggregation_type)
-                    .getEmptyValue(),
-                }
-              : data
-          return serviceType.getResult(this.dataSource, resultData)
-        }
+      const data = this.dataForDataSource
+      if (!data) {
+        return ''
+      }
+      if (this.dataSource && data.result !== undefined) {
+        const serviceType = this.$registry.get('service', this.dataSource.type)
+        const resultData =
+          data.result === null
+            ? {
+                ...data,
+                result: this.$registry
+                  .get('viewAggregation', this.dataSource.aggregation_type)
+                  .getEmptyValue(),
+              }
+            : data
+        return serviceType.getResult(this.dataSource, resultData)
       }
       return 0
     },

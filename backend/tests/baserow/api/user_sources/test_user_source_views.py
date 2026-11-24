@@ -1066,11 +1066,16 @@ def test_get_user_source_users_of_published_builder_requires_workspace_access(
 
 
 @pytest.mark.django_db
+@pytest.mark.parametrize("template_type", ["official", "user"])
 def test_get_user_source_users_of_template(
-    api_client, data_fixture, stub_user_source_registry
+    api_client, data_fixture, stub_user_source_registry, template_type
 ):
     template_workspace = data_fixture.create_workspace()
-    data_fixture.create_template(workspace=template_workspace)
+    if template_type == "official":
+        data_fixture.create_template(workspace=template_workspace)
+    else:
+        template = data_fixture.create_user_template(workspace=template_workspace)
+        data_fixture.set_user_template_state(template, "public")
     application = data_fixture.create_builder_application(workspace=template_workspace)
     user_source = data_fixture.create_user_source_with_first_type(
         application=application
@@ -1095,11 +1100,51 @@ def test_get_user_source_users_of_template(
             HTTP_AUTHORIZATION=f"JWT {token}",
         )
 
-    assert response.status_code == HTTP_200_OK
-    assert [
-        user["email"]
-        for user in response.json()["users_per_user_sources"][str(user_source.id)]
-    ] == ["template@mail.com"]
+    if template_type == "official":
+        assert response.status_code == HTTP_200_OK
+        assert [
+            user["email"]
+            for user in response.json()["users_per_user_sources"][str(user_source.id)]
+        ] == ["template@mail.com"]
+    else:
+        assert response.status_code == HTTP_401_UNAUTHORIZED
+        assert response.json()["error"] == "PERMISSION_DENIED"
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "template_type,signed_in",
+    [("user", True), ("official", False)],
+    ids=["user_template_author", "official_signed_out"],
+)
+def test_token_auth_refused_on_templates(
+    api_client, data_fixture, stub_user_source_registry, template_type, signed_in
+):
+    owner, token = data_fixture.create_user_and_token()
+    workspace = data_fixture.create_workspace()
+    if template_type == "user":
+        data_fixture.create_user_template(user=owner, workspace=workspace)
+    else:
+        data_fixture.create_template(workspace=workspace)
+    application = data_fixture.create_builder_application(workspace=workspace)
+    user_source = data_fixture.create_user_source_with_first_type(
+        application=application
+    )
+    headers = {"HTTP_AUTHORIZATION": f"JWT {token}"} if signed_in else {}
+
+    with stub_user_source_registry():
+        response = api_client.post(
+            reverse(
+                "api:user_sources:token_auth",
+                kwargs={"user_source_id": user_source.id},
+            ),
+            {"email": "e@ma.il", "password": "password"},
+            format="json",
+            **headers,
+        )
+
+    assert response.status_code == HTTP_401_UNAUTHORIZED
+    assert response.json()["error"] == "PERMISSION_DENIED"
 
 
 def _create_mismatched_integration(data_fixture, kind, user, application):

@@ -35,6 +35,7 @@ export const state = () => ({
   // password protected dashboard.
   publicSlug: null,
   publicAuthToken: null,
+  withoutLiveData: false,
 })
 
 const widgetUpdates = new WeakMap()
@@ -380,6 +381,10 @@ export const mutations = {
     state.data = {}
     state.publicSlug = null
     state.publicAuthToken = null
+    state.withoutLiveData = false
+  },
+  SET_WITHOUT_LIVE_DATA(state, value) {
+    state.withoutLiveData = value
   },
   SET_PUBLIC(state, { slug, authToken = null }) {
     state.publicSlug = slug
@@ -879,9 +884,13 @@ export const actions = {
       )
     )
   },
-  async fetchInitial({ state, commit, dispatch }, { dashboardId, forEditing }) {
+  async fetchInitial(
+    { state, commit, dispatch },
+    { dashboardId, forEditing, withoutLiveData = false }
+  ) {
     const { $client } = this
     commit('RESET')
+    commit('SET_WITHOUT_LIVE_DATA', withoutLiveData)
     commit('SET_LOADING', true)
     commit('SET_DASHBOARD_ID', dashboardId)
     const request = {
@@ -1057,6 +1066,9 @@ export const actions = {
     return widget
   },
   async dispatchDataSource({ state, commit }, requestValues) {
+    if (state.withoutLiveData) {
+      return
+    }
     const { $client, $config, $registry } = this
     const requestContext = normalizeDataSourceRequestContext(
       requestValues,
@@ -1203,6 +1215,9 @@ export const getters = {
   },
   isLoading(state) {
     return state.loading
+  },
+  isWithoutLiveData(state) {
+    return state.withoutLiveData
   },
   isEmpty(state) {
     return state.widgets.length === 0

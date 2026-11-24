@@ -127,7 +127,8 @@ class UserSourceService:
     ) -> Dict[int, List[UserSourceUser]]:
         """
         Lists the first users of each user source of the given application. Reading
-        the users of a user source requires to be allowed to read the user source.
+        the users of a user source requires to be allowed to read the user source
+        and to log in as its users.
 
         :param user: The user trying to list the users.
         :param application: The application that holds the user_sources.
@@ -140,12 +141,16 @@ class UserSourceService:
 
         users_per_user_sources = {}
         for user_source in user_sources:
-            CoreHandler().check_permissions(
-                user,
-                ReadUserSourceOperationType.type,
-                workspace=application.workspace,
-                context=user_source,
-            )
+            for operation_type in [
+                ReadUserSourceOperationType,
+                LoginUserSourceOperationType,
+            ]:
+                CoreHandler().check_permissions(
+                    user,
+                    operation_type.type,
+                    workspace=application.workspace,
+                    context=user_source,
+                )
             users_per_user_sources[user_source.id] = user_source.get_type().list_users(
                 user_source, count=count, search=search
             )

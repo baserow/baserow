@@ -23,7 +23,10 @@ class AllowIfTemplatePermissionManagerType(CoreAllowIfTemplatePermissionManagerT
         ListWidgetsOperationType.type,
         ReadDashboardDataSourceOperationType.type,
         ListDashboardDataSourcesOperationType.type,
-        DispatchDashboardDataSourceOperationType.type,
+    ]
+
+    DASHBOARD_LIVE_OPERATIONS_ON_TEMPLATES = [
+        DispatchDashboardDataSourceOperationType.type
     ]
 
     @property
@@ -31,6 +34,13 @@ class AllowIfTemplatePermissionManagerType(CoreAllowIfTemplatePermissionManagerT
         return (
             self.prev_manager_type.OPERATION_ALLOWED_ON_TEMPLATES
             + self.DASHBOARD_OPERATION_ALLOWED_ON_TEMPLATES
+        )
+
+    @property
+    def LIVE_OPERATIONS_ON_TEMPLATES(self):
+        return (
+            self.prev_manager_type.LIVE_OPERATIONS_ON_TEMPLATES
+            + self.DASHBOARD_LIVE_OPERATIONS_ON_TEMPLATES
         )
 
     def __init__(self, prev_manager_type: PermissionManagerType):
