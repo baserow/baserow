@@ -134,12 +134,13 @@ import { isAssistantAvailable } from '@baserow_enterprise/utils/assistant'
 
 /**
  * A small Kuma prompt shown in place, e.g. under a form: a link opens a card where
- * the user describes what they want, the shared action endpoint asks Kuma to do it, and
- * Kuma's summary is shown with an undo when something changed.
+ * the user describes what they want, the assistant's action endpoint asks Kuma to
+ * do it, and Kuma's summary is shown with an undo when something changed.
  *
  * The host provides what the request is about: the copy, the suggestions, a
- * message blocking the request when it can't be made yet, and action parameters. It's only
- * shown when Kuma is available in the workspace, like the sidebar's Kuma AI item.
+ * message blocking the request when it can't be made yet, and the action with its
+ * parameters. It's only shown when Kuma is available in the workspace, like the
+ * sidebar's Kuma AI item.
  */
 const props = defineProps({
   /** Whether there is something to ask Kuma about, e.g. a saved data source. */
@@ -156,12 +157,12 @@ const props = defineProps({
   /** Why the request can't be sent yet. Disables the submit button. */
   blockedMessage: { type: String, default: '' },
   /**
-   * Sends the user's request to Kuma. Resolves `{ changed, summary }`: whether
-   * Kuma changed something, which can then be undone, and what it did.
+   * The assistant action run with the user's request, e.g.
+   * `update_service_filters`. It resolves `{ changed, summary }`: whether Kuma
+   * changed something, which can then be undone, and what it did.
    */
-  request: { type: Function, default: null },
-  /** Targeted action supported by the shared assistant endpoint. */
-  action: { type: String, default: '' },
+  action: { type: String, required: true },
+  /** The action's parameters, e.g. what it is about. */
   parameters: { type: Object, default: () => ({}) },
   /** The name of the error messages to show, see `getMessage`. */
   errorName: { type: String, default: null },
@@ -170,7 +171,7 @@ const props = defineProps({
 })
 
 /** `active` is emitted with whether the card is shown, e.g. to freeze a form. */
-const emit = defineEmits(['active', 'completed'])
+const emit = defineEmits(['active'])
 
 const app = useNuxtApp()
 const store = useStore()
@@ -269,14 +270,11 @@ async function submit() {
   state.value = 'working'
   errorMessage.value = ''
   try {
-    const result = props.action
-      ? await AssistantService(app.$client).runAction(
-          props.action,
-          message,
-          props.parameters
-        )
-      : await props.request(message)
-    emit('completed', result)
+    const result = await AssistantService(app.$client).runAction(
+      props.action,
+      message,
+      props.parameters
+    )
     summary.value = result.summary
     changed.value = result.changed
     prompt.value = ''
