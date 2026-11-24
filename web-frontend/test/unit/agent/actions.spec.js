@@ -85,6 +85,7 @@ describe('Agent action editor', () => {
     )
     agentRef = ref(agent)
     testApp.mock.onGet('application/10/integrations/').reply(200, [])
+    testApp.mock.onGet('/agent/10/action-types/').reply(200, [])
   })
   afterEach(async () => {
     await testApp.afterEach()

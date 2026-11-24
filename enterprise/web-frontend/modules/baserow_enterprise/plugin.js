@@ -152,6 +152,7 @@ import {
   LocalBaserowSemanticSearchServiceType,
   LocalBaserowRowCommentPostedTriggerServiceType,
 } from '@baserow_enterprise/integrations/localBaserow/serviceTypes'
+import { LocalBaserowSemanticSearchToolPresentationType } from '@baserow_enterprise/agentToolPresentationTypes'
 import { SemanticSearchFieldFormAdvancedSettingType } from '@baserow_enterprise/fieldFormAdvancedSettingTypes'
 import {
   AISemanticSearchFieldType,
@@ -334,6 +335,10 @@ export default defineNuxtPlugin({
     $registry.register(
       'node',
       new LocalBaserowSemanticSearchActionNodeType(context)
+    )
+    $registry.register(
+      'toolPresentation',
+      new LocalBaserowSemanticSearchToolPresentationType(context)
     )
 
     $registry.register(

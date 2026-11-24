@@ -302,6 +302,7 @@ import ButtonText from '@baserow/modules/core/components/ButtonText'
 import FormulaInputField from '@baserow/modules/core/components/formula/FormulaInputField'
 import AgentTriggerMessageInput from '@baserow/modules/agent/components/configuration/AgentTriggerMessageInput'
 import AgentTriggerPicker from '@baserow/modules/agent/components/configuration/AgentTriggerPicker'
+import { provideWorkspaceAccessLink } from '@baserow/modules/agent/composables/useWorkspaceAccessLink'
 import {
   agentTriggerTypeOf,
   serviceTypeOf,
@@ -367,6 +368,7 @@ const lockedModalRef = ref(null)
 const canEdit = computed(() => props.editable && !locked.value)
 // Hosted service forms inject these like in Automation's node side panel.
 provide('formulaComponent', FormulaInputField)
+provideWorkspaceAccessLink()
 provide('dataProvidersAllowed', [])
 provide('workspace', toRef(props, 'workspace'))
 provide(
@@ -394,7 +396,7 @@ const hostedFormProps = computed(() => {
     ...agentTriggerType?.getFormProps({ runAsName: props.runAsName }),
     ...(hiddenFormFields?.length ? { hiddenFormFields } : {}),
     ...(needsWorkspaceAccess.value
-      ? { formChoicesError: t('agent.triggerSetWorkspaceAccess') }
+      ? { formChoicesError: t('agent.noWorkspaceAccessTables') }
       : {}),
   }
 })

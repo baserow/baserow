@@ -118,6 +118,8 @@ WEB_FETCH_TOOL_NAME = "web_fetch"
 # the context of small models too: about 12,500 tokens for five.
 WEB_FETCH_MAX_PER_REPLY = 5
 WEB_FETCH_MAX_CHARACTERS = 10_000
+# The most of an action's result the model reads, as it's resent every turn.
+ACTION_MAX_RESULT_CHARACTERS = 20_000
 # The text of a page that is converted at most, which bounds the time and memory
 # converting takes.
 WEB_FETCH_MAX_CONVERTED_CHARACTERS = 2_000_000

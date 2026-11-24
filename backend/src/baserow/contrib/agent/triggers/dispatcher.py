@@ -14,6 +14,7 @@ from baserow.core.exceptions import SubjectTypeNotExist
 from baserow.core.registries import subject_type_registry
 from baserow.core.services.models import Service
 from baserow.core.services.registries import service_type_registry
+from baserow.core.tools.errors import describe_failure
 from baserow.core.types import Subject
 from baserow.core.utils import exception_capturer, rate_limit_window_exceeded
 
@@ -237,7 +238,7 @@ class AgentTriggerDispatcher:
         except Exception as e:
             # A user's formula, not a bug: log it without reporting it.
             logger.warning(
-                "Agent trigger {} message failed ({}).", trigger.id, type(e).__name__
+                "Agent trigger {} message failed ({}).", trigger.id, describe_failure(e)
             )
             return (
                 handler.message_without_text(trigger, payload, fired_at),

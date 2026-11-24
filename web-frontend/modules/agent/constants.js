@@ -145,3 +145,6 @@ export const RUN_AS_STATUS = Object.freeze({
   TRASHED: 'trashed',
   MISSING: 'missing',
 })
+
+/** The configuration section where the Agent's workspace identity is set. */
+export const WORKSPACE_ACCESS_SECTION = 'workspace_access'

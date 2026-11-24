@@ -12,12 +12,14 @@ from baserow.contrib.agent.action_tools.registries import (
 from baserow.contrib.agent.action_tools.service import AgentActionService
 from baserow.contrib.agent.constants import (
     DISALLOWED_TOOL_CALL_NOTE,
+    RUN_AS_LOST_TOOL_CALL_NOTE,
     TOOL_CHANGED_CALL_NOTE,
 )
 from baserow.contrib.agent.handler import AgentHandler
 from baserow.contrib.agent.previews import StepPreview
 from baserow.contrib.agent.service import AgentService
 from baserow.core.chat_runs.models import ChatRun
+from baserow.core.identities.handler import IdentityHandler
 from baserow.core.services.types import DispatchResult
 from baserow.core.trash.handler import TrashHandler
 
@@ -516,7 +518,7 @@ def test_runtime_shows_the_adapter_preview_and_dispatches_the_arguments(
         def get_preview_values(self, service, resolved_values):
             return {}
 
-        def get_configuration_errors(self, action):
+        def get_configuration_errors(self, action, identity=None):
             return {}
 
         def prepare(self, action, arguments):
@@ -525,7 +527,7 @@ def test_runtime_shows_the_adapter_preview_and_dispatches_the_arguments(
         def get_preview(self, action, resolved_values, arguments):
             return preview
 
-        def dispatch(self, action, resolved_values):
+        def dispatch(self, action, resolved_values, identity=None):
             dispatched.append(resolved_values)
             return DispatchResult(data={"queued": True})
 
@@ -546,4 +548,74 @@ def test_runtime_shows_the_adapter_preview_and_dispatches_the_arguments(
     assert reply.status == "completed"
     assert dispatched == [{"payload": "Hi"}]
     assert reply.steps[0]["input"] == preview
+    connection.assert_not_called()
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("change", ["keep_the_identity", "switch_the_identity"])
+def test_an_action_acting_as_the_identity_runs_only_for_a_run_held_as_it(
+    email_action, mocker, monkeypatch, change
+):
+    user, agent, action, _, connection = email_action
+    identity = IdentityHandler().create_identity(workspace=agent.workspace, name="Ops")
+    AgentHandler().update_configuration(
+        agent, run_as_subject_type="auth.User", run_as_subject_id=identity.id
+    )
+    action.inputs = [
+        {
+            "id": str(uuid4()),
+            "name": "payload",
+            "type": "string",
+            "description": "The payload.",
+            "required": True,
+        }
+    ]
+    action.ask_first = True
+    action.save()
+    dispatched_as = []
+
+    class IdentityActionType(AgentActionType):
+        type = "smtp_email"
+        acts_as_run_identity = True
+
+        def get_defaults(self):
+            return {}
+
+        def get_preview_values(self, service, resolved_values):
+            return {}
+
+        def get_configuration_errors(self, action, identity=None):
+            return {} if identity else {"run_as": "required"}
+
+        def prepare(self, action, arguments):
+            return {"payload": arguments["payload"]}
+
+        def dispatch(self, action, resolved_values, identity=None):
+            dispatched_as.append(identity.pk)
+            return DispatchResult(data={"done": True})
+
+    monkeypatch.setitem(
+        agent_action_type_registry.registry, "smtp_email", IdentityActionType()
+    )
+    received = respond(mocker, ({0: tool_call(action.name, "held", payload="Hi")},))
+    reply = pause(user, agent)
+    if change == "switch_the_identity":
+        other = IdentityHandler().create_identity(
+            workspace=agent.workspace, name="Admin"
+        )
+        AgentHandler().update_configuration(
+            agent, run_as_subject_type="auth.User", run_as_subject_id=other.id
+        )
+
+    run_reply(decide(user, reply, approved=True))
+
+    reply.refresh_from_db()
+    assert reply.status == "completed"
+    if change == "keep_the_identity":
+        assert dispatched_as == [identity.id]
+    else:
+        assert dispatched_as == []
+        assert [part.content for part in received[-1][-1].parts] == [
+            RUN_AS_LOST_TOOL_CALL_NOTE
+        ]
     connection.assert_not_called()

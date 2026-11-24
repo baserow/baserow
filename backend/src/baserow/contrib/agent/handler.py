@@ -211,7 +211,7 @@ class AgentHandler:
             and self._get_web_search_tool(agent, False) is not None,
             web_fetch_enabled=agent.web_fetch_enabled,
             available_trigger_types=AgentTriggerHandler().available_trigger_types(),
-            available_action_types=AgentActionHandler().available_action_types(agent),
+            available_action_types=AgentActionHandler().available_action_types(),
             max_actions=settings.BASEROW_AGENT_MAX_ACTIONS_PER_AGENT,
             max_queued_trigger_runs=settings.AGENT_TRIGGER_MAX_QUEUED_RUNS,
             max_parallel_trigger_runs=settings.AGENT_TRIGGER_MAX_PARALLEL_RUNS,
@@ -1537,8 +1537,9 @@ class AgentHandler:
 
     def get_action_tools(self, agent: AgentApplication) -> list[BoundActionTool]:
         """
-        Bind the Agent's enabled actions that are ready to run. They don't depend
-        on the Agent's workspace identity: they act through their own service.
+        Bind the Agent's enabled actions that are ready to run. Each acts through
+        its own service, as the Agent's workspace identity for a type that acts as
+        it.
 
         :param agent: The Agent.
         :return: One tool per callable action.
@@ -1585,7 +1586,19 @@ class AgentHandler:
             else {"allowed_tools": [], "ask_first_tools": []}
         )
         mcp_servers = self.get_mcp_servers(agent)
-        action_tools = self.get_action_tools(agent)
+        all_action_tools = self.get_action_tools(agent)
+        identity_action_names = {
+            tool.type
+            for tool in all_action_tools
+            if tool.action_type.acts_as_run_identity
+        }
+        # Like the workspace tools, an action that acts as the identity can't act
+        # for a run held as another one.
+        action_tools = [
+            tool
+            for tool in all_action_tools
+            if acting_subject is not None or tool.type not in identity_action_names
+        ]
         if conversation.is_test:
             # A test Kuma started can't change anything without the owner's say-so.
             tools = {
@@ -1629,6 +1642,7 @@ class AgentHandler:
                 DISALLOWED_TOOL_CALL_NOTE
                 if acting_subject
                 else RUN_AS_LOST_TOOL_CALL_NOTE,
+                identity_action_names,
             )
         )
         prompt, history = (
@@ -1838,6 +1852,7 @@ class AgentHandler:
         paused_conversation: Conversation,
         callable_tools: dict[str, str],
         disallowed_note: str,
+        identity_action_names: set[str],
     ) -> AgentReplyResume:
         """
         Continue a paused reply with the owner's decision on each held call, showing
@@ -1848,6 +1863,8 @@ class AgentHandler:
         :param callable_tools: The tools the reply may call now, with the
             approval key of the MCP ones and the actions.
         :param disallowed_note: Tells the model why an approved call can't run.
+        :param identity_action_names: The actions that act as the Agent's
+            identity, like the workspace tools.
         :return: The paused run with the decisions and the saved steps.
         """
 
@@ -1862,7 +1879,7 @@ class AgentHandler:
         # An undecided call gets no result, so the run fails instead of guessing.
         results = {
             tool_call_id: self._get_approval_result(
-                approval, callable_tools, disallowed_note
+                approval, callable_tools, disallowed_note, identity_action_names
             )
             for tool_call_id, approval in approvals.items()
             if approval.status != AgentToolApproval.Status.PENDING
@@ -1890,6 +1907,7 @@ class AgentHandler:
         approval: AgentToolApproval,
         callable_tools: dict[str, str],
         disallowed_note: str,
+        identity_action_names: set[str],
     ) -> ToolApproved | ToolDenied:
         """
         Tell the model what the owner decided about a held call. An approved call
@@ -1901,6 +1919,8 @@ class AgentHandler:
         :param callable_tools: The tools the reply may call now, with the
             approval key of the MCP ones and the actions.
         :param disallowed_note: Tells the model why an approved call can't run.
+        :param identity_action_names: The actions that act as the Agent's
+            identity, like the workspace tools.
         :return: Whether the call runs, or why it doesn't.
         """
 
@@ -1911,10 +1931,12 @@ class AgentHandler:
                 else REJECTED_TOOL_CALL_NOTE
             )
         if approval.tool_name not in callable_tools:
-            # An MCP tool or action doesn't act as the Agent's identity, so losing
-            # it isn't why.
+            # An MCP tool or other action doesn't act as the Agent's identity, so
+            # losing it isn't why.
             return ToolDenied(
-                DISALLOWED_TOOL_CALL_NOTE if approval.tool_key else disallowed_note
+                DISALLOWED_TOOL_CALL_NOTE
+                if approval.tool_key and approval.tool_name not in identity_action_names
+                else disallowed_note
             )
         if callable_tools[approval.tool_name] != approval.tool_key:
             return ToolDenied(TOOL_CHANGED_CALL_NOTE)

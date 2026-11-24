@@ -9,6 +9,7 @@ import { removeActionInputReferences } from '@baserow/modules/agent/utils/action
 import AgentActionService from '@baserow/modules/agent/services/agentActions'
 import { actionFieldLabel } from '@baserow/modules/agent/utils/actionLabels'
 import { notifyIf } from '@baserow/modules/core/utils/error'
+import { getRunAsStatus } from '@baserow/modules/agent/utils/runAs'
 
 const EDITABLE_FIELDS = [
   'name',
@@ -29,13 +30,21 @@ const isCallable = (action) =>
  * @param {Function} onCallableChange Called when the Agent gains its first
  *   action the model can call, or loses its last one: the configuration
  *   depends on whether it has one.
+ * @param {Function} getRunAs Returns the Agent's run identity, whose change
+ *   changes what an action that acts as it can choose and whether it's ready.
  */
-export function useAgentActions(agent, onCallableChange = () => {}) {
+export function useAgentActions(
+  agent,
+  onCallableChange = () => {},
+  getRunAs = () => null
+) {
   const { $client, $registry } = useNuxtApp()
   const { t } = useI18n()
   const store = useStore()
   const service = AgentActionService($client)
   const actions = ref([])
+  // By type: what its form may choose from for the run identity; null while loading.
+  const actionTypes = ref(null)
   const loading = ref(false)
   const loadError = ref(false)
   const deletingIds = reactive(new Set())
@@ -44,6 +53,7 @@ export function useAgentActions(agent, onCallableChange = () => {}) {
   const saved = new Map()
   let scope = 0
   let request = 0
+  let typesRequest = 0
   let hadCallable = null
 
   function reportCallable() {
@@ -146,6 +156,27 @@ export function useAgentActions(agent, onCallableChange = () => {}) {
       if (isCurrent()) loadError.value = true
     } finally {
       if (isCurrent()) loading.value = false
+    }
+  }
+
+  /**
+   * Loads what each action type's form may choose from for the Agent's run
+   * identity, ignoring a reply that a newer load replaced. When it fails, the
+   * forms open with nothing to choose from.
+   */
+  async function fetchActionTypes() {
+    if (!agent.value?.id) return
+    const currentScope = scope
+    const currentRequest = ++typesRequest
+    try {
+      const { data } = await service.listTypes(agent.value.id)
+      if (currentScope !== scope || currentRequest !== typesRequest) return
+      actionTypes.value = Object.fromEntries(
+        data.map(({ type, ...options }) => [type, options])
+      )
+    } catch {
+      if (currentScope === scope && currentRequest === typesRequest)
+        actionTypes.value = {}
     }
   }
 
@@ -287,7 +318,10 @@ export function useAgentActions(agent, onCallableChange = () => {}) {
     for (const entry of saved.values()) entry.schedule.flush()
   }
 
-  onMounted(() => fetchActions({ integrations: true }))
+  onMounted(() => {
+    fetchActions({ integrations: true })
+    fetchActionTypes()
+  })
   watch(
     () => agent.value?.id,
     () => {
@@ -295,8 +329,20 @@ export function useAgentActions(agent, onCallableChange = () => {}) {
       ++scope
       for (const id of saved.keys()) forget(id, true)
       actions.value = []
+      actionTypes.value = null
       hadCallable = null
       fetchActions({ integrations: true })
+      fetchActionTypes()
+    }
+  )
+  watch(
+    () => {
+      const runAs = getRunAs()
+      return [runAs?.type, runAs?.id, getRunAsStatus(runAs)].join(':')
+    },
+    () => {
+      fetchActionTypes()
+      if (!loading.value) fetchActions()
     }
   )
   watch(
@@ -333,6 +379,7 @@ export function useAgentActions(agent, onCallableChange = () => {}) {
       actions.value.filter((action) => !deletingIds.has(action.id))
     ),
     allActions: actions,
+    actionTypes,
     loading,
     loadError,
     savingIds,

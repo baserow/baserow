@@ -1065,7 +1065,11 @@ def test_configuration_is_served_only_by_the_agent_endpoints(
             "periodic",
             "local_baserow_row_comment_posted",
         ],
-        "available_action_types": ["smtp_email", "http_request"],
+        "available_action_types": [
+            "smtp_email",
+            "http_request",
+            "local_baserow_semantic_search",
+        ],
         "max_actions": None,
         "max_queued_trigger_runs": 10,
         "max_parallel_trigger_runs": 5,

@@ -5,8 +5,6 @@ from dataclasses import dataclass
 from functools import cached_property, partial
 from typing import TYPE_CHECKING, Any
 
-from django.conf import settings
-
 from asgiref.sync import sync_to_async
 from loguru import logger
 from pydantic_ai import (
@@ -68,7 +66,7 @@ from baserow.core.generative_ai.registries import (
     generative_ai_model_type_registry,
 )
 from baserow.core.tools import ToolContext
-from baserow.core.tools.errors import ToolErrorCode
+from baserow.core.tools.errors import ToolErrorCode, describe_failure
 from baserow.core.utils import remove_null_characters
 
 from .action_tools.tools import BoundActionTool
@@ -212,20 +210,6 @@ def create_reply_model(request: AgentReplyRequest) -> tuple[Model, dict]:
         request.model_identifier, model_settings
     )
     return model, model_settings
-
-
-def _describe_failure(error: BaseException) -> str:
-    """
-    Include the original error only in debug mode: it can echo private content.
-
-    :param error: What the model raised.
-    :return: The class/status summary, with the exception text when debugging.
-    """
-
-    status_code = getattr(error, "status_code", None)
-    name = type(error).__name__
-    summary = f"{name}, status {status_code}" if status_code else name
-    return f"{summary}: {error}" if settings.DEBUG else summary
 
 
 def _step_text(value: object) -> str | None:
@@ -395,7 +379,7 @@ class AgentResponder:
             summary = tool.get_step_input(arguments)
         except Exception as exc:
             logger.error(
-                "Agent tool {} step input failed ({})", tool.type, type(exc).__name__
+                "Agent tool {} step input failed ({})", tool.type, describe_failure(exc)
             )
             summary = {}
         description = {"changes_data": tool.changes_data, "input": summary}
@@ -775,7 +759,7 @@ class AgentResponder:
                 self._journal.run.id,
                 self._request.provider_type[:128],
                 self._request.model_identifier[:128],
-                _describe_failure(error),
+                describe_failure(error),
             )
         return ChatRunOutcome(
             ChatRunStatus.FAILED, self._failure_error_code(error), result

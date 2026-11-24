@@ -20,7 +20,7 @@ from baserow.core.services.exceptions import (
     RedirectNotAllowedDispatchException,
     ResponseTooLargeDispatchException,
 )
-from baserow.core.tools.errors import ToolError, ToolErrorCode
+from baserow.core.tools.errors import ToolError, ToolErrorCode, describe_failure
 from baserow.version import VERSION as BASEROW_VERSION
 
 from .constants import (
@@ -253,7 +253,7 @@ def _read_page(url: str) -> dict:
         # connections, so the model can't use the error to map the network.
         return _failed("The page couldn't be opened.")
     except Exception as exc:
-        logger.error("Agent web fetch failed ({})", type(exc).__name__)
+        logger.error("Agent web fetch failed ({})", describe_failure(exc))
         return _failed("The page couldn't be opened.")
 
     if response.status_code >= 400:

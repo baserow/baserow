@@ -5,6 +5,7 @@ const ACTION_FIELD_LABELS = {
   service: 'agent.actionConfiguration',
   type: 'agent.actionFieldType',
   integration_id: 'agent.actionFieldIntegration',
+  run_as: 'agent.workspaceAccess',
 }
 
 export const ACTION_ERROR_LABELS = {
@@ -12,6 +13,7 @@ export const ACTION_ERROR_LABELS = {
   invalid: 'agent.actionErrorInvalid',
   unavailable: 'agent.actionErrorUnavailable',
   fixed_host: 'agent.actionErrorFixedHost',
+  fixed_value: 'agent.actionErrorFixedValue',
 }
 
 export const ACTION_INPUT_TYPE_LABELS = {

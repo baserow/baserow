@@ -2,6 +2,9 @@ export default (client) => ({
   list(agentId) {
     return client.get(`/agent/${agentId}/actions/`)
   },
+  listTypes(agentId) {
+    return client.get(`/agent/${agentId}/action-types/`)
+  },
   create(agentId, values) {
     return client.post(`/agent/${agentId}/actions/`, values)
   },

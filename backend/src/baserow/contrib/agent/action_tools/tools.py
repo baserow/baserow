@@ -12,12 +12,14 @@ from pydantic_ai.exceptions import ApprovalRequired, ModelRetry
 
 from baserow.contrib.agent.models import AgentAction
 from baserow.contrib.agent.registries import (
+    act_as_identity,
     failed_call,
     input_shower,
     shield_tool_call,
 )
 from baserow.core.cache import local_cache
 from baserow.core.db import with_usable_db_connection
+from baserow.core.exceptions import PermissionDenied
 from baserow.core.integrations.handler import IntegrationHandler
 from baserow.core.services.exceptions import (
     InvalidContextContentDispatchException,
@@ -26,6 +28,7 @@ from baserow.core.services.exceptions import (
 from baserow.core.services.handler import ServiceHandler
 from baserow.core.tools import ToolContext
 from baserow.core.tools.errors import ToolInputError
+from baserow.core.types import Subject
 
 from .exceptions import AgentActionCallNotPrepared
 from .inputs import build_input_model
@@ -79,8 +82,6 @@ class BoundActionTool:
     action_type: AgentActionType
     approval_key: str
 
-    changes_data = True
-
     @classmethod
     def from_action(cls, action: AgentAction) -> "BoundActionTool":
         """
@@ -114,6 +115,14 @@ class BoundActionTool:
         return self.action.ask_first
 
     @property
+    def changes_data(self) -> bool:
+        """
+        :return: Whether a call acts on anything, as the action's type says.
+        """
+
+        return self.action_type.changes_data
+
+    @property
     def presentation_type(self) -> str:
         """
         :return: The stable type that presents the action's steps, whatever its name.
@@ -131,8 +140,9 @@ class BoundActionTool:
 
     def get_tool(self, ctx: ToolContext) -> Tool:
         """
-        :param ctx: Who the reply's other tools act for. An action acts through
-            its own service instead.
+        :param ctx: Who the reply's other tools act for, which an action of a type
+            that acts as the run identity acts for too. Another action acts
+            through its own service's integration.
         :return: The tool, whose input schema and validation are the action's inputs.
         """
 
@@ -154,7 +164,7 @@ class BoundActionTool:
                     return failed_call(self, AgentActionCallNotPrepared())
             return await shield_tool_call(
                 sync_to_async(self._call)(
-                    arguments, input_shower(run_ctx), approved_values
+                    ctx, arguments, input_shower(run_ctx), approved_values
                 )
             )
 
@@ -192,6 +202,20 @@ class BoundActionTool:
         )
         return resolved_values
 
+    def _get_identity(self, ctx: ToolContext) -> Subject | None:
+        """
+        :param ctx: Who the reply's other tools act for.
+        :return: The run identity, refreshed like for the other tools, for a type
+            that acts as it, else None.
+        :raises PermissionDenied: When the reply has no identity, or it's gone.
+        """
+
+        if not self.action_type.acts_as_run_identity:
+            return None
+        if ctx.user is None:
+            raise PermissionDenied()
+        return act_as_identity(ctx).user
+
     @with_usable_db_connection
     def hold_call(
         self,
@@ -225,6 +249,7 @@ class BoundActionTool:
     @with_usable_db_connection
     def _call(
         self,
+        ctx: ToolContext,
         arguments: dict[str, Any],
         show_input: Callable[[dict[str, Any]], None],
         approved_values: dict[str, Any] | None,
@@ -233,6 +258,7 @@ class BoundActionTool:
         Send a call, and answer an error the model can explain instead of failing
         the reply.
 
+        :param ctx: Who the reply's other tools act for.
         :param arguments: The validated arguments.
         :param show_input: Adds the readable request to the call's step.
         :param approved_values: The values kept when the call was held, for an
@@ -254,7 +280,9 @@ class BoundActionTool:
                             self.action, resolved_values, arguments
                         )
                     )
-                result = self.action_type.dispatch(self.action, resolved_values)
+                result = self.action_type.dispatch(
+                    self.action, resolved_values, self._get_identity(ctx)
+                )
                 return ToolReturn(
                     return_value=self.action_type.get_tool_result(self.action, result)
                 )

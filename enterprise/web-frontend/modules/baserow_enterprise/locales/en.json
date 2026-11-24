@@ -125,6 +125,12 @@
     "minSimilarityTooltip": "Rows of which the meaning is less similar to the search query are left out, even if they contain its words. It's compared with the Similarity value of each result.",
     "minSimilarityPlaceholder": "No minimum"
   },
+  "agentSemanticSearch": {
+    "tool": "Search rows by meaning",
+    "toolRunning": "Searching rows by meaning…",
+    "toolDone": "Rows searched by meaning",
+    "filters": "Filters"
+  },
   "createTeamModal": {
     "title": "Create team",
     "invalidNameTitle": "Please use a different name",
@@ -606,7 +612,7 @@
     "dataScanner": "Data scanner",
     "dataScannerContent": "Scan all data in your Baserow instance for sensitive patterns like IBAN numbers or medical IDs, or match against known value lists. Configure automatic scanning schedules and view detailed results.",
     "semanticSearch": "Semantic search",
-    "semanticSearchContent": "Find rows by the meaning of their text instead of exact words, and use the results in automations and applications.",
+    "semanticSearchContent": "Find rows by the meaning of their text instead of exact words, and use the results in automations, applications and agents.",
     "automaticSnapshots": "Automatic snapshots",
     "automaticSnapshotsContent": "Snapshot your applications on a schedule, for the whole workspace or one application at a time, so there's always a recent copy to go back to. The oldest unprotected snapshots are replaced as new ones are taken."
   },

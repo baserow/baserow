@@ -27,6 +27,7 @@ from baserow.contrib.agent.action_tools.exceptions import (
     AgentActionLimitReached,
     AgentActionTypeNotAvailable,
 )
+from baserow.contrib.agent.action_tools.handler import AgentActionHandler
 from baserow.contrib.agent.action_tools.service import AgentActionService
 from baserow.contrib.agent.api.views import AGENT_ID_PATH_PARAMETER
 from baserow.core.action.registries import action_type_registry
@@ -41,6 +42,7 @@ from .errors import (
 from .serializers import (
     ActionFormulaContextType,
     AgentActionSerializer,
+    AgentActionTypeSerializer,
     CreateAgentActionSerializer,
     UpdateAgentActionSerializer,
 )
@@ -100,6 +102,29 @@ def pop_service_values(data: dict[str, Any]) -> dict[str, Any] | None:
     return values or None
 
 
+class AgentActionTypesView(APIView):
+    """Lists the action types, as the Agent's run identity sees them."""
+
+    @extend_schema(
+        parameters=[AGENT_ID_PATH_PARAMETER],
+        tags=["Agent applications"],
+        operation_id="list_agent_action_types",
+        description=(
+            "Lists the action types, each with what its form may choose from for "
+            "the agent's run identity, such as the tables it can read, when the "
+            "type acts as it. Requires permission to read the agent's "
+            "configuration."
+        ),
+        responses={200: AgentActionTypeSerializer(many=True), **ERRORS},
+    )
+    @map_exceptions(ACTION_EXCEPTIONS)
+    def get(self, request: Request, agent_id: int) -> Response:
+        """Responds with the types if the user can read the configuration."""
+
+        action_types = AgentActionService().list_action_types(request.user, agent_id)
+        return Response(AgentActionTypeSerializer(action_types, many=True).data)
+
+
 class AgentActionsView(RealtimeRecoveryPrimaryReadMixin, APIView):
     def get_permissions(self):
         # A template preview reads the setup, also for a signed out visitor. The
@@ -117,7 +142,18 @@ class AgentActionsView(RealtimeRecoveryPrimaryReadMixin, APIView):
     @map_exceptions(ACTION_EXCEPTIONS)
     def get(self, request: Request, agent_id: int) -> Response:
         actions = AgentActionService().list_actions(request.user, agent_id)
-        return Response(AgentActionSerializer(actions, many=True).data)
+        errors_by_action = (
+            AgentActionHandler().get_configuration_errors_by_action(
+                actions[0].agent, actions
+            )
+            if actions
+            else {}
+        )
+        return Response(
+            AgentActionSerializer(
+                actions, many=True, context={"errors_by_action": errors_by_action}
+            ).data
+        )
 
     @extend_schema(
         parameters=[AGENT_ID_PATH_PARAMETER, CLIENT_SESSION_ID_SCHEMA_PARAMETER],

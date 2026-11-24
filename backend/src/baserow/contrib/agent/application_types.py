@@ -221,7 +221,10 @@ class AgentApplicationType(ApplicationType):
         application.refresh_from_db()
 
     def supports_integration_type(self, integration_type) -> bool:
-        """MCP servers, and the integrations its action types' services use."""
+        """
+        MCP servers, and the integrations its action types' services use. A type
+        that acts as the Agent's run identity uses none.
+        """
 
         from baserow.contrib.integrations.mcp.integration_types import (
             MCPServerIntegrationType,
@@ -232,6 +235,7 @@ class AgentApplicationType(ApplicationType):
             or any(
                 action_type.service_type.integration_type == integration_type.type
                 for action_type in agent_action_type_registry.get_all()
+                if not action_type.acts_as_run_identity
             )
         )
 

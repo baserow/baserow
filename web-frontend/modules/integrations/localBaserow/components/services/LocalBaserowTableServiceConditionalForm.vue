@@ -134,8 +134,15 @@ export default {
     InjectedFormulaInput,
     ViewFieldConditionsForm,
   },
+  inject: {
+    dataProvidersAllowed: { default: null },
+    /** What filter values may read, when a host allows less than elsewhere. */
+    filterDataProvidersAllowed: { default: null },
+  },
   provide() {
     return {
+      dataProvidersAllowed:
+        this.filterDataProvidersAllowed ?? this.dataProvidersAllowed,
       // Lets a footer component, like Kuma's prompt, work with the filters.
       serviceFilterForm: {
         // Freezes the filters, e.g. while Kuma is asked to change them, so

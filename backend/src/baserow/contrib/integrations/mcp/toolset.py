@@ -12,7 +12,7 @@ from pydantic_ai.toolsets import AbstractToolset
 from pydantic_ai.toolsets.abstract import ToolsetTool
 from pydantic_core import SchemaValidator, core_schema
 
-from baserow.core.tools.errors import ToolErrorCode
+from baserow.core.tools.errors import ToolErrorCode, describe_failure
 
 from .client import (
     MAX_DESCRIPTION_CHARACTERS,
@@ -289,7 +289,7 @@ class MCPServerToolset(AbstractToolset[Any]):
             logger.info(
                 "MCP server {} tool call failed ({})",
                 self._server.integration_id,
-                type(exc).__name__,
+                describe_failure(exc),
             )
             if refused_credential(exc):
                 return _error(REFUSED_MESSAGE, ToolErrorCode.FAILED)
