@@ -625,6 +625,65 @@ describe('Agent action editor', () => {
     expect(wrapper.emitted('reload')).toHaveLength(1)
   })
 
+  test.each([10, 99])(
+    'refreshes action errors when integrations owned by application %i change',
+    async (ownerId) => {
+      const action = emailAction({ errors: {} })
+      action.service.integration_id = 123
+      const application = testApp.store.getters['application/get'](ownerId)
+      const integration = {
+        id: 123,
+        application_id: ownerId,
+        type: 'smtp',
+        name: 'SMTP',
+      }
+      const wrapper = await mountSection([action], true, false)
+      testApp.mock
+        .onGet('/agent/10/actions/')
+        .reply(() => [200, [clone(action)]])
+      await testApp.store.dispatch('integration/forceCreate', {
+        application,
+        integration,
+      })
+      await flushPromises()
+      expect(misconfigured(wrapper).exists()).toBe(false)
+
+      action.errors = { integration_id: 'invalid' }
+      await testApp.store.dispatch('integration/forceUpdate', {
+        application,
+        integration,
+        values: { host: '' },
+      })
+      await flushPromises()
+      expect(misconfigured(wrapper).exists()).toBe(true)
+
+      action.errors = {}
+      await testApp.store.dispatch('integration/forceUpdate', {
+        application,
+        integration,
+        values: { host: 'smtp.example.com' },
+      })
+      await flushPromises()
+      expect(misconfigured(wrapper).exists()).toBe(false)
+
+      action.errors = { integration_id: 'invalid' }
+      await testApp.store.dispatch('integration/forceDelete', {
+        application,
+        integrationId: integration.id,
+      })
+      await flushPromises()
+      expect(misconfigured(wrapper).exists()).toBe(true)
+
+      action.errors = {}
+      await testApp.store.dispatch('integration/forceCreate', {
+        application,
+        integration,
+      })
+      await flushPromises()
+      expect(misconfigured(wrapper).exists()).toBe(false)
+    }
+  )
+
   test('read-only configuration has no editing or deleting actions', async () => {
     const wrapper = await mountSection([emailAction()], false)
     expect(wrapper.find('.agent-actions__header button').exists()).toBe(false)

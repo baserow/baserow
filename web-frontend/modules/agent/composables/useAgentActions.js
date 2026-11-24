@@ -380,7 +380,16 @@ export function useAgentActions(
   )
   // Editing a connection can repair an unconfigured action without changing it.
   watch(
-    () => store.state.integration.generation[agent.value?.id],
+    [
+      () => store.state.integration.generation[agent.value?.id],
+      () => {
+        const workspace = agent.value?.workspace
+        const sharedApplication =
+          workspace &&
+          store.getters['application/getSharedApplication'](workspace)
+        return store.state.integration.generation[sharedApplication?.id]
+      },
+    ],
     () => {
       if (!loading.value) fetchActions()
     }
