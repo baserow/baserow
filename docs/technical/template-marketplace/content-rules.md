@@ -38,7 +38,7 @@ Dashboard export paths pass the config through to their integrations and service
 
 | Module | What enforces it | Status | Owner |
 | --- | --- | --- | --- |
-| Integrations | `IntegrationHandler.import_integration` receives no config; pass it through if an import-side rule needs it | to do | WAB |
+| Integrations | `IntegrationHandler.import_integration` accepts `import_export_config` and forwards it to the integration type's `import_serialized` | done | WAB |
 | Dashboard | `DashboardApplicationType.export_serialized` passes the config to `IntegrationHandler.export_integration` | done | WAB |
 | Integrations | `sensitive_fields` on `SMTPIntegrationType`, `SlackBotIntegrationType`, `AIIntegrationType` (`ai_settings`) | done | WAB |
 | Builder, automation | `BuilderApplicationType.export_serialized` and `AutomationApplicationType.export_serialized` pass the config to `IntegrationHandler.export_integration` | done | WAB |
@@ -51,7 +51,7 @@ workspace export; see #6116.
 
 | Module | What enforces it | Status | Owner |
 | --- | --- | --- | --- |
-| Integrations | `CoreResponseServiceType` must mark `headers` sensitive | to do | WAB |
+| Integrations | `CoreResponseServiceType.serialize_property` exports no response headers (names or values) when `exclude_sensitive_data=True`, including user-template copies; internal copies with sensitive-data removal disabled retain them | done | WAB |
 | Builder | `PageHandler.export_page` passes the config to data sources, workflow actions and their services; see #6115 | done | WAB |
 | Automation | `AutomationNodeType.serialize_property` passes the config to the node service; see #6115 | done | WAB |
 | Dashboard | `DashboardDataSourceHandler.export_data_source` passes the config to the data source service | done | WAB |
@@ -63,8 +63,8 @@ workspace export; see #6116.
 | Module | What enforces it | Status | Owner |
 | --- | --- | --- | --- |
 | Builder | `UserSourceHandler.export_user_source` passes the config through `UserSourceType.serialize_property` to auth providers | done | WAB |
-| Enterprise SSO | `OpenIdConnectAppAuthProviderType` must mark `secret` sensitive | to do | WAB |
-| Enterprise SSO | `SamlAppAuthProviderType` must remove `metadata` and reset `is_verified` | to do | WAB |
+| Enterprise SSO | `OpenIdConnectAppAuthProviderType.sensitive_fields` removes `secret`; import restores an empty string | done | WAB |
+| Enterprise SSO | `SamlAppAuthProviderType.sensitive_fields` removes `metadata` and `is_verified` when `exclude_sensitive_data=True`; import restores empty metadata and an unverified login | done | WAB |
 
 ## Data sync connections
 
@@ -82,7 +82,7 @@ workspace export; see #6116.
 
 | Module | What enforces it | Status | Owner |
 | --- | --- | --- | --- |
-| Integrations | `CoreHTTPTriggerServiceType.import_serialized` must regenerate `uid` on `is_user_template` and on install, not only on `is_duplicate` | to do | WAB |
+| Integrations | `CoreHTTPTriggerServiceType.import_serialized` regenerates `uid` on every non-publishing import, including user-template creation and installation | done | WAB |
 | Integrations | `CoreInboundEmailTriggerServiceType.import_serialized` regenerates `token` on every import that is not publishing | done | WAB |
 
 ## Test run data
@@ -105,8 +105,8 @@ workspace export; see #6116.
 | --- | --- | --- | --- |
 | Database | Rich text mentions in `LongTextFieldType` become a neutral `@user` | to do | core/database |
 | Premium | `AIFieldType.import_serialized` drops `ai_auto_update_user_id` only when not `is_duplicate`; must key on `is_user_template` | to do | core/database |
-| Integrations | Raw user ids in Local Baserow service filter values (`LocalBaserowTableServiceFilterableMixin.serialize_filters`, `deserialize_filters`) for user and collaborator filters removed | to do | WAB |
-| Enterprise | SAML identity provider metadata removed (see Login provider secrets) | to do | WAB |
+| Integrations | `LocalBaserowTableServiceFilterableMixin.serialize_filters` clears user and collaborator filter values when `exclude_sensitive_data=True`, except a direct `get("provider.path")` reference. Raw values, constants and composed formulas are cleared; exports with sensitive-data removal disabled retain their values. | done | WAB |
+| Enterprise | `SamlAppAuthProviderType.sensitive_fields` removes SAML identity provider metadata when `exclude_sensitive_data=True` (see Login provider secrets) | done | WAB |
 | Database | Row `created_by` and `last_modified_by` are mapped by email in `DatabaseApplicationType.import_serialized`; memberless target gives nobody | done | core/database |
 | Database | Collaborator cells (`MultipleCollaboratorsFieldType.set_import_serialized_value`) and user filters (`UserIsViewFilterType`, `MultipleCollaboratorsHasViewFilterType`) map by email; memberless target gives nobody | done | core/database |
 | Database | Form conditions (`FormViewType`) and conditional color filters (`ConditionalColorValueProviderType.set_import_serialized_value`) are exported with raw user ids; the filter import maps by email, so they become empty | done | core/database |
@@ -118,26 +118,28 @@ workspace export; see #6116.
 
 | Module | What enforces it | Status | Owner |
 | --- | --- | --- | --- |
-| Core | Template creation and content update must not send `application_imported` with the author, or the template's integrations run as the author | to do | core/database |
-| Integrations | An integration running as an identity (#6064): `authorized_subject_type` and `authorized_subject_id` are in `LocalBaserowIntegrationType.sensitive_fields`, so they are removed unless publishing | in #6064 | WAB |
-| Integrations | `authorized_user` is in `LocalBaserowIntegrationType.sensitive_fields`, so it is exported as `None` wherever the config is passed; the dashboard path relies on `import_serialized` mapping against `import_workspace_id` members | done | core/database |
-| Integrations | `LocalBaserowIntegrationType.after_import` sets the installer when install sends `application_imported` with the installer, as `CoreHandler.install_template` does | done | core/database |
+| Core | Template content is imported without sending `application_imported` with the author; installation calls `CoreHandler.mark_applications_installed_from_template` with the installer | done | core/database |
+| Integrations | `authorized_subject_type` and `authorized_subject_id` are in `LocalBaserowIntegrationType.sensitive_fields`; sensitive exports remove them, while publishing explicitly preserves them (#6064) | done | WAB |
+| Integrations | `LocalBaserowIntegrationType.after_import` authorizes the installer when `CoreHandler.mark_applications_installed_from_template` sends `application_imported`; this applies to official and user-template installation | done | core/database |
 | Enterprise | `LocalBaserowTableDataSyncType.import_serialized` always clears `authorized_user_id` | done | core/database |
 
 ## References outside the template
 
-An id that is not in `id_mapping` must become `None` on `is_user_template`. Keeping the
-raw id, or `.get(id, id)`, is not allowed.
+External application imports seed empty table, view and field mappings, even when no
+database is included. References absent from these mappings are cleared or their
+dependent settings are dropped. Internal copies keep their existing reference behavior.
 
 | Module | What enforces it | Status | Owner |
 | --- | --- | --- | --- |
-| Integrations | `LocalBaserowTableServiceType.deserialize_property` keeps an unmapped `table_id` on `is_duplicate` and when no table was copied | to do | WAB |
-| Integrations | `LocalBaserowViewServiceType.deserialize_property` keeps `view_id` when no view was copied | to do | WAB |
-| Integrations | Filter `field_id` in `LocalBaserowTableServiceFilterableMixin.deserialize_filters` and sort `field_id` in `LocalBaserowTableServiceSortableMixin.deserialize_sorts` | to do | WAB |
-| Integrations | `LocalBaserowAggregateRowsUserServiceType.deserialize_property` (`field_id`) | to do | WAB |
-| Integrations | `LocalBaserowFieldsUpdatedTriggerServiceType.deserialize_property` (`field_ids`) keeps raw ids when no field was copied | to do | WAB |
-| Premium | `LocalBaserowGroupedAggregateRowsUserServiceType.create_instance_from_serialized` keeps series, group by and sort field ids when no field was copied | to do | WAB |
-| Enterprise | `LocalBaserowUserSourceType.deserialize_property` keeps `table_id` and field ids when no table was copied | to do | WAB |
+| Integrations | `LocalBaserowTableServiceType.deserialize_property` clears unmapped `table_id` on external imports; internal duplicates can keep unmapped references | done | WAB |
+| Integrations | `LocalBaserowViewServiceType.deserialize_property` clears unmapped `view_id` when importing with seeded mappings | done | WAB |
+| Integrations | `import_refinement_field_id` remaps filter and sort fields; `deserialize_filters` and `deserialize_sorts` drop conditions and sorts whose fields were not imported | done | WAB |
+| Integrations | `LocalBaserowAggregateRowsUserServiceType.deserialize_property` clears unmapped aggregate `field_id` using `import_refinement_field_id` | done | WAB |
+| Integrations | `LocalBaserowFieldsUpdatedTriggerServiceType.deserialize_property` remaps watched `field_ids` and drops fields absent from the import | done | WAB |
+| Integrations | `LocalBaserowUpsertRowServiceType` remaps field mappings and skips mappings whose fields were not imported | done | WAB |
+| Premium | `LocalBaserowGroupedAggregateRowsUserServiceType.create_instance_from_serialized` clears unmapped series and group-by fields and drops unmapped sort references | done | WAB |
+| Enterprise | `LocalBaserowUserSourceType.deserialize_property` clears unmapped table, email, name and role field ids; the Local Baserow password provider clears its unmapped password field | done | WAB |
+| Enterprise | The Local Baserow search service remaps or drops search and included field ids and restricts imported field relations to the imported table | done | WAB |
 | Dashboard | `DashboardDataSourceHandler.import_data_source` uses `IntegrationHandler.get_integration_for_import` with `keep_unmapped=False`, clearing unmapped integrations | done | WAB |
 | Enterprise | `LocalBaserowTableDataSyncType.import_serialized` imports no data sync, leaving a plain editable table, when the source table or the `source_table_view_id` view was not copied; a database duplicate keeps them, staying synced to the original | done | core/database |
 | Integrations | `CoreStartWorkflowServiceType.import_workflow_id` refuses a workflow outside `import_workspace_id` | done | WAB |
@@ -155,7 +157,7 @@ Button field row actions use the Local Baserow service types above and follow th
 
 | Module | What enforces it | Status | Owner |
 | --- | --- | --- | --- |
-| Automation | `AutomationWorkflowHandler.import_workflow_only` sets `state` to draft on import (low priority) | to do | core/database |
+| Automation | `AutomationWorkflowHandler.import_workflow_only` forces `state` to draft for external imports, including user templates; internal copies and official template imports retain their serialized state | done | core/database |
 | Database | Two-way and scheduled data sync off (see Data sync connections) | to do | core/database |
 | Automation | Only draft workflows are exported; published workflows are not part of the workspace | done | WAB |
 | Automation | Test run fields (`allow_test_run_until`) are not exported by `AutomationWorkflowHandler.export_workflow` | done | WAB |

@@ -22,6 +22,8 @@ class SamlAppAuthProviderType(SamlAuthProviderTypeMixin, AppAuthProviderType):
 
     model_class = SamlAppAuthProviderModel
 
+    sensitive_fields = ["metadata", "is_verified"]
+
     compatible_user_source_types = [LocalBaserowUserSourceType.type]
 
     callback_token_query_param_prefix = "user_source_saml_token__"
@@ -46,6 +48,34 @@ class SamlAppAuthProviderType(SamlAuthProviderTypeMixin, AppAuthProviderType):
         return SamlAuthProviderTypeMixin.saml_serializer_field_overrides
 
     public_serializer_field_overrides = {}
+
+    def deserialize_property(
+        self,
+        prop_name,
+        value,
+        id_mapping,
+        files_zip=None,
+        storage=None,
+        cache=None,
+        **kwargs,
+    ):
+        """Restore stripped SAML settings using values accepted by the model."""
+
+        if value is None:
+            if prop_name == "metadata":
+                return ""
+            if prop_name == "is_verified":
+                return False
+
+        return super().deserialize_property(
+            prop_name,
+            value,
+            id_mapping,
+            files_zip=files_zip,
+            storage=storage,
+            cache=cache,
+            **kwargs,
+        )
 
     def get_api_urls(self):
         from baserow_enterprise.api.integrations.common.sso.saml import urls

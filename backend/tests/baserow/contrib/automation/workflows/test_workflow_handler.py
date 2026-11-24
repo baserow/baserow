@@ -2926,6 +2926,36 @@ def test_import_workflow_without_a_description(data_fixture):
 
 
 @pytest.mark.django_db
+@pytest.mark.parametrize("state", WorkflowState.values)
+@pytest.mark.parametrize(
+    "flags,external",
+    [
+        ({}, True),
+        ({"is_user_template": True}, True),
+        ({"exclude_sensitive_data": False}, True),
+        ({"is_duplicate": True}, False),
+        ({"is_publishing": True}, False),
+        ({"is_template": True, "is_duplicate": True}, False),
+    ],
+)
+def test_import_workflow_resets_external_state(data_fixture, state, flags, external):
+    """External workflows start as drafts while internal copies preserve their state."""
+
+    workflow = data_fixture.create_automation_workflow(state=state)
+    handler = AutomationWorkflowHandler()
+    config = ImportExportConfig(include_permission_data=False, **flags)
+    exported = handler.export_workflow(workflow, import_export_config=config)
+
+    imported = handler.import_workflow(
+        workflow.automation, exported, {"integrations": {}}, import_export_config=config
+    )
+
+    assert imported.state == (WorkflowState.DRAFT if external else state)
+    workflow.refresh_from_db()
+    assert workflow.state == state
+
+
+@pytest.mark.django_db
 def test_duplicate_workflow_keeps_the_description_and_node_notes(data_fixture):
     workflow = data_fixture.create_automation_workflow(
         description="Sends the weekly report"

@@ -3085,6 +3085,8 @@ class CoreResponseServiceType(CoreServiceType):
         cache=None,
     ):
         if prop_name == "headers":
+            if getattr(import_export_config, "exclude_sensitive_data", False):
+                return []
             return [
                 {
                     "key": header.key,
