@@ -1,4 +1,5 @@
 import base64
+import dataclasses
 import hashlib
 import json
 import os
@@ -33,6 +34,11 @@ from baserow.config.settings.base import BASEROW_DEFAULT_ZIP_COMPRESS_LEVEL
 from baserow.contrib.database.constants import EXPORT_WORKSPACE_CREATE_ARCHIVE
 from baserow.core.deferred_callbacks import deferred_callback_context
 from baserow.core.handler import CoreHandler
+from baserow.core.identities.import_export import (
+    WORKSPACE_OBJECTS,
+    IdentityExport,
+    IdentityImport,
+)
 from baserow.core.import_export.exceptions import (
     ImportExportApplicationIdsNotFound,
     ImportExportResourceDoesNotExist,
@@ -52,7 +58,11 @@ from baserow.core.models import (
     Workspace,
 )
 from baserow.core.operations import ExportWorkspaceOperationType
-from baserow.core.registries import ImportExportConfig, application_type_registry
+from baserow.core.registries import (
+    ApplicationType,
+    ImportExportConfig,
+    application_type_registry,
+)
 from baserow.core.signals import application_created, application_imported
 from baserow.core.storage import (
     ExportZipFile,
@@ -329,6 +339,15 @@ class ImportExportHandler:
                 {"version": EXPORT_FORMAT_VERSION, "configuration": {}, "items": []},
             )["items"].append(application)
 
+        if import_export_config.identity_export is not None:
+            workspace_objects = import_export_config.identity_export.serialize(
+                import_export_config.exported_by,
+                [application["id"] for application in exported_applications],
+            )
+            # Left out when empty, so that such a file is the same as before.
+            if workspace_objects is not None:
+                manifest_data[WORKSPACE_OBJECTS] = workspace_objects
+
         zip_file.add(json.dumps(manifest_data, indent=INDENT), MANIFEST_NAME)
         return manifest_data
 
@@ -527,6 +546,9 @@ class ImportExportHandler:
         zip_file = ExportZipFile(
             compress_level=BASEROW_DEFAULT_ZIP_COMPRESS_LEVEL,
             compress_type=zipstream.ZIP_DEFLATED,
+        )
+        import_export_config = dataclasses.replace(
+            import_export_config, identity_export=IdentityExport()
         )
 
         progress = ChildProgressBuilder.build(progress_builder, child_total=100)
@@ -843,17 +865,9 @@ class ImportExportHandler:
         :return: The imported Application instance.
         """
 
-        data_file_path = self._validate_safe_path(
-            import_tmp_path, application_manifest["files"]["schema"]
+        application_data = self._load_application_data(
+            application_manifest, import_tmp_path, storage
         )
-        if not storage.exists(data_file_path):
-            raise ImportExportResourceDoesNotExist(
-                f"The file {data_file_path} does not exist."
-            )
-
-        with storage.open(data_file_path) as data_file:
-            application_data = json.load(data_file)
-
         application_type = application_type_registry.get(application_manifest["type"])
         imported_application = application_type.import_serialized(
             workspace,
@@ -865,6 +879,67 @@ class ImportExportHandler:
             progress_builder=progress_builder,
         )
         return imported_application
+
+    def _load_application_data(
+        self, application_manifest: Dict, import_tmp_path: str, storage: Storage
+    ) -> Dict[str, Any]:
+        """
+        :param application_manifest: Information from manifest about application.
+        :param import_tmp_path: The temporary path where the import files are stored.
+        :param storage: The storage instance to use for file operations.
+        :raises ImportExportResourceDoesNotExist: When the file of the application
+            is missing.
+        :return: The exported application.
+        """
+
+        data_file_path = self._validate_safe_path(
+            import_tmp_path, application_manifest["files"]["schema"]
+        )
+        if not storage.exists(data_file_path):
+            raise ImportExportResourceDoesNotExist(
+                f"The file {data_file_path} does not exist."
+            )
+
+        with storage.open(data_file_path) as data_file:
+            return json.load(data_file)
+
+    def _applications_that_may_refer_to_identities(
+        self,
+        manifest: Dict,
+        application_types: List[str],
+        import_tmp_path: str,
+        storage: Storage,
+    ) -> List[Dict[str, Any]]:
+        """
+        The exported applications to ask for the identities they refer to. Only
+        those of a type that reports any are read, because the file of an
+        application can be large.
+
+        :param manifest: The manifest, with the applications to import.
+        :param application_types: The types of the applications to import.
+        :param import_tmp_path: The temporary path where the import files are stored.
+        :param storage: The storage instance to use for file operations.
+        :return: The exported applications.
+        """
+
+        applications = []
+        for type_name in application_types:
+            application_type = application_type_registry.get(type_name)
+            if (
+                type(application_type).get_imported_identity_keys
+                is ApplicationType.get_imported_identity_keys
+            ):
+                continue
+            for application_manifest in manifest["applications"][type_name]["items"]:
+                applications.append(
+                    {
+                        **self._load_application_data(
+                            application_manifest, import_tmp_path, storage
+                        ),
+                        "type": type_name,
+                    }
+                )
+        return applications
 
     def import_multiple_applications(
         self,
@@ -902,6 +977,12 @@ class ImportExportHandler:
 
         imported_applications = []
         id_mapping: Dict[str, Any] = {}
+        identity_import = IdentityImport(
+            workspace,
+            manifest.get(WORKSPACE_OBJECTS),
+            user,
+            import_export_config,
+        )
         # The file may not hold the databases and automations its applications
         # reference, or only some applications are picked. Such references are
         # cleared rather than kept as ids of the instance the file came from, which
@@ -956,6 +1037,13 @@ class ImportExportHandler:
         )
 
         try:
+            # Before the applications, whose data refers to the identities.
+            identity_import.before_applications(
+                id_mapping,
+                self._applications_that_may_refer_to_identities(
+                    manifest, prioritized_applications, import_tmp_path, storage
+                ),
+            )
             # Callbacks registered during the loop run when this context exits, by
             # which point every application exists.
             with deferred_callback_context():
@@ -977,6 +1065,7 @@ class ImportExportHandler:
                         imported_application.order = next_application_order_value
                         next_application_order_value += 1
                         imported_applications.append(imported_application)
+            identity_import.after_applications(id_mapping, imported_applications)
         except Exception:  # noqa
             # Trash the already imported applications so the user won't see
             # a partial import, but he will be able to restore them if he
@@ -984,6 +1073,11 @@ class ImportExportHandler:
             # Outside the loop, so a failing deferred callback lands here too.
             for application in imported_applications:
                 TrashHandler.trash(user, workspace, application, application)
+            # Their identities are trashed with them.
+            try:
+                identity_import.discard(id_mapping)
+            except Exception:  # noqa
+                logger.exception("Could not trash the identities of a failed import.")
             raise
 
         Application.objects.bulk_update(imported_applications, ["order"])

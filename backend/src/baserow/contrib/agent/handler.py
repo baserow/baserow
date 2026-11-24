@@ -1,3 +1,4 @@
+import dataclasses
 from collections import defaultdict
 from collections.abc import Iterable
 from typing import Any
@@ -60,6 +61,7 @@ from baserow.core.generative_ai.registries import generative_ai_model_type_regis
 from baserow.core.handler import CoreHandler
 from baserow.core.identities.exceptions import IdentityDoesNotExist
 from baserow.core.identities.handler import IdentityHandler
+from baserow.core.identities.import_export import delete_unused_identity_definitions
 from baserow.core.models import Workspace
 from baserow.core.operations import UpdateApplicationOperationType
 from baserow.core.registries import subject_type_registry
@@ -648,6 +650,11 @@ class AgentHandler:
         if agent.pending_tool_choices is not None and has_run_as:
             agent.pending_tool_choices = None
             changed_fields.append("pending_tool_choices")
+        # The Agent got an identity, so it stops waiting for the one it came with.
+        definition_id = agent.identity_definition_id if has_run_as else None
+        if definition_id is not None:
+            agent.identity_definition = None
+            changed_fields.append("identity_definition")
         tools_changed = allowed_tools is not None and (
             set(allowed_tools) != set(original_values["allowed_tools"])
             or (
@@ -657,6 +664,8 @@ class AgentHandler:
         )
         if changed_fields or tools_changed:
             agent.save(update_fields=[*changed_fields, "updated_on"])
+        if definition_id is not None:
+            delete_unused_identity_definitions([definition_id])
         if tools_changed or not has_run_as or not had_run_as:
             self.set_allowed_tools(agent, allowed_tools, ask_first_tools)
             stored_tools = self.get_stored_tool_configuration(agent)
@@ -937,6 +946,8 @@ class AgentHandler:
         uuid: UUID,
         message_uuid: UUID,
         content: str,
+        is_test: bool = False,
+        title: str | None = None,
     ) -> AgentMessageCreated:
         """
         Create a private conversation, titled after its first message.
@@ -946,6 +957,9 @@ class AgentHandler:
         :param uuid: The uuid of the conversation.
         :param message_uuid: The uuid of the first message.
         :param content: The content of the first message.
+        :param is_test: Whether Kuma starts it to test the Agent, so every tool
+            that changes data asks first.
+        :param title: The title, instead of one taken from the first message.
         :raises AgentConversationDoesNotExist: When a concurrent request created a
             conversation with this uuid for another owner or agent.
         :raises AgentMessageConflict: When a concurrent request created it with
@@ -960,7 +974,8 @@ class AgentHandler:
                     uuid=uuid,
                     agent=agent,
                     owner_user=user,
-                    title=normalize_title(content),
+                    title=normalize_title(title or content),
+                    is_test=is_test,
                 )
         except IntegrityError:
             # A concurrent request created this uuid after the retry check.
@@ -1584,6 +1599,31 @@ class AgentHandler:
             for tool in all_action_tools
             if acting_subject is not None or tool.type not in identity_action_names
         ]
+        if conversation.is_test:
+            # A test Kuma started can't change anything without the owner's say-so.
+            tools = {
+                **tools,
+                "ask_first_tools": [
+                    name
+                    for name in tools["allowed_tools"]
+                    if name in tools["ask_first_tools"]
+                    or agent_tool_type_registry.get(name).changes_data
+                ],
+            }
+            for tool in action_tools:
+                tool.action.ask_first = True
+            mcp_servers = tuple(
+                dataclasses.replace(
+                    server,
+                    # Whether an MCP tool only reads is the remote server's own
+                    # word, so in a test every one of them asks first.
+                    tools=tuple(
+                        dataclasses.replace(tool, ask_first=True)
+                        for tool in server.tools
+                    ),
+                )
+                for server in mcp_servers
+            )
         resume = (
             None
             if transcript is None
@@ -2148,6 +2188,7 @@ class AgentHandler:
             {
                 "title": conversation.title,
                 "pinned": conversation.pinned,
+                "is_test": conversation.is_test,
                 "owner_user_id": conversation.owner_user_id,
                 "shared": conversation.shared,
                 "started_by_trigger": conversation.started_by_trigger,
@@ -2226,6 +2267,7 @@ class AgentHandler:
                 uuid=uuid4(),
                 title=data["title"],
                 pinned=data.get("pinned", False),
+                is_test=data.get("is_test", False),
                 owner_user_id=existing(data["owner_user_id"]),
                 shared=data["shared"],
                 started_by_trigger=data["started_by_trigger"],

@@ -54,6 +54,7 @@ class HasEmptyValueViewFilterType(ViewFilterType):
     """
 
     type = "has_empty_value"
+    uses_value = False
     compatible_field_types = [
         FormulaFieldType.compatible_with_formula_types(
             FormulaFieldType.array_of(BaserowFormulaTextType.type),
@@ -77,6 +78,7 @@ class HasNotEmptyValueViewFilterType(
     NotViewFilterTypeMixin, HasEmptyValueViewFilterType
 ):
     type = "has_not_empty_value"
+    uses_value = False
 
 
 class ComparisonHasValueFilter(ViewFilterType, ABC):
@@ -323,6 +325,7 @@ class HasAnySelectOptionEqualViewFilterType(HasValueEqualViewFilterType):
     """
 
     type = "has_any_select_option_equal"
+    value_type = "select_option"
     compatible_field_types = [
         FormulaFieldType.compatible_with_formula_types(
             FormulaFieldType.array_of(BaserowFormulaSingleSelectType.type),

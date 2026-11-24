@@ -1,6 +1,7 @@
 import { DOMWrapper, flushPromises } from '@vue/test-utils'
 import { TestApp } from '@baserow/test/helpers/testApp'
 import WidgetSettings from '@baserow/modules/dashboard/components/widget/WidgetSettings'
+import AggregateRowsDataSourceForm from '@baserow/modules/dashboard/components/data_source/AggregateRowsDataSourceForm'
 
 let testApp
 beforeEach(() => {
@@ -149,4 +150,49 @@ test('summary sources expose the shared filter control and save permanent condit
     }),
   ])
   expect(inherited.find('input[disabled]').element.value).toBe('France')
+  const form = wrapper.findComponent(AggregateRowsDataSourceForm)
+  // The mocked save above does not update the store; acknowledge it before
+  // simulating subsequent realtime updates.
+  store.commit('dashboardApplication/UPDATE_DATA_SOURCE', {
+    dataSourceId: 4,
+    values: { filters: JSON.parse(JSON.stringify(form.vm.values.filters)) },
+  })
+  await flushPromises()
+  const provided = form.vm.$.provides
+  expect(provided.serviceFilterTarget.value).toMatchInlineSnapshot(`
+    {
+      "id": 4,
+      "kind": "dashboard_data_source",
+    }
+  `)
+  expect(provided.serviceFilters.hasUnsavedChanges()).toBe(false)
+  const savedFilters = [
+    {
+      id: 91,
+      field: 7,
+      type: 'equal',
+      group: null,
+      value: { formula: 'Kuma', mode: 'raw' },
+    },
+  ]
+  store.commit('dashboardApplication/UPDATE_DATA_SOURCE', {
+    dataSourceId: 4,
+    values: { filters: savedFilters },
+  })
+  await flushPromises()
+  expect(form.vm.values.filters).toEqual(savedFilters)
+  expect(provided.serviceFilters.hasUnsavedChanges()).toBe(false)
+  form.vm.values.filters[0].value.formula = 'Unsaved edit'
+  await form.vm.$nextTick()
+  expect(provided.serviceFilters.hasUnsavedChanges()).toBe(true)
+  store.commit('dashboardApplication/UPDATE_DATA_SOURCE', {
+    dataSourceId: 4,
+    values: {
+      filters: [
+        { ...savedFilters[0], value: { formula: 'Other tab', mode: 'raw' } },
+      ],
+    },
+  })
+  await flushPromises()
+  expect(form.vm.values.filters[0].value.formula).toBe('Unsaved edit')
 })

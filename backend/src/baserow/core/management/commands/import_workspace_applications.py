@@ -54,6 +54,13 @@ class Command(BaseCommand):
         files_path = os.path.join(current_path, f"{name}.zip")
         import_path = os.path.join(current_path, f"{name}.json")
         handler = CoreHandler()
+        # What the export holds beside its applications. Nobody imports, so the
+        # applications wait for the identities it describes.
+        workspace_objects = None
+        objects_path = os.path.join(current_path, f"{name}.workspace_objects.json")
+        if os.path.exists(objects_path):
+            with open(objects_path, "r") as objects_buffer:
+                workspace_objects = json.load(objects_buffer)
 
         with open(import_path, "r") as import_buffer:
             content = json.load(import_buffer)
@@ -70,7 +77,11 @@ class Command(BaseCommand):
             # By default, we won't import any registry data. This is because
             # `RoleAssignment` can't be imported if the subjects are teams.
             applications, _ = handler.import_applications_to_workspace(
-                workspace, content, files_buffer, cli_import_export_config
+                workspace,
+                content,
+                files_buffer,
+                cli_import_export_config,
+                workspace_objects=workspace_objects,
             )
 
             if files_buffer:

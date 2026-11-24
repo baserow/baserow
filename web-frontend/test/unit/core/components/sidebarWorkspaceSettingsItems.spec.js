@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 import { TestApp } from '@baserow/test/helpers/testApp'
 import SidebarMenu from '@baserow/modules/core/components/sidebar/SidebarMenu'
 import { SettingsType } from '@baserow/modules/core/settingsTypes'
+import { BaserowPlugin } from '@baserow/modules/core/plugins'
 
 class IntegrationSettings extends SettingsType {
   static getType() {
@@ -74,6 +75,42 @@ describe('Sidebar workspace settings tabs', () => {
       integration.getName()
     )
     expect(modal.get('h2').text()).toBe('Integrations for Design')
+  })
+
+  test('shows the additional workspace context components', async () => {
+    class PlanPlugin extends BaserowPlugin {
+      static getType() {
+        return 'test-plan'
+      }
+
+      getAdditionalWorkspaceContextComponents(workspace) {
+        return [
+          {
+            props: ['workspace'],
+            emits: ['hide'],
+            template:
+              '<li class="context__menu-item"><a class="context__menu-item-link test-plan" @click="$emit(\'hide\')">Plan of {{ workspace.name }}</a></li>',
+          },
+        ]
+      }
+    }
+    const plugin = new PlanPlugin({ app: app.getApp() })
+    app.$registry.register('plugin', plugin)
+    try {
+      const menu = await openSettings()
+      const item = menu.get('.test-plan')
+      expect(item.text()).toBe('Plan of Design')
+
+      await item.trigger('click')
+      await flushPromises()
+      expect(
+        app.body
+          .find('.sidebar-workspace-menu:not(.visibility-hidden)')
+          .exists()
+      ).toBe(false)
+    } finally {
+      app.$registry.unregister('plugin', plugin.type)
+    }
   })
 
   test('omits disabled tabs', async () => {

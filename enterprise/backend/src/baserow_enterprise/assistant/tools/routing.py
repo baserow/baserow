@@ -80,6 +80,7 @@ def _routes_for(
 
 @cache
 def _tool_routes() -> dict[str, _ToolRoute]:
+    from .agent.tools import TOOL_FUNCTIONS as agent_tools
     from .automation.tools import TOOL_FUNCTIONS as automation_tools
     from .builder.tools import TOOL_FUNCTIONS as application_tools
     from .core.tools import (
@@ -101,13 +102,16 @@ def _tool_routes() -> dict[str, _ToolRoute]:
     from .database.tools import ROW_COMMENT_FUNCTIONS, TOOL_FUNCTIONS
     from .navigation.tools import navigate
     from .search_user_docs.tools import search_user_docs
+    from .services.tools import TOOL_FUNCTIONS as service_tools
 
     all_modes = frozenset(AgentMode)
+    domain_modes = all_modes - {AgentMode.EXPLAIN}
     database_mode = frozenset({AgentMode.DATABASE})
     application_mode = frozenset({AgentMode.APPLICATION})
     automation_mode = frozenset({AgentMode.AUTOMATION})
     dashboard_mode = frozenset({AgentMode.DASHBOARD})
     explain_mode = frozenset({AgentMode.EXPLAIN})
+    agent_mode = frozenset({AgentMode.AGENT})
 
     database_tools = [*TOOL_FUNCTIONS, *ROW_COMMENT_FUNCTIONS]
     database_reads = [
@@ -120,6 +124,9 @@ def _tool_routes() -> dict[str, _ToolRoute]:
     ]
     automation_reads = [
         tool for tool in automation_tools if tool.__name__.startswith("list_")
+    ]
+    service_reads = [
+        tool for tool in service_tools if tool.__name__.startswith("list_")
     ]
     dashboard_reads = [
         tool for tool in dashboard_tools if tool.__name__.startswith(("list_", "get_"))
@@ -141,6 +148,7 @@ def _tool_routes() -> dict[str, _ToolRoute]:
             automation_mode | explain_mode,
         ),
         **_routes_for(dashboard_tools, AgentMode.DASHBOARD, dashboard_mode),
+        **_routes_for(agent_tools, AgentMode.AGENT, agent_mode),
         **_routes_for(
             dashboard_reads,
             AgentMode.DASHBOARD,
@@ -172,6 +180,10 @@ def _tool_routes() -> dict[str, _ToolRoute]:
         **_routes_for(
             (create_dashboard, update_dashboard), AgentMode.DASHBOARD, dashboard_mode
         ),
+        # Data sources and nodes reading rows from a table live in every domain:
+        # application and dashboard data sources, and automation nodes.
+        **_routes_for(service_tools, AgentMode.APPLICATION, domain_modes),
+        **_routes_for(service_reads, AgentMode.APPLICATION, all_modes),
         # Docs questions arrive in any mode; a deferred tool needs a tool search first.
         **_routes_for((search_user_docs,), AgentMode.EXPLAIN, all_modes),
     }

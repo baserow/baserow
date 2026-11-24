@@ -15,6 +15,7 @@ import { DatabaseApplicationType } from '@baserow/modules/database/applicationTy
 import AssistantSidebarItem from '@baserow_enterprise/components/assistant/AssistantSidebarItem'
 import AssistantPanel from '@baserow_enterprise/components/assistant/AssistantPanel'
 import AssistantDashboardPrompt from '@baserow_enterprise/components/assistant/AssistantDashboardPrompt'
+import ServiceFilterKumaPrompt from '@baserow_enterprise/components/assistant/ServiceFilterKumaPrompt'
 import { isAssistantConfigured } from '@baserow_enterprise/utils/assistant'
 import DateDependencyMenuItem from '@baserow_enterprise/components/dateDependency/DateDependencyMenuItem'
 import DateDependencyFieldTypeIcon from '@baserow_enterprise/components/dateDependency/DateDependencyFieldTypeIcon'
@@ -74,6 +75,10 @@ export class EnterprisePlugin extends BaserowPlugin {
     return isAssistantConfigured(this.app, workspace) ? [AssistantPanel] : []
   }
 
+  getServiceFilterFooterComponents() {
+    return [ServiceFilterKumaPrompt]
+  }
+
   getGridViewFieldTypeIconsBefore(workspace, view, field) {
     const out = []
     out.push(DateDependencyFieldTypeIcon)
@@ -120,6 +125,16 @@ export class EnterprisePlugin extends BaserowPlugin {
       workspace.id
     )
     return rbacSupport ? ExportWorkspaceModalWarning : null
+  }
+
+  canCreateScopedIdentities(workspace) {
+    // Without roles, an identity could only access the whole workspace.
+    return (
+      this.app.$hasFeature(EnterpriseFeatures.RBAC, workspace.id) &&
+      ['identity.create_scoped', 'identity.bind'].every((operation) =>
+        this.app.$hasPermission(operation, workspace, workspace.id)
+      )
+    )
   }
 
   getSettingsPageComponents() {

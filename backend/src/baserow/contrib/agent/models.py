@@ -12,7 +12,7 @@ from baserow.core.mixins import (
     CreatedAndUpdatedOnMixin,
     TrashableModelMixin,
 )
-from baserow.core.models import Application
+from baserow.core.models import Application, IdentityDefinition
 from baserow.core.services.models import Service
 
 
@@ -42,6 +42,15 @@ class AgentApplication(Application):
     # The tool choices of an imported Agent, which arrives without an identity.
     # They're applied when an identity is first picked, see `update_configuration`.
     pending_tool_choices = models.JSONField(null=True, blank=True, db_default=None)
+    # The identity an imported Agent came with, which doesn't exist yet. Cleared
+    # with the pending tool choices when an identity is first picked.
+    identity_definition = models.ForeignKey(
+        IdentityDefinition,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="agents",
+    )
 
 
 class AgentAllowedTool(models.Model):
@@ -177,6 +186,12 @@ class AgentConversation(
     # The list indexes lead with the agent, so reads never need one on trashed.
     trashed = models.BooleanField(default=False, db_default=False)
     pinned = models.BooleanField(default=False, db_default=False)
+    is_test = models.BooleanField(
+        default=False,
+        db_default=False,
+        help_text="Whether Kuma started the conversation to test the Agent. Every "
+        "tool that changes data, and every action, asks first in it.",
+    )
     shared = models.BooleanField(default=False, db_default=False)
     started_by_trigger = models.BooleanField(default=False, db_default=False)
 

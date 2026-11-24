@@ -102,6 +102,7 @@ _ID_PRODUCERS: dict[str, str] = {
     "node_id": "list_nodes",
     "dashboard_id": "list_builders",
     "widget_id": "list_widgets",
+    "agent_id": "list_agents",
 }
 
 # row_id stays hint-only: data-source row ids may hold formulas or user data.

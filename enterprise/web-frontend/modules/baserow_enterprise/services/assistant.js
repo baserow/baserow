@@ -161,5 +161,15 @@ export default (client) => {
       )
       return data.suggestions
     },
+
+    /** Run a targeted Kuma action with the common inline-prompt contract. */
+    async runAction(action, prompt, parameters) {
+      const { data } = await client.post(
+        '/assistant/actions/',
+        { action, prompt, parameters },
+        { baseURL: getAssistantBaseURL(client) }
+      )
+      return data
+    },
   }
 }

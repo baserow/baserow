@@ -160,6 +160,9 @@ The following tools are currently enabled:
 | `create_widgets` | Add summary, chart and pie chart widgets |
 | `update_widgets` | Change a widget's title, chart type, or what it shows |
 | `delete_widgets` | Delete (trash) widgets |
+| `list_filterable_data_sources` | List data sources and automation nodes whose filters can change |
+| `list_service_filters` | List a data source's or node's filters and fields |
+| `update_service_filters` | Add, update and delete a data source's or node's filters |
 | `list_builders` | List the application builders of the workspace |
 | `list_pages` | List the pages of an application builder |
 | `list_data_sources` | List the data sources of a page |
@@ -186,12 +189,12 @@ The following tools are currently enabled:
 | `set_theme` | Replace the theme of an application builder |
 | `list_audit_log` | List who did what in this workspace, with an optional text search (advanced or enterprise, admin) |
 
-The automation and audit log tools are off in the "Read only" preset. Turn them
-on at consent or with **Edit tools** next to the app under **My settings > MCP
-server**. The "Read only" preset includes reading dashboards and application
-builders, not changing them. The application builder tools need no licence, but
-`setup_user_source` is enterprise: a `BASEROW_OSS_ONLY` instance doesn't list
-it. Every `update_` and `delete_` tool is marked destructive, as are
+The automation, data source and audit log tools are off in the "Read only"
+preset. Turn them on at consent or with **Edit tools** next to the app under
+**My settings > MCP server**. The "Read only" preset includes reading dashboards
+and application builders, not changing them. The application builder tools need
+no licence, but `setup_user_source` is enterprise: a `BASEROW_OSS_ONLY` instance
+doesn't list it. Every `update_` and `delete_` tool is marked destructive, as are
 `set_view_sorts`, `set_theme`, `move_elements`, `publish_workflow` and
 `pause_workflow`, so clients ask before running them.
 
@@ -410,6 +413,24 @@ current draft.
 
 Ask Claude to publish a workflow with no nodes after the trigger. Expected:
 refused, and nothing goes live.
+
+### Data source filters
+
+Turn on the data source tools with **Edit tools** next to the app under **My
+settings > MCP server**. Create an application with a page at `/task/:id` and a
+"List multiple rows" data source on a table with a Name and an Amount field. Ask
+Claude: *"Filter the data source on my Task page so Name equals the `id` page
+parameter and Amount is above 10."*
+
+Expected: Claude calls `list_filterable_data_sources`, then
+`list_service_filters` for the field ids, then `update_service_filters` with two
+`add_filter` operations, the Name one a formula `get('page_parameter.id')`. The
+filters appear in the data source's Filter tab of an open editor without a
+reload, and the page's tables show the filtered rows.
+
+Ask Claude to filter on `get('form_data.1')`. Expected: `update_service_filters`
+returns an error saying a data source filter can only read the page parameters
+and the logged in user, and nothing is saved.
 
 ## 5. Verify disabled tools are not exposed
 

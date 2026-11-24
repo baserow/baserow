@@ -40,6 +40,10 @@
               @update="updateSelectedApplications"
             />
           </div>
+          <p v-if="createsIdentities" class="import-workspace__summary">
+            <i class="import-workspace__summary-icon iconoir-user"></i>
+            {{ $t('importWorkspaceModal.createsIdentities') }}
+          </p>
         </div>
 
         <div
@@ -91,6 +95,10 @@
             @update="updateSelectedApplications"
           />
         </div>
+        <p v-if="createsIdentities" class="import-workspace__summary">
+          <i class="import-workspace__summary-icon iconoir-user"></i>
+          {{ $t('importWorkspaceModal.createsIdentities') }}
+        </p>
 
         <div
           class="import-workspace__button-section"
@@ -143,6 +151,7 @@ import {
 import ImportApplicationSelector from '@baserow/modules/core/components/import/ImportApplicationSelector.vue'
 import {
   convertManifestToApplicationGroups,
+  manifestHasIdentities,
   extractManifestFromZip,
 } from '@baserow/modules/core/utils/zipManifest'
 
@@ -181,6 +190,7 @@ export default {
       STAGES,
       applicationGroups: [],
       selectedApplicationIds: [],
+      hasExportedIdentities: false,
     }
   },
   computed: {
@@ -190,6 +200,29 @@ export default {
           plugin.getExtraImportWorkspaceModalComponents(this.workspace)
         )
         .filter((component) => component !== null)
+    },
+    /**
+     * Whether the import creates the identities the file holds, for the selected
+     * applications that can refer to one. That takes the permission to create
+     * such identities, which the backend checks.
+     */
+    createsIdentities() {
+      return (
+        this.hasExportedIdentities &&
+        this.applicationGroups.some(
+          (group) =>
+            this.$registry.exists('application', group.type) &&
+            this.$registry
+              .get('application', group.type)
+              .canReferToExportedIdentities() &&
+            group.applications.some((application) =>
+              this.selectedApplicationIds.includes(application.id)
+            )
+        ) &&
+        Object.values(this.$registry.getAll('plugin')).some((plugin) =>
+          plugin.canCreateScopedIdentities(this.workspace)
+        )
+      )
     },
     importButtonLabel() {
       return this.currentStage === STAGES.DONE
@@ -279,6 +312,7 @@ export default {
       try {
         const manifest = await extractManifestFromZip(this.importFile)
         this.applicationGroups = convertManifestToApplicationGroups(manifest)
+        this.hasExportedIdentities = manifestHasIdentities(manifest)
 
         this.selectedApplicationIds = this.applicationGroups
           .flatMap((group) => group.applications)
@@ -286,6 +320,7 @@ export default {
       } catch (error) {
         this.applicationGroups = []
         this.selectedApplicationIds = []
+        this.hasExportedIdentities = false
 
         this.$store.dispatch('toast/error', {
           title: 'Could not read ZIP file',
@@ -354,6 +389,7 @@ export default {
       this.hideError()
       this.applicationGroups = []
       this.selectedApplicationIds = []
+      this.hasExportedIdentities = false
     },
 
     close() {

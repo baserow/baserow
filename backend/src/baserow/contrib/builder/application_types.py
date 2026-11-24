@@ -106,6 +106,14 @@ class BuilderApplicationType(ApplicationType):
     # Builder applications are imported second.
     import_application_priority = 1
 
+    def get_formula_examples(self, user, target):
+        """Build examples for a builder filter target without invoking a model."""
+        from baserow.contrib.builder.tools.formulas import BuilderFormulaContext
+
+        context = BuilderFormulaContext(target.page)
+        context.load_data_source_filter_context()
+        return context
+
     @property
     def serializer_field_overrides(self):
         from baserow.api.user_files.serializers import UserFileField

@@ -1714,6 +1714,26 @@ class InstallTemplateJob(
     installed_applications = models.JSONField(default=list)
 
 
+class IdentityDefinition(CreatedAndUpdatedOnMixin, models.Model):
+    """
+    An identity that came with a template or an import and doesn't exist in the
+    workspace yet. The applications that act as it point at the definition, and
+    wait until the identity is created from it.
+    """
+
+    workspace = models.ForeignKey(
+        Workspace, on_delete=models.CASCADE, related_name="identity_definitions"
+    )
+    name = models.CharField(max_length=150)
+    # The address of the exported identity. A key that the imported data refers to
+    # the identity by, never an address of the new one.
+    source_email = models.CharField(max_length=254, null=True)
+    # The role the exported identity had on its workspace, as {"scope_type":
+    # "workspace", "role"}, and those it had on single applications of this one,
+    # as {"scope_type": "application", "scope_id", "role"}.
+    roles = models.JSONField(null=True)
+
+
 class DefaultImportExportResourceManager(models.Manager):
     def get_queryset(self):
         return super().get_queryset().filter(marked_for_deletion=False)

@@ -1170,3 +1170,14 @@ def test_workspace_tools_endpoint_lists_the_registered_tools(
     response = api_client.get(tools_url(agent.workspace.id))
     assert response.status_code == 401
     assert response.json()["error"] == "PERMISSION_DENIED"
+
+
+def test_a_tool_type_that_doesnt_say_what_it_needs_isnt_registered():
+    from baserow.contrib.agent.registries import AgentToolTypeRegistry
+
+    class NeedlessAgentToolType(AgentToolType):
+        type = "needless"
+        group = "database"
+
+    with pytest.raises(ValueError, match="must set `needs`"):
+        AgentToolTypeRegistry().register(NeedlessAgentToolType())

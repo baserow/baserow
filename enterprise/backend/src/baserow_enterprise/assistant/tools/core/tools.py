@@ -1,3 +1,5 @@
+import copy
+import dataclasses
 from collections.abc import Callable
 from typing import Annotated, Any, Literal
 
@@ -5,6 +7,7 @@ from django.utils.translation import gettext as _
 
 from pydantic import AwareDatetime, Field
 from pydantic_ai import RunContext
+from pydantic_ai.tools import ToolDefinition
 
 from baserow.contrib.automation.tools import automations as shared_automations
 from baserow.contrib.builder.tools import applications as shared_builders
@@ -125,9 +128,16 @@ def search_workspace(
 
     ctx.deps.tool_helpers.update_status(_("Searching the workspace..."))
 
-    return shared_search.search_workspace(
+    result = shared_search.search_workspace(
         ctx.deps.tool_context(), query=query, types=types, page=page, size=size
     )
+    # Past the first page, no results only means the earlier pages had them all.
+    if types and page == 1 and not result["results"]:
+        result["next_steps"] = (
+            "Nothing of those types matches. Search again with types null before "
+            "telling the user it doesn't exist: it may be another kind of item."
+        )
+    return result
 
 
 def list_audit_log(
@@ -348,26 +358,69 @@ def create_builder(
     return result
 
 
+# What each mode is for. The agent mode is only shown to a user who has the
+# agent tools, see _only_modes_the_user_has.
+_MODES = {
+    "database": "table/field/view/row ops",
+    "application": "page/element/data-source ops",
+    "automation": "workflow/node ops",
+    "dashboard": "widget ops",
+    "agent": "building, changing and testing Agents",
+    "explain": "answering Baserow questions",
+}
+
+
+def _modes_for(permitted_tools: frozenset[str]) -> dict[str, str]:
+    """
+    :param permitted_tools: The tools the user may use.
+    :return: The modes the user can switch to, with what each is for.
+    """
+
+    return {
+        mode: purpose
+        for mode, purpose in _MODES.items()
+        if mode != AgentMode.AGENT.value or "apply_agent_setup" in permitted_tools
+    }
+
+
+def _mode_description(modes: dict[str, str]) -> str:
+    return "Target mode: " + ", ".join(
+        f"'{mode}' for {purpose}" for mode, purpose in modes.items()
+    )
+
+
+async def _only_modes_the_user_has(
+    ctx: RunContext[AssistantDeps], tool_def: ToolDefinition
+) -> ToolDefinition:
+    """
+    Offer switch_mode with the modes whose tools the user has, so a user without
+    the agent tools isn't told an agent mode exists.
+
+    :param ctx: The run's context.
+    :param tool_def: The tool as defined for every user.
+    :return: The tool with the user's modes.
+    """
+
+    modes = _modes_for(ctx.deps.permitted_tools)
+    schema = copy.deepcopy(tool_def.parameters_json_schema)
+    mode = schema["properties"]["mode"]
+    mode["enum"] = list(modes)
+    mode["description"] = _mode_description(modes)
+    return dataclasses.replace(tool_def, parameters_json_schema=schema)
+
+
 def switch_mode(
     ctx: RunContext[AssistantDeps],
     mode: Annotated[
-        Literal["database", "application", "automation", "dashboard", "explain"],
-        Field(
-            description=(
-                "Target mode: 'database' for table/field/view/row ops, "
-                "'application' for page/element/data-source ops, "
-                "'automation' for workflow/node ops, "
-                "'dashboard' for widget ops, "
-                "'explain' for answering Baserow questions."
-            )
-        ),
+        Literal[tuple(_MODES)],  # type: ignore[valid-type]
+        Field(description=_mode_description(_MODES)),
     ],
     thought: Annotated[
         str, Field(description="Brief reasoning for calling this tool.")
     ],
 ) -> str:
     """\
-    Switch between domain modes (database, application, automation, dashboard, explain).
+    Switch to another domain mode.
 
     WHEN to use: Task needs tools from a different domain, or user asks a how-to question (→ "explain").
     WHAT it does: Changes the available toolset to the target domain's tools.
@@ -375,6 +428,11 @@ def switch_mode(
     DO NOT USE when: Already in the requested mode.
     """
 
+    modes = _modes_for(ctx.deps.permitted_tools)
+    if mode not in modes:
+        raise ToolInputError(
+            f"{mode!r} is not a mode.", hint=f"Use one of: {', '.join(modes)}."
+        )
     target = AgentMode(mode)
     if ctx.deps.mode == target:
         return f"Already in {target.value} mode."
@@ -606,3 +664,4 @@ TOOL_FUNCTIONS = [
     ask_user,
 ]
 core_toolset = AssistantFunctionToolset(TOOL_FUNCTIONS, max_retries=3)
+core_toolset.tools[switch_mode.__name__].prepare = _only_modes_the_user_has

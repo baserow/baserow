@@ -57,6 +57,11 @@
   }
 }
 
+// Filters that can't be changed for a moment, e.g. while Kuma changes them.
+.filters__items--frozen {
+  opacity: 0.6;
+}
+
 .filters__group-item-wrapper {
   display: grid;
   grid-template-columns: 68px 1fr;

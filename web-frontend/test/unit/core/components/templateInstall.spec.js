@@ -7,6 +7,7 @@ import { permission } from '@baserow/test/helpers/permission'
 import { heldBack } from '@baserow/test/helpers/heldBack'
 import { toastsOfType, updateJob } from '@baserow/test/helpers/store'
 import TemplateInstall from '@baserow/modules/core/components/template/TemplateInstall'
+import { BaserowPlugin } from '@baserow/modules/core/plugins'
 import CreateWorkspaceModal from '@baserow/modules/core/components/workspace/CreateWorkspaceModal'
 import Toasts from '@baserow/modules/core/components/toasts/Toasts'
 import { workspaceSidebarVisibleKey } from '@baserow/modules/core/composables/useWorkspaceSidebar'
@@ -642,6 +643,142 @@ describe('TemplateInstall', () => {
         false
       )
       expect(wrapper.findComponent(CreateWorkspaceModal).exists()).toBe(false)
+    })
+  })
+
+  describe('identities for Agents', () => {
+    const agent = {
+      id: 3,
+      type: 'agent',
+      name: 'Helper',
+      waits_for_identity: true,
+    }
+    const database = { id: 4, type: 'database', name: 'CRM' }
+    const site = { id: 5, type: 'builder', name: 'Site' }
+
+    class ScopedIdentitiesPlugin extends BaserowPlugin {
+      static getType() {
+        return 'test_scoped_identities'
+      }
+
+      canCreateScopedIdentities(workspace) {
+        return workspace.id === 1
+      }
+    }
+
+    const registerPlugin = () =>
+      testApp
+        .getRegistry()
+        .register(
+          'plugin',
+          new ScopedIdentitiesPlugin({ app: testApp.getApp() })
+        )
+
+    afterEach(() => {
+      const registry = testApp.getRegistry()
+      if (registry.exists('plugin', ScopedIdentitiesPlugin.getType())) {
+        registry.unregister('plugin', ScopedIdentitiesPlugin.getType())
+      }
+    })
+
+    const option = (wrapper) => wrapper.find('.template-install__summary')
+
+    test('is hidden without a plugin that can scope identities', async () => {
+      signIn()
+      const wrapper = await testApp.mount(TemplateInstall, {
+        props: { template, applications: [database, agent] },
+      })
+
+      expect(option(wrapper).exists()).toBe(false)
+    })
+
+    test('is hidden for a template without Agents', async () => {
+      signIn()
+      registerPlugin()
+      const wrapper = await testApp.mount(TemplateInstall, {
+        props: { template, applications: [database] },
+      })
+
+      expect(option(wrapper).exists()).toBe(false)
+    })
+
+    test('is shown for a template with only Agents', async () => {
+      signIn()
+      registerPlugin()
+      const wrapper = await testApp.mount(TemplateInstall, {
+        props: { template, applications: [agent] },
+      })
+
+      expect(option(wrapper).exists()).toBe(true)
+    })
+
+    test('is shown for a template with an Agent and any other application', async () => {
+      signIn()
+      registerPlugin()
+      const wrapper = await testApp.mount(TemplateInstall, {
+        props: { template, applications: [site, agent] },
+      })
+
+      expect(option(wrapper).exists()).toBe(true)
+    })
+
+    test('is hidden when no Agent came with an identity', async () => {
+      signIn()
+      registerPlugin()
+      const wrapper = await testApp.mount(TemplateInstall, {
+        props: {
+          template,
+          applications: [database, { ...agent, waits_for_identity: false }],
+        },
+      })
+
+      expect(option(wrapper).exists()).toBe(false)
+    })
+
+    test('is hidden while the Agent builder is off', async () => {
+      signIn()
+      registerPlugin()
+      const agentType = testApp.getRegistry().get('application', 'agent')
+      const canBeCreated = vi
+        .spyOn(agentType, 'canBeCreated')
+        .mockReturnValue(false)
+      try {
+        const wrapper = await testApp.mount(TemplateInstall, {
+          props: { template, applications: [database, agent] },
+        })
+
+        expect(option(wrapper).exists()).toBe(false)
+      } finally {
+        canBeCreated.mockRestore()
+      }
+    })
+
+    test('is hidden for a workspace the user cannot scope identities in', async () => {
+      signIn()
+      registerPlugin()
+      const wrapper = await testApp.mount(TemplateInstall, {
+        props: {
+          template,
+          workspace: { id: 2 },
+          applications: [database, agent],
+        },
+      })
+
+      expect(option(wrapper).exists()).toBe(false)
+    })
+
+    test('says what the install creates and sends no option for it', async () => {
+      signIn()
+      registerPlugin()
+      mockInstall(1)
+      const wrapper = await testApp.mount(TemplateInstall, {
+        props: { template, applications: [database, agent] },
+      })
+
+      expect(option(wrapper).text()).toBe('templateInstall.createsIdentities')
+      expect(option(wrapper).find('input').exists()).toBe(false)
+      await clickUse(wrapper)
+      expect(testApp.mock.history.post.map((r) => r.params)).toStrictEqual([{}])
     })
   })
 })

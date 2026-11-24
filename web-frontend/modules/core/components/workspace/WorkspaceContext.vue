@@ -13,8 +13,20 @@
       v-if="workspace._.additionalLoading"
       class="loading margin-left-2 margin-top-2 margin-bottom-2"
     ></div>
-    <slot v-else :actions="actions" :hide="hide">
+    <slot
+      v-else
+      :actions="actions"
+      :hide="hide"
+      :additional-components="additionalContextComponents"
+    >
       <ul class="context__menu">
+        <component
+          :is="component"
+          v-for="(component, index) in additionalContextComponents"
+          :key="index"
+          :workspace="workspace"
+          @hide="hide()"
+        />
         <WorkspaceActionItem :action="actions.exportData" />
         <WorkspaceActionItem :action="actions.importData" />
         <WorkspaceActionItem :action="actions.rename" />
@@ -101,6 +113,11 @@ export default {
     return { deleting: false }
   },
   computed: {
+    additionalContextComponents() {
+      return Object.values(this.$registry.getAll('plugin')).flatMap((plugin) =>
+        plugin.getAdditionalWorkspaceContextComponents(this.workspace)
+      )
+    },
     canExport() {
       return this.hasWorkspacePermission('workspace.export')
     },

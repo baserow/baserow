@@ -6,6 +6,13 @@
       class="sidebar-workspace-menu__separator"
       role="separator"
     ></li>
+    <component
+      :is="component"
+      v-for="(component, index) in additionalComponents"
+      :key="`additional-${index}`"
+      :workspace="workspace"
+      @hide="$emit('hide')"
+    />
     <WorkspaceActionItem v-if="canListMembers" :action="actions.members" />
     <WorkspaceActionItem
       v-for="tab in actions.settingsTabs"
@@ -65,6 +72,15 @@ const props = defineProps({
   extensions: {
     type: Array,
     required: true,
+  },
+  /**
+   * The components of `getAdditionalWorkspaceContextComponents`, so that they're
+   * also in this menu, which replaces the items of the workspace context.
+   */
+  additionalComponents: {
+    type: Array,
+    required: false,
+    default: () => [],
   },
 })
 const emit = defineEmits(['hide'])

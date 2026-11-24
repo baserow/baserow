@@ -162,3 +162,18 @@
   flex: 1 1 auto;
   min-width: 0;
 }
+
+.template-install__summary {
+  display: flex;
+  gap: 8px;
+  margin: 0;
+  font-size: 12px;
+  line-height: 18px;
+  color: $palette-neutral-700;
+}
+
+.template-install__summary-icon {
+  flex: 0 0 auto;
+  font-size: 16px;
+  line-height: 18px;
+}

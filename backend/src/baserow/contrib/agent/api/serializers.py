@@ -38,9 +38,18 @@ class AgentApplicationSerializer(serializers.ModelSerializer):
         help_text="Whether the agent's configuration is complete and its model is enabled."
     )
 
+    waits_for_identity = serializers.SerializerMethodField(
+        help_text="Whether the agent came with an identity that doesn't exist yet. "
+        "Installing it as a template creates the identity when the installer may."
+    )
+
     class Meta:
         model = AgentApplication
-        fields = ("name", "readiness")
+        fields = ("name", "readiness", "waits_for_identity")
+
+    @extend_schema_field(serializers.BooleanField())
+    def get_waits_for_identity(self, instance: AgentApplication) -> bool:
+        return instance.identity_definition_id is not None
 
     @extend_schema_field(serializers.ChoiceField(choices=READINESS_CHOICES))
     def get_readiness(self, instance: AgentApplication) -> AgentReadinessState:
@@ -391,6 +400,7 @@ class AgentConversationSerializer(serializers.ModelSerializer):
             "last_reply_failed",
             "pending_approval_count",
             "pinned",
+            "is_test",
             "shared",
             "started_by_trigger",
             "owner",

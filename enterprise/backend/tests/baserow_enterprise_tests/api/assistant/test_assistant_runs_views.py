@@ -127,6 +127,36 @@ def test_sending_saves_the_message_and_enqueues_its_run(
 
 
 @pytest.mark.django_db
+def test_a_message_from_an_agents_page_says_which_agent(
+    api_client, member, django_capture_on_commit_callbacks
+):
+    from baserow_enterprise.assistant.assistant import _mode_for_ui_context
+    from baserow_enterprise.assistant.deps import AgentMode
+    from baserow_enterprise.assistant.types import UIContext
+
+    user, token, workspace = member
+    # What the frontend sends from an Agent's page.
+    ui_context = {
+        "applicationType": "agent",
+        "workspace": {"id": workspace.id, "name": workspace.name},
+        "timezone": "Europe/Rome",
+        "agent": {"id": 12, "name": "Lead triage"},
+    }
+    with django_capture_on_commit_callbacks(execute=True):
+        response = _send(api_client, token, workspace, uuid4(), ui_context=ui_context)
+
+    assert response.status_code == 200
+    saved = ChatRun.objects.get(id=_run_id(response)).context["ui_context"]
+    assert saved["agent"] == {"id": "12", "name": "Lead triage"}
+    # The run starts in the agent mode for a user who has the agent tools.
+    restored = UIContext.model_validate(saved)
+    assert (
+        _mode_for_ui_context(restored, frozenset({"apply_agent_setup"}))
+        == AgentMode.AGENT
+    )
+
+
+@pytest.mark.django_db
 def test_an_old_tab_can_send_without_run_metadata(api_client, member):
     _, token, workspace = member
     response = api_client.post(

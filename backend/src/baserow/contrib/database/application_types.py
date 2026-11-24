@@ -32,6 +32,7 @@ from baserow.contrib.database.table.handler import TableHandler
 from baserow.contrib.database.views.registries import view_type_registry
 from baserow.core.db import specific_queryset
 from baserow.core.handler import CoreHandler
+from baserow.core.identities.import_export import imported_identity_emails
 from baserow.core.integrations.handler import IntegrationHandler
 from baserow.core.integrations.models import Integration
 from baserow.core.integrations.operations import ReadIntegrationOperationType
@@ -695,6 +696,11 @@ class DatabaseApplicationType(ApplicationType):
             user_email_mapping = CoreHandler.get_user_email_mapping(
                 workspace_id_for_user_references, only_emails=[]
             )
+        # The identities this import created, by the address the rows know them by.
+        user_email_mapping = {
+            **user_email_mapping,
+            **imported_identity_emails(id_mapping),
+        }
 
         # First, we want to create all the table instances because it could be that
         # field or view properties depend on the existence of a table.

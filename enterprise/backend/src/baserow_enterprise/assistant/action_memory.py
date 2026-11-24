@@ -36,6 +36,7 @@ _MUTATION_PREFIXES = (
     "setup_",
     "set_",
     "move_",
+    "apply_",
 )
 _MUTATION_RESULT_PREFIXES = (
     "created_",
@@ -180,6 +181,16 @@ def _compact_value(value: Any, depth: int = 0) -> Any:
         return value
 
     return str(value)[:_MAX_VALUE_CHARS]
+
+
+def was_cut(value: str) -> bool:
+    """
+    :param value: A text a tool is called with.
+    :return: Whether it has the shape of a longer text as the memory keeps it, so
+        a tool can refuse to save the cut copy over the full text.
+    """
+
+    return len(value) == _MAX_VALUE_CHARS and value.endswith("...")
 
 
 def _has_result_with_prefix(result: dict[str, Any], prefixes: tuple[str, ...]) -> bool:

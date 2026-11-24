@@ -27,6 +27,7 @@ from pydantic_ai.models.function import FunctionModel
 from pydantic_ai.models.test import TestModel
 from pydantic_ai.toolsets import FunctionToolset
 
+from baserow.contrib.agent.models import AgentApplication
 from baserow.core.ai_provider.constants import (
     AI_PROVIDER_FEATURE_KUMA,
     AI_PROVIDER_FEATURE_MODE_MODEL,
@@ -1248,3 +1249,40 @@ class TestModelFailureBoundary:
             run_case(case, TestModel(custom_output_text="Hello", call_tools=[]))
 
         assert raised.value is error
+
+
+# The tools run on the executor's thread, which only sees committed data.
+@pytest.mark.django_db(transaction=True)
+def test_a_case_runs_with_its_feature_flags_turned_on(data_fixture):
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    registry.register_scenario("builds-agent")(
+        lambda _: EvalScenario(user=user, workspace=workspace, ui_context=None)
+    )
+
+    def model_function(messages, info):
+        if len(messages) == 1:
+            return ModelResponse(
+                parts=[
+                    ToolCallPart(
+                        "apply_agent_setup",
+                        {"setup": {"name": "Triage"}, "thought": "t"},
+                        tool_call_id="apply",
+                    )
+                ]
+            )
+        return ModelResponse(parts=[TextPart("Created Triage.")])
+
+    case = EvalCase(
+        id="harness/builds-agent",
+        dataset="harness-test",
+        prompt="Build Triage.",
+        scenario="builds-agent",
+        checks=lambda case, scenario, output: [],
+        mode=AgentMode.AGENT,
+        feature_flags=("agent-builder",),
+    )
+    output, _ = run_case(case, FunctionModel(model_function))
+
+    assert output.answer == "Created Triage."
+    assert AgentApplication.objects.get(workspace=workspace).name == "Triage"
