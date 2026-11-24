@@ -18,6 +18,7 @@ from baserow.contrib.integrations.local_baserow.integration_types import (
 )
 from baserow.core.exceptions import PermissionDenied
 from baserow.core.registries import application_type_registry
+from baserow.core.services.types import DispatchResult
 from baserow.core.tools import ToolContext
 from baserow.core.trash.handler import TrashHandler
 from baserow_enterprise.integrations.local_baserow.agent_action_types import (
@@ -214,6 +215,21 @@ def test_the_model_reads_the_best_matches_whole_and_the_rest_cut(
     assert best["row"]["Document"].endswith("…")
     assert long_text.startswith(best["row"]["Document"][:-1])
     assert len(tool_result["results"]) < len(result.data["results"])
+
+
+def test_a_best_match_too_big_to_cut_its_texts_is_still_read():
+    files = [{"url": "x" * SEMANTIC_SEARCH_ACTION_MAX_RESULT_CHARACTERS}]
+    best = {"id": 1, "row": {"id": 1, "Photos": files, "Notes": "Refunds"}}
+    result = DispatchResult(data={"results": [best], "has_next_page": False})
+
+    tool_result = LocalBaserowSemanticSearchAgentActionType().get_tool_result(
+        None, result
+    )
+
+    assert tool_result["results"] == [
+        {"id": 1, "row": {"id": 1, "Photos": "…", "Notes": "Refunds"}}
+    ]
+    assert tool_result["truncated"] is True
 
 
 @pytest.mark.django_db

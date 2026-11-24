@@ -12,7 +12,7 @@ from baserow.core.services.exceptions import (
     ServiceImproperlyConfiguredDispatchException,
 )
 from baserow.core.services.types import DispatchResult
-from baserow.core.tools.results import fit_text_values, json_length
+from baserow.core.tools.results import fit_values, json_length
 from baserow.core.types import Subject
 from baserow_enterprise.integrations.local_baserow.models import (
     LocalBaserowSemanticSearch,
@@ -70,9 +70,9 @@ class LocalBaserowSemanticSearchAgentActionType(AgentActionType):
         """
         :return: The rows found, best match first, as long as they fit in
             ``SEMANTIC_SEARCH_ACTION_MAX_RESULT_CHARACTERS``, as the model reads
-            them in every later turn. The text values of the first row that
-            doesn't fit are cut to the space left, and the rows after it are left
-            out, so the best matches stay whole.
+            them in every later turn. The first row that doesn't fit is cut to
+            the space left, and the rows after it are left out, so the best
+            matches stay whole.
         """
 
         results = []
@@ -83,7 +83,7 @@ class LocalBaserowSemanticSearchAgentActionType(AgentActionType):
                 row = item[ROW_PROPERTY]
                 # What the rest of the result takes, as the row's JSON is part of it.
                 row_space = space - (size - json_length(row))
-                cut_row = fit_text_values(row, row_space)
+                cut_row = fit_values(row, row_space)
                 if cut_row is not None:
                     results.append({**item, ROW_PROPERTY: cut_row})
                 return {**result.data, "results": results, "truncated": True}
