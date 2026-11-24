@@ -222,6 +222,7 @@ class FilesLowerThanViewFilterType(ViewFilterType):
     """
 
     type = "files_lower_than"
+    value_type = "number"
     compatible_field_types = [FileFieldType.type]
 
     def get_filter(self, field_name, value, model_field, field):
@@ -370,6 +371,7 @@ class LengthIsLowerThanViewFilterType(ViewFilterType):
     """
 
     type = "length_is_lower_than"
+    value_type = "number"
     compatible_field_types = [
         TextFieldType.type,
         LongTextFieldType.type,
@@ -403,6 +405,7 @@ class IsEvenAndWholeViewFilterType(ViewFilterType):
     """
 
     type = "is_even_and_whole"
+    uses_value = False
     compatible_field_types = [
         NumberFieldType.type,
         AutonumberFieldType.type,
@@ -424,6 +427,8 @@ class NumericComparisonViewFilterType(ViewFilterType):
     'lower than', 'lower than or equal', 'higher than' and 'higher than or equal'
     view filter types.
     """
+
+    value_type = "number"
 
     operator = None
     compatible_field_types = [
@@ -494,6 +499,8 @@ class HigherThanOrEqualViewFilterType(NumericComparisonViewFilterType):
 
 
 class TimezoneAwareDateViewFilterType(ViewFilterType):
+    deprecated = True
+
     @property
     def time_sensitive(self) -> bool:
         return True
@@ -733,6 +740,7 @@ class DateEqualsDayOfMonthViewFilterType(TimezoneAwareDateViewFilterType):
     """
 
     type = "date_equals_day_of_month"
+    deprecated = False
 
     def get_filter(
         self, field_name: str, value: str, model_field, field: Field
@@ -1123,6 +1131,8 @@ class DateAfterDaysAgoViewFilterType(TimezoneAwareDateViewFilterType):
 class SelectOptionFilterMixin:
     """Match option IDs or exact labels for native and formula selection fields."""
 
+    value_type = "select_option"
+
     accepts_multiple_values = True
     multiple_select = False
 
@@ -1320,6 +1330,7 @@ class BooleanViewFilterType(ViewFilterType):
     """
 
     type = "boolean"
+    value_type = "boolean"
     compatible_field_types = [
         BooleanFieldType.type,
         FormulaFieldType.compatible_with_formula_types(
@@ -1387,6 +1398,7 @@ class LinkRowHasViewFilterType(ManyToManyHasBaseViewFilter):
     """
 
     type = "link_row_has"
+    value_type = "number"
     compatible_field_types = [LinkRowFieldType.type]
 
     def get_filter(self, field_name, value, model_field, field):
@@ -1701,6 +1713,7 @@ class EmptyViewFilterType(ViewFilterType):
     """
 
     type = "empty"
+    uses_value = False
     compatible_field_types = [
         TextFieldType.type,
         LongTextFieldType.type,
@@ -1907,6 +1920,8 @@ DATE_FILTER_OPERATOR_DELTA_MAP = {
 
 
 class BaseDateMultiStepViewFilterType(ViewFilterType):
+    value_type = "date"
+
     incompatible_operators = []
 
     @property

@@ -6,6 +6,9 @@ from drf_spectacular.plumbing import force_instance
 from drf_spectacular.utils import extend_schema_serializer
 from rest_framework import serializers
 
+from baserow.contrib.integrations.local_baserow.service_filters.registries import (
+    service_filter_target_type_registry,
+)
 from baserow_enterprise.assistant.models import AssistantChat, AssistantChatPrediction
 from baserow_enterprise.assistant.types import (
     AssistantMessageType,
@@ -45,6 +48,17 @@ class UIContextPageSerializer(serializers.Serializer):
     name = serializers.CharField(help_text="The name of the page.")
 
 
+class UIContextElementSerializer(serializers.Serializer):
+    id = serializers.IntegerField(help_text="The ID of the element.")
+    type = serializers.CharField(help_text="The type of the element.")
+    data_source_id = serializers.IntegerField(
+        required=False,
+        allow_null=True,
+        help_text="The data source the element reads from: its own, or the one of "
+        "the collection element containing it.",
+    )
+
+
 class UIContextWorkflowSerializer(serializers.Serializer):
     id = serializers.CharField(help_text="The unique ID of the workflow.")
     name = serializers.CharField(help_text="The name of the workflow.")
@@ -73,6 +87,10 @@ class UIContextSerializer(serializers.Serializer):
     page = UIContextPageSerializer(
         required=False,
         help_text="The page the user is currently viewing, if any.",
+    )
+    element = UIContextElementSerializer(
+        required=False,
+        help_text="The element selected in the page editor, if any.",
     )
     # automation builder context
     automation = UIContextApplicationSerializer(
@@ -444,3 +462,54 @@ class OnboardingPromptSuggestionSerializer(serializers.Serializer):
 
 class OnboardingPromptSuggestionsSerializer(serializers.Serializer):
     suggestions = OnboardingPromptSuggestionSerializer(many=True)
+
+
+class ServiceFiltersRequestSerializer(serializers.Serializer):
+    kind = serializers.ChoiceField(
+        choices=[],
+        help_text="What owns the service whose filters must change.",
+    )
+    id = serializers.IntegerField(
+        help_text="The id of the data source or automation node."
+    )
+    prompt = serializers.CharField(
+        max_length=2000,
+        help_text="What to change in the filters, in the user's words.",
+    )
+    table_id = serializers.IntegerField(
+        required=False,
+        allow_null=True,
+        help_text="The table picked in the editor when the data source or node has "
+        "no table saved yet. The filters are made for it, and it's saved with them.",
+    )
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # The kinds are registered by the applications when they're ready.
+        self.fields["kind"].choices = service_filter_target_type_registry.get_types()
+
+
+class AssistantActionRequestSerializer(serializers.Serializer):
+    """Validate the common envelope and the selected action's parameters."""
+
+    action = serializers.ChoiceField(choices=["update_service_filters"])
+    prompt = serializers.CharField(max_length=2000)
+    parameters = serializers.DictField()
+
+    def validate(self, attrs):
+        # Explicit dispatch keeps this small without introducing another registry.
+        if attrs["action"] == "update_service_filters":
+            serializer = ServiceFiltersRequestSerializer(
+                data={**attrs["parameters"], "prompt": attrs["prompt"]}
+            )
+            serializer.is_valid(raise_exception=True)
+            attrs["parameters"] = serializer.validated_data
+        return attrs
+
+
+class AssistantActionResponseSerializer(serializers.Serializer):
+    """Common outcome with optional action-specific data."""
+
+    changed = serializers.BooleanField()
+    summary = serializers.CharField()
+    result = serializers.DictField()

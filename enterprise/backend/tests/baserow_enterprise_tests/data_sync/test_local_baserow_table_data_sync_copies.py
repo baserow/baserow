@@ -30,7 +30,7 @@ pytestmark = [
     pytest.mark.import_export_workspace,
     pytest.mark.data_sync,
     pytest.mark.django_db(transaction=True),
-    pytest.mark.usefixtures("use_tmp_media_root"),
+    pytest.mark.usefixtures("use_tmp_media_root", "synced_roles"),
 ]
 
 

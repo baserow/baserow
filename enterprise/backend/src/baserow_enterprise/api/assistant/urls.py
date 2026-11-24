@@ -1,6 +1,7 @@
 from django.urls import path
 
 from .views import (
+    AssistantActionsView,
     AssistantChatMessageFeedbackView,
     AssistantChatsView,
     AssistantChatView,
@@ -34,5 +35,10 @@ urlpatterns = [
         "onboarding/prompt-suggestions/",
         AssistantOnboardingPromptSuggestionsView.as_view(),
         name="onboarding_prompt_suggestions",
+    ),
+    path(
+        "actions/",
+        AssistantActionsView.as_view(),
+        name="actions",
     ),
 ]
