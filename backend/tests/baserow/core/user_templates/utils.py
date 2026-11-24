@@ -47,6 +47,10 @@ from baserow.core.models import Template, TemplateCategory, UserFile
 from baserow.core.operations import ExportWorkspaceOperationType
 from baserow.core.storage import get_default_storage
 from baserow.core.user_files.handler import UserFileHandler
+from baserow.core.user_files.template_files import (
+    template_file_owner,
+    template_file_prefix,
+)
 from baserow.core.user_templates.actions import UpdateUserTemplateVisibilityActionType
 from baserow.core.user_templates.archive import (
     new_template_archive_name,
@@ -589,6 +593,36 @@ def _upload_image(user, name, color):
     Image.new("RGB", (4, 4), color).save(buffer, format="PNG")
     buffer.seek(0)
     return UserFileHandler().upload_user_file(user, name, buffer)
+
+
+def upload_images(*colors, template_workspace_id=None):
+    """Uploads an image per color, as files of the template workspace if given."""
+
+    with template_file_owner(template_workspace_id):
+        return [_upload_image(None, f"{color}.png", color) for color in colors]
+
+
+def live_template_files(workspace_id=None):
+    return set(
+        UserFile.objects.template_files(workspace_id).filter(deleted_at__isnull=True)
+    )
+
+
+def assert_template_files_deleted(workspace_id):
+    assert UserFile.objects.template_files(workspace_id).exists()
+    assert not live_template_files(workspace_id)
+    prefix = template_file_prefix(workspace_id)
+    assert not [path for path in stored_paths() if path.name.startswith(prefix)]
+
+
+def assert_files_kept(user_files):
+    storage = get_default_storage()
+    handler = UserFileHandler()
+    for user_file in user_files:
+        user_file.refresh_from_db()
+        assert user_file.deleted_at is None
+        assert storage.exists(handler.user_file_path(user_file))
+        assert storage.exists(handler.user_file_thumbnail_path(user_file, "tiny"))
 
 
 def add_files_to_source(data_fixture, source):

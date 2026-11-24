@@ -61,6 +61,7 @@ from tests.baserow.core.user_templates.utils import (
     OTHER_ICON,
     add_files_to_source,
     add_password_data,
+    assert_files_kept,
     assert_password_data_left_out,
     copied_applications,
     create_source,
@@ -345,6 +346,7 @@ def test_update_user_template_content_copies_the_files_again(
     assert revision_files == set(UserFile.objects.template_files(revision.workspace_id))
     assert not revision_files & (root_files | author_files)
     assert user_files_referenced_in(root.workspace) == root_files
+    assert_files_kept(root_files)
 
     file_count = UserFile.objects.count()
     job = update_details(user, root)
@@ -1011,6 +1013,7 @@ def test_deleting_an_update_job_deletes_its_uncommitted_content_only(
 
     JobHandler().delete_job(uncommitted)
     JobHandler().delete_job(committed)
+    delete_orphaned_user_template_workspaces()
 
     assert not Workspace.objects_and_trash.filter(
         id=uncommitted.template_workspace_id

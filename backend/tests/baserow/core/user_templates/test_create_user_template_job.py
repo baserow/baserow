@@ -1,10 +1,14 @@
+import os
+from contextlib import nullcontext, suppress
 from datetime import datetime, timedelta, timezone
 from unittest.mock import patch
 
 from django.db import transaction
 
 import pytest
+from celery.exceptions import SoftTimeLimitExceeded
 from freezegun import freeze_time
+from storages.backends.gcloud import GoogleCloudStorage
 
 from baserow.contrib.builder.data_sources.models import DataSource
 from baserow.contrib.builder.elements.models import ChoiceElement
@@ -72,6 +76,7 @@ from tests.baserow.core.user_templates.utils import (
     ICON,
     add_files_to_source,
     add_password_data,
+    assert_files_kept,
     assert_password_data_left_out,
     cancel_in_another_connection,
     copied_applications,
@@ -79,12 +84,14 @@ from tests.baserow.core.user_templates.utils import (
     create_source,
     deny_export,
     find_values,
+    live_template_files,
     long_ago,
     purge,
     serialized_content,
     start_job,
     stored_paths,
     update_content,
+    upload_images,
     user_files_referenced_in,
 )
 
@@ -269,10 +276,19 @@ def test_create_user_template_job_copies_the_files_into_the_template(data_fixtur
         assert storage.exists(handler.user_file_thumbnail_path(copy.name, "tiny"))
 
 
-@pytest.mark.parametrize("content_update", [False, True])
-def test_failed_copy_writes_every_file_under_the_job_template_prefix(
-    data_fixture, content_update
-):
+def fail_after_storing(user_file, exception):
+    upload_user_file = UserFileHandler.upload_user_file
+
+    def upload_then_fail(self, *args, **kwargs):
+        uploaded = upload_user_file(self, *args, **kwargs)
+        if uploaded.sha256_hash == user_file.sha256_hash:
+            raise exception("Fails after the builder stored a file")
+        return uploaded
+
+    return patch.object(UserFileHandler, "upload_user_file", upload_then_fail)
+
+
+def copy_failing_in_the_builder(data_fixture, content_update, exception):
     source = create_source(data_fixture)
     files = add_files_to_source(data_fixture, source)
     user, workspace = source["user"], source["workspace"]
@@ -280,37 +296,63 @@ def test_failed_copy_writes_every_file_under_the_job_template_prefix(
     template = (
         start_job(user, workspace, applications).template if content_update else None
     )
-    stored_before = stored_paths()
-    upload_user_file = UserFileHandler.upload_user_file
-    job_workspace_ids = set()
-
-    def upload_then_fail_in_the_builder(self, *args, **kwargs):
-        job_workspace_ids.add(
-            CreateUserTemplateJob.objects.values_list(
-                "template_workspace_id", flat=True
-            ).latest("id")
-        )
-        user_file = upload_user_file(self, *args, **kwargs)
-        if user_file.sha256_hash == files["element_background"].sha256_hash:
-            raise RuntimeError("Fails after the builder stored a file")
-        return user_file
+    before = (stored_paths(), live_template_files())
 
     with (
-        patch.object(
-            UserTemplateHandler, "delete_content_without_template", return_value=None
-        ),
-        patch.object(
-            UserFileHandler, "upload_user_file", upload_then_fail_in_the_builder
-        ),
-        pytest.raises(RuntimeError),
+        fail_after_storing(files["element_background"], exception),
+        suppress(RuntimeError),
     ):
         if content_update:
             update_content(user, template, workspace, applications)
         else:
             start_job(user, workspace, applications)
 
-    assert CreateUserTemplateJob.objects.latest("id").state == JOB_FAILED
-    [workspace_id] = job_workspace_ids
+    return before, CreateUserTemplateJob.objects.latest("id")
+
+
+@pytest.mark.parametrize("content_update", [False, True])
+@pytest.mark.parametrize(
+    "exception,state", [(RuntimeError, JOB_FAILED), (JobCancelled, JOB_CANCELLED)]
+)
+def test_failed_copy_leaves_no_template_files(
+    data_fixture, content_update, exception, state
+):
+    before, job = copy_failing_in_the_builder(data_fixture, content_update, exception)
+
+    assert job.state == state
+    assert (stored_paths(), live_template_files()) == before
+
+
+@pytest.mark.parametrize(
+    "content_update,exception,state,worker_killed,job_deleted",
+    [
+        (False, RuntimeError, JOB_FAILED, True, False),
+        (True, RuntimeError, JOB_FAILED, True, False),
+        (False, RuntimeError, JOB_FAILED, False, False),
+        (False, JobCancelled, JOB_CANCELLED, False, False),
+        (True, RuntimeError, JOB_FAILED, False, True),
+    ],
+)
+def test_failed_copy_writes_every_file_under_the_job_template_prefix(
+    data_fixture, settings, content_update, exception, state, worker_killed, job_deleted
+):
+    with (
+        patch.object(
+            UserTemplateHandler, "delete_content_without_template", return_value=None
+        )
+        if worker_killed
+        else nullcontext(),
+        patch(
+            "baserow.core.user_files.handler._delete_unreferenced_files",
+            side_effect=None if worker_killed else OSError,
+        ),
+    ):
+        (stored_before, _), job = copy_failing_in_the_builder(
+            data_fixture, content_update, exception
+        )
+
+    assert job.state == state
+    workspace_id = job.template_workspace_id
     assert workspace_id is not None
     new_paths = stored_paths() - stored_before
     assert {path.parts[0] for path in new_paths} == {"user_files", "thumbnails"}
@@ -322,6 +364,27 @@ def test_failed_copy_writes_every_file_under_the_job_template_prefix(
     }
     assert row_names
     assert {path.name for path in new_paths} - row_names
+    if job_deleted:
+        JobHandler().delete_job(job)
+
+    after_the_worker_stopped = datetime.now(tz=timezone.utc) + timedelta(
+        seconds=settings.BASEROW_JOB_SOFT_TIME_LIMIT + 31
+    )
+    with (
+        freeze_time(after_the_worker_stopped),
+        patch(
+            "baserow.core.user_templates.handler.iter_storage_names_with_prefixes",
+            side_effect=OSError,
+        ),
+    ):
+        delete_orphaned_user_template_workspaces()
+
+    assert Workspace.objects.filter(id=workspace_id).exists()
+
+    with freeze_time(after_the_worker_stopped):
+        delete_orphaned_user_template_workspaces()
+
+    assert stored_paths() == stored_before
 
 
 def test_create_user_template_job_strips_automation_secrets(data_fixture):
@@ -632,21 +695,29 @@ def test_create_user_template_job_cancelled_while_creating_the_template(data_fix
     assert_no_copy_left(source["workspace"])
 
 
-def test_create_user_template_job_cancelled_right_before_the_commit(data_fixture):
+def fail_by_the_watchdog(job):
+    CreateUserTemplateJob.objects.filter(id=job.id).update(state=JOB_FAILED)
+
+
+@pytest.mark.parametrize(
+    "stop,state",
+    [(JobHandler.cancel_job, JOB_CANCELLED), (fail_by_the_watchdog, JOB_FAILED)],
+)
+def test_create_user_template_job_stopped_right_before_the_commit(
+    data_fixture, stop, state
+):
     source = create_source(data_fixture)
     save_template = CreateUserTemplateJobType._save_template
 
-    def cancel_before_saving(self, job, template):
+    def stop_before_saving(self, job, template):
         # After the last progress report, before the job is locked.
-        JobHandler.cancel_job(CreateUserTemplateJob.objects.get())
+        stop(CreateUserTemplateJob.objects.get())
         save_template(self, job, template)
 
-    with patch.object(
-        CreateUserTemplateJobType, "_save_template", cancel_before_saving
-    ):
+    with patch.object(CreateUserTemplateJobType, "_save_template", stop_before_saving):
         job = start_job(source["user"], source["workspace"], [source["database"]])
 
-    assert job.state == JOB_CANCELLED
+    assert job.state == state
     assert job.template_id is None
     assert_no_copy_left(source["workspace"])
 
@@ -912,6 +983,86 @@ def test_sweep_cleans_up_after_a_killed_worker(data_fixture, settings):
     delete_orphaned_user_template_workspaces()
 
 
+def test_sweep_reads_each_file_folder_once_for_all_killed_jobs(data_fixture):
+    user = data_fixture.create_user()
+    killed = [
+        create_unfinished_job(data_fixture, user, state=JOB_FAILED) for _ in range(3)
+    ]
+    workspace_ids = [job.template_workspace_id for job in killed]
+    for workspace_id, color in zip(workspace_ids, ["red", "green", "blue"]):
+        upload_images(color, template_workspace_id=workspace_id)
+    # The killed worker stored them, its rows were rolled back.
+    UserFile.objects.template_files(workspace_ids[0]).delete()
+    with_template = create_unfinished_job(data_fixture, user, state=JOB_FAILED)
+    data_fixture.create_template(workspace=with_template.template_workspace)
+    kept = upload_images("white") + upload_images(
+        "black", template_workspace_id=with_template.template_workspace_id
+    )
+    storage = get_default_storage()
+    handler = UserFileHandler()
+
+    with patch("baserow.core.storage.os.scandir", wraps=os.scandir) as scandir:
+        delete_orphaned_user_template_workspaces()
+
+    assert sorted(call.args[0] for call in scandir.call_args_list) == sorted(
+        storage.path(path) for path in handler.user_file_storage_paths("")
+    )
+    assert not Workspace.objects_and_trash.filter(id__in=workspace_ids).exists()
+    prefixes = tuple(map(template_file_prefix, workspace_ids))
+    assert not [path for path in stored_paths() if path.name.startswith(prefixes)]
+    assert_files_kept(kept)
+
+
+def test_sweep_on_cloud_storage_holds_back_only_the_workspace_it_cant_list(
+    data_fixture,
+):
+    user = data_fixture.create_user()
+    denied, cleaned, cut_off = [
+        create_unfinished_job(data_fixture, user, state=JOB_FAILED) for _ in range(3)
+    ]
+    out_of_time = True
+
+    def list_cloud_storage(storage, folder, name_prefixes):
+        (name_prefix,) = name_prefixes
+        if name_prefix == template_file_prefix(denied.template_workspace_id):
+            raise OSError("Access denied.")
+        if out_of_time and name_prefix == template_file_prefix(
+            cut_off.template_workspace_id
+        ):
+            raise SoftTimeLimitExceeded()
+        return iter(())
+
+    def sweep():
+        with (
+            patch(
+                "baserow.core.user_templates.handler.get_default_storage",
+                return_value=GoogleCloudStorage(bucket_name="bucket"),
+            ),
+            patch(
+                "baserow.core.user_templates.handler.iter_storage_names_with_prefixes",
+                side_effect=list_cloud_storage,
+            ),
+        ):
+            UserTemplateHandler().delete_content_of_unfinished_jobs()
+
+    with pytest.raises(SoftTimeLimitExceeded):
+        sweep()
+
+    cleaned.refresh_from_db()
+    assert cleaned.archive_name == ""
+    assert cleaned.template_workspace_id is None
+    assert Workspace.objects.filter(id=cut_off.template_workspace_id).exists()
+
+    out_of_time = False
+    sweep()
+
+    for job in (denied, cut_off):
+        job.refresh_from_db()
+    assert cut_off.template_workspace_id is None
+    assert Workspace.objects.filter(id=denied.template_workspace_id).exists()
+    assert get_default_storage().exists(denied.archive_name)
+
+
 def test_sweep_keeps_content_of_a_template_and_running_jobs(data_fixture):
     user = data_fixture.create_user()
     running = create_unfinished_job(data_fixture, user, state=JOB_STARTED)
@@ -996,10 +1147,10 @@ def test_sweep_continues_after_a_job_fails_to_clean_up(data_fixture):
     other = create_unfinished_job(data_fixture, user, state=JOB_FAILED)
     delete_content = UserTemplateHandler.delete_content_without_template
 
-    def fail_for_broken(handler, workspace_id, archive_name):
+    def fail_for_broken(handler, workspace_id, archive_name, **kwargs):
         if workspace_id == broken.template_workspace_id:
             raise ValueError("Storage unavailable.")
-        delete_content(handler, workspace_id, archive_name)
+        delete_content(handler, workspace_id, archive_name, **kwargs)
 
     with patch.object(
         UserTemplateHandler,
@@ -1018,40 +1169,27 @@ def test_sweep_continues_after_a_job_fails_to_clean_up(data_fixture):
     assert_no_content_left([workspace_id], archive_name)
 
 
-def test_deleting_an_unfinished_job_cleans_up(data_fixture):
-    user = data_fixture.create_user()
-    job = create_unfinished_job(data_fixture, user, state=JOB_FAILED)
-    workspace_id, archive_name = job.template_workspace_id, job.archive_name
-
-    with transaction.atomic():
-        JobHandler().delete_job(job)
-        # Nothing is deleted before the commit.
-        assert Workspace.objects.filter(id=workspace_id).exists()
-
-    assert_no_content_left([workspace_id], archive_name)
-
-
-def test_deleting_jobs_continues_after_a_job_fails_to_clean_up(data_fixture):
+def test_sweep_continues_after_a_deleted_job_fails_to_clean_up(data_fixture):
     user = data_fixture.create_user()
     broken = create_unfinished_job(data_fixture, user, state=JOB_FAILED)
     other = create_unfinished_job(data_fixture, user, state=JOB_FAILED)
     workspace_id, archive_name = other.template_workspace_id, other.archive_name
     delete_content = UserTemplateHandler.delete_content_without_template
 
-    def fail_for_broken(handler, workspace_id, archive_name):
+    def fail_for_broken(handler, workspace_id, archive_name, **kwargs):
         if workspace_id == broken.template_workspace_id:
             raise ValueError("Storage unavailable.")
-        delete_content(handler, workspace_id, archive_name)
+        delete_content(handler, workspace_id, archive_name, **kwargs)
 
+    JobHandler().delete_job(broken)
+    JobHandler().delete_job(other)
     with patch.object(
         UserTemplateHandler,
         "delete_content_without_template",
         autospec=True,
         side_effect=fail_for_broken,
     ):
-        with transaction.atomic():
-            JobHandler().delete_job(broken)
-            JobHandler().delete_job(other)
+        delete_orphaned_user_template_workspaces()
 
     assert not CreateUserTemplateJob.objects.exists()
     assert Workspace.objects.filter(id=broken.template_workspace_id).exists()
@@ -1062,29 +1200,18 @@ def test_deleting_jobs_continues_after_a_job_fails_to_clean_up(data_fixture):
     ) == [(broken.template_workspace_id, broken.archive_name)]
 
 
-def test_deleting_the_user_of_an_unfinished_job_cleans_up(data_fixture):
-    user = data_fixture.create_user()
-    job = create_unfinished_job(data_fixture, user, state=JOB_FAILED)
-    workspace_id, archive_name = job.template_workspace_id, job.archive_name
-
-    user.delete()
-
-    assert not CreateUserTemplateJob.objects.exists()
-    assert_no_content_left([workspace_id], archive_name)
-    assert not UserTemplateContentToDelete.objects.exists()
-
-
 def test_sweep_retries_the_content_of_a_deleted_job(data_fixture):
     user = data_fixture.create_user()
     job = create_unfinished_job(data_fixture, user, state=JOB_FAILED)
     workspace_id, archive_name = job.template_workspace_id, job.archive_name
 
+    user.delete()
     with patch.object(
         get_default_storage().__class__,
         "delete",
         side_effect=OSError("Storage unavailable."),
     ):
-        user.delete()
+        delete_orphaned_user_template_workspaces()
 
     assert not CreateUserTemplateJob.objects.exists()
     assert get_default_storage().exists(archive_name)
@@ -1119,6 +1246,7 @@ def test_deleting_the_user_as_the_copy_is_created_cleans_up(data_fixture):
         pytest.raises(Exception),
     ):
         start_job(source["user"], source["workspace"], [source["database"]])
+    delete_orphaned_user_template_workspaces()
 
     assert not CreateUserTemplateJob.objects.exists()
     assert_no_copy_left(source["workspace"])
