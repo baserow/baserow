@@ -64,14 +64,13 @@
 <script setup>
 import { computed, nextTick, ref } from 'vue'
 import { useStore } from 'vuex'
-import { useNuxtApp, useRoute, useRouter } from '#imports'
+import { useRoute, useRouter } from '#imports'
 
 import SelectSearch from '@baserow/modules/core/components/SelectSearch.vue'
 import SidebarWorkspacePickerRow from '@baserow/modules/core/components/sidebar/SidebarWorkspacePickerRow.vue'
 import CreateWorkspaceModal from '@baserow/modules/core/components/workspace/CreateWorkspaceModal.vue'
 import { notifyIf } from '@baserow/modules/core/utils/error'
 import { escapeRegExp } from '@baserow/modules/core/utils/string'
-import { pageFinished } from '@baserow/modules/core/utils/routing'
 
 const props = defineProps({
   workspaces: {
@@ -86,7 +85,6 @@ const props = defineProps({
 const emit = defineEmits(['hidden', 'shown'])
 
 const store = useStore()
-const nuxtApp = useNuxtApp()
 const route = useRoute()
 const router = useRouter()
 
@@ -201,8 +199,6 @@ async function selectWorkspace(workspace) {
       if (failure) {
         return
       }
-      await pageFinished(nuxtApp)
-      await nextTick()
     }
     // Navigating from a global page can replace the entire sidebar.
     if (context.value?.isOpen()) {
