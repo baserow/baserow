@@ -153,7 +153,7 @@
             <h4>{{ $t('agent.actionConfiguration') }}</h4>
             <ReadOnlyForm :read-only="!editable" :inert="!editable">
               <component
-                :is="formComponent"
+                :is="serviceType.formComponent"
                 ref="form"
                 small
                 :application="agent"
@@ -246,15 +246,6 @@ const agent = inject('agentApplication')
 const form = ref(null)
 const misconfiguredContext = ref(null)
 const serviceType = computed(() => serviceTypeOf($registry, props.action.type))
-const formComponent = computed(() => {
-  const presenter = $registry.exists('toolPresentation', props.action.type)
-    ? $registry.get('toolPresentation', props.action.type)
-    : null
-  return (
-    presenter?.getFormComponent(serviceType.value) ??
-    serviceType.value.formComponent
-  )
-})
 provide('formulaComponent', AgentFormulaInput)
 provideWorkspaceAccessLink()
 provide('dataProvidersAllowed', ['tool_input'])

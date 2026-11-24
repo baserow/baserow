@@ -398,11 +398,6 @@ export class ActionToolPresentationType extends ToolPresentationType {
     return {}
   }
 
-  /** The form that edits the action's service, wrapped when it needs a host. */
-  getFormComponent(serviceType) {
-    return serviceType.formComponent
-  }
-
   /** The resolved values in reading order, without the ones left empty. */
   getInput({ input }, t) {
     const values = input.values || {}

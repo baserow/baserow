@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 import { flushPromises } from '@vue/test-utils'
-import { defineComponent, h, ref } from 'vue'
+import { ref } from 'vue'
 import { TestApp } from '@baserow/test/helpers/testApp'
 import { clone } from '@baserow/modules/core/utils/object'
 import AgentActionsSection from '@baserow/modules/agent/components/configuration/AgentActionsSection'
@@ -162,34 +162,6 @@ describe('Agent action editor', () => {
     expect(testApp.mock.history.get.map(({ url }) => url)).toContain(
       'application/10/integrations/'
     )
-  })
-
-  test('the card hosts the service form its presenter returns', async () => {
-    const HostedForm = defineComponent({
-      name: 'HostedForm',
-      props: { service: { type: Object, default: null } },
-      setup: (props) => () => h('p', props.service?.type),
-    })
-    const presenter = testApp
-      .getRegistry()
-      .get('toolPresentation', 'smtp_email')
-    const getFormComponent = vi
-      .spyOn(presenter, 'getFormComponent')
-      .mockReturnValue(HostedForm)
-    try {
-      const wrapper = await mountSection([emailAction()])
-      expect(wrapper.get('.agent-action-card__service').text()).toContain(
-        'smtp_email'
-      )
-      expect(
-        wrapper.findComponent({ name: 'CoreSMTPEmailServiceForm' }).exists()
-      ).toBe(false)
-      expect(getFormComponent).toHaveBeenCalledWith(
-        testApp.getRegistry().get('service', 'smtp_email')
-      )
-    } finally {
-      getFormComponent.mockRestore()
-    }
   })
 
   test('an agent at its action limit offers no further action', async () => {
