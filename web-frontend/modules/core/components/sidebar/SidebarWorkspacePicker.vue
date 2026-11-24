@@ -188,7 +188,8 @@ async function selectWorkspace(workspace) {
   pendingWorkspaceId.value = workspace.id
   try {
     if (!workspace._.selected) {
-      await store.dispatch('workspace/select', workspace)
+      // The destination page selects the workspace after navigation succeeds.
+      await store.dispatch('workspace/fetchPermissionsAndRoles', workspace)
     }
     const destination = {
       name: 'workspace',

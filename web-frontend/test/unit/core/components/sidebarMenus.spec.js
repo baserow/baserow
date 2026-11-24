@@ -142,6 +142,28 @@ describe('Sidebar menu lifecycle', () => {
     expect(current.attributes('aria-disabled')).toBeUndefined()
   })
 
+  test('keeps the current workspace selected when navigation is refused', async () => {
+    const trigger = await openWorkspacePicker('/workspace/1')
+    const router = testApp.nuxtApp.$router
+    const guard = vi.fn(() => false)
+    const removeGuard = router.beforeEach(guard)
+    try {
+      const engineering = testApp.body.get(
+        'button.sidebar-workspace-picker__item:not([aria-current])'
+      )
+      await engineering.trigger('click')
+      await vi.waitFor(() => {
+        expect(guard).toHaveBeenCalledOnce()
+        expect(engineering.attributes('aria-busy')).toBeUndefined()
+      })
+      expect(trigger.attributes('aria-expanded')).toBe('true')
+      expect(router.currentRoute.value.fullPath).toBe('/workspace/1')
+      expect(testApp.store.getters['workspace/getSelected'].id).toBe(1)
+    } finally {
+      removeGuard()
+    }
+  })
+
   test.each(['open', 'opening'])(
     'closing the workspace picker also closes %s row actions',
     async (state) => {

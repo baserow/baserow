@@ -553,15 +553,15 @@ export const actions = {
       commit('SET_ITEM_ADDITIONAL_LOADING', { workspace, value: false })
     }
   },
-  /**
-   * Select a workspace and fetch all the applications related to that workspace.
-   */
+  async fetchPermissionsAndRoles({ dispatch }, workspace) {
+    await dispatch('fetchPermissions', workspace)
+    await dispatch('fetchRoles', workspace)
+  },
   async select({ commit, dispatch, state }, workspace) {
     commit('INCREMENT_SELECT_REQUEST_ID')
     const requestId = state.selectRequestId
 
-    await dispatch('fetchPermissions', workspace)
-    await dispatch('fetchRoles', workspace)
+    await dispatch('fetchPermissionsAndRoles', workspace)
     // Pages select without blocking the navigation, so a slower selection of the
     // workspace that was navigated away from can finish after the current one.
     // It must then not switch the selection and scopes back.
