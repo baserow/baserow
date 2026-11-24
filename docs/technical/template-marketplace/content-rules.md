@@ -82,7 +82,7 @@ workspace export; see #6116.
 
 | Module | What enforces it | Status | Owner |
 | --- | --- | --- | --- |
-| Integrations | `CoreHTTPTriggerServiceType.import_serialized` must regenerate `uid` on `is_user_template` and on install, not only on `is_duplicate` | to do | WAB |
+| Integrations | `CoreHTTPTriggerServiceType.import_serialized` regenerates `uid` on every non-publishing import, including user-template creation and installation | done | WAB |
 | Integrations | `CoreInboundEmailTriggerServiceType.import_serialized` regenerates `token` on every import that is not publishing | done | WAB |
 
 ## Test run data
