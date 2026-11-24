@@ -270,7 +270,7 @@
 </template>
 
 <script setup>
-import { nextTick, ref, watch } from 'vue'
+import { inject, nextTick, ref, watch } from 'vue'
 import Icon from '@baserow/modules/core/components/Icon'
 import Context from '@baserow/modules/core/components/Context'
 import InfiniteScroll from '@baserow/modules/core/components/helpers/InfiniteScroll'
@@ -311,6 +311,7 @@ const { $registry } = useNuxtApp()
 const { t } = useI18n()
 const store = useStore()
 const now = injectNow()
+const templatePreview = inject('agentTemplatePreview', false)
 
 const scroll = ref(null)
 const menu = ref(null)
@@ -339,7 +340,13 @@ function startedBy(item) {
       t('agent.startedByTrigger')
     )
   }
-  if (!item.owner) return item.shared ? t('agent.deletedSender') : ''
+  if (!item.owner) {
+    if (!item.shared) return ''
+    // The examples of a template never had an owner here.
+    return t(
+      templatePreview ? 'agent.templatePreviewExample' : 'agent.deletedSender'
+    )
+  }
   return item.owner.id === store.getters['auth/getUserId']
     ? t('agent.you')
     : item.owner.name

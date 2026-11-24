@@ -3,6 +3,9 @@ from datetime import datetime, timezone
 from io import BytesIO
 from unittest.mock import patch
 
+from django.core.files.storage import FileSystemStorage
+from django.db import transaction
+
 import pytest
 from freezegun import freeze_time
 from mcp.server.fastmcp import FastMCP
@@ -961,6 +964,143 @@ def export_for_template(applications) -> list[dict]:
             ]
         )
     )
+
+
+def write_template_with_examples(data_fixture, configured_agent, tmp_path):
+    """An official template file whose Agent comes with its conversations."""
+
+    author = data_fixture.create_user()
+    agent = configured_agent(user=author)
+    # Sharing a conversation is what makes it an example.
+    shared = data_fixture.create_agent_conversation(
+        user=author, agent=agent, shared=True
+    )
+    data_fixture.create_agent_message(conversation=shared, content="An example")
+    data_fixture.create_agent_message(user=author, agent=agent, content="PRIVATE")
+    config = ImportExportConfig(
+        include_permission_data=False, include_conversations=True
+    )
+    exported = json.loads(
+        json.dumps([agent.get_type().export_serialized(agent, config)])
+    )
+    (tmp_path / "agent-examples.json").write_text(
+        json.dumps(
+            {
+                "baserow_template_version": 1,
+                "name": "Agent examples",
+                "icon": "iconoir-shop",
+                "keywords": [],
+                "categories": ["Agents"],
+                "export": exported,
+            }
+        )
+    )
+    return author, exported
+
+
+@pytest.mark.django_db
+def test_conversations_are_exported_as_examples_without_their_people(
+    data_fixture, configured_agent, tmp_path
+):
+    _, exported = write_template_with_examples(data_fixture, configured_agent, tmp_path)
+
+    (conversation,) = exported[0]["conversations"]
+    assert conversation["owner_user_id"] is None
+    assert conversation["shared"] is True
+    assert [
+        (message["content"], message["sender_id"])
+        for message in conversation["messages"]
+    ] == [("An example", None)]
+    # The private conversation stays behind.
+    assert "PRIVATE" not in json.dumps(exported)
+
+
+@pytest.mark.django_db
+def test_an_official_template_shows_its_example_conversations_but_installs_none(
+    data_fixture, configured_agent, settings, tmp_path
+):
+    write_template_with_examples(data_fixture, configured_agent, tmp_path)
+    settings.APPLICATION_TEMPLATES_DIR = str(tmp_path)
+
+    CoreHandler().sync_templates(pattern="agent-examples")
+
+    template = Template.objects.get(slug="agent-examples")
+    synced = AgentApplication.objects.get(workspace=template.workspace)
+    (example,) = synced.conversations.all()
+    assert (example.shared, example.owner_user_id) == (True, None)
+    assert [message.content for message in example.messages.all()] == ["An example"]
+
+    installer = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=installer)
+    CoreHandler().install_template(installer, workspace, template)
+
+    installed = AgentApplication.objects.get(workspace=workspace)
+    assert not installed.conversations.exists()
+
+
+@pytest.mark.django_db(transaction=True)
+def test_the_lead_reporting_template_comes_with_example_conversations(
+    data_fixture, tmpdir
+):
+    storage = FileSystemStorage(location=str(tmpdir), base_url="http://localhost")
+    handler = CoreHandler()
+
+    with transaction.atomic():
+        handler.sync_templates(storage=storage, pattern="lead-reporting-agent")
+
+    template = Template.objects.get()
+    preview = AgentApplication.objects.get(workspace=template.workspace)
+    assert template.open_application == preview.id
+    assert preview.conversations.count() == 2
+    assert not preview.conversations.exclude(shared=True, owner_user=None).exists()
+
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    with transaction.atomic():
+        handler.install_template(user, workspace, template, storage=storage)
+
+    installed = AgentApplication.objects.get(workspace=workspace)
+    assert installed.instructions == preview.instructions
+    assert not installed.conversations.exists()
+
+
+@pytest.mark.django_db
+def test_example_conversations_are_never_given_to_a_user_of_the_instance(
+    data_fixture, configured_agent, settings, tmp_path
+):
+    _, exported = write_template_with_examples(data_fixture, configured_agent, tmp_path)
+    local_user = data_fixture.create_user()
+    # A file that names users of this instance, and keeps a conversation private.
+    conversation = exported[0]["conversations"][0]
+    conversation.update(owner_user_id=local_user.id, shared=False)
+    conversation["messages"][0]["sender_id"] = local_user.id
+    path = tmp_path / "agent-examples.json"
+    content = json.loads(path.read_text())
+    content["export"] = exported
+    path.write_text(json.dumps(content))
+    settings.APPLICATION_TEMPLATES_DIR = str(tmp_path)
+
+    CoreHandler().sync_templates(pattern="agent-examples")
+
+    template = Template.objects.get(slug="agent-examples")
+    (example,) = AgentConversation.objects.filter(agent__workspace=template.workspace)
+    assert (example.shared, example.owner_user_id) == (True, None)
+    assert [message.sender_id for message in example.messages.all()] == [None]
+
+
+@pytest.mark.import_export_workspace
+@pytest.mark.django_db(transaction=True)
+def test_a_user_template_never_takes_conversations_from_its_content(
+    data_fixture, configured_agent
+):
+    user = data_fixture.create_user()
+    agent = configured_agent(user=user)
+    data_fixture.create_agent_message(user=user, agent=agent, content="PRIVATE")
+
+    copy = UserTemplateHandler().copy_applications(user, [agent], name="Copy")
+
+    stored = AgentApplication.objects.get(workspace=copy)
+    assert not stored.conversations.exists()
 
 
 TEMPLATE_INSTALL_CONFIG = ImportExportConfig(

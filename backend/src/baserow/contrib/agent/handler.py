@@ -754,6 +754,9 @@ class AgentHandler:
             shared ones.
         """
 
+        # A signed out visitor of a template owns nothing.
+        if not user.is_authenticated:
+            return Q(shared=True)
         return Q(owner_user_id=user.id, shared=False) | Q(shared=True)
 
     def get_conversation(
@@ -2140,26 +2143,32 @@ class AgentHandler:
         )
         return reply.conversation
 
-    def export_conversations(self, agent: AgentApplication) -> list[dict]:
+    def export_conversations(
+        self, agent: AgentApplication, as_examples: bool = False
+    ) -> list[dict]:
         """
         Serialize the agent's conversations and messages for an internal copy. Reply
         transcripts stay behind: they hold every tool result, and nothing reads them.
 
         :param agent: The agent whose conversations are exported.
+        :param as_examples: Export them for the preview of a template: only the
+            shared ones, so that sharing a conversation is what picks it as an
+            example, and without the people who own them or sent their messages.
         :return: The conversations, oldest first, each with its messages in the order
             they were sent.
         """
 
-        conversations = (
-            AgentConversation.objects.filter(agent=agent)
-            .order_by("id")
-            .prefetch_related(
-                Prefetch(
-                    "messages",
-                    queryset=AgentMessage.objects.order_by("id").prefetch_related(
-                        "approvals"
-                    ),
-                )
+        conversations = AgentConversation.objects.filter(agent=agent)
+        if as_examples:
+            # Never a private conversation, which whoever exports may not even
+            # see, nor one that only tested the Agent.
+            conversations = conversations.filter(shared=True, is_test=False)
+        conversations = conversations.order_by("id").prefetch_related(
+            Prefetch(
+                "messages",
+                queryset=AgentMessage.objects.order_by("id").prefetch_related(
+                    "approvals"
+                ),
             )
         )
         return [
@@ -2167,7 +2176,7 @@ class AgentHandler:
                 "title": conversation.title,
                 "pinned": conversation.pinned,
                 "is_test": conversation.is_test,
-                "owner_user_id": conversation.owner_user_id,
+                "owner_user_id": None if as_examples else conversation.owner_user_id,
                 "shared": conversation.shared,
                 "started_by_trigger": conversation.started_by_trigger,
                 "trigger_id": conversation.trigger_id,
@@ -2176,7 +2185,7 @@ class AgentHandler:
                 "messages": [
                     {
                         "role": message.role,
-                        "sender_id": message.sender_id,
+                        "sender_id": None if as_examples else message.sender_id,
                         "content": message.content,
                         "status": message.status,
                         "error_code": message.error_code,
@@ -2201,6 +2210,7 @@ class AgentHandler:
         agent: AgentApplication,
         serialized_conversations: list[dict],
         id_mapping: dict,
+        as_examples: bool = False,
     ) -> None:
         """
         Copy conversations with their messages into the agent with new uuids.
@@ -2213,6 +2223,8 @@ class AgentHandler:
         :param serialized_conversations: The conversations from export_conversations.
         :param id_mapping: The export-to-import id map, with the ``agent_triggers``
             the agent's triggers were imported under.
+        :param as_examples: Import them for the preview of a template: all shared,
+            and never attributed to a user of this instance, whatever the file says.
         """
 
         referenced_user_ids = {
@@ -2231,12 +2243,16 @@ class AgentHandler:
         )
 
         def existing(user_id: int | None) -> int | None:
+            if as_examples:
+                return None
             return user_id if user_id in existing_user_ids else None
 
         retained_data = [
             data
             for data in serialized_conversations
-            if data["shared"] or data["owner_user_id"] in existing_user_ids
+            if as_examples
+            or data["shared"]
+            or data["owner_user_id"] in existing_user_ids
         ]
         trigger_ids = id_mapping.get("agent_triggers", {})
         conversations = [
@@ -2247,7 +2263,7 @@ class AgentHandler:
                 pinned=data.get("pinned", False),
                 is_test=data.get("is_test", False),
                 owner_user_id=existing(data["owner_user_id"]),
-                shared=data["shared"],
+                shared=as_examples or data["shared"],
                 started_by_trigger=data["started_by_trigger"],
                 trigger_id=trigger_ids.get(data.get("trigger_id")),
             )

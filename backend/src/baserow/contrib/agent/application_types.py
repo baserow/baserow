@@ -386,7 +386,11 @@ class AgentApplicationType(ApplicationType):
             key = self._exported_identity_key(application, import_export_config)
             if key is not None:
                 serialized["run_as_identity_key"] = key
-        if self._includes_conversations(import_export_config):
+        if import_export_config.include_conversations:
+            serialized["conversations"] = AgentHandler().export_conversations(
+                application, as_examples=True
+            )
+        elif self._includes_conversations(import_export_config):
             serialized["conversations"] = AgentHandler().export_conversations(
                 application
             )
@@ -523,6 +527,18 @@ class AgentApplicationType(ApplicationType):
         if self._includes_conversations(import_export_config):
             AgentHandler().import_conversations(
                 application, serialized_values.get("conversations", []), id_mapping
+            )
+        elif (
+            import_export_config.is_template_storage
+            and not import_export_config.is_user_template
+        ):
+            # The examples an official template shows in its preview. An install
+            # of the template leaves them out, and so does a user template.
+            AgentHandler().import_conversations(
+                application,
+                serialized_values.get("conversations", []),
+                id_mapping,
+                as_examples=True,
             )
         if identity is not None and not application.run_as_subject_id:
             self._act_as_imported_identity(application, identity, id_mapping)

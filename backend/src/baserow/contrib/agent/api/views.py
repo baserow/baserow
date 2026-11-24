@@ -365,13 +365,22 @@ class AgentToolsView(APIView):
 
 
 class AgentConversationsView(RealtimeRecoveryPrimaryReadMixin, APIView):
+    def get_permissions(self):
+        # A template preview shows its example conversations, also to a signed
+        # out visitor. The permission check still only allows it on templates.
+        if self.request.method == "GET":
+            return [AllowAny()]
+        return super().get_permissions()
+
     @extend_schema(
         tags=["Agent applications"],
         operation_id="list_agent_conversations",
         description=(
             "Lists the authenticated user's own private conversations with the agent "
             "and the shared ones, pinned first, then most recently active within each "
-            "group. Each includes its number of tool calls waiting for a decision."
+            "group. Each includes its number of tool calls waiting for a decision. "
+            "The example conversations of an official template can be listed "
+            "without signing in."
         ),
         parameters=[
             AGENT_ID_PATH_PARAMETER,
@@ -566,12 +575,21 @@ class ShareAgentConversationView(APIView):
 
 
 class AgentMessagesView(RealtimeRecoveryPrimaryReadMixin, APIView):
+    def get_permissions(self):
+        # A template preview shows its example conversations, also to a signed
+        # out visitor. The permission check still only allows it on templates.
+        if self.request.method == "GET":
+            return [AllowAny()]
+        return super().get_permissions()
+
     @extend_schema(
         tags=["Agent applications"],
         operation_id="list_agent_messages",
         description=(
             "Lists the messages of one of the authenticated user's conversations, "
-            "newest page first, each page in chronological order."
+            "newest page first, each page in chronological order. The messages of "
+            "an example conversation of an official template can be listed without "
+            "signing in."
         ),
         parameters=[
             AGENT_ID_PATH_PARAMETER,

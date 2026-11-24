@@ -185,6 +185,13 @@ class ImportExportConfig:
     an AI model, are resolved when the template is installed instead.
     """
 
+    include_conversations: bool = False
+    """
+    Whether an application that holds conversations exports the shared ones as
+    examples, without the people who took part. Only for writing an official template,
+    whose preview shows them: an install of the template leaves them out.
+    """
+
     identity_export: Optional["IdentityExport"] = None
     """
     Collects the identities the exported applications refer to, when the export

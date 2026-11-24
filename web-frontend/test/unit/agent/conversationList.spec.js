@@ -325,6 +325,17 @@ describe('Agent conversation list', () => {
     expect(wrapper.findAll('.agent-conversations__private')).toHaveLength(1)
   })
 
+  test('labels the ownerless conversations of a template preview as examples', async () => {
+    const wrapper = await testApp.mount(AgentConversationList, {
+      props: { items: [{ uuid: 'example', title: 'Example', shared: true }] },
+      global: { provide: { agentTemplatePreview: true } },
+    })
+
+    expect(wrapper.get('.agent-conversations__detail').text()).toBe(
+      'agent.templatePreviewExample'
+    )
+  })
+
   test('lets only members who may update the agent change a shared conversation', async () => {
     const shared = {
       uuid: 'shared',

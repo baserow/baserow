@@ -63,7 +63,11 @@
     :available-tools="configuration.available_tools"
     :agent-name="agent.name"
     :editable="editable && identityAvailable"
-    :disabled-reason="identityAvailable ? '' : $t('agent.toolsRequireIdentity')"
+    :disabled-reason="
+      identityAvailable || showsPendingTools
+        ? ''
+        : $t('agent.toolsRequireIdentity')
+    "
     @update="changeTools"
   />
 </template>
@@ -94,6 +98,7 @@ const { $client, $registry, $hasPermission, $featureFlagIsEnabled } =
   useNuxtApp()
 const { t } = useI18n()
 const agent = inject('agentApplication')
+const templatePreview = inject('agentTemplatePreview', false)
 const runAsDropdown = ref(null)
 const identityIconClass = computed(
   () => $registry.get('subject', UserSubjectType.getType()).identityIconClass
@@ -124,9 +129,19 @@ const status = computed(() => getRunAsStatus(props.configuration.run_as))
 const identityAvailable = computed(() => status.value === RUN_AS_STATUS.ACTIVE)
 // Intentionally unset access means tools are off. A broken selected identity
 // keeps its settings visible so restoring or replacing it recovers the setup.
-const configuredTools = computed(() =>
-  status.value === RUN_AS_STATUS.UNSET ? [] : props.configuration.allowed_tools
+// A template preview shows the tools its Agent turns on once installed.
+const showsPendingTools = computed(
+  () =>
+    templatePreview &&
+    status.value === RUN_AS_STATUS.UNSET &&
+    props.configuration.pending_tools?.length > 0
 )
+const configuredTools = computed(() => {
+  if (showsPendingTools.value) return props.configuration.pending_tools
+  return status.value === RUN_AS_STATUS.UNSET
+    ? []
+    : props.configuration.allowed_tools
+})
 const configuredAskFirstTools = computed(() =>
   status.value === RUN_AS_STATUS.UNSET
     ? []
@@ -146,6 +161,7 @@ const helperText = computed(() => {
     return t('agent.runAsHelper', { name: props.configuration.run_as.name })
   }
   // An imported agent turns on its tools when an identity is first picked.
+  if (showsPendingTools.value) return t('agent.templatePreviewIdentity')
   const pending = props.configuration.pending_tools?.length ?? 0
   return pending
     ? t('agent.pendingToolsHelper', { count: pending }, pending)

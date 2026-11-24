@@ -1,0 +1,346 @@
+{
+    "baserow_template_version": 1,
+    "name": "Lead Reporting Agent",
+    "description": "A small CRM with an Agent that reports on new leads, with example conversations.",
+    "icon": "iconoir-user",
+    "keywords": [
+        "agent",
+        "ai agent",
+        "crm",
+        "leads",
+        "sales",
+        "lead reporting"
+    ],
+    "categories": [
+        "Sales and CRM"
+    ],
+    "export": [
+        {
+            "id": 17,
+            "name": "CRM",
+            "order": 0,
+            "type": "database",
+            "tables": [
+                {
+                    "id": 6,
+                    "name": "Leads",
+                    "order": 0,
+                    "fields": [
+                        {
+                            "id": 13,
+                            "type": "text",
+                            "name": "Name",
+                            "description": null,
+                            "order": 0,
+                            "primary": true,
+                            "read_only": false,
+                            "db_index": false,
+                            "immutable_type": false,
+                            "immutable_properties": false,
+                            "field_constraints": [],
+                            "text_default": ""
+                        },
+                        {
+                            "id": 14,
+                            "type": "text",
+                            "name": "Company",
+                            "description": null,
+                            "order": 0,
+                            "primary": false,
+                            "read_only": false,
+                            "db_index": false,
+                            "immutable_type": false,
+                            "immutable_properties": false,
+                            "field_constraints": [],
+                            "text_default": ""
+                        },
+                        {
+                            "id": 15,
+                            "type": "text",
+                            "name": "Status",
+                            "description": null,
+                            "order": 0,
+                            "primary": false,
+                            "read_only": false,
+                            "db_index": false,
+                            "immutable_type": false,
+                            "immutable_properties": false,
+                            "field_constraints": [],
+                            "text_default": ""
+                        },
+                        {
+                            "id": 16,
+                            "type": "text",
+                            "name": "Owner",
+                            "description": null,
+                            "order": 0,
+                            "primary": false,
+                            "read_only": false,
+                            "db_index": false,
+                            "immutable_type": false,
+                            "immutable_properties": false,
+                            "field_constraints": [],
+                            "text_default": ""
+                        }
+                    ],
+                    "views": [
+                        {
+                            "id": 9,
+                            "type": "grid",
+                            "name": "All leads",
+                            "order": 0,
+                            "ownership_type": "collaborative",
+                            "owned_by": null,
+                            "filter_type": "AND",
+                            "filters_disabled": false,
+                            "filters": [],
+                            "filter_groups": [],
+                            "sortings": [],
+                            "group_bys": [],
+                            "decorations": [],
+                            "public": false,
+                            "row_identifier_type": "id",
+                            "row_height_size": "small",
+                            "frozen_column_count": 1,
+                            "group_by_layout": "section",
+                            "field_options": [
+                                {
+                                    "id": 25,
+                                    "field_id": 13,
+                                    "width": 200,
+                                    "hidden": false,
+                                    "order": 32767,
+                                    "aggregation_type": "",
+                                    "aggregation_raw_type": ""
+                                },
+                                {
+                                    "id": 26,
+                                    "field_id": 14,
+                                    "width": 200,
+                                    "hidden": false,
+                                    "order": 32767,
+                                    "aggregation_type": "",
+                                    "aggregation_raw_type": ""
+                                },
+                                {
+                                    "id": 27,
+                                    "field_id": 15,
+                                    "width": 200,
+                                    "hidden": false,
+                                    "order": 32767,
+                                    "aggregation_type": "",
+                                    "aggregation_raw_type": ""
+                                },
+                                {
+                                    "id": 28,
+                                    "field_id": 16,
+                                    "width": 200,
+                                    "hidden": false,
+                                    "order": 32767,
+                                    "aggregation_type": "",
+                                    "aggregation_raw_type": ""
+                                }
+                            ]
+                        }
+                    ],
+                    "rows": [
+                        {
+                            "id": 1,
+                            "order": "1.00000000000000000000",
+                            "created_on": "2026-11-24T18:57:37.737516+00:00",
+                            "updated_on": "2026-11-24T18:57:37.737516+00:00",
+                            "created_by": null,
+                            "last_modified_by": null,
+                            "field_13": "Maya Chen",
+                            "field_14": "Northwind Traders",
+                            "field_15": "New",
+                            "field_16": ""
+                        },
+                        {
+                            "id": 2,
+                            "order": "2.00000000000000000000",
+                            "created_on": "2026-11-24T18:57:37.820304+00:00",
+                            "updated_on": "2026-11-24T18:57:37.820304+00:00",
+                            "created_by": null,
+                            "last_modified_by": null,
+                            "field_13": "Jonas Weber",
+                            "field_14": "Blue Harbor Logistics",
+                            "field_15": "New",
+                            "field_16": "Priya"
+                        },
+                        {
+                            "id": 3,
+                            "order": "3.00000000000000000000",
+                            "created_on": "2026-11-24T18:57:37.849684+00:00",
+                            "updated_on": "2026-11-24T18:57:37.849684+00:00",
+                            "created_by": null,
+                            "last_modified_by": null,
+                            "field_13": "Sofia Rossi",
+                            "field_14": "Alpine Robotics",
+                            "field_15": "Contacted",
+                            "field_16": "Tom"
+                        },
+                        {
+                            "id": 4,
+                            "order": "4.00000000000000000000",
+                            "created_on": "2026-11-24T18:57:37.876828+00:00",
+                            "updated_on": "2026-11-24T18:57:37.876828+00:00",
+                            "created_by": null,
+                            "last_modified_by": null,
+                            "field_13": "Liam O'Brien",
+                            "field_14": "Greenfield Foods",
+                            "field_15": "Qualified",
+                            "field_16": "Priya"
+                        },
+                        {
+                            "id": 5,
+                            "order": "5.00000000000000000000",
+                            "created_on": "2026-11-24T18:57:37.906312+00:00",
+                            "updated_on": "2026-11-24T18:57:37.906312+00:00",
+                            "created_by": null,
+                            "last_modified_by": null,
+                            "field_13": "Aiko Tanaka",
+                            "field_14": "Sakura Design Studio",
+                            "field_15": "New",
+                            "field_16": ""
+                        }
+                    ],
+                    "data_sync": null,
+                    "field_rules": []
+                }
+            ],
+            "integrations": []
+        },
+        {
+            "id": 18,
+            "name": "Lead reporter",
+            "order": 0,
+            "type": "agent",
+            "instructions": "You help the sales team keep track of new leads in the CRM database.\n\nWhen asked, list the leads that match, say which ones have no owner, and keep answers short. Ask before you change a lead.",
+            "provider_type": "anthropic",
+            "model_identifier": "claude-haiku-5-5",
+            "reasoning_effort": null,
+            "allowed_tools": [
+                "list_tables",
+                "list_table_rows",
+                "update_rows"
+            ],
+            "ask_first_tools": [
+                "update_rows"
+            ],
+            "integrations": [],
+            "web_search_enabled": false,
+            "web_fetch_enabled": false,
+            "actions": [],
+            "triggers": [],
+            "run_as_identity_key": "41fcd9875ee8cf370bc35dc52f5fede4e8575cf0",
+            "conversations": [
+                {
+                    "title": "Which leads are new this week?",
+                    "pinned": false,
+                    "owner_user_id": null,
+                    "shared": true,
+                    "started_by_trigger": false,
+                    "trigger_id": null,
+                    "created_on": "2026-11-24T18:57:37.964470+00:00",
+                    "updated_on": "2026-11-24T18:57:37.964470+00:00",
+                    "messages": [
+                        {
+                            "role": "user",
+                            "sender_id": null,
+                            "content": "Which leads are new this week?",
+                            "status": null,
+                            "error_code": "",
+                            "steps": null,
+                            "created_on": "2026-11-24T18:57:37.965775+00:00",
+                            "updated_on": "2026-11-24T18:57:37.965775+00:00"
+                        },
+                        {
+                            "role": "assistant",
+                            "sender_id": null,
+                            "content": "Three leads have the status **New**:\n\n- Maya Chen, Northwind Traders\n- Jonas Weber, Blue Harbor Logistics\n- Aiko Tanaka, Sakura Design Studio\n\nMaya Chen and Aiko Tanaka have no owner yet.",
+                            "status": "completed",
+                            "error_code": "",
+                            "steps": null,
+                            "created_on": "2026-11-24T18:57:37.966956+00:00",
+                            "updated_on": "2026-11-24T18:57:37.966956+00:00"
+                        },
+                        {
+                            "role": "user",
+                            "sender_id": null,
+                            "content": "Who should take the two without an owner?",
+                            "status": null,
+                            "error_code": "",
+                            "steps": null,
+                            "created_on": "2026-11-24T18:57:37.968291+00:00",
+                            "updated_on": "2026-11-24T18:57:37.968291+00:00"
+                        },
+                        {
+                            "role": "assistant",
+                            "sender_id": null,
+                            "content": "Tom owns one lead and Priya owns two, so I would give both to Tom. Tell me to go ahead and I will set the Owner field. I ask before I change a lead.",
+                            "status": "completed",
+                            "error_code": "",
+                            "steps": null,
+                            "created_on": "2026-11-24T18:57:37.969404+00:00",
+                            "updated_on": "2026-11-24T18:57:37.969404+00:00"
+                        }
+                    ]
+                },
+                {
+                    "title": "Write a summary of the pipeline",
+                    "pinned": false,
+                    "owner_user_id": null,
+                    "shared": true,
+                    "started_by_trigger": false,
+                    "trigger_id": null,
+                    "created_on": "2026-11-24T18:57:37.970634+00:00",
+                    "updated_on": "2026-11-24T18:57:37.970634+00:00",
+                    "messages": [
+                        {
+                            "role": "user",
+                            "sender_id": null,
+                            "content": "Write a short summary of the pipeline for the Monday meeting.",
+                            "status": null,
+                            "error_code": "",
+                            "steps": null,
+                            "created_on": "2026-11-24T18:57:37.971797+00:00",
+                            "updated_on": "2026-11-24T18:57:37.971797+00:00"
+                        },
+                        {
+                            "role": "assistant",
+                            "sender_id": null,
+                            "content": "**Pipeline summary**\n\n- 5 leads in total\n- 3 new, 1 contacted, 1 qualified\n- 2 new leads have no owner\n\nGreenfield Foods is the only qualified lead, owned by Priya.",
+                            "status": "completed",
+                            "error_code": "",
+                            "steps": null,
+                            "created_on": "2026-11-24T18:57:37.972899+00:00",
+                            "updated_on": "2026-11-24T18:57:37.972899+00:00"
+                        }
+                    ]
+                }
+            ]
+        }
+    ],
+    "workspace_objects": {
+        "identities": [
+            {
+                "key": "41fcd9875ee8cf370bc35dc52f5fede4e8575cf0",
+                "name": "Lead reporter",
+                "email": "identity-c9f648b674f54e189c055a0b3a7cef53@identities.invalid",
+                "roles": [
+                    {
+                        "scope_type": "workspace",
+                        "role": "NO_ACCESS"
+                    },
+                    {
+                        "scope_type": "application",
+                        "scope_id": 17,
+                        "role": "EDITOR"
+                    }
+                ]
+            }
+        ]
+    },
+    "open_application": 18
+}

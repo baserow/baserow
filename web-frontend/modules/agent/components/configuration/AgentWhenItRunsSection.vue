@@ -107,6 +107,7 @@ const props = defineProps({
 })
 const store = useStore()
 const agent = inject('agentApplication')
+const templatePreview = inject('agentTemplatePreview', false)
 const picker = ref(null)
 const workspace = computed(() =>
   agent.value ? store.getters['workspace/get'](agent.value.workspace.id) : null
@@ -133,7 +134,9 @@ const {
   updateTrigger,
   changeTriggerType,
   deleteTrigger,
-} = useAgentTriggers(agent, () => props.configuration.run_as)
+} = useAgentTriggers(agent, () => props.configuration.run_as, {
+  loadTypes: !templatePreview,
+})
 const { expandedIds, allExpanded, toggle, toggleAll, list, creating, addItem } =
   useAgentCardList(triggers, createTrigger, allTriggers)
 watch(

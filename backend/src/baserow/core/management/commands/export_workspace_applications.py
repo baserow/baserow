@@ -45,6 +45,15 @@ class Command(BaseCommand):
             "proving this argument.",
         )
 
+        parser.add_argument(
+            "--include-conversations",
+            action="store_true",
+            help="Also exports the shared conversations of the Agents, without the "
+            "people who took part, as the examples the preview of an official "
+            "template shows. Share the conversations to show, and check that they "
+            "hold nothing private.",
+        )
+
     def handle(self, *args, **options):
         workspace_id = options["workspace_id"]
         indent = options["indent"]
@@ -73,7 +82,9 @@ class Command(BaseCommand):
                 workspace,
                 files_buffer=files_buffer,
                 import_export_config=dataclasses.replace(
-                    cli_import_export_config, identity_export=identity_export
+                    cli_import_export_config,
+                    identity_export=identity_export,
+                    include_conversations=options["include_conversations"],
                 ),
             )
 

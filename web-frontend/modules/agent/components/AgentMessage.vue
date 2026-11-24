@@ -47,7 +47,7 @@
       class="chat-message__bubble chat-message__bubble--peer"
     >
       <div class="chat-message__sender">
-        {{ message.sender?.name || $t('agent.deletedSender') }}
+        {{ message.sender?.name || $t(unknownSender) }}
       </div>
       <div class="chat-message__text">{{ message.content }}</div>
     </div>
@@ -88,7 +88,7 @@
 
 <script setup>
 import { MESSAGE_ROLE } from '@baserow/modules/agent/constants'
-import { computed } from 'vue'
+import { computed, inject } from 'vue'
 import { useStore } from 'vuex'
 import { useI18n } from 'vue-i18n'
 import { useNuxtApp } from '#app'
@@ -125,6 +125,10 @@ const props = defineProps({
   /** The current name of the trigger that started the conversation. */
   triggerName: { type: String, default: null },
 })
+// The examples of a template were sent by nobody of this instance.
+const unknownSender = inject('agentTemplatePreview', false)
+  ? 'agent.templatePreviewSender'
+  : 'agent.deletedSender'
 defineEmits(['decide'])
 
 const store = useStore()
