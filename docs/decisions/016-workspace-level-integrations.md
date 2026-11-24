@@ -1,4 +1,4 @@
-# ADR 013: Workspace-level integrations
+# ADR 016: Workspace-level integrations
 
 |              |                                                |
 | ------------ | ---------------------------------------------- |

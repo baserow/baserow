@@ -128,7 +128,8 @@ class AgentActionService:
         integration = prepared.get(
             "integration", getattr(instance, "integration", None)
         )
-        # An integration's credentials stay within the application that owns it.
+        # The integration must be the Agent's own or a workspace integration of its
+        # workspace, so its credentials never reach another workspace.
         service_type.check_integration(agent, {"integration": integration})
         if integration is not None:
             IntegrationService().check_can_use_integration(user, integration, agent)

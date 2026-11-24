@@ -87,7 +87,8 @@ def create_missing_shared_applications_task(self):
     applications existed. Periodic instead of submitted after the migration, so
     that a run lost to a worker of the previous release during the deployment, or
     one that stopped at its time limit, is picked up by the next one. Once every
-    workspace has one, a run is a single query.
+    workspace has one, a run is a single query, plus one creation per template
+    workspace that `sync_templates` made since the previous run.
 
     TODO ZDM: removed with the lazy creation in the application listing once a
     data migration has created the shared application of every workspace:

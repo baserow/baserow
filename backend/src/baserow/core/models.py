@@ -822,7 +822,8 @@ class SharedApplication(Application):
     workspace. A workspace has at most one. `CoreHandler.create_workspace` creates
     it with the workspace; a workspace from before it existed gets one from the
     transitional lazy creation or backfill (#6758). Template workspaces, which have
-    no members, are created without one and don't need it.
+    no members, are created without one and don't need it. The lazy creation and
+    the backfill still give them one, which does no harm.
     """
 
 
