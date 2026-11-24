@@ -18,10 +18,6 @@ from baserow.contrib.database.fields.constants import (
 )
 from baserow.contrib.database.fields.models import Field as DatabaseField
 from baserow.contrib.database.views.registries import view_filter_type_registry
-from baserow.contrib.database.views.view_filters import (
-    DateEqualsDayOfMonthViewFilterType,
-    TimezoneAwareDateViewFilterType,
-)
 from baserow.contrib.integrations.local_baserow.models import (
     LocalBaserowTableServiceFilter,
 )
@@ -249,17 +245,6 @@ class FilterState:
 # ---------------------------------------------------------------------------
 
 
-def is_deprecated_filter_type(filter_type: Any) -> bool:
-    """
-    The old single step date filters are superseded by the multi step ones and are
-    no longer offered in the filter form.
-    """
-
-    return isinstance(filter_type, TimezoneAwareDateViewFilterType) and not isinstance(
-        filter_type, DateEqualsDayOfMonthViewFilterType
-    )
-
-
 def get_compatible_filter_types(field: DatabaseField) -> list[str]:
     """
     Returns the filter types the filter form offers for the given field.
@@ -271,8 +256,7 @@ def get_compatible_filter_types(field: DatabaseField) -> list[str]:
     return [
         filter_type.type
         for filter_type in view_filter_type_registry.get_all()
-        if not is_deprecated_filter_type(filter_type)
-        and filter_type.field_is_compatible(field)
+        if not filter_type.deprecated and filter_type.field_is_compatible(field)
     ]
 
 

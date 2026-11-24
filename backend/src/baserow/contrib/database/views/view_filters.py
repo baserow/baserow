@@ -499,6 +499,8 @@ class HigherThanOrEqualViewFilterType(NumericComparisonViewFilterType):
 
 
 class TimezoneAwareDateViewFilterType(ViewFilterType):
+    deprecated = True
+
     @property
     def time_sensitive(self) -> bool:
         return True
@@ -738,6 +740,7 @@ class DateEqualsDayOfMonthViewFilterType(TimezoneAwareDateViewFilterType):
     """
 
     type = "date_equals_day_of_month"
+    deprecated = False
 
     def get_filter(
         self, field_name: str, value: str, model_field, field: Field

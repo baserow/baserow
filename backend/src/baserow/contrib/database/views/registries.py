@@ -1224,6 +1224,9 @@ class ViewFilterType(Instance):
     allowing field types to alias themselves to another type for filtering purposes.
     """
 
+    deprecated = False
+    """Hidden from new filter choices, but still supported for existing filters."""
+
     value_type = "text"
     """Raw value format: text, number, select_option, boolean or date."""
 

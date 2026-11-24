@@ -500,3 +500,26 @@ def test_boolean_filters_use_shared_boolean_values(data_fixture, builder_setup, 
     else:
         result = apply_operations(FilterState("AND", (), ()), [operation], ctx)
         assert result.filters[0].value == raw(value)
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("deprecated", [True, False])
+def test_custom_filter_deprecation_controls_availability(builder_setup, deprecated):
+    """Filter availability uses registered metadata rather than concrete classes."""
+    from baserow.contrib.database.views.registries import view_filter_type_registry
+    from baserow.contrib.database.views.view_filters import HigherThanViewFilterType
+
+    custom = type(
+        "CustomFilter",
+        (HigherThanViewFilterType,),
+        {
+            "type": "custom_deprecated_filter",
+            "deprecated": deprecated,
+        },
+    )
+    view_filter_type_registry.register(custom())
+    try:
+        available = get_compatible_filter_types(builder_setup.amount.specific)
+        assert ("custom_deprecated_filter" in available) is not deprecated
+    finally:
+        view_filter_type_registry.unregister("custom_deprecated_filter")
