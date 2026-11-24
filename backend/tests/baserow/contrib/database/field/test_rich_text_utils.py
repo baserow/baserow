@@ -12,6 +12,7 @@ from baserow.contrib.database.fields.rich_text_utils import (
     is_renderable_user_file,
     iter_code_segments,
     keep_first_image_references,
+    neutralize_mentions,
     replace_user_file_images_with_alt,
     resolve_user_file_urls,
     strip_user_file_urls,
@@ -285,6 +286,8 @@ class TestCountImageReferences:
             (f"![a\\]b][{NAME}]", 1),
             (f"![a][{NAME}\u2028]", 1),
             ("![a](https://e.com/p.png)", 0),
+            (f"\\`![a][{NAME}]\\`", 1),
+            (f"`a\n\n![a][{NAME}]`", 1),
         ],
     )
     def test_matches_the_frontend(self, content, expected):
@@ -475,3 +478,22 @@ class TestCodeIsLiteral:
 
     def test_reference_split_by_code_span_does_not_match(self):
         assert extract_user_file_names("![x`]`[abc_def.png]") == set()
+
+
+@pytest.mark.parametrize(
+    "content,expected",
+    [
+        ("Ask @12, then (@3).", "Ask @user, then (@user)."),
+        ("Meet @10am", "Meet @10am"),
+        ("Write to @123abc or team@123.io", "Write to @123abc or team@123.io"),
+        ("Run `@12` and @12", "Run `@12` and @user"),
+        ("Use \\` and @12 \\`", "Use \\` and @user \\`"),
+        ("Run `a\n\n@12 b`", "Run `a\n\n@user b`"),
+        (
+            "[@12](https://example.org/@12) <https://example.org/@12> @12",
+            "[@user](https://example.org/@12) <https://example.org/@12> @user",
+        ),
+    ],
+)
+def test_neutralize_mentions(content, expected):
+    assert neutralize_mentions(content) == expected

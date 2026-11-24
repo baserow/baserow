@@ -251,6 +251,19 @@ class DataSyncType(
             "A two-way data sync must implement the `delete_rows` method."
         )
 
+    def get_connection_fields(self) -> List[str]:
+        """
+        Returns the fields that say where the data is synced from, like a host, a URL
+        or a token. A user template copy leaves them out, because they belong to the
+        author.
+        """
+
+        return [
+            field
+            for field in self.allowed_fields
+            if field not in BASE_DATA_SYNC_ALLOWED_FIELDS
+        ]
+
     def export_serialized(
         self,
         instance: "DataSync",
@@ -258,28 +271,35 @@ class DataSyncType(
     ):
         """
         Exports the data sync properties and the `allowed_fields` to the serialized
-        format.
+        format. A user template copy keeps no connection settings, last error or
+        two-way sync, so the installer connects the table again.
         """
 
         exclude_sensitive = getattr(
             import_export_config, "exclude_sensitive_data", True
         )
+        is_user_template = getattr(import_export_config, "is_user_template", False)
+        connection_fields = self.get_connection_fields() if is_user_template else []
 
         properties = instance.synced_properties.filter(field__trashed=False)
-        type_specific = {
-            field: (
-                None
-                if exclude_sensitive and field in self.sensitive_fields
-                else getattr(instance, field)
-            )
-            for field in BASE_DATA_SYNC_ALLOWED_FIELDS + self.allowed_fields
-        }
+        type_specific = {}
+        for field in BASE_DATA_SYNC_ALLOWED_FIELDS + self.allowed_fields:
+            if exclude_sensitive and field in self.sensitive_fields:
+                type_specific[field] = None
+            elif field in connection_fields:
+                type_specific[field] = self.model_class._meta.get_field(
+                    field
+                ).get_default()
+            else:
+                type_specific[field] = getattr(instance, field)
+        if is_user_template:
+            type_specific["two_way_sync"] = False
         last_sync_iso = instance.last_sync.isoformat() if instance.last_sync else None
         return DataSyncExportSerializedStructure.data_sync(
             id=instance.id,
             type_name=self.type,
             last_sync=last_sync_iso,
-            last_error=instance.last_error,
+            last_error=None if is_user_template else instance.last_error,
             properties=[
                 DataSyncExportSerializedStructure.property(
                     key=p.key,

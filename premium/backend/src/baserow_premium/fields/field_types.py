@@ -375,6 +375,10 @@ class AIFieldType(CollationSortMixin, SelectOptionBaseFieldType):
             row, field_name, cache, files_zip, storage
         )
 
+    def get_user_template_export_value(self, field, value):
+        baserow_field_type = self.get_baserow_field_type(field)
+        return baserow_field_type.get_user_template_export_value(field, value)
+
     def set_import_serialized_value(
         self,
         row: "GeneratedTableModel",

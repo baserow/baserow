@@ -147,7 +147,7 @@ def test_base_data_sync_settings_are_preserved_on_import_export(data_fixture):
         database=database,
         table_name="Test",
         type_name="ical_calendar",
-        synced_properties=["uid"],
+        synced_properties=["uid", "summary"],
         auto_add_new_properties=True,  # default False
         delete_unmatched_rows=False,  # default True
         ical_url="https://baserow.io/ical.ics",
@@ -156,6 +156,7 @@ def test_base_data_sync_settings_are_preserved_on_import_export(data_fixture):
     # strategy), so set it directly to still cover it in the serialization round-trip.
     data_sync.two_way_sync = True  # default False
     data_sync.save()
+    data_sync.table.field_set.filter(primary=False).update(read_only=False)
 
     assert data_sync.auto_add_new_properties is True
     assert data_sync.delete_unmatched_rows is False
@@ -183,6 +184,10 @@ def test_base_data_sync_settings_are_preserved_on_import_export(data_fixture):
     assert imported_data_sync.auto_add_new_properties is True
     assert imported_data_sync.delete_unmatched_rows is False
     assert imported_data_sync.two_way_sync is True
+    assert [f.read_only for f in imported_table.field_set.order_by("id")] == [
+        True,
+        False,
+    ]
 
 
 @pytest.mark.django_db

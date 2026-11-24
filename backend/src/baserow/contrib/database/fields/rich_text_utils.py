@@ -33,11 +33,20 @@ MARKDOWN_IMAGE_WITH_URL_REGEX = re.compile(
 
 _ESCAPED_BRACKET_REGEX = re.compile(r"\\([\[\]])")
 
+# Mirrored in mention.js.
+MENTION_REGEX = re.compile(r"@(\d+)")
+_MENTION_OR_LINK_TARGET_REGEX = re.compile(
+    r"(?P<link_target>\]\([^)\s]*(?=[)\s])|<[A-Za-z][A-Za-z0-9+.\-]{1,31}:[^<>\s]*>)"
+    r"|(?<![\w.%+-])@\d+(?!\w)"
+)
+NEUTRAL_MENTION = "@user"
+
 # CommonMark 4.5: a fence is 3+ backticks or tildes indented by up to 3 spaces.
 _FENCE_REGEX = re.compile(r"^ {0,3}(`{3,}|~{3,})")
 _FENCE_CLOSE_TAIL_REGEX = re.compile(r"[ \t]*\r?\n?")
 _LINE_REGEX = re.compile(r"[^\n]*\n|[^\n]+\Z")
 _BACKTICK_RUN_REGEX = re.compile(r"`+")
+_BLANK_LINE_REGEX = re.compile(r"(\n[ \t]*\n)")
 
 
 def _iter_fence_segments(content: str) -> Iterator[tuple[str, bool]]:
@@ -89,7 +98,8 @@ def _iter_inline_code_segments(content: str) -> Iterator[tuple[str, bool]]:
     """
     Splits ``content`` into inline code spans and the text around them. A run
     of ``n`` backticks opens a span that the next run of exactly ``n`` backticks
-    closes (CommonMark 6.1). Runs are matched once each, so this is linear.
+    closes (CommonMark 6.1). A backslash before a run escapes its first backtick,
+    which then can't open a span. Runs are matched once each, so this is linear.
     """
 
     runs = [(m.start(), m.end()) for m in _BACKTICK_RUN_REGEX.finditer(content)]
@@ -106,8 +116,16 @@ def _iter_inline_code_segments(content: str) -> Iterator[tuple[str, bool]]:
     index = 0
     while index < len(runs):
         start, end = runs[index]
+        backslash = start
+        while backslash > position and content[backslash - 1] == "\\":
+            backslash -= 1
+        if (start - backslash) % 2:
+            start += 1
         length = end - start
-        candidates = by_length[length]
+        if not length:
+            index += 1
+            continue
+        candidates = by_length.get(length, [])
         cursor = next_position.get(length, 0)
         while cursor < len(candidates) and candidates[cursor] <= index:
             cursor += 1
@@ -138,7 +156,9 @@ def iter_code_segments(content: str) -> Iterator[tuple[str, bool]]:
         if is_code:
             yield segment, True
         else:
-            yield from _iter_inline_code_segments(segment)
+            for paragraph in _BLANK_LINE_REGEX.split(segment):
+                if paragraph:
+                    yield from _iter_inline_code_segments(paragraph)
 
 
 def map_outside_code(content: str, transform: Callable[[str], str]) -> str:
@@ -344,6 +364,21 @@ def keep_first_image_references(content: Optional[str], limit: int) -> str:
 
     return map_outside_code(
         content, lambda segment: MARKDOWN_IMAGE_REGEX.sub(_trim, segment)
+    )
+
+
+def neutralize_mentions(content: str) -> str:
+    """
+    Replaces every standalone ``@<user id>`` outside code in ``content`` with
+    ``NEUTRAL_MENTION``, so that it points at no user. An ``@<digits>`` that is part
+    of a word or of an email-like address, or in a link target, stays as written.
+    """
+
+    def _replace(match: re.Match) -> str:
+        return match.group() if match.group("link_target") else NEUTRAL_MENTION
+
+    return map_outside_code(
+        content, lambda text: _MENTION_OR_LINK_TARGET_REGEX.sub(_replace, text)
     )
 
 

@@ -428,6 +428,8 @@ describe('countImageReferences', () => {
     [`![a\\]b][${name}]`, 1],
     [`![a][${name}\u2028]`, 1],
     ['![a](https://e.com/p.png)', 0],
+    [`\\\`![a][${name}]\\\``, 1],
+    [`\`a\n\n![a][${name}]\``, 1],
   ])('%j has %i', (content, expected) => {
     expect(countImageReferences(content)).toBe(expected)
   })

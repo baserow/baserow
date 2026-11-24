@@ -17,6 +17,10 @@ DATA_SYNC_BLOCKED_URL_ERROR = (
 )
 
 
+def is_synced_field_read_only(unique_primary: bool, two_way_sync: bool) -> bool:
+    return unique_primary or not two_way_sync
+
+
 def get_data_sync_request_function() -> Callable:
     """
     Returns the request function that must be used for outgoing data sync HTTP

@@ -3,6 +3,7 @@ const IMAGE_WITH_URL_REGEX =
   /!\[([^[\]\\]*(?:\\[^\n][^[\]\\]*)*)\]\[([a-zA-Z0-9]+_[a-zA-Z0-9]+\.[^\] \t\n\r\f\v/\\()]*)\]\(([^() \t\n\r\f\v]*)\)/g
 
 const BACKTICK_RUN_REGEX = /`+/g
+const BLANK_LINE_REGEX = /(\n[ \t]*\n)/
 // CommonMark 4.5: a fence is 3+ backticks or tildes indented by up to 3 spaces.
 const FENCE_REGEX = /^ {0,3}(`{3,}|~{3,})/
 const FENCE_CLOSE_TAIL_REGEX = /^[ \t]*\r?\n?$/
@@ -54,8 +55,9 @@ function* iterFenceSegments(content) {
 
 /**
  * A run of `n` backticks opens an inline code span that the next run of
- * exactly `n` backticks closes (CommonMark 6.1). Every run is matched at most
- * once, so this stays linear on pathological input.
+ * exactly `n` backticks closes (CommonMark 6.1). A backslash before a run
+ * escapes its first backtick, which then can't open a span. Every run is
+ * matched at most once, so this stays linear on pathological input.
  */
 function* iterInlineCodeSegments(content) {
   const runs = []
@@ -78,9 +80,16 @@ function* iterInlineCodeSegments(content) {
   let position = 0
   let index = 0
   while (index < runs.length) {
-    const [start, end] = runs[index]
+    let [start, end] = runs[index]
+    let backslash = start
+    while (backslash > position && content[backslash - 1] === '\\') backslash--
+    if ((start - backslash) % 2) start++
     const length = end - start
-    const candidates = byLength.get(length)
+    if (!length) {
+      index++
+      continue
+    }
+    const candidates = byLength.get(length) || []
     let cursor = nextPosition.get(length) || 0
     while (cursor < candidates.length && candidates[cursor] <= index) cursor++
     nextPosition.set(length, cursor)
@@ -110,7 +119,9 @@ export function* iterCodeSegments(content) {
     if (isCode) {
       yield [segment, true]
     } else {
-      yield* iterInlineCodeSegments(segment)
+      for (const paragraph of segment.split(BLANK_LINE_REGEX)) {
+        if (paragraph) yield* iterInlineCodeSegments(paragraph)
+      }
     }
   }
 }

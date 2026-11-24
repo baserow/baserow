@@ -17,8 +17,9 @@ are reflected below.
 ## How a user-template copy is made
 
 Creating, updating and installing a template export applications and import them into
-another workspace with this `ImportExportConfig`. Download is a normal workspace export
-of the template workspace and needs no rule of its own.
+another workspace with this `ImportExportConfig` (`user_template_copy_config()`).
+Downloading a template exports its applications into the archive with the same config,
+so every export-side rule below also holds for the downloaded archive.
 
 | Setting | Value | Effect |
 | --- | --- | --- |
@@ -70,9 +71,9 @@ workspace export; see #6116.
 
 | Module | What enforces it | Status | Owner |
 | --- | --- | --- | --- |
-| Database | All connection settings removed: `ical_url` on `ICalCalendarDataSyncType`, Postgres host, port, user, database, schema, table and SSL mode, Jira URL, username, project and authentication, GitHub owner and repo, GitLab URL and project | to do | core/database |
-| Database | `DataSyncType.export_serialized` must not keep `last_error` | to do | core/database |
-| Database | `two_way_sync` (in `BASE_DATA_SYNC_ALLOWED_FIELDS`) forced off | to do | core/database |
+| Database | All connection settings removed: `DataSyncType.export_serialized` writes every `get_connection_fields()` entry (`allowed_fields` minus the base options: `ical_url`, Postgres host, port, user, database, schema, table and SSL mode, Jira URL, username, project and authentication, GitHub owner and repo, GitLab URL and project) at its model default. `LocalBaserowTableDataSyncType` has none: its source table, view and user are references, handled on import (see below) | done | core/database |
+| Database | `DataSyncType.export_serialized` exports `last_error` as `None` | done | core/database |
+| Database | `two_way_sync` (in `BASE_DATA_SYNC_ALLOWED_FIELDS`) exported as `False`, and `DatabaseApplicationType.export_tables_serialized` exports the synced fields read-only, as a one-way sync has them | done | core/database |
 | Database | `sensitive_fields` on `PostgreSQLDataSyncType` (password), `JiraIssuesDataSyncType`, `GitHubIssuesDataSyncType`, `GitLabIssuesDataSyncType`, `HubspotContactsDataSyncType` (tokens) | done | core/database |
 | Enterprise | `PeriodicDataSyncInterval` is not exported, so scheduled sync is off | done | core/database |
 | Database | Last synced rows are exported like any other table rows | done | core/database |
@@ -103,7 +104,7 @@ workspace export; see #6116.
 
 | Module | What enforces it | Status | Owner |
 | --- | --- | --- | --- |
-| Database | Rich text mentions in `LongTextFieldType` become a neutral `@user` | to do | core/database |
+| Database | Rich text mentions (a standalone `@<user id>` outside code) in `LongTextFieldType` cells and view default row values become a neutral `@user` through `FieldType.get_user_template_export_value`; AI fields with rich text output delegate to it | done | core/database |
 | Premium | `AIFieldType.import_serialized` drops `ai_auto_update_user_id` only when not `is_duplicate`; must key on `is_user_template` | to do | core/database |
 | Integrations | `LocalBaserowTableServiceFilterableMixin.serialize_filters` clears user and collaborator filter values when `exclude_sensitive_data=True`, except a direct `get("provider.path")` reference. Raw values, constants and composed formulas are cleared; exports with sensitive-data removal disabled retain their values. | done | WAB |
 | Enterprise | `SamlAppAuthProviderType.sensitive_fields` removes SAML identity provider metadata when `exclude_sensitive_data=True` (see Login provider secrets) | done | WAB |
@@ -150,7 +151,7 @@ Button field row actions use the Local Baserow service types above and follow th
 
 | Module | What enforces it | Status | Owner |
 | --- | --- | --- | --- |
-| Database | `ViewType.export_serialized` exports `public`; it must be `False` in the template and installed copies, as `ViewHandler.duplicate_view` does | to do | core/database |
+| Database | `ViewType.export_serialized` exports `public` as `False`, as `ViewHandler.duplicate_view` does | done | core/database |
 | Database | View slug and view password are not exported | done | core/database |
 
 ## Running services
@@ -158,7 +159,7 @@ Button field row actions use the Local Baserow service types above and follow th
 | Module | What enforces it | Status | Owner |
 | --- | --- | --- | --- |
 | Automation | `AutomationWorkflowHandler.import_workflow_only` forces `state` to draft for external imports, including user templates; internal copies and official template imports retain their serialized state | done | core/database |
-| Database | Two-way and scheduled data sync off (see Data sync connections) | to do | core/database |
+| Database | Two-way and scheduled data sync off (see Data sync connections) | done | core/database |
 | Automation | Only draft workflows are exported; published workflows are not part of the workspace | done | WAB |
 | Automation | Test run fields (`allow_test_run_until`) are not exported by `AutomationWorkflowHandler.export_workflow` | done | WAB |
 

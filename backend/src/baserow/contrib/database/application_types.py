@@ -55,6 +55,7 @@ from .constants import (
 )
 from .data_providers.registries import database_data_provider_type_registry
 from .data_sync.registries import data_sync_type_registry
+from .data_sync.utils import is_synced_field_read_only
 from .db.atomic import read_repeatable_single_database_atomic_transaction
 from .export_serialized import DatabaseExportSerializedStructure
 from .field_rules.handlers import FieldRuleHandler
@@ -217,11 +218,14 @@ class DatabaseApplicationType(ApplicationType):
                         ):
                             serialized_row[field_name] = None
                             continue
-                        serialized_row[field_name] = (
-                            field_type.get_export_serialized_value(
-                                row, field_name, table_cache, files_zip, storage
-                            )
+                        value = field_type.get_export_serialized_value(
+                            row, field_name, table_cache, files_zip, storage
                         )
+                        if import_export_config.is_user_template:
+                            value = field_type.get_user_template_export_value(
+                                field_object["field"], value
+                            )
+                        serialized_row[field_name] = value
                     serialized_rows.append(serialized_row)
                     row_progress.increment(
                         state=EXPORT_SERIALIZED_EXPORTING_TABLE + str(table.name)
@@ -237,6 +241,10 @@ class DatabaseApplicationType(ApplicationType):
                 serialized_data_sync = data_sync_type.export_serialized(
                     data_sync, import_export_config
                 )
+                if import_export_config.is_user_template:
+                    self._make_synced_fields_read_only(
+                        serialized_fields, serialized_data_sync
+                    )
 
             if hasattr(table, "field_rules"):
                 field_rules_handler = FieldRuleHandler(table)
@@ -269,6 +277,24 @@ class DatabaseApplicationType(ApplicationType):
             serialized_tables.append(structure)
 
         return serialized_tables
+
+    def _make_synced_fields_read_only(
+        self, serialized_fields: List[Dict], serialized_data_sync: Dict
+    ):
+        """
+        A user template copy turns two-way sync off, so its synced fields become
+        read-only, as in a one-way synced table.
+        """
+
+        read_only = {
+            p["field_id"]: is_synced_field_read_only(
+                p["unique_primary"], serialized_data_sync["two_way_sync"]
+            )
+            for p in serialized_data_sync["properties"]
+        }
+        for serialized_field in serialized_fields:
+            if serialized_field["id"] in read_only:
+                serialized_field["read_only"] = read_only[serialized_field["id"]]
 
     def _integrations_to_export(
         self, database: Database, import_export_config: ImportExportConfig

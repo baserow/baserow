@@ -13,6 +13,7 @@ from storages.backends.gcloud import GoogleCloudStorage
 from baserow.contrib.builder.data_sources.models import DataSource
 from baserow.contrib.builder.elements.models import ChoiceElement
 from baserow.contrib.database.application_types import DatabaseApplicationType
+from baserow.contrib.database.data_sync.models import PostgreSQLDataSync
 from baserow.contrib.database.fields.handler import FieldHandler
 from baserow.contrib.database.table.models import Table
 from baserow.contrib.database.views.handler import ViewHandler
@@ -76,8 +77,10 @@ from tests.baserow.core.user_templates.utils import (
     ICON,
     add_files_to_source,
     add_password_data,
+    add_source_leftovers,
     assert_files_kept,
     assert_password_data_left_out,
+    assert_source_leftovers_left_out,
     cancel_in_another_connection,
     copied_applications,
     create_content,
@@ -235,17 +238,20 @@ def test_create_user_template_job_empties_password_fields(data_fixture):
     password_field, password = add_password_data(
         data_fixture, table, View.objects.get(table=table, name="Shared")
     )
+    add_source_leftovers(data_fixture, source["database"], source["user"])
 
     job = start_job(source["user"], source["workspace"], [source["database"]])
 
     assert job.state == JOB_FINISHED
-    assert_password_data_left_out(
-        copied_applications(job.template)["database"].table_set.get()
-    )
-    # The source keeps its passwords.
+    copied_database = copied_applications(job.template)["database"]
+    assert_password_data_left_out(copied_database.table_set.get(name=table.name))
+    assert_source_leftovers_left_out(copied_database)
+    # The source keeps its passwords and connection settings.
     assert list(
         table.get_model().objects.values_list(password_field.db_column, flat=True)
     ) == [password]
+    source_sync = PostgreSQLDataSync.objects.get(table__database=source["database"])
+    assert source_sync.postgresql_host == "db.example.com"
 
 
 def test_create_user_template_job_copies_the_files_into_the_template(data_fixture):
@@ -1319,20 +1325,33 @@ def test_purge_waits_for_a_create_job_that_committed_its_template(data_fixture):
     assert Workspace.objects.filter(id=workspace.id).exists()
 
 
+def _number_default(data_fixture, table):
+    return data_fixture.create_number_field(table=table, name="Amount"), 5
+
+
+def _single_select_default(data_fixture, table):
+    field = data_fixture.create_single_select_field(table=table, name="Status")
+    option = data_fixture.create_select_option(field=field, value="Done")
+    return field, {"id": option.id}
+
+
+@pytest.mark.parametrize(
+    "make_default", [_number_default, _single_select_default], ids=["int", "dict"]
+)
 def test_create_user_template_job_keeps_a_default_left_by_a_field_conversion(
-    data_fixture,
+    data_fixture, make_default
 ):
     source = create_source(data_fixture)
     user, table = source["user"], source["table"]
-    number = data_fixture.create_number_field(table=table, name="Amount")
+    field, value = make_default(data_fixture, table)
     view = data_fixture.create_grid_view(table=table, name="Defaults")
     with transaction.atomic():
         ViewHandler().update_view_default_values(
-            user, view, [{"field": number.id, "value": 5}]
+            user, view, [{"field": field.id, "value": value}]
         )
     with transaction.atomic():
         FieldHandler().update_field(
-            user, number, "long_text", long_text_enable_rich_text=True
+            user, field, "long_text", long_text_enable_rich_text=True
         )
 
     job = start_job(user, source["workspace"], [source["database"]])
@@ -1342,4 +1361,4 @@ def test_create_user_template_job_keeps_a_default_left_by_a_field_conversion(
         view__table__database__workspace=job.template.workspace,
         view__name="Defaults",
     )
-    assert copied.value == 5
+    assert copied.value == value

@@ -317,6 +317,7 @@ from .rich_text_utils import (
     is_renderable_user_file,
     keep_first_image_references,
     map_outside_code,
+    neutralize_mentions,
     replace_user_file_images_with_alt,
     resolve_user_file_urls,
     strip_user_file_urls,
@@ -973,6 +974,15 @@ class LongTextFieldType(CollationSortMixin, FieldType):
         if isinstance(exported, dict):
             return exported
         return {"content": exported, "images": []}
+
+    def get_user_template_export_value(self, field, value):
+        if not field.long_text_enable_rich_text:
+            return value
+        if isinstance(value, str):
+            return neutralize_mentions(value)
+        if isinstance(value, dict) and isinstance(value.get("content"), str):
+            return {**value, "content": neutralize_mentions(value["content"])}
+        return value
 
     def _export_rich_text(
         self,
