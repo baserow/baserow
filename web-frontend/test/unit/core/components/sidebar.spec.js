@@ -165,6 +165,14 @@ describe('Workspace sidebar', () => {
     const firstHelpItem = helpMenu.get('.context__menu-item-link')
     expect(document.activeElement).toBe(firstHelpItem.element)
     expect(knowledgeBase.text()).toBe('sidebar.knowledgeBase')
+    expect(helpMenu.get('a[href="https://academy.baserow.io/"]').text()).toBe(
+      'dashboard.academy'
+    )
+    expect(
+      helpMenu
+        .get('a[href="https://baserow.io/blog/category/tutorials"]')
+        .text()
+    ).toBe('dashboard.tutorials')
     expect(helpMenu.get('a[href="/api-docs"]').text()).toBe(
       'sidebar.apiDocumentation'
     )
