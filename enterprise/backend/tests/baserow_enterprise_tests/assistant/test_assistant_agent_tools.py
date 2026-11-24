@@ -984,3 +984,16 @@ def test_an_agent_acts_as_one_identity():
 
     with pytest.raises(ValidationError, match="not both"):
         AgentSetup(run_as_identity_id=1, new_identity={"name": "Bot"})
+
+
+@pytest.mark.django_db
+def test_a_second_agent_isnt_built_under_a_name_that_exists(data_fixture):
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    agent = data_fixture.create_agent_application(workspace=workspace, name="Digest")
+
+    with pytest.raises(ToolInputError, match="already exists") as refused:
+        _apply(_ctx(user, workspace), {"name": "digest"})
+
+    assert str(agent.id) in str(refused.value)
+    assert AgentApplication.objects.filter(workspace=workspace).count() == 1

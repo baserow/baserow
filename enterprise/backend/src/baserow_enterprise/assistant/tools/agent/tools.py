@@ -890,9 +890,9 @@ def apply_agent_setup(
     Create an Agent, or edit one, in a single call that carries the whole change.
 
     WHEN to use: The user asks to build, change or revert an Agent. Put every part of the request in one call.
-    ASK: Only when you can't tell which table the Agent works on, ask the user that one question with ask_user. Otherwise build straight away: how the Agent reads its event or decides goes in its instructions, not in a question.
-    HOW: Read list_agent_tools first; for an edit find the Agent with list_agents and read it with get_agent. Grant the read tools the Agent needs to find its data, such as list_tables and list_table_rows, next to any tool that changes it. Default to read-only tools. An Agent with tools needs an identity: run_as_identity_id, or new_identity when the user can create one. Never ask for API keys, passwords or SMTP credentials: actions are added turned off for the user to configure.
-    LIMITS: You can't make an Agent run by itself. A trigger is added turned off and you can't turn one on: tell the user to turn it on in the Agent's Configuration once they've checked the Agent. A tool you grant that changes data asks first, every time it is called, and only the user turns that off or turns web fetch on, both in the Configuration. While a trigger is on, a change to the Agent's identity or, when it opens web pages or changes data without asking, its instructions is refused: ask the user whether to turn the triggers off in the same call with turn_off_triggers, or to make the change in the Configuration.
+    ASK: Only when you can't tell which table a new Agent works on, ask the user that one question with ask_user. Otherwise build straight away: how the Agent reads its event or decides goes in its instructions, not in a question. For an Agent that exists, never ask what its setup already says: read it with get_agent.
+    HOW: Read list_agent_tools first; for an edit find the Agent with list_agents and read it with get_agent. Grant the read tools the Agent needs to find its data, such as list_tables and list_table_rows, next to any tool that changes it. Default to read-only tools. An Agent with tools needs an identity: run_as_identity_id, or new_identity when the user can create one. Never ask for API keys, passwords, SMTP credentials, recipients or URLs: actions are added turned off for the user to configure.
+    LIMITS: You can't make an Agent run by itself. A trigger is added turned off and you can't turn one on: tell the user to turn it on in the Agent's Configuration once they've checked the Agent. A tool you grant that changes data asks first, every time it is called, and only the user turns that off or turns web fetch on, both in the Configuration. While a trigger is on, a change to the Agent's identity or, when it opens web pages or changes data without asking, its instructions is refused: ask the user whether to turn the triggers off in the same call with turn_off_triggers, or to make the change in the Configuration. When the user asks you to turn a trigger on, stop a tool asking first or turn on web fetch, don't ask a question about it: say you can't and that they do it in the Agent's Configuration.
     REVERT: To undo a change, call this tool with the revert.setup of that change's result, and tell the user what its revert.cannot_undo lists: added triggers and actions stay turned off, and a created Agent or identity stays.
     RETURNS: The Agent's setup before and after the change, and how to revert it.
     """
@@ -910,6 +910,20 @@ def apply_agent_setup(
     _check_model(workspace, current, setup)
     if agent is None and not setup.name:
         raise ToolInputError("A new Agent needs a name.")
+    if agent is None:
+        # A request that names an Agent means that one, not a second one.
+        same_name = (
+            visible_applications(ctx.deps.tool_context(), [AGENT_TYPE])
+            .filter(name__iexact=setup.name)
+            .first()
+        )
+        if same_name:
+            raise ToolInputError(
+                f'Not created: an Agent named "{same_name.name}" already exists, '
+                f"with agent_id {same_name.id}.",
+                hint="To change or test that Agent, use its agent_id. Only when "
+                "the user wants a second Agent, create it under another name.",
+            )
     if setup.web_fetch_enabled and not (current or {}).get("web_fetch_enabled"):
         raise ToolInputError(
             "Not applied. Kuma doesn't let an Agent open web pages.",
@@ -1029,7 +1043,7 @@ def test_agent(
     """\
     Start a test conversation with an Agent. Every tool that changes data, and every action, asks first in it, so the test changes nothing without the user's say-so.
 
-    WHEN to use: Only when the user asks to test or try an Agent. Only a test shows what the Agent itself does: adding rows or doing its work with other tools shows your own work instead.
+    WHEN to use: Only when the user asks to test or try an Agent. Find the Agent the user names with list_agents and test it as it is: never build or change an Agent in order to test it. Only a test shows what the Agent itself does: adding rows or doing its work with other tools shows your own work instead.
     RETURNS: The test conversation's ID and title. The Agent replies in the background: read the reply with get_agent_test_result.
     """
 

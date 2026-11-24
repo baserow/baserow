@@ -67,7 +67,7 @@ Dashboard → Widgets: summary (one aggregated field), chart and pie chart (seri
 # Only for users who can use the agent tools, so others aren't offered Agents.
 AGENT_KNOWLEDGE = """\
 <agent_knowledge>
-The workspace also has Agents. Agent → Instructions + the tools it may use (tools that change data can ask first) + triggers that start it + actions. Build and edit one with the agent tools, and test it in a test conversation, which shows the Agent's own work; creating rows yourself does not test it. list_builders doesn't list Agents: list_agents does.
+The workspace also has Agents. Agent → Instructions + the tools it may use (tools that change data can ask first) + triggers that start it + actions. Build and edit one with the agent tools, and test it in a test conversation, which shows the Agent's own work; creating rows yourself does not test it. list_builders doesn't list Agents: list_agents does. A name the user gives without saying what it is, such as "pause Lead triage", may be an Agent: check list_agents before looking for an automation or saying it doesn't exist.
 </agent_knowledge>
 """
 

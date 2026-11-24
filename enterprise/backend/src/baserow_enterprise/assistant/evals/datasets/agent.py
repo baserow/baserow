@@ -5,6 +5,7 @@ from __future__ import annotations
 import re
 
 from baserow.contrib.agent.models import AgentApplication, AgentConversation
+from baserow.core.ai_provider.models import AIProviderConfig, AIProviderModel
 from baserow.core.feature_flags import FF_AGENT_BUILDER, FF_IDENTITIES
 from baserow.test_utils.fixtures import Fixtures
 from baserow_enterprise.assistant.evals.harness import tool_called
@@ -24,6 +25,8 @@ from baserow_enterprise.assistant.tools.agent.types import AgentSetup
 
 FEATURE_FLAGS = (FF_AGENT_BUILDER, FF_IDENTITIES)
 ROWS_CREATED = "local_baserow_rows_created"
+# The model the scenario's Agents use. Their replies aren't part of the cases.
+EVAL_AGENT_MODEL = "eval-model"
 # The tools an Agent needs to find and read the row that triggered it.
 READ_TOOLS = ("list_tables", "get_table_schema", "list_table_rows")
 LEADS = (
@@ -73,6 +76,14 @@ def _leads_workspace(fx, with_agent: bool = False) -> EvalScenario:
     for lead, text in LEADS:
         model.objects.create(**{f"field_{name.id}": lead, f"field_{message.id}": text})
 
+    # An Agent is only ready, and testable, with a model enabled for Agents.
+    provider, _ = AIProviderConfig.objects.get_or_create(
+        workspace=workspace, provider_type="openai", defaults={"api_key": "eval-key"}
+    )
+    AIProviderModel.objects.get_or_create(
+        provider_config=provider, model_identifier=EVAL_AGENT_MODEL
+    )
+
     refs = {"leads": leads, "priority": priority}
     if with_agent:
         agent = _apply(
@@ -86,6 +97,8 @@ def _leads_workspace(fx, with_agent: bool = False) -> EvalScenario:
                     "Priority to High, Medium or Low."
                 ),
                 new_identity={"name": "Lead triage"},
+                provider_type="openai",
+                model_identifier=EVAL_AGENT_MODEL,
                 add_triggers=[{"type": ROWS_CREATED, "table_id": leads.id}],
             ),
             [*READ_TOOLS, "update_rows"],
