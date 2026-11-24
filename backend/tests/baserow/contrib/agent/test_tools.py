@@ -506,6 +506,30 @@ def test_a_call_that_fails_after_its_request_was_named_keeps_it(workspace_data):
 
 
 @pytest.mark.django_db
+@pytest.mark.parametrize("debug", [False, True])
+def test_an_unexpected_tool_failure_logs_its_text_only_in_debug_mode(
+    workspace_data, logs, settings, debug
+):
+    settings.DEBUG = debug
+
+    def fail(ctx: ToolContext) -> str:
+        raise RuntimeError("The embeddings service is unavailable.")
+
+    class FailingAgentToolType(AgentToolType):
+        type = "failing"
+        function = fail
+
+    result = call_tool(FailingAgentToolType(), workspace_data.ctx, {})
+
+    assert result.metadata == {"error_code": "failed"}
+    assert [log.record["message"] for log in logs] == [
+        "Agent tool failing failed (RuntimeError: The embeddings service is unavailable.)"
+        if debug
+        else "Agent tool failing failed (RuntimeError)"
+    ]
+
+
+@pytest.mark.django_db
 def test_display_facts_failure_keeps_the_successful_tool_result(workspace_data, logs):
     private_argument = "PRIVATE_FACTS_ARGUMENT_CANARY"
     private_result = "PRIVATE_FACTS_RESULT_CANARY"

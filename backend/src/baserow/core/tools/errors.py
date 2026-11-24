@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from enum import StrEnum
 from typing import Any
 
+from django.conf import settings
 from django.core.exceptions import ObjectDoesNotExist
 from django.core.exceptions import ValidationError as DjangoValidationError
 
@@ -169,6 +170,21 @@ def flatten_error_detail(detail, prefix: str = "") -> list[str]:
             messages.extend(flatten_error_detail(value, child))
         return messages
     return [f"{prefix}: {detail}" if prefix else str(detail)]
+
+
+def describe_failure(error: BaseException) -> str:
+    """
+    Describe an exception for the logs. Its text is included only in debug mode,
+    as it can echo private content, like a row value or a provider's answer.
+
+    :param error: What was raised.
+    :return: The class and status code, with the exception text when debugging.
+    """
+
+    status_code = getattr(error, "status_code", None)
+    name = type(error).__name__
+    summary = f"{name}, status {status_code}" if status_code else name
+    return f"{summary}: {error}" if settings.DEBUG else summary
 
 
 def classify_tool_error(exc: Exception) -> ToolError:

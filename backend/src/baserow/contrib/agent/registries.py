@@ -19,7 +19,7 @@ from baserow.core.models import Workspace
 from baserow.core.registries import subject_type_registry
 from baserow.core.registry import Instance, Registry
 from baserow.core.tools import ToolContext
-from baserow.core.tools.errors import classify_tool_error
+from baserow.core.tools.errors import classify_tool_error, describe_failure
 
 from .previews import StepPreview, as_requested
 
@@ -54,7 +54,7 @@ def failed_call(tool_type: "AgentToolType", exc: Exception) -> ToolReturn:
 
     error = classify_tool_error(exc)
     if error.message is None:
-        logger.error("Agent tool {} failed ({})", tool_type.type, type(exc).__name__)
+        logger.error("Agent tool {} failed ({})", tool_type.type, describe_failure(exc))
     return ToolReturn(
         return_value={"error": error.to_dict()},
         metadata={"error_code": error.code},
@@ -82,7 +82,9 @@ def _step_facts(
         return json.loads(json.dumps(facts, allow_nan=False))
     except Exception as exc:
         logger.error(
-            "Agent tool {} step facts failed ({})", tool_type.type, type(exc).__name__
+            "Agent tool {} step facts failed ({})",
+            tool_type.type,
+            describe_failure(exc),
         )
         return {}
 
@@ -302,7 +304,9 @@ class AgentToolType(Instance):
         except Exception as exc:
             if classify_tool_error(exc).message is None:
                 logger.error(
-                    "Agent tool {} preview failed ({})", self.type, type(exc).__name__
+                    "Agent tool {} preview failed ({})",
+                    self.type,
+                    describe_failure(exc),
                 )
             return {}
 

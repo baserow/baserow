@@ -7,6 +7,7 @@ from asgiref.sync import sync_to_async
 from loguru import logger
 
 from baserow.core.db import with_usable_db_connection
+from baserow.core.tools.errors import describe_failure
 
 from .buffer import close_buffer_redis
 from .constants import (
@@ -49,7 +50,7 @@ async def run_chat_run(run: ChatRun, run_type: ChatRunType) -> None:
         try:
             outcome = await run_type.execute(run, journal)
         except Exception as exc:
-            logger.error("Chat run {} failed ({})", run.id, type(exc).__name__)
+            logger.error("Chat run {} failed ({})", run.id, describe_failure(exc))
             outcome = ChatRunOutcome(ChatRunStatus.FAILED, ChatRunErrorCode.FAILED)
         if journal.stop_reason == ChatRunStopReason.LOST:
             return
