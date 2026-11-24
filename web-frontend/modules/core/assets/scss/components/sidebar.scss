@@ -164,6 +164,7 @@ $sidebar-home-inset: calc(($sidebar-home-size - $sidebar-brand-height) / 2);
   gap: 6px;
   height: 32px;
   padding: 0 6px;
+  padding-inline-start: $sidebar-home-inset;
   font-size: 13px;
   font-weight: 500;
 
