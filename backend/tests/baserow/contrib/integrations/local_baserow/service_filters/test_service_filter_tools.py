@@ -347,16 +347,23 @@ def test_summary_widget_filters_can_be_changed(seeded):
         ctx(seeded), "dashboard_data_source", data_source.id
     )
     assert description["filters"] == []
+    assert description["supports_filter_groups"] is True
     result = update_service_filters(
         ctx(seeded),
         "dashboard_data_source",
         data_source.id,
-        ops(add(seeded.amount.id, "higher_than", "1")),
+        ops(
+            {"op": "add_group", "group_id": "g", "filter_type": "OR"},
+            {**add(seeded.amount.id, "higher_than", "1"), "group": "g"},
+        ),
     )
     assert result["changed"] is True
     assert filters_of(data_source.service) == [
         (seeded.amount.id, "higher_than", "1", "raw")
     ]
+
+    saved_filter = data_source.service.service_filters.get()
+    assert saved_filter.group.filter_type == "OR"
 
 
 @pytest.mark.django_db

@@ -3,8 +3,6 @@ Tests for changing the filters of the charts' data sources with the service filt
 tools shared by Kuma and MCP.
 """
 
-from django.core.exceptions import ValidationError as DjangoValidationError
-
 import pytest
 
 from baserow.contrib.integrations.local_baserow.models import (
@@ -59,33 +57,38 @@ def test_chart_data_sources_are_listed_by_widget_title(chart):
     ] == [("dashboard_data_source", data_source.id, "Deals per month")]
     described = list_service_filters(ctx, "dashboard_data_source", data_source.id)
     assert described["name"] == "Deals per month"
-    assert described["supports_filter_groups"] is False
+    assert described["supports_filter_groups"] is True
 
 
 @pytest.mark.django_db
-def test_chart_filters_are_saved_without_groups(chart):
+def test_chart_filters_are_saved_with_nested_groups(chart):
+    """Chart filters preserve their group membership and parent relationships."""
     ctx, data_source, amount = chart
-
-    with pytest.raises(DjangoValidationError) as exc:
-        update_service_filters(
-            ctx,
-            "dashboard_data_source",
-            data_source.id,
-            [
-                FilterOperation(op="add_group", group_id="g", filter_type="OR"),
-                add_amount_filter(amount, group="g"),
-            ],
-        )
-    assert "filter groups can't be used" in " ".join(exc.value.messages)
-
     result = update_service_filters(
-        ctx, "dashboard_data_source", data_source.id, [add_amount_filter(amount)]
+        ctx,
+        "dashboard_data_source",
+        data_source.id,
+        [
+            FilterOperation(op="add_group", group_id="g", filter_type="OR"),
+            add_amount_filter(amount, group="g"),
+            FilterOperation(
+                op="add_group", group_id="nested", parent_group="g", filter_type="AND"
+            ),
+            add_amount_filter(amount, group="nested"),
+        ],
     )
-
     assert result["changed"] is True
-    assert [
-        (f.field_id, f.type, f.value["formula"])
-        for f in LocalBaserowTableServiceFilter.objects.filter(
+    filters = list(
+        LocalBaserowTableServiceFilter.objects.filter(
             service=data_source.service
-        )
-    ] == [(amount.id, "higher_than", "1000")]
+        ).select_related("group")
+    )
+    assert [(f.field_id, f.type, f.value["formula"]) for f in filters] == [
+        (amount.id, "higher_than", "1000"),
+        (amount.id, "higher_than", "1000"),
+    ]
+    parent, child = [f.group for f in filters]
+    assert parent.filter_type == "OR"
+    assert parent.parent_group_id is None
+    assert child.filter_type == "AND"
+    assert child.parent_group_id == parent.id

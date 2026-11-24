@@ -43,8 +43,6 @@ class DashboardDataSourceServiceFilterTargetType(ServiceFilterTargetType):
     read_operation_type = ReadDashboardDataSourceOperationType.type
     update_operation_type = UpdateDashboardDataSourceOperationType.type
     list_operation_type = ListDashboardDataSourcesOperationType.type
-    # The widget filter form doesn't support filter groups.
-    supports_filter_groups = False
 
     def get_owner(self, owner_id: int) -> DashboardDataSource:
         try:
