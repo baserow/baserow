@@ -4,7 +4,8 @@
       <li v-if="canAddFilter" class="context__menu-item">
         <a
           class="context__menu-item-link"
-          :class="{ 'context__menu-item-link--loading': addingFilter }"
+          :class="{ disabled: isCreatingWidget }"
+          :aria-disabled="isCreatingWidget"
           role="button"
           tabindex="0"
           @click="addFilter()"
@@ -36,6 +37,10 @@ import { notifyIf } from '@baserow/modules/core/utils/error'
 export default {
   name: 'WidgetContext',
   mixins: [context],
+  inject: {
+    widgetCreation: { from: 'dashboardWidgetCreation', default: null },
+    createDashboardWidget: { default: null },
+  },
   props: {
     dashboard: {
       type: Object,
@@ -50,17 +55,18 @@ export default {
   setup() {
     return { storePrefix: inject('storePrefix', '') }
   },
-  data() {
-    return { addingFilter: false }
-  },
   computed: {
     prefix() {
       return this.storePrefix?.value ?? this.storePrefix ?? ''
+    },
+    isCreatingWidget() {
+      return this.widgetCreation?.loading ?? false
     },
     /** Display widgets showing a table can get a filter of their own. */
     canAddFilter() {
       const type = this.$registry.get('dashboardWidget', this.widget.type)
       if (
+        !this.createDashboardWidget ||
         !type.isDisplayWidget ||
         !this.$featureFlagIsEnabled(FF_DASHBOARD_FILTERS) ||
         !this.$hasPermission(
@@ -93,33 +99,24 @@ export default {
   methods: {
     /** Create a filter of this widget's table, applied to this widget. */
     async addFilter() {
-      if (this.addingFilter) return
-      this.addingFilter = true
+      if (!this.canAddFilter || this.isCreatingWidget) return
+      this.hide()
       try {
-        const filterType = this.$registry.get('dashboardWidget', 'text_filter')
-        await this.$store.dispatch(
-          `${this.prefix}dashboardApplication/createWidget`,
-          {
-            dashboard: this.dashboard,
-            widget: {
-              type: filterType.getType(),
-              title: filterType.name,
-              target_filters: [
-                {
-                  target_widget_id: this.widget.id,
-                  enabled: true,
-                  empty_behavior: 'apply_nothing',
-                  group: { filter_type: 'AND', filters: [], filter_groups: [] },
-                },
-              ],
-            },
-          }
-        )
-        this.hide()
+        await this.createDashboardWidget({
+          type: 'text_filter',
+          params: {
+            target_filters: [
+              {
+                target_widget_id: this.widget.id,
+                enabled: true,
+                empty_behavior: 'apply_nothing',
+                group: { filter_type: 'AND', filters: [], filter_groups: [] },
+              },
+            ],
+          },
+        })
       } catch (error) {
         notifyIf(error, 'dashboard')
-      } finally {
-        this.addingFilter = false
       }
     },
     deleteWidget() {
