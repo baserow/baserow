@@ -57,19 +57,19 @@ const searchAction = (service = {}) => ({
     filter_type: 'AND',
     ...service,
   },
-  errors: { integration_id: 'required', table_id: 'required' },
+  errors: { run_as: 'required', table_id: 'required' },
 })
 
-const integration = {
-  id: 5,
-  type: 'local_baserow',
-  name: 'Local Baserow',
-  application_id: 10,
-  context_data: {
-    databases: [
-      { id: 7, name: 'Support', tables: [{ id: 8, name: 'Articles' }] },
-    ],
-  },
+const databases = [
+  { id: 7, name: 'Support', tables: [{ id: 8, name: 'Articles' }], views: [] },
+]
+
+const activeRunAs = {
+  type: 'auth.User',
+  id: 4,
+  name: 'Reader',
+  trashed: false,
+  status: 'active',
 }
 
 describe('Semantic search agent action', () => {
@@ -108,54 +108,77 @@ describe('Semantic search agent action', () => {
   test('configuration errors name the fields the editor shows', () => {
     const registry = testApp.getRegistry()
     expect(
-      ['integration_id', 'table_id', 'filters'].map((field) =>
+      ['run_as', 'table_id', 'filters'].map((field) =>
         actionFieldLabel(registry, TYPE, field, t)
       )
     ).toEqual([
-      't:localBaserowServiceForm.integrationDropdownLabel',
+      't:agent.workspaceAccess',
       't:localBaserowTableSelector.tableFieldLabel',
       't:agentSemanticSearch.filters',
     ])
   })
 
-  test('the card picks the integration first, then hands the form its databases', async () => {
+  const mountSection = async (runAs, readableDatabases) => {
     const agent = await testApp.store.dispatch(
       'application/forceCreate',
       clone(agentData)
     )
+    testApp.mock.onGet('application/10/integrations/').reply(200, [])
+    testApp.mock.onGet('/agent/10/actions/').reply(200, [searchAction()])
     testApp.mock
-      .onGet('application/10/integrations/')
-      .reply(200, [clone(integration)])
-    testApp.mock
-      .onGet('/agent/10/actions/')
-      .reply(200, [searchAction(), searchAction({ integration_id: 5 })])
+      .onGet('/agent/10/action-types/')
+      .reply(() => [
+        200,
+        [{ type: TYPE, form_choices: { databases: readableDatabases() } }],
+      ])
+    const openSection = vi.fn()
+    const configuration = (runAs) =>
+      completeConfiguration({ available_action_types: [TYPE], run_as: runAs })
     const wrapper = await testApp.mount(AgentActionsSection, {
-      props: {
-        editable: true,
-        configuration: completeConfiguration({
-          available_action_types: [TYPE],
-        }),
+      props: { editable: true, configuration: configuration(runAs) },
+      global: {
+        provide: {
+          agentApplication: ref(agent),
+          openAgentConfigurationSection: openSection,
+        },
       },
-      global: { provide: { agentApplication: ref(agent) } },
     })
     await flushPromises()
-    for (const toggle of wrapper.findAll('.agent-action-card__toggle'))
-      await toggle.trigger('click')
+    await wrapper.get('.agent-action-card__toggle').trigger('click')
+    const setRunAs = async (runAs) => {
+      await wrapper.setProps({ configuration: configuration(runAs) })
+      await flushPromises()
+    }
+    const form = () =>
+      wrapper.getComponent({ name: 'LocalBaserowSemanticSearchServiceForm' })
+    return { wrapper, openSection, setRunAs, form }
+  }
 
-    const [unconfigured, configured] = wrapper.findAll('.agent-action-card')
-    for (const card of [unconfigured, configured])
-      expect(card.text()).toContain(
-        'localBaserowServiceForm.integrationDropdownLabel'
-      )
-    expect(
-      unconfigured
-        .findComponent({ name: 'LocalBaserowSemanticSearchServiceForm' })
-        .exists()
-    ).toBe(false)
-    const form = configured.findComponent({
-      name: 'LocalBaserowSemanticSearchServiceForm',
-    })
-    expect(form.props('databases')).toEqual(integration.context_data.databases)
+  test('the form offers the tables the run identity can read, without an integration', async () => {
+    const { wrapper, form } = await mountSection(activeRunAs, () => databases)
+
+    expect(form().props('databases')).toEqual(databases)
+    expect(wrapper.text()).not.toContain(
+      'localBaserowServiceForm.integrationDropdownLabel'
+    )
+  })
+
+  test('without workspace access the table field links to set it up, and a new identity brings its tables', async () => {
+    let readable = []
+    const { wrapper, openSection, setRunAs, form } = await mountSection(
+      null,
+      () => readable
+    )
+    const error = wrapper.get('.control__messages--error')
+    expect(error.text()).toContain('agent.noWorkspaceAccessTables')
+    await error.get('a').trigger('click')
+    expect(openSection).toHaveBeenCalledWith('workspace_access')
+
+    readable = databases
+    await setRunAs(activeRunAs)
+
+    expect(form().props('databases')).toEqual(databases)
+    expect(wrapper.find('.control__messages--error').exists()).toBe(false)
   })
 
   const mountCard = async (available) => {
@@ -168,7 +191,7 @@ describe('Semantic search agent action', () => {
     )
     return testApp.mount(AgentActionCard, {
       props: {
-        action: searchAction({ integration_id: 5 }),
+        action: searchAction({ table_id: 8 }),
         workspace,
         editable: true,
         expanded: true,
