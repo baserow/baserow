@@ -6,7 +6,7 @@ $sidebar-home-inset: calc(($sidebar-home-size - $sidebar-brand-height) / 2);
 .sidebar {
   @include absolute(0);
 
-  background-color: $palette-neutral-25;
+  background-color: $palette-neutral-50;
   border-right: solid 1px $palette-neutral-200;
   height: 100%;
   display: flex;
