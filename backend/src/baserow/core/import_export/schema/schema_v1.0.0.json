@@ -162,6 +162,17 @@
         }
       }
     },
+    "workspace_objects": {
+      "type": "object",
+      "properties": {
+        "identities": {
+          "type": "array",
+          "items": {
+            "type": "object"
+          }
+        }
+      }
+    },
     "checksums": {
       "type": "object",
       "patternProperties": {

@@ -2,7 +2,17 @@ import abc
 import dataclasses
 from collections import defaultdict
 from functools import cached_property
-from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Optional, TypeVar, Union
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Dict,
+    Iterable,
+    List,
+    Optional,
+    Set,
+    TypeVar,
+    Union,
+)
 from zipfile import ZipFile
 
 from django.core.files.storage import Storage
@@ -53,6 +63,7 @@ if TYPE_CHECKING:
     from django.contrib.auth.models import AbstractUser
     from django.contrib.contenttypes.models import ContentType
 
+    from baserow.core.identities.import_export import IdentityExport
     from baserow.core.models import (
         Application,
         Template,
@@ -172,6 +183,13 @@ class ImportExportConfig:
     The import stores content for a template (a template workspace or a user
     template copy), not for use. Settings that depend on the destination, like
     an AI model, are resolved when the template is installed instead.
+    """
+
+    identity_export: Optional["IdentityExport"] = None
+    """
+    Collects the identities the exported applications refer to, when the export
+    carries them beside its applications. An application type gets the key it
+    refers to an identity by from it, see `IdentityExport.key_for`.
     """
 
 
@@ -448,6 +466,23 @@ class ApplicationType(
     # The data provider type registry applicable to this type. Must be set
     # by subclasses for runtime formula validation to work correctly.
     data_provider_type_registry = None
+
+    def get_imported_identity_keys(
+        self, serialized_values: Dict[str, Any], imported_by: Optional["AbstractUser"]
+    ) -> Set[str]:
+        """
+        The keys of the identities an exported application of this type refers
+        to, see `IdentityExport.key_for`. An import creates those identities
+        before the application, which resolves them with `imported_identity`, or
+        else waits for what `imported_identity_definition` returns. An identity
+        gets no role on an application that refers to one.
+
+        :param serialized_values: The exported application. Untrusted.
+        :param imported_by: The user who imports, if any.
+        :return: The keys, or an empty set to have no identity created.
+        """
+
+        return set()
 
     def supports_integration_type(self, integration_type) -> bool:
         """

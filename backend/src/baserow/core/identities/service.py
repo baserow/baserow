@@ -1,12 +1,14 @@
 from django.contrib.auth.models import AbstractUser
 from django.db import transaction
 
+from baserow.core.exceptions import PermissionDenied
 from baserow.core.handler import CoreHandler
 from baserow.core.identities.exceptions import IdentityRoleDoesNotExist
 from baserow.core.identities.handler import IdentityHandler
 from baserow.core.identities.operations import (
     BindIdentityOperationType,
     CreateIdentityOperationType,
+    CreateScopedIdentityOperationType,
     DeleteIdentityOperationType,
     ListIdentitiesWorkspaceOperationType,
     UpdateIdentityOperationType,
@@ -72,9 +74,24 @@ class IdentityService:
             values["role_uid"], workspace
         ):
             raise IdentityRoleDoesNotExist()
+        identity = self._create_with_extensions(user, workspace, values)
+        return self._send_created(user, workspace, identity)
+
+    def _create_with_extensions(
+        self, user: AbstractUser, workspace: Workspace, values: dict
+    ) -> User:
+        """Creates an identity and the data of every registered extension."""
+
         identity = IdentityHandler().create_identity(workspace, **values)
         for extension in identity_extension_type_registry.get_all():
             extension.create(identity, values, user)
+        return identity
+
+    def _send_created(
+        self, user: AbstractUser, workspace: Workspace, identity: User
+    ) -> User:
+        """Reloads a new identity with its extension data and announces it."""
+
         identity = IdentityHandler().get_identity(
             identity.id, IdentityHandler().get_queryset(workspace)
         )
@@ -188,6 +205,103 @@ class IdentityService:
             context=workspace,
             raise_permission_exceptions=raise_permission_exceptions,
         )
+
+    def can_create_scoped_identity(
+        self, user: AbstractUser, workspace: Workspace
+    ) -> bool:
+        """
+        Checks whether the user may create an identity that has access to only some
+        applications of the workspace, and bind an application to it.
+
+        :param user: The user who would create the identity.
+        :param workspace: The workspace of the identity.
+        :return: Whether `create_scoped_identity` is allowed for the user.
+        """
+
+        return (
+            CoreHandler().check_permissions(
+                user,
+                CreateScopedIdentityOperationType.type,
+                workspace=workspace,
+                context=workspace,
+                raise_permission_exceptions=False,
+            )
+            and self.check_can_bind(user, workspace, raise_permission_exceptions=False)
+            and identity_extension_type_registry.get_application_scoper(user, workspace)
+            is not None
+        )
+
+    @transaction.atomic
+    def create_scoped_identity(
+        self, user: AbstractUser, workspace: Workspace, name: str
+    ) -> User:
+        """
+        Creates an identity with no access to the workspace, to give access to some
+        applications with `scope_identity`. It's never made a member of the whole
+        workspace: without an extension that can scope it, nothing is created.
+        Unlike `create_identity`, builders may, because the identity can't reach
+        more than they can change.
+
+        :param user: The user creating the identity.
+        :param workspace: The workspace in which to create the identity.
+        :param name: The name of the identity.
+        :raises PermissionDenied: If no extension can scope the identity for the
+            user, or the user may not create it.
+        :return: The newly created identity.
+        """
+
+        CoreHandler().check_permissions(
+            user,
+            CreateScopedIdentityOperationType.type,
+            workspace=workspace,
+            context=workspace,
+        )
+        if (
+            identity_extension_type_registry.get_application_scoper(user, workspace)
+            is None
+        ):
+            raise PermissionDenied()
+        # The default role of an extension that can scope has no workspace access.
+        identity = self._create_with_extensions(user, workspace, {"name": name})
+        return self._send_created(user, workspace, identity)
+
+    @transaction.atomic
+    def scope_identity(
+        self,
+        user: AbstractUser,
+        identity: User,
+        applications: list,
+        roles: list[tuple[int, str]],
+    ) -> None:
+        """
+        Gives an identity made by `create_scoped_identity` its access to some
+        applications.
+
+        :param user: The user who created the identity.
+        :param identity: The identity, which has no access yet.
+        :param applications: The applications of the workspace it may get a role
+            on.
+        :param roles: The role to give on each of them, by application id. An
+            application without one, or with a role that can't be given on a
+            single application, gets none.
+        :raises PermissionDenied: If no extension can scope the identity for the
+            user, or the user may not scope it or change one of the applications.
+        :raises IdentityCannotBeScoped: If the identity has workspace access.
+        """
+
+        workspace = IdentityHandler.get_workspace(identity)
+        CoreHandler().check_permissions(
+            user,
+            CreateScopedIdentityOperationType.type,
+            workspace=workspace,
+            context=workspace,
+        )
+        scoper = identity_extension_type_registry.get_application_scoper(
+            user, workspace
+        )
+        if scoper is None:
+            raise PermissionDenied()
+        scoper.scope_to_applications(identity, applications, user, roles)
 
     def can_copy_binding(
         self, workspace: Workspace, import_export_config: ImportExportConfig

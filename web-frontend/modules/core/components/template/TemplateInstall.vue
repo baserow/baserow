@@ -31,6 +31,10 @@
           "
         ></DropdownItem>
       </Dropdown>
+      <p v-if="createsIdentities" class="template-install__summary">
+        <i class="template-install__summary-icon iconoir-user"></i>
+        {{ $t('templateInstall.createsIdentities') }}
+      </p>
     </template>
     <div class="template-install__actions">
       <template v-if="installable">
@@ -155,6 +159,13 @@ const props = defineProps({
     required: false,
     default: false,
   },
+  // The applications of the template, which tell whether the install creates
+  // an identity for its Agents.
+  applications: {
+    type: Array,
+    required: false,
+    default: () => [],
+  },
 })
 
 // `outdated` tells that the template was updated since it was shown, and must
@@ -165,7 +176,7 @@ const slots = useSlots()
 const store = useStore()
 const router = useRouter()
 const config = useRuntimeConfig()
-const { $client, $hasPermission, $i18n } = useNuxtApp()
+const { $client, $hasPermission, $i18n, $registry } = useNuxtApp()
 const { copyLink } = useCopyLink()
 
 const moreButton = ref(null)
@@ -239,6 +250,30 @@ const selectedWorkspace = computed(
   () =>
     workspaces.value.find(({ id }) => id === selectedWorkspaceId.value) || null
 )
+
+/**
+ * Whether the install creates the identity the template's Agents work as, with
+ * access to only the template's other applications. That takes roles, and the
+ * permission to create such identities, which the backend checks.
+ */
+const createsIdentities = computed(() => {
+  const workspace = selectedWorkspace.value
+  if (!isAuthenticated.value || workspace === null) {
+    return false
+  }
+  return (
+    props.applications.some(
+      (application) =>
+        $registry.exists('application', application.type) &&
+        $registry
+          .get('application', application.type)
+          .createsIdentityOnInstall(application)
+    ) &&
+    Object.values($registry.getAll('plugin')).some((plugin) =>
+      plugin.canCreateScopedIdentities(workspace)
+    )
+  )
+})
 
 function chooseWorkspace(workspaceId) {
   workspaceChosen.value = true

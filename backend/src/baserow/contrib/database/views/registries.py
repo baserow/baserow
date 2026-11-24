@@ -26,6 +26,7 @@ from baserow.core.db import specific_iterator
 from baserow.core.exceptions import PermissionDenied
 from baserow.core.formula.validator import ensure_string
 from baserow.core.handler import CoreHandler
+from baserow.core.identities.import_export import imported_identity_emails
 from baserow.core.models import Workspace
 from baserow.core.registries import (
     ImportExportConfig,
@@ -451,9 +452,10 @@ class ViewType(
                 )
 
             if owned_by_workspace is not None:
-                id_mapping["owned_by"] = CoreHandler.get_user_email_mapping(
-                    owned_by_workspace.id, []
-                )
+                id_mapping["owned_by"] = {
+                    **CoreHandler.get_user_email_mapping(owned_by_workspace.id, []),
+                    **imported_identity_emails(id_mapping),
+                }
 
         try:
             ownership_type = view_ownership_type_registry.get(

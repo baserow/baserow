@@ -36,6 +36,7 @@ from loguru import logger
 
 from baserow.core.exceptions import IsNotAdminError, TemplateDoesNotExist
 from baserow.core.handler import CoreHandler
+from baserow.core.identities.import_export import IdentityExport
 from baserow.core.jobs.cache import job_progress_key
 from baserow.core.jobs.constants import JOB_CANCELLED, JOB_FAILED
 from baserow.core.jobs.exceptions import JobNotCancellable
@@ -521,13 +522,17 @@ class UserTemplateHandler:
         # Exported on behalf of the owner, so that application types can refuse
         # what the owner may not read, like an Agent's configuration, the same
         # way an export to a file does.
+        identity_export = IdentityExport()
         serialized = self.serialize_applications(
             applications,
-            dataclasses.replace(config, exported_by=owner),
+            dataclasses.replace(
+                config, exported_by=owner, identity_export=identity_export
+            ),
             files_zip=files,
             storage=storage,
             progress_builder=progress.create_child_builder(represents_progress=50),
         )
+        # Nobody imports the content, so its identities are kept as definitions.
         CoreHandler().import_applications_to_workspace(
             workspace,
             serialized,
@@ -538,6 +543,9 @@ class UserTemplateHandler:
             storage=storage,
             progress_builder=progress.create_child_builder(represents_progress=50),
             atomic_per_application=True,
+            workspace_objects=identity_export.serialize(
+                owner, [application.id for application in applications]
+            ),
         )
 
         return workspace
@@ -566,14 +574,23 @@ class UserTemplateHandler:
         applications = self._get_content_applications(revision)
         storage = get_default_storage()
         files = TemplateFilesTransfer(storage)
+        identity_export = IdentityExport()
         serialized = self.serialize_applications(
             applications,
-            user_template_copy_config(),
+            dataclasses.replace(
+                user_template_copy_config(), identity_export=identity_export
+            ),
             files_zip=files,
             storage=storage,
             progress_builder=progress_builder,
         )
-        return TemplateContent(applications=serialized, files=files)
+        return TemplateContent(
+            applications=serialized,
+            files=files,
+            workspace_objects=identity_export.serialize(
+                None, [application.id for application in applications]
+            ),
+        )
 
     def _get_content_applications(self, revision: Template) -> List[Application]:
         """
@@ -722,6 +739,8 @@ class UserTemplateHandler:
             config,
             storage=content.files.storage,
             progress_builder=progress_builder,
+            workspace_objects=content.workspace_objects,
+            imported_by=user,
         )
 
         CoreHandler().mark_applications_installed_from_template(

@@ -46,6 +46,15 @@ class Command(BaseCommand):
                 exported_json = json.loads(json_file.read())
                 template_json["export"] = exported_json
 
+            # Written by `export_workspace_applications` when the applications
+            # act as identities.
+            objects_path = (
+                current_path / f"{from_export_file_name}.workspace_objects.json"
+            )
+            if objects_path.exists():
+                with open(objects_path, "r") as objects_file:
+                    template_json["workspace_objects"] = json.loads(objects_file.read())
+
             with open(template_path, "w") as template_json_file:
                 json.dump(template_json, template_json_file, indent=4)
 

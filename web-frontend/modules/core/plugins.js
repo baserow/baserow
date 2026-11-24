@@ -351,6 +351,16 @@ export class BaserowPlugin extends Registerable {
   }
 
   /**
+   * Whether the user can create, in the workspace, an identity that has access to
+   * only some of its applications, and make an application act as it. A template
+   * install or an import then creates the identities that come with it.
+   * @returns {boolean}
+   */
+  canCreateScopedIdentities(workspace) {
+    return false
+  }
+
+  /**
    * Some features are optionally enabled, this function will be called when the
    * $hasFeature directive is called on each plugin to check if any of the plugins
    * enable the particular feature.

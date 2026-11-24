@@ -60,6 +60,7 @@ from baserow.core.generative_ai.registries import generative_ai_model_type_regis
 from baserow.core.handler import CoreHandler
 from baserow.core.identities.exceptions import IdentityDoesNotExist
 from baserow.core.identities.handler import IdentityHandler
+from baserow.core.identities.import_export import delete_unused_identity_definitions
 from baserow.core.models import Workspace
 from baserow.core.operations import UpdateApplicationOperationType
 from baserow.core.registries import subject_type_registry
@@ -648,6 +649,11 @@ class AgentHandler:
         if agent.pending_tool_choices is not None and has_run_as:
             agent.pending_tool_choices = None
             changed_fields.append("pending_tool_choices")
+        # The Agent got an identity, so it stops waiting for the one it came with.
+        definition_id = agent.identity_definition_id if has_run_as else None
+        if definition_id is not None:
+            agent.identity_definition = None
+            changed_fields.append("identity_definition")
         tools_changed = allowed_tools is not None and (
             set(allowed_tools) != set(original_values["allowed_tools"])
             or (
@@ -657,6 +663,8 @@ class AgentHandler:
         )
         if changed_fields or tools_changed:
             agent.save(update_fields=[*changed_fields, "updated_on"])
+        if definition_id is not None:
+            delete_unused_identity_definitions([definition_id])
         if tools_changed or not has_run_as or not had_run_as:
             self.set_allowed_tools(agent, allowed_tools, ask_first_tools)
             stored_tools = self.get_stored_tool_configuration(agent)

@@ -10,13 +10,31 @@ from rest_framework.exceptions import ValidationError
 
 from baserow.core.action.registries import action_type_registry
 from baserow.core.handler import CoreHandler
+from baserow.core.identities.exceptions import IdentityCannotBeScoped
 from baserow.core.identities.handler import IdentityHandler
 from baserow.core.identities.registries import IdentityExtensionType
-from baserow.core.models import User
+from baserow.core.models import Application, User, Workspace
+from baserow.core.object_scopes import ApplicationObjectScopeType
+from baserow.core.operations import UpdateApplicationOperationType
+from baserow.core.registries import object_scope_type_registry
 from baserow.core.types import PermissionCheck
 from baserow_enterprise.features import RBAC, TEAMS
+from baserow_enterprise.role.actions import BatchAssignRoleActionType
+from baserow_enterprise.role.constants import (
+    ADMIN_ROLE_UID,
+    BUILDER_ROLE_UID,
+    COMMENTER_ROLE_UID,
+    EDITOR_ROLE_UID,
+    NO_ACCESS_ROLE_UID,
+    VIEWER_ROLE_UID,
+)
 from baserow_enterprise.role.handler import RoleAssignmentHandler
-from baserow_enterprise.role.models import Role
+from baserow_enterprise.role.models import Role, RoleAssignment
+from baserow_enterprise.role.operations import (
+    ReadRoleApplicationOperationType,
+    UpdateRoleApplicationOperationType,
+)
+from baserow_enterprise.role.types import NewRoleAssignment
 from baserow_enterprise.teams.actions import (
     CreateTeamSubjectActionType,
     DeleteTeamSubjectActionType,
@@ -27,6 +45,20 @@ from baserow_enterprise.teams.operations import (
     DeleteTeamSubjectOperationType,
 )
 from baserow_premium.license.handler import LicenseHandler
+
+# The roles an identity scoped to applications can have on one of them. The admin
+# role is only given by an installer who may change the roles of the application,
+# and is the builder role otherwise.
+SCOPED_IDENTITY_ROLE_UIDS = [
+    VIEWER_ROLE_UID,
+    COMMENTER_ROLE_UID,
+    EDITOR_ROLE_UID,
+    BUILDER_ROLE_UID,
+    ADMIN_ROLE_UID,
+]
+# The roles of a workspace without roles on applications, as the role that gives
+# the same on an application.
+WORKSPACE_ROLE_ALIASES = {"MEMBER": BUILDER_ROLE_UID}
 
 
 class IdentityTeamSummarySerializer(serializers.Serializer):
@@ -105,6 +137,183 @@ class EnterpriseIdentityExtensionType(IdentityExtensionType):
         if LicenseHandler.workspace_has_feature(RBAC, workspace):
             return "NO_ACCESS"
         return None
+
+    def can_scope_to_applications(self, user, workspace):
+        """With roles, an identity can have no access except on some applications."""
+
+        return LicenseHandler.user_has_feature(RBAC, user, workspace)
+
+    def scope_to_applications(self, identity, applications, user, roles):
+        """
+        Gives the identity the given role on each application. The user must be
+        allowed to change every application that gets one, so the identity never
+        gets more than them: the admin role is given only on the applications
+        whose roles the user may change, and the builder role on the others.
+        Without roles it keeps no access, and its tools are checked against that
+        when they run. The assignments are recorded like those of the role
+        endpoints, so they show in the audit log.
+        """
+
+        workspace = IdentityHandler().get_workspace(identity)
+        # A new identity has no access with roles. Scoping one that has more would
+        # leave it access to the whole workspace.
+        if IdentityHandler.get_role_uid(identity) != NO_ACCESS_ROLE_UID:
+            raise IdentityCannotBeScoped(
+                "Only an identity without access can be scoped."
+            )
+        role_uids = {
+            application_id: WORKSPACE_ROLE_ALIASES.get(role_uid, role_uid)
+            for application_id, role_uid in roles
+        }
+        role_uids = {
+            application_id: role_uid
+            for application_id, role_uid in role_uids.items()
+            if role_uid in SCOPED_IDENTITY_ROLE_UIDS
+        }
+        # Roles on applications are stored for the base model, which the role
+        # endpoints resolve the `application` scope to.
+        scopes = list(
+            Application.objects.filter(
+                workspace=workspace,
+                id__in=[
+                    application.id
+                    for application in applications
+                    if application.id in role_uids
+                ],
+            ).order_by("id")
+        )
+        if not scopes:
+            return
+        # Roles on an application are checked against its specific type.
+        CoreHandler().check_multiple_permissions(
+            [
+                PermissionCheck(
+                    user, UpdateApplicationOperationType.type, scope.specific
+                )
+                for scope in scopes
+            ],
+            workspace=workspace,
+            raise_exception=True,
+        )
+        admin_scopes = [
+            scope for scope in scopes if role_uids[scope.id] == ADMIN_ROLE_UID
+        ]
+        if admin_scopes:
+            can_change_roles = CoreHandler().check_multiple_permissions(
+                [
+                    PermissionCheck(
+                        user, UpdateRoleApplicationOperationType.type, scope.specific
+                    )
+                    for scope in admin_scopes
+                ],
+                workspace=workspace,
+            )
+            for check, allowed in can_change_roles.items():
+                if allowed is not True:
+                    role_uids[check.context.id] = BUILDER_ROLE_UID
+        role_by_uid = {
+            role.uid: role
+            for role in Role.objects.filter(uid__in=set(role_uids.values()))
+        }
+        action_type_registry.get_by_type(BatchAssignRoleActionType).do(
+            user,
+            [
+                NewRoleAssignment(identity, role_by_uid[role_uids[scope.id]], scope)
+                for scope in scopes
+            ],
+            workspace,
+            check_role_permissions=False,
+        )
+
+    def get_application_roles(self, identity):
+        """
+        Exports the roles of an identity on single applications. An application
+        with a role that can't be given on one, or whose tables or views have
+        roles, or where a team of the identity has a say, is exported as one it
+        can't access, so the new identity never gets more than the exported one.
+        """
+
+        workspace = IdentityHandler().get_workspace(identity)
+        if not LicenseHandler.workspace_has_feature(RBAC, workspace):
+            return None
+        user_type = ContentType.objects.get_for_model(User)
+        application_type = ContentType.objects.get_for_model(Application)
+        identity_assignments = RoleAssignment.objects.filter(
+            workspace=workspace, subject_type=user_type, subject_id=identity.id
+        )
+        roles = {
+            application_id: role_uid
+            if role_uid in SCOPED_IDENTITY_ROLE_UIDS
+            else NO_ACCESS_ROLE_UID
+            for application_id, role_uid in identity_assignments.filter(
+                scope_type=application_type
+            ).values_list("scope_id", "role__uid")
+        }
+        team_assignments = RoleAssignment.objects.filter(
+            workspace=workspace,
+            subject_type=ContentType.objects.get_for_model(Team),
+            subject_id__in=TeamSubject.objects.filter(
+                subject_type=user_type, subject_id=identity.id
+            ).values("team_id"),
+        )
+        # A role on a table or view of an application changes what the role on the
+        # application gives, also when a team of the identity has it. So does the
+        # role of a team on an application where the identity has none.
+        narrowed = self._applications_of(
+            identity_assignments.exclude(scope_type=application_type)
+        ) | self._applications_of(team_assignments.exclude(scope_type=application_type))
+        narrowed |= set(
+            team_assignments.filter(scope_type=application_type)
+            .exclude(scope_id__in=roles)
+            .values_list("scope_id", flat=True)
+        )
+        roles.update(
+            {application_id: NO_ACCESS_ROLE_UID for application_id in narrowed}
+        )
+        return sorted(roles.items())
+
+    def _applications_of(self, assignments) -> set[int]:
+        """
+        :param assignments: Role assignments on scopes other than an application.
+        :return: The ids of the applications that contain one of their scopes.
+        """
+
+        application_scope_type = object_scope_type_registry.get(
+            ApplicationObjectScopeType.type
+        )
+        application_ids = set()
+        for assignment in assignments.prefetch_related("scope"):
+            scope = assignment.scope
+            if scope is None or isinstance(scope, Workspace):
+                continue
+            application = object_scope_type_registry.get_parent(
+                scope, at_scope_type=application_scope_type
+            )
+            if application is not None:
+                application_ids.add(application.id)
+        return application_ids
+
+    def filter_readable_application_roles(self, roles, user, workspace):
+        """Keeps the roles on applications of the workspace whose roles the user may read."""
+
+        # Without roles on applications, there's nothing to hide.
+        if not LicenseHandler.workspace_has_feature(RBAC, workspace):
+            return roles
+        readable = CoreHandler().check_multiple_permissions(
+            [
+                PermissionCheck(
+                    user, ReadRoleApplicationOperationType.type, scope.specific
+                )
+                for scope in Application.objects.filter(
+                    workspace=workspace, id__in=[role[0] for role in roles]
+                )
+            ],
+            workspace=workspace,
+        )
+        allowed = {
+            check.context.id for check, result in readable.items() if result is True
+        }
+        return [role for role in roles if role[0] in allowed]
 
     def annotate_serialized_identities(
         self, workspace, identities, serialized_identities, user

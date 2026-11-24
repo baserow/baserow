@@ -75,6 +75,7 @@ from baserow.contrib.database.formula.types.formula_types import (
 )
 from baserow.core.datetime import get_timezones
 from baserow.core.formula.validator import ensure_string
+from baserow.core.identities.import_export import imported_identity_emails
 from baserow.core.models import WorkspaceUser
 
 from .registries import ViewFilterType
@@ -1625,6 +1626,9 @@ class MultipleCollaboratorsHasViewFilterType(ManyToManyHasBaseViewFilter):
                 id_mapping[self.COLLABORATORS_KEY][str(workspaceuser.user.email)] = str(
                     workspaceuser.user.id
                 )
+            # The identities this import created, by their exported address.
+            for email, identity in imported_identity_emails(id_mapping).items():
+                id_mapping[self.COLLABORATORS_KEY][email] = str(identity.id)
         return id_mapping[self.COLLABORATORS_KEY].get(value, "")
 
 
@@ -1694,6 +1698,9 @@ class UserIsViewFilterType(ViewFilterType):
                 id_mapping[self.USER_KEY][str(workspaceuser.user.email)] = str(
                     workspaceuser.user.id
                 )
+            # The identities this import created, by their exported address.
+            for email, identity in imported_identity_emails(id_mapping).items():
+                id_mapping[self.USER_KEY][email] = str(identity.id)
         return id_mapping[self.USER_KEY].get(value, "")
 
 
