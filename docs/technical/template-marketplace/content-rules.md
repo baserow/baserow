@@ -126,18 +126,21 @@ workspace export; see #6116.
 
 ## References outside the template
 
-An id that is not in `id_mapping` must become `None` on `is_user_template`. Keeping the
-raw id, or `.get(id, id)`, is not allowed.
+External application imports seed empty table, view and field mappings, even when no
+database is included. References absent from these mappings are cleared or their
+dependent settings are dropped. Internal copies keep their existing reference behavior.
 
 | Module | What enforces it | Status | Owner |
 | --- | --- | --- | --- |
-| Integrations | `LocalBaserowTableServiceType.deserialize_property` keeps an unmapped `table_id` on `is_duplicate` and when no table was copied | to do | WAB |
-| Integrations | `LocalBaserowViewServiceType.deserialize_property` keeps `view_id` when no view was copied | to do | WAB |
-| Integrations | Filter `field_id` in `LocalBaserowTableServiceFilterableMixin.deserialize_filters` and sort `field_id` in `LocalBaserowTableServiceSortableMixin.deserialize_sorts` | to do | WAB |
-| Integrations | `LocalBaserowAggregateRowsUserServiceType.deserialize_property` (`field_id`) | to do | WAB |
-| Integrations | `LocalBaserowFieldsUpdatedTriggerServiceType.deserialize_property` (`field_ids`) keeps raw ids when no field was copied | to do | WAB |
-| Premium | `LocalBaserowGroupedAggregateRowsUserServiceType.create_instance_from_serialized` keeps series, group by and sort field ids when no field was copied | to do | WAB |
-| Enterprise | `LocalBaserowUserSourceType.deserialize_property` keeps `table_id` and field ids when no table was copied | to do | WAB |
+| Integrations | `LocalBaserowTableServiceType.deserialize_property` clears unmapped `table_id` on external imports; internal duplicates can keep unmapped references | done | WAB |
+| Integrations | `LocalBaserowViewServiceType.deserialize_property` clears unmapped `view_id` when importing with seeded mappings | done | WAB |
+| Integrations | `import_refinement_field_id` remaps filter and sort fields; `deserialize_filters` and `deserialize_sorts` drop conditions and sorts whose fields were not imported | done | WAB |
+| Integrations | `LocalBaserowAggregateRowsUserServiceType.deserialize_property` clears unmapped aggregate `field_id` using `import_refinement_field_id` | done | WAB |
+| Integrations | `LocalBaserowFieldsUpdatedTriggerServiceType.deserialize_property` remaps watched `field_ids` and drops fields absent from the import | done | WAB |
+| Integrations | `LocalBaserowUpsertRowServiceType` remaps field mappings and skips mappings whose fields were not imported | done | WAB |
+| Premium | `LocalBaserowGroupedAggregateRowsUserServiceType.create_instance_from_serialized` clears unmapped series and group-by fields and drops unmapped sort references | done | WAB |
+| Enterprise | `LocalBaserowUserSourceType.deserialize_property` clears unmapped table, email, name and role field ids; the Local Baserow password provider clears its unmapped password field | done | WAB |
+| Enterprise | The Local Baserow search service remaps or drops search and included field ids and restricts imported field relations to the imported table | done | WAB |
 | Dashboard | `DashboardDataSourceHandler.import_data_source` uses `IntegrationHandler.get_integration_for_import` with `keep_unmapped=False`, clearing unmapped integrations | done | WAB |
 | Enterprise | `LocalBaserowTableDataSyncType.import_serialized` imports no data sync, leaving a plain editable table, when the source table or the `source_table_view_id` view was not copied; a database duplicate keeps them, staying synced to the original | done | core/database |
 | Integrations | `CoreStartWorkflowServiceType.import_workflow_id` refuses a workflow outside `import_workspace_id` | done | WAB |
