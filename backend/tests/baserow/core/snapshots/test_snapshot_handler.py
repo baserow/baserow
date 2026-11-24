@@ -297,7 +297,7 @@ def test_create_snapshot_of_an_application_that_keeps_none(data_fixture: Fixture
 
 
 @pytest.mark.django_db
-@override_settings(BASEROW_MAX_SNAPSHOTS_PER_GROUP=0)
+@override_settings(BASEROW_MAX_SNAPSHOTS_PER_WORKSPACE=0)
 def test_create_snapshot_when_snapshots_are_disabled(data_fixture: Fixtures):
     user = data_fixture.create_user()
     workspace = data_fixture.create_workspace(user=user)
@@ -535,7 +535,7 @@ def test_allowance_used_is_the_sum_of_the_effective_max_snapshots(
 
 
 @pytest.mark.django_db
-@override_settings(BASEROW_MAX_SNAPSHOTS_PER_GROUP=5)
+@override_settings(BASEROW_MAX_SNAPSHOTS_PER_WORKSPACE=5)
 def test_is_over_allowance(data_fixture: Fixtures):
     user = data_fixture.create_user()
     workspace = data_fixture.create_workspace(user=user)
@@ -546,12 +546,12 @@ def test_is_over_allowance(data_fixture: Fixtures):
     _set_max_snapshots(application, 6)
     assert SnapshotQuotaHandler().is_over_allowance(workspace) is True
 
-    with override_settings(BASEROW_MAX_SNAPSHOTS_PER_GROUP=-1):
+    with override_settings(BASEROW_MAX_SNAPSHOTS_PER_WORKSPACE=-1):
         assert SnapshotQuotaHandler().is_over_allowance(workspace) is False
 
 
 @pytest.mark.django_db
-@override_settings(BASEROW_MAX_SNAPSHOTS_PER_GROUP=10)
+@override_settings(BASEROW_MAX_SNAPSHOTS_PER_WORKSPACE=10)
 def test_update_application_max_snapshots_within_the_allowance(data_fixture: Fixtures):
     user = data_fixture.create_user()
     workspace = data_fixture.create_workspace(user=user)
@@ -574,7 +574,7 @@ def test_update_application_max_snapshots_within_the_allowance(data_fixture: Fix
 
 
 @pytest.mark.django_db
-@override_settings(BASEROW_MAX_SNAPSHOTS_PER_GROUP=4)
+@override_settings(BASEROW_MAX_SNAPSHOTS_PER_WORKSPACE=4)
 def test_update_application_max_snapshots_while_over_the_allowance(
     data_fixture: Fixtures,
 ):
@@ -594,7 +594,7 @@ def test_update_application_max_snapshots_while_over_the_allowance(
 
 @pytest.mark.django_db
 @override_settings(
-    BASEROW_MAX_SNAPSHOTS_PER_GROUP=4, BASEROW_MAX_SNAPSHOTS_PER_APPLICATION=5
+    BASEROW_MAX_SNAPSHOTS_PER_WORKSPACE=4, BASEROW_MAX_SNAPSHOTS_PER_APPLICATION=5
 )
 def test_a_plugin_can_let_max_snapshots_go_over_the_allowance(
     data_fixture: Fixtures, mocker
@@ -654,7 +654,7 @@ def test_get_max_snapshots_to_make_room(data_fixture: Fixtures):
 
 
 @pytest.mark.django_db
-@override_settings(BASEROW_MAX_SNAPSHOTS_PER_GROUP=-1)
+@override_settings(BASEROW_MAX_SNAPSHOTS_PER_WORKSPACE=-1)
 def test_update_application_max_snapshots_without_an_allowance_limit(
     data_fixture: Fixtures,
 ):
@@ -773,7 +773,7 @@ def test_update_application_max_snapshots_outside_the_workspace(data_fixture: Fi
 
 
 @pytest.mark.django_db
-@override_settings(BASEROW_MAX_SNAPSHOTS_PER_GROUP=10)
+@override_settings(BASEROW_MAX_SNAPSHOTS_PER_WORKSPACE=10)
 def test_update_workspace_default_max_snapshots(data_fixture: Fixtures, mocker):
     mocker.patch("baserow.core.snapshots.handler.delete_application_snapshot")
     user = data_fixture.create_user()
@@ -892,7 +892,7 @@ def test_get_workspace_settings(data_fixture: Fixtures):
 
 
 @pytest.mark.django_db
-@override_settings(BASEROW_MAX_SNAPSHOTS_PER_GROUP=50)
+@override_settings(BASEROW_MAX_SNAPSHOTS_PER_WORKSPACE=50)
 def test_a_plugin_can_set_the_allowance_of_a_workspace(data_fixture: Fixtures, mocker):
     workspace = data_fixture.create_workspace()
     other_workspace = data_fixture.create_workspace()
@@ -954,7 +954,7 @@ def test_rotate_snapshots_skips_snapshots_protected_since_they_were_picked(
 
 
 @pytest.mark.django_db
-@override_settings(BASEROW_MAX_SNAPSHOTS_PER_GROUP=10)
+@override_settings(BASEROW_MAX_SNAPSHOTS_PER_WORKSPACE=10)
 def test_update_application_max_snapshots_reads_the_max_snapshots_again_after_locking(
     data_fixture: Fixtures, mocker
 ):
@@ -1015,7 +1015,7 @@ def test_default_max_snapshots_change_queries_dont_grow_with_applications(
 
 
 @pytest.mark.django_db
-@override_settings(BASEROW_MAX_SNAPSHOTS_PER_GROUP=0)
+@override_settings(BASEROW_MAX_SNAPSHOTS_PER_WORKSPACE=0)
 def test_create_automatic_snapshot_skips_max_snapshots_zero_before_the_allowance(
     data_fixture: Fixtures,
 ):

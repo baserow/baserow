@@ -192,3 +192,35 @@
     animation-timing-function: cubic-bezier(0.785, 0.135, 0.15, 0.86);
   }
 }
+
+// Compact status messages keep their type colors without an enclosing box.
+.alert--compact {
+  margin: 0;
+  border: 0;
+  background: none;
+  box-shadow: none;
+
+  .alert__wrapper {
+    padding: 0;
+    gap: 6px;
+  }
+
+  .alert__icon {
+    font-size: 16px;
+    line-height: 18px;
+  }
+
+  .alert__content {
+    min-width: 0;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+
+  .alert__message {
+    color: var(--alert-message-color);
+
+    &:first-child {
+      margin-top: 0;
+    }
+  }
+}

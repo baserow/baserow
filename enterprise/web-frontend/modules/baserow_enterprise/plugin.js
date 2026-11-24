@@ -93,6 +93,7 @@ import {
 } from '@baserow_enterprise/dataSyncTypes'
 import { PeriodicIntervalFieldsConfigureDataSyncType } from '@baserow_enterprise/configureDataSyncTypes'
 import {
+  AutomaticSnapshotFailedNotificationType,
   ApplicationUserLimitNotificationType,
   DataScanNewResultsNotificationType,
   PeriodicDataSyncDeactivatedNotificationType,
@@ -120,6 +121,7 @@ import {
   SupportPaidFeature,
   SemanticSearchPaidFeature,
   XLSFileReaderPaidFeature,
+  AutomaticSnapshotsPaidFeature,
 } from '@baserow_enterprise/paidFeatures'
 import { FieldPermissionsContextItemType } from '@baserow_enterprise/fieldContextItemTypes'
 import {
@@ -387,6 +389,10 @@ export default defineNuxtPlugin({
       'notification',
       new ApplicationUserLimitNotificationType(context)
     )
+    $registry.register(
+      'notification',
+      new AutomaticSnapshotFailedNotificationType(context)
+    )
 
     $registry.register(
       'configureDataSync',
@@ -443,6 +449,10 @@ export default defineNuxtPlugin({
 
     $registry.register('paidFeature', new DataScannerPaidFeature(context))
     $registry.register('paidFeature', new DateDependencyPaidFeature(context))
+    $registry.register(
+      'paidFeature',
+      new AutomaticSnapshotsPaidFeature(context)
+    )
     $registry.register(
       'timelineFieldRules',
       new DateDependencyTimelineComponent(context)

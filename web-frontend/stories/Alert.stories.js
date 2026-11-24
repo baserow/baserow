@@ -5,6 +5,10 @@ export default {
   component: Alert,
   tags: ['autodocs'],
   argTypes: {
+    appearance: {
+      control: 'select',
+      options: ['default', 'compact'],
+    },
     type: {
       control: 'select',
       options: [
@@ -31,6 +35,7 @@ export default {
     },
   },
   args: {
+    appearance: 'default',
     type: 'info-primary',
     position: null,
     loading: false,
@@ -272,5 +277,17 @@ export const AllTypes = {
         </Alert>
       </div>
     `,
+  }),
+}
+
+export const Compact = {
+  args: { type: 'error', appearance: 'compact' },
+  render: (args) => ({
+    components: { Alert },
+    setup() {
+      return { args }
+    },
+    template:
+      '<Alert v-bind="args">There is not enough room for a new snapshot.</Alert>',
   }),
 }

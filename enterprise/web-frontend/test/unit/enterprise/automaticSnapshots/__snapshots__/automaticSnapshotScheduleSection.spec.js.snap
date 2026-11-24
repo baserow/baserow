@@ -1,0 +1,22 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`AutomaticSnapshotScheduleSection > shows the last application result with optional details:  1`] = `
+"<div class="automatic-snapshot-schedule__last-run"><span>automaticSnapshots.nextRun</span><span> · </span><span>automaticSnapshots.lastExecution: automaticSnapshots.executionSucceeded</span>
+  <details>
+    <summary aria-label="automaticSnapshots.executionDetails"> ⓘ </summary>
+    <div class="automatic-snapshot-schedule__last-run-error">Tue 24 Nov, 08:00 UTC
+      <!--v-if-->
+    </div>
+  </details>
+</div>"
+`;
+
+exports[`AutomaticSnapshotScheduleSection > shows the last application result with optional details: No room for this application 1`] = `
+"<div class="automatic-snapshot-schedule__last-run"><span>automaticSnapshots.nextRun</span><span> · </span><span>automaticSnapshots.lastExecution: automaticSnapshots.executionFailed</span>
+  <details>
+    <summary aria-label="automaticSnapshots.executionDetails"> ⓘ </summary>
+    <div class="automatic-snapshot-schedule__last-run-error">Tue 24 Nov, 08:00 UTC <div>No room for this application</div>
+    </div>
+  </details>
+</div>"
+`;

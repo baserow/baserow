@@ -30,6 +30,12 @@
 <script>
 export default {
   props: {
+    /** Compact icon and message without the surrounding alert box. */
+    appearance: {
+      type: String,
+      default: 'default',
+      validator: (value) => ['default', 'compact'].includes(value),
+    },
     /**
      * The type of alert to display
      */
@@ -97,6 +103,7 @@ export default {
     },
     classes() {
       const classObj = {
+        'alert--compact': this.appearance === 'compact',
         [`alert--${this.type}`]: this.type,
         [`alert--${this.position}`]: this.position,
       }
