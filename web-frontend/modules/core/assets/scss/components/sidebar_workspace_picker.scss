@@ -91,6 +91,14 @@ button.sidebar-workspace-picker__item,
   cursor: pointer;
 }
 
+.sidebar-workspace-picker__loading {
+  // Keep the workspace name aligned with rows that show a 24px avatar.
+  flex: none;
+  margin-inline: 5px;
+
+  @include loading(14px);
+}
+
 .sidebar-workspace-picker__name {
   @extend %ellipsis;
 

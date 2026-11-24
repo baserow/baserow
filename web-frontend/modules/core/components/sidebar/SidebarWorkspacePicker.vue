@@ -24,6 +24,7 @@
         :key="workspace.id"
         :workspace="workspace"
         :selected="workspace.id === selectedWorkspace.id"
+        :pending-workspace-id="pendingWorkspaceId"
         :has-unread-notifications="hasUnreadNotifications(workspace.id)"
         @select="selectWorkspace(workspace)"
       />
@@ -68,6 +69,7 @@ import { useNuxtApp, useRoute, useRouter } from '#imports'
 import SelectSearch from '@baserow/modules/core/components/SelectSearch.vue'
 import SidebarWorkspacePickerRow from '@baserow/modules/core/components/sidebar/SidebarWorkspacePickerRow.vue'
 import CreateWorkspaceModal from '@baserow/modules/core/components/workspace/CreateWorkspaceModal.vue'
+import { notifyIf } from '@baserow/modules/core/utils/error'
 import { escapeRegExp } from '@baserow/modules/core/utils/string'
 import { pageFinished } from '@baserow/modules/core/utils/routing'
 
@@ -95,6 +97,7 @@ const workspaceRows = ref([])
 const addWorkspace = ref(null)
 const createWorkspaceModal = ref(null)
 const query = ref('')
+const pendingWorkspaceId = ref(null)
 
 const filteredWorkspaces = computed(() => {
   const pattern = new RegExp(escapeRegExp(query.value), 'i')
@@ -181,21 +184,34 @@ function hasUnreadNotifications(workspaceId) {
 }
 
 async function selectWorkspace(workspace) {
-  if (!workspace._.selected) {
-    await store.dispatch('workspace/select', workspace)
+  if (pendingWorkspaceId.value !== null) {
+    return
   }
-  const destination = {
-    name: 'workspace',
-    params: { workspaceId: workspace.id },
-  }
-  if (route.fullPath !== router.resolve(destination).fullPath) {
-    await router.push(destination)
-    await pageFinished(nuxtApp)
-    await nextTick()
-  }
-  // Navigating from a global page can replace the entire sidebar.
-  if (context.value?.isOpen()) {
-    hideAndFocusOpener()
+  pendingWorkspaceId.value = workspace.id
+  try {
+    if (!workspace._.selected) {
+      await store.dispatch('workspace/select', workspace)
+    }
+    const destination = {
+      name: 'workspace',
+      params: { workspaceId: workspace.id },
+    }
+    if (route.fullPath !== router.resolve(destination).fullPath) {
+      const failure = await router.push(destination)
+      if (failure) {
+        return
+      }
+      await pageFinished(nuxtApp)
+      await nextTick()
+    }
+    // Navigating from a global page can replace the entire sidebar.
+    if (context.value?.isOpen()) {
+      hideAndFocusOpener()
+    }
+  } catch (error) {
+    notifyIf(error, 'workspace')
+  } finally {
+    pendingWorkspaceId.value = null
   }
 }
 

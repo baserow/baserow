@@ -6,10 +6,17 @@
       class="sidebar-workspace-picker__item"
       data-workspace-option
       :disabled="editing"
+      :aria-disabled="pendingWorkspaceId !== null || undefined"
+      :aria-busy="loading || undefined"
       :aria-current="selected ? 'true' : undefined"
       @click="$emit('select')"
     >
-      <Avatar :initials="initial" aria-hidden="true" />
+      <span
+        v-if="loading"
+        class="sidebar-workspace-picker__loading"
+        aria-hidden="true"
+      ></span>
+      <Avatar v-else :initials="initial" aria-hidden="true" />
       <span class="sidebar-workspace-picker__name">{{ workspace.name }}</span>
       <span
         v-if="hasUnreadNotifications"
@@ -79,6 +86,10 @@ export default {
       type: Boolean,
       default: false,
     },
+    pendingWorkspaceId: {
+      type: Number,
+      default: null,
+    },
     hasUnreadNotifications: {
       type: Boolean,
       default: false,
@@ -92,6 +103,9 @@ export default {
     }
   },
   computed: {
+    loading() {
+      return this.pendingWorkspaceId === this.workspace.id
+    },
     initial() {
       return this.workspace.name.trim().charAt(0).toUpperCase()
     },

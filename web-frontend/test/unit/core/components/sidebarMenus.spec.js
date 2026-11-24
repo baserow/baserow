@@ -25,7 +25,7 @@ describe('Sidebar menu lifecycle', () => {
       ...options,
       props: {
         applications: [],
-        workspaces: [workspace],
+        workspaces: testApp.store.getters['workspace/getAll'],
         selectedWorkspace: workspace,
       },
       global: {
@@ -57,6 +57,52 @@ describe('Sidebar menu lifecycle', () => {
     expect(picker.get('.sidebar-workspace-picker__item').text()).toContain(
       'Design'
     )
+  })
+
+  test('marks only the pending workspace and allows retry after a failed switch', async () => {
+    testApp.dontFailOnErrorResponses()
+    await testApp.store.dispatch('workspace/forceCreate', {
+      id: 2,
+      name: 'Engineering',
+    })
+    const response = Promise.withResolvers()
+    const url = '/workspaces/2/permissions/'
+    testApp.mock.onGet(url).reply(() => response.promise)
+    const sidebar = await mountSidebar()
+    const trigger = sidebar.get('.sidebar__workspace-trigger')
+    await trigger.trigger('click')
+    await flushPromises()
+
+    const options = testApp.body.findAll(
+      'button.sidebar-workspace-picker__item'
+    )
+    const engineering = options.find((item) =>
+      item.text().includes('Engineering')
+    )
+    const design = options.find((item) => item.text().includes('Design'))
+    await engineering.trigger('click')
+    expect(engineering.attributes('aria-busy')).toBe('true')
+    expect(
+      engineering.get('.sidebar-workspace-picker__loading').isVisible()
+    ).toBe(true)
+    expect(design.attributes('aria-busy')).toBeUndefined()
+    await engineering.trigger('click')
+    response.resolve([503, {}])
+    await flushPromises()
+
+    expect(trigger.attributes('aria-expanded')).toBe('true')
+    expect(engineering.attributes('aria-disabled')).toBeUndefined()
+    expect(
+      engineering.find('.sidebar-workspace-picker__loading').exists()
+    ).toBe(false)
+    expect(
+      testApp.mock.history.get.filter((request) => request.url === url)
+    ).toHaveLength(1)
+    await engineering.trigger('click')
+    await flushPromises()
+    expect(
+      testApp.mock.history.get.filter((request) => request.url === url)
+    ).toHaveLength(2)
   })
 
   test.each(['open', 'opening'])(
