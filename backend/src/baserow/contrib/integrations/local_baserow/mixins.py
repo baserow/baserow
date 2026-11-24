@@ -38,6 +38,7 @@ from baserow.contrib.integrations.local_baserow.service_filter_groups import (
     has_applicable_conditions,
 )
 from baserow.core.formula import BaserowFormulaObject, resolve_formula
+from baserow.core.formula.literals import is_direct_variable_reference
 from baserow.core.formula.registries import formula_runtime_function_registry
 from baserow.core.formula.serializers import FormulaSerializerField
 from baserow.core.formula.types import BASEROW_FORMULA_MODE_RAW
@@ -147,7 +148,7 @@ class LocalBaserowTableServiceFilterableMixin:
             )
         )
 
-    def serialize_filters(self, service: ServiceSubClass):
+    def serialize_filters(self, service: ServiceSubClass, import_export_config=None):
         """
         Responsible for serializing the service `filters`.
 
@@ -155,10 +156,27 @@ class LocalBaserowTableServiceFilterableMixin:
         :return: A list of serialized filter dictionaries.
         """
 
-        return [
-            serialize_filter(condition, group_id=condition.group_id)
-            for condition in service.service_filters_with_untrashed_fields
-        ]
+        filters = []
+        for condition in service.service_filters_with_untrashed_fields:
+            serialized = serialize_filter(condition, group_id=condition.group_id)
+            if getattr(import_export_config, "exclude_sensitive_data", False) and (
+                condition.type
+                in {
+                    "user_is",
+                    "user_is_not",
+                    "multiple_collaborators_has",
+                    "multiple_collaborators_has_not",
+                }
+            ):
+                formula = BaserowFormulaObject.to_formula(condition.value)
+                if formula["mode"] == BASEROW_FORMULA_MODE_RAW or (
+                    not is_direct_variable_reference(formula["formula"])
+                ):
+                    serialized["value"] = BaserowFormulaObject.create(
+                        "", mode=BASEROW_FORMULA_MODE_RAW
+                    )
+            filters.append(serialized)
+        return filters
 
     def serialize_filter_groups(self, service: ServiceSubClass):
         """Serialize service groups using their persisted IDs as references."""
@@ -217,7 +235,7 @@ class LocalBaserowTableServiceFilterableMixin:
         """
 
         if prop_name == "filters":
-            return self.serialize_filters(service)
+            return self.serialize_filters(service, import_export_config)
 
         if prop_name == "filter_groups":
             return self.serialize_filter_groups(service)

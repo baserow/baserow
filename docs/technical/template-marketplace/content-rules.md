@@ -105,7 +105,7 @@ workspace export; see #6116.
 | --- | --- | --- | --- |
 | Database | Rich text mentions in `LongTextFieldType` become a neutral `@user` | to do | core/database |
 | Premium | `AIFieldType.import_serialized` drops `ai_auto_update_user_id` only when not `is_duplicate`; must key on `is_user_template` | to do | core/database |
-| Integrations | Raw user ids in Local Baserow service filter values (`LocalBaserowTableServiceFilterableMixin.serialize_filters`, `deserialize_filters`) for user and collaborator filters removed | to do | WAB |
+| Integrations | `LocalBaserowTableServiceFilterableMixin.serialize_filters` clears user and collaborator filter values when `exclude_sensitive_data=True`, except a direct `get("provider.path")` reference. Raw values, constants and composed formulas are cleared; exports with sensitive-data removal disabled retain their values. | done | WAB |
 | Enterprise | SAML identity provider metadata removed (see Login provider secrets) | to do | WAB |
 | Database | Row `created_by` and `last_modified_by` are mapped by email in `DatabaseApplicationType.import_serialized`; memberless target gives nobody | done | core/database |
 | Database | Collaborator cells (`MultipleCollaboratorsFieldType.set_import_serialized_value`) and user filters (`UserIsViewFilterType`, `MultipleCollaboratorsHasViewFilterType`) map by email; memberless target gives nobody | done | core/database |

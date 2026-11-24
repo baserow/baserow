@@ -27,6 +27,92 @@ from baserow.core.services.exceptions import (
 from baserow.test_utils.pytest_conftest import FakeDispatchContext
 
 
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "filter_type",
+    [
+        "user_is",
+        "user_is_not",
+        "multiple_collaborators_has",
+        "multiple_collaborators_has_not",
+    ],
+)
+@pytest.mark.parametrize("is_user_template", [True, False])
+@pytest.mark.parametrize("exclude_sensitive_data", [True, False])
+@pytest.mark.parametrize(
+    "expression,mode,keep",
+    [
+        ("123", "raw", False),
+        ("123", "advanced", False),
+        ("'123'", "simple", False),
+        ('get("user.id")', "simple", True),
+        ("GET('user.id')", "advanced", True),
+        ("get ('user.id')", "advanced", False),
+        ('get("user.id")', "raw", False),
+        ('concat(get("user.id"), "123")', "simple", False),
+        ('if(true, get("user.id"), 123)', "advanced", False),
+        ('get(concat("user.", "id"))', "advanced", False),
+        ('get("user.id", "123")', "advanced", False),
+        ('get("user.id"', "advanced", False),
+    ],
+)
+def test_external_member_filters_keep_only_direct_variable_references(
+    data_fixture,
+    filter_type,
+    is_user_template,
+    exclude_sensitive_data,
+    expression,
+    mode,
+    keep,
+):
+    """Sensitive exports retain runtime user references without retaining member IDs."""
+
+    table = data_fixture.create_database_table()
+    field = data_fixture.create_created_by_field(table=table)
+    service = data_fixture.create_local_baserow_list_rows_service(table=table)
+    group = data_fixture.create_local_baserow_table_service_filter_group(
+        service=service
+    )
+    original = BaserowFormulaObject.create(expression, mode=mode)
+    condition = data_fixture.create_local_baserow_table_service_filter(
+        service=service, field=field, type=filter_type, value=original, group=group
+    )
+    data_fixture.create_local_baserow_table_service_filter(
+        service=service, field=field, type="equal", value=original
+    )
+    service_type = service.get_type()
+    config = ImportExportConfig(
+        include_permission_data=False,
+        is_user_template=is_user_template,
+        exclude_sensitive_data=exclude_sensitive_data,
+    )
+    exported = service_type.export_serialized(service, config)
+    expected = (
+        original
+        if keep or not exclude_sensitive_data
+        else {"formula": "", "mode": "raw", "version": "0.1"}
+    )
+    assert exported["filters"][0] == {
+        "field_id": field.id,
+        "type": filter_type,
+        "group": group.id,
+        "value": expected,
+    }
+    assert exported["filters"][1]["value"] == original
+    imported = service_type.import_serialized(
+        None,
+        exported,
+        {"database_fields": {field.id: field.id}},
+        import_export_config=config,
+    )
+    assert list(imported.service_filters.values_list("value", flat=True)) == [
+        expected,
+        original,
+    ]
+    condition.refresh_from_db()
+    assert condition.value == original
+
+
 def get_test_service_type(mixin_class):
     class FakeServiceType(mixin_class, LocalBaserowTableServiceType):
         model_class = Mock()
