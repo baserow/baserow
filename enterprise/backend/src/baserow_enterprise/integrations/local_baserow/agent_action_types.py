@@ -6,6 +6,7 @@ from baserow.contrib.agent.action_tools.registries import (
     AgentActionDefaults,
     AgentActionType,
 )
+from baserow.contrib.agent.constants import ACTION_MAX_RESULT_CHARACTERS
 from baserow.contrib.agent.models import AgentAction
 from baserow.core.formula.types import BaserowFormulaObject
 from baserow.core.services.exceptions import (
@@ -18,9 +19,6 @@ from baserow_enterprise.integrations.local_baserow.models import (
     LocalBaserowSemanticSearch,
 )
 from baserow_enterprise.integrations.local_baserow.service_types import ROW_PROPERTY
-
-SEMANTIC_SEARCH_ACTION_MAX_RESULT_CHARACTERS = 20_000
-"""The most the model reads of the rows found, as JSON, before they are cut."""
 
 
 class LocalBaserowSemanticSearchAgentActionType(AgentActionType):
@@ -69,14 +67,14 @@ class LocalBaserowSemanticSearchAgentActionType(AgentActionType):
     def get_tool_result(self, action: AgentAction, result: DispatchResult) -> Any:
         """
         :return: The rows found, best match first, as long as they fit in
-            ``SEMANTIC_SEARCH_ACTION_MAX_RESULT_CHARACTERS``, as the model reads
+            ``ACTION_MAX_RESULT_CHARACTERS``, as the model reads
             them in every later turn. The first row that doesn't fit is cut to
             the space left, and the rows after it are left out, so the best
             matches stay whole.
         """
 
         results = []
-        space = SEMANTIC_SEARCH_ACTION_MAX_RESULT_CHARACTERS
+        space = ACTION_MAX_RESULT_CHARACTERS
         for item in result.data["results"]:
             size = json_length(item)
             if size > space:

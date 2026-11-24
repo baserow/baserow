@@ -9,6 +9,7 @@ from django.conf import settings
 
 from requests import exceptions as request_exceptions
 
+from baserow.contrib.agent.constants import ACTION_MAX_RESULT_CHARACTERS
 from baserow.contrib.agent.models import AgentAction
 from baserow.contrib.integrations.core.constants import BODY_TYPE, HTTP_METHOD
 from baserow.contrib.integrations.core.models import (
@@ -37,9 +38,6 @@ HTTP_ACTION_MAX_REQUEST_BYTES = 64 * 1024
 
 HTTP_ACTION_MAX_URL_BYTES = 8 * 1024
 """The longest URL a call may send, which servers commonly refuse past this."""
-
-HTTP_ACTION_MAX_RESULT_CHARACTERS = 20_000
-"""The longest response body the model reads, as text, before it is cut."""
 
 HIDDEN_VALUE = "••••••••"
 """Shown in place of a value the approver doesn't read, where credentials sit."""
@@ -526,7 +524,7 @@ class HTTPRequestAgentActionType(AgentActionType):
     def get_tool_result(self, action: AgentAction, result: DispatchResult) -> Any:
         """
         :return: The status, content type and body of the response. A body longer
-            than ``HTTP_ACTION_MAX_RESULT_CHARACTERS`` comes back as the start
+            than ``ACTION_MAX_RESULT_CHARACTERS`` comes back as the start
             of its text, as the model reads it in every later turn.
         """
 
@@ -541,8 +539,8 @@ class HTTPRequestAgentActionType(AgentActionType):
         # items of a list out.
         body = data["body"]
         text = body if isinstance(body, str) else json.dumps(body)
-        if len(text) > HTTP_ACTION_MAX_RESULT_CHARACTERS:
-            answer["body"] = text[:HTTP_ACTION_MAX_RESULT_CHARACTERS]
+        if len(text) > ACTION_MAX_RESULT_CHARACTERS:
+            answer["body"] = text[:ACTION_MAX_RESULT_CHARACTERS]
             answer["body_truncated"] = True
         return answer
 

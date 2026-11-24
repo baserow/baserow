@@ -11,6 +11,7 @@ from baserow.contrib.agent.action_tools.exceptions import AgentActionTypeNotAvai
 from baserow.contrib.agent.action_tools.handler import AgentActionHandler
 from baserow.contrib.agent.action_tools.service import AgentActionService
 from baserow.contrib.agent.action_tools.tools import BoundActionTool, get_approval_key
+from baserow.contrib.agent.constants import ACTION_MAX_RESULT_CHARACTERS
 from baserow.contrib.agent.handler import AgentHandler
 from baserow.contrib.database.fields.handler import FieldHandler
 from baserow.contrib.integrations.local_baserow.integration_types import (
@@ -22,7 +23,6 @@ from baserow.core.services.types import DispatchResult
 from baserow.core.tools import ToolContext
 from baserow.core.trash.handler import TrashHandler
 from baserow_enterprise.integrations.local_baserow.agent_action_types import (
-    SEMANTIC_SEARCH_ACTION_MAX_RESULT_CHARACTERS,
     LocalBaserowSemanticSearchAgentActionType,
 )
 
@@ -204,11 +204,11 @@ def test_the_model_reads_the_best_matches_whole_and_the_rest_cut(
     )
     tool_result = action_type.get_tool_result(action, result)
 
-    assert len(json.dumps(result.data)) > SEMANTIC_SEARCH_ACTION_MAX_RESULT_CHARACTERS
+    assert len(json.dumps(result.data)) > ACTION_MAX_RESULT_CHARACTERS
     assert tool_result["truncated"] is True
     assert (
         len(json.dumps(tool_result, ensure_ascii=False))
-        <= SEMANTIC_SEARCH_ACTION_MAX_RESULT_CHARACTERS + 100
+        <= ACTION_MAX_RESULT_CHARACTERS + 100
     )
     best = tool_result["results"][0]
     assert best == {**result.data["results"][0], "row": best["row"]}
@@ -218,7 +218,7 @@ def test_the_model_reads_the_best_matches_whole_and_the_rest_cut(
 
 
 def test_a_best_match_too_big_to_cut_its_texts_is_still_read():
-    files = [{"url": "x" * SEMANTIC_SEARCH_ACTION_MAX_RESULT_CHARACTERS}]
+    files = [{"url": "x" * ACTION_MAX_RESULT_CHARACTERS}]
     best = {"id": 1, "row": {"id": 1, "Photos": files, "Notes": "Refunds"}}
     result = DispatchResult(data={"results": [best], "has_next_page": False})
 
