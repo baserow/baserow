@@ -168,6 +168,26 @@
                 {{ $t('sidebar.knowledgeBase') }}
               </a>
             </li>
+            <li
+              v-for="resource in workspaceLearningResources"
+              :key="resource.url"
+              class="context__menu-item"
+            >
+              <a
+                class="context__menu-item-link"
+                :href="resource.url"
+                target="_blank"
+                rel="noopener noreferrer"
+                @click="closeMenu('help')"
+              >
+                <i
+                  class="context__menu-item-icon"
+                  :class="resource.icon"
+                  aria-hidden="true"
+                ></i>
+                {{ $t(resource.title) }}
+              </a>
+            </li>
             <li class="context__menu-item">
               <nuxt-link
                 class="context__menu-item-link"
@@ -191,6 +211,7 @@
 
 <script>
 import { mapGetters } from 'vuex'
+import { workspaceLearningResources } from '@baserow/modules/core/utils/workspaceLearningResources'
 import sidebarTabOrder from '@baserow/modules/core/directives/sidebarTabOrder'
 import NotificationPanel from '@baserow/modules/core/components/NotificationPanel'
 import BadgeCounter from '@baserow/modules/core/components/BadgeCounter'
@@ -221,7 +242,7 @@ export default {
   },
   emits: ['open-workspace-search'],
   data() {
-    return { openMenu: null }
+    return { openMenu: null, workspaceLearningResources }
   },
   computed: {
     isSettingsPage() {

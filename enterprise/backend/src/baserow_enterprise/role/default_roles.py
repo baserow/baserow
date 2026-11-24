@@ -312,6 +312,12 @@ from baserow_enterprise.assistant.operations import ChatAssistantChatOperationTy
 from baserow_enterprise.audit_log.operations import (
     ListWorkspaceAuditLogEntriesOperationType,
 )
+from baserow_enterprise.automatic_snapshots.operations import (
+    ReadApplicationAutomaticSnapshotScheduleOperationType,
+    ReadWorkspaceAutomaticSnapshotScheduleOperationType,
+    UpdateApplicationAutomaticSnapshotScheduleOperationType,
+    UpdateWorkspaceAutomaticSnapshotScheduleOperationType,
+)
 from baserow_enterprise.field_permissions.operations import (
     ReadFieldPermissionsOperationType,
     UpdateFieldPermissionsOperationType,
@@ -698,6 +704,10 @@ default_roles[ADMIN_ROLE_UID].extend(
         UpdateApplicationMaxSnapshotsOperationType,
         ReadWorkspaceSnapshotSettingsOperationType,
         UpdateWorkspaceSnapshotSettingsOperationType,
+        ReadWorkspaceAutomaticSnapshotScheduleOperationType,
+        UpdateWorkspaceAutomaticSnapshotScheduleOperationType,
+        ReadApplicationAutomaticSnapshotScheduleOperationType,
+        UpdateApplicationAutomaticSnapshotScheduleOperationType,
         RestoreDomainOperationType,
         ListWorkspaceAuditLogEntriesOperationType,
         ReadRoleViewOperationType,

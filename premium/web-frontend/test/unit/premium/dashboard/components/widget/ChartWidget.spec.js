@@ -1,4 +1,5 @@
 import { useNuxtApp } from '#app'
+import { nextTick } from 'vue'
 import { PremiumTestApp } from '@baserow_premium_test/helpers/premiumTestApp'
 import {
   ChartWidgetType,
@@ -54,6 +55,7 @@ describe.each([
         stubs: {
           Chart: {
             name: 'Chart',
+            props: ['options'],
             emits: ['rendered'],
             template:
               '<div class="chart-stub" @click="$emit(\'rendered\')"></div>',
@@ -62,6 +64,25 @@ describe.each([
       },
     })
   }
+
+  test('keeps the displayed chart mounted when results change', async () => {
+    const wrapper = await mountComponent()
+    const chart = wrapper.find('.chart-stub').element
+    await wrapper.find('.chart-stub').trigger('click')
+
+    testApp.store.commit('dashboardApplication/UPDATE_DATA', {
+      dataSourceId: 12,
+      values: { results: [{ result: 20 }], _loaded: true },
+    })
+    await nextTick()
+    expect(wrapper.find('.chart-stub').element).toBe(chart)
+    expect(
+      wrapper.find('.dashboard-chart-widget__chart--hidden').exists()
+    ).toBe(false)
+    expect(
+      wrapper.findComponent({ name: 'Chart' }).props('options')
+    ).toBeUndefined()
+  })
 
   test('shows chart area loading spinner until chart has rendered', async () => {
     const wrapper = await mountComponent()

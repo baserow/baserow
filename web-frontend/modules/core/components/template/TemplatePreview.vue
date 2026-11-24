@@ -37,6 +37,7 @@
 </template>
 
 <script>
+import { computed } from 'vue'
 import { notifyIf } from '@baserow/modules/core/utils/error'
 import ApplicationService from '@baserow/modules/core/services/application'
 import { populateApplication } from '@baserow/modules/core/store/application'
@@ -45,6 +46,9 @@ import TemplateSidebar from '@baserow/modules/core/components/template/TemplateS
 export default {
   name: 'TemplatePreview',
   components: { TemplateSidebar },
+  provide() {
+    return { withoutLiveData: computed(() => this.withoutLiveData) }
+  },
   props: {
     template: {
       required: true,
@@ -85,6 +89,12 @@ export default {
           .getTemplatesPageComponent()
       }
       return null
+    },
+    withoutLiveData() {
+      return (
+        !this.$store.getters['auth/isAuthenticated'] ||
+        this.template?.type === 'user'
+      )
     },
     // The shown content changes with the template or its revision, which is in
     // another workspace, not with a copy of the same template.

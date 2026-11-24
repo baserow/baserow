@@ -342,16 +342,7 @@ class JobHandler:
                 job.updated_on = now
                 jobs_to_update.append(job)
         if jobs_to_update:
-            Job.objects.bulk_update(
-                jobs_to_update,
-                fields=[
-                    "updated_on",
-                    "state",
-                    "error",
-                    "human_readable_error",
-                    "error_code",
-                ],
-            )
+            Job.objects.bulk_update(jobs_to_update, fields=Job.END_STATE_FIELDS)
 
     @classmethod
     def delete_job(cls, job: Type[Job]):

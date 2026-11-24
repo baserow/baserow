@@ -13,11 +13,6 @@
             {{ $t('snapshotsModal.heading', { name: application.name }) }}
           </h2>
           <p class="snapshots-modal__intro">
-            {{
-              $t('snapshotsModal.intro', {
-                applicationTypeName: applicationTypeName,
-              })
-            }}
             <a
               href="https://baserow.io/user-docs/snapshots"
               target="_blank"
@@ -67,33 +62,58 @@
         >{{ $t('action.retry') }}</Button
       >
 
+      <Alert
+        v-if="blockedReason"
+        type="error"
+        class="snapshots-modal__capacity-alert"
+      >
+        <template #title>{{
+          $t(blockedCopy.title, { name: application.name })
+        }}</template>
+        <template v-if="blockedReason === 'protected'">
+          {{
+            $t(
+              canRaiseAndCreate
+                ? 'snapshotsModal.allProtected'
+                : 'snapshotsModal.allProtectedCantRaise',
+              {
+                count: usage.protected_count,
+              }
+            )
+          }}
+        </template>
+        <template v-else-if="raiseProblem && raiseProblem !== 'permission'">{{
+          raiseProblemText
+        }}</template>
+        <template v-else>
+          {{ $t(blockedCopy.description) }}
+          <template v-if="raiseProblem === 'permission'">{{
+            $t('snapshotsModal.askAnAdmin')
+          }}</template>
+        </template>
+        <template
+          v-for="(message, index) in snapshotCapacityMessages"
+          :key="index"
+        >
+          <div v-if="message">{{ message }}</div>
+        </template>
+      </Alert>
+
       <component
         :is="component"
         v-for="(component, index) in snapshotModalComponents"
         :key="`component-${index}`"
         :application="application"
-        :snapshot-usage="usage"
+        @capacity-warning="snapshotCapacityMessages[index] = $event"
       ></component>
 
       <section class="snapshots-modal__card">
-        <div
-          class="snapshots-modal__card-icon"
-          :class="{ 'snapshots-modal__card-icon--error': blockedReason }"
-        >
-          <i
-            :class="blockedReason ? 'iconoir-warning-circle' : 'iconoir-camera'"
-          ></i>
+        <div class="snapshots-modal__card-icon">
+          <i class="iconoir-camera"></i>
         </div>
         <div class="snapshots-modal__card-body">
           <h3 class="snapshots-modal__card-title">
-            <template v-if="blockedReason">
-              {{
-                $t(blockedCopy.title, {
-                  name: application.name,
-                })
-              }}
-            </template>
-            <template v-else>{{ $t('snapshotsModal.takeTitle') }}</template>
+            {{ $t('snapshotsModal.takeTitle') }}
           </h3>
           <div class="snapshots-modal__card-description">
             <template v-if="canRaiseAndCreate">
@@ -110,19 +130,6 @@
                   })
                 }}
               </Alert>
-            </template>
-            <template v-else-if="raiseProblem === 'permission'">
-              {{ $t(blockedCopy.description) }}
-              {{ $t('snapshotsModal.askAnAdmin') }}
-            </template>
-            <template v-else-if="raiseProblem">
-              <template v-if="blockedReason === 'protected'">
-                {{ $t('snapshotsModal.allProtectedCantRaise') }}
-              </template>
-              {{ raiseProblemText }}
-            </template>
-            <template v-else-if="blockedReason">
-              {{ $t(blockedCopy.description) }}
             </template>
             <template v-else>
               <component
@@ -163,7 +170,6 @@
             }}</Button>
           </div>
           <CreateSnapshotForm
-            v-if="!blockedReason || canRaiseAndCreate"
             v-show="!confirmingReplace"
             ref="form"
             class="snapshots-modal__form"
@@ -183,7 +189,12 @@
               <Button
                 v-if="!createFinished"
                 :loading="createLoading"
-                :disabled="createLoading || snapshotsLoading || usage === null"
+                :disabled="
+                  createLoading ||
+                  snapshotsLoading ||
+                  usage === null ||
+                  (Boolean(blockedReason) && !canRaiseAndCreate)
+                "
               >
                 <template v-if="canRaiseAndCreate">
                   {{
@@ -310,6 +321,7 @@ export default {
   },
   data() {
     return {
+      snapshotCapacityMessages: {},
       createLoading: false,
       createFinished: false,
       snapshotsLoading: false,
@@ -346,12 +358,7 @@ export default {
      * snapshot it keeps is protected. `null` when one can be taken.
      */
     blockedReason() {
-      if (
-        this.usage === null ||
-        this.snapshotsLoading ||
-        this.jobIsRunning ||
-        this.createFinished
-      ) {
+      if (this.usage === null || this.snapshotsLoading || this.jobIsRunning) {
         return null
       }
       if (this.snapshotsDisabled) {
@@ -522,7 +529,11 @@ export default {
       modal.methods.show.bind(this)(...args)
     },
     submitted(values) {
-      if (this.usage === null || this.snapshotsLoading) {
+      if (
+        this.usage === null ||
+        this.snapshotsLoading ||
+        (this.blockedReason && !this.canRaiseAndCreate)
+      ) {
         return
       }
       if (this.canRaiseAndCreate) {

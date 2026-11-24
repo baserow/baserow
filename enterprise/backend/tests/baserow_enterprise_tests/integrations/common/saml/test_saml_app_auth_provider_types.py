@@ -1,6 +1,7 @@
 import pytest
 
 from baserow.contrib.builder.domains.handler import DomainHandler
+from baserow.core.registries import ImportExportConfig
 from baserow_enterprise.integrations.common.sso.saml.models import (
     SamlAppAuthProviderModel,
 )
@@ -11,6 +12,41 @@ from ...local_baserow.helpers import populate_local_baserow_test_data
 @pytest.fixture(autouse=True)
 def enable_enterprise_for_all_tests_here(enable_enterprise):
     pass
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("exclude_sensitive_data", [True, False])
+@pytest.mark.parametrize("is_user_template", [True, False])
+def test_saml_app_auth_provider_sensitive_settings_round_trip(
+    data_fixture, enterprise_data_fixture, exclude_sensitive_data, is_user_template
+):
+    """Stripped providers import unconfigured; internal copies retain SAML settings."""
+
+    data = populate_local_baserow_test_data(data_fixture)
+    metadata = enterprise_data_fixture.get_test_saml_idp_metadata()
+    provider = data_fixture.create_app_auth_provider(
+        SamlAppAuthProviderModel,
+        user_source=data["unpublished_user_source"],
+        metadata=metadata,
+        is_verified=True,
+        email_attr_key="email",
+    )
+    provider_type = provider.get_type()
+    config = ImportExportConfig(
+        include_permission_data=False,
+        exclude_sensitive_data=exclude_sensitive_data,
+        is_user_template=is_user_template,
+    )
+    exported = provider_type.export_serialized(provider, config)
+    assert exported["metadata"] == (None if exclude_sensitive_data else metadata)
+    assert exported["is_verified"] is (None if exclude_sensitive_data else True)
+    imported = provider_type.import_serialized(provider.user_source, exported, {})
+    assert imported.metadata == ("" if exclude_sensitive_data else metadata)
+    assert imported.is_verified is (not exclude_sensitive_data)
+    assert imported.email_attr_key == "email"
+    provider.refresh_from_db()
+    assert provider.metadata == metadata
+    assert provider.is_verified is True
 
 
 @pytest.mark.django_db

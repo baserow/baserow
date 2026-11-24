@@ -7,6 +7,7 @@
           <p>{{ $t('aiProviderAdmin.description') }}</p>
         </div>
         <Button
+          v-if="!showEmptyState"
           icon="iconoir-plus"
           :disabled="availableProviderTypes.length === 0"
           @click="openProviderForm(null)"
@@ -14,6 +15,14 @@
           {{ $t('aiProviderAdmin.addProvider') }}
         </Button>
       </header>
+
+      <AIProviderEmptyState
+        v-if="showEmptyState"
+        :title="$t('aiProviderAdmin.noProviders')"
+        :description="$t('aiProviderAdmin.noProvidersDescription')"
+        :disabled="availableProviderTypes.length === 0"
+        @add="openProviderForm(null)"
+      />
 
       <AIProviderFeatureSettings
         v-if="loaded && !loading && !initialLoadFailed"
@@ -36,16 +45,7 @@
           {{ $t('aiProviderAdmin.retry') }}
         </Button>
       </div>
-      <div v-else-if="providers.length === 0" class="placeholder">
-        <div class="placeholder__icon"><i class="iconoir-sparks" /></div>
-        <h2 class="placeholder__title">
-          {{ $t('aiProviderAdmin.noProviders') }}
-        </h2>
-        <p class="placeholder__content">
-          {{ $t('aiProviderAdmin.noProvidersDescription') }}
-        </p>
-      </div>
-      <div v-else class="ai-provider-admin__list">
+      <div v-else-if="providers.length > 0" class="ai-provider-admin__list">
         <AIProviderItem
           v-for="provider in providers"
           :key="provider.id"
@@ -104,6 +104,7 @@ import { useNuxtApp } from '#app'
 
 import AIProviderAdminSkeleton from '@baserow/modules/core/components/ai/AIProviderAdminSkeleton'
 import ConfirmModal from '@baserow/modules/core/components/modals/ConfirmModal'
+import AIProviderEmptyState from '@baserow/modules/core/components/ai/AIProviderEmptyState'
 import AIProviderFeatureSettings from '@baserow/modules/core/components/ai/AIProviderFeatureSettings'
 import AIProviderFormModal from '@baserow/modules/core/components/ai/AIProviderFormModal'
 import AIProviderItem from '@baserow/modules/core/components/ai/AIProviderItem'
@@ -121,6 +122,7 @@ export default {
   components: {
     AIProviderAdminSkeleton,
     ConfirmModal,
+    AIProviderEmptyState,
     AIProviderFeatureSettings,
     AIProviderFormModal,
     AIProviderItem,
@@ -159,6 +161,9 @@ export default {
     },
     loaded() {
       return this.$store.getters['aiProvider/isLoaded'](null)
+    },
+    showEmptyState() {
+      return this.loaded && !this.loading && this.providers.length === 0
     },
     availableProviderTypes() {
       const configuredTypes = new Set(

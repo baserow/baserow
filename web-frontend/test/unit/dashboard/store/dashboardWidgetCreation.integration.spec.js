@@ -1,4 +1,4 @@
-import { expect } from 'vitest'
+import { expect, vi } from 'vitest'
 import { flushPromises } from '@vue/test-utils'
 import MockAdapter from 'axios-mock-adapter'
 import { registerRealtimeEvents } from '@baserow/modules/dashboard/realtime'
@@ -127,9 +127,40 @@ describe('dashboardApplication store', () => {
     expect(
       store.getters['dashboardApplication/getDataSourceById'](dataSource.id)
     ).toMatchObject(dataSource)
-    expect(store.state.dashboardApplication.data[dataSource.id]).toEqual(
-      dataSourceResult
+    expect(store.state.dashboardApplication.data[dataSource.id]).toEqual({
+      ...dataSourceResult,
+      _loaded: true,
+    })
+  })
+
+  test('reports the created widget ID while pending data sources are refreshed', async () => {
+    const url = `/dashboard/${dashboardId}/widgets/`
+    const onCreated = vi.fn()
+    const create = () =>
+      store.dispatch('dashboardApplication/createWidget', {
+        dashboard: { id: dashboardId },
+        widget: { type: 'summary', title: 'Summary' },
+        onCreated,
+      })
+    mock.onPost(url).replyOnce(500)
+    await expect(create()).rejects.toThrow()
+    expect(onCreated).not.toHaveBeenCalled()
+    expect(store.getters['dashboardApplication/isEmpty']).toBe(true)
+
+    mock.onPost(url).replyOnce(200, createdWidget)
+    let resolveRefresh
+    mock.onGet(`/dashboard/${dashboardId}/data-sources/`).reply(
+      () =>
+        new Promise((resolve) => {
+          resolveRefresh = resolve
+        })
     )
+    const creation = create()
+    await flushPromises()
+    expect(onCreated).toHaveBeenCalledExactlyOnceWith(createdWidget.id)
+    expect(store.getters['dashboardApplication/getWidgets']).toHaveLength(1)
+    resolveRefresh([200, [dataSource]])
+    await expect(creation).resolves.toEqual(createdWidget)
   })
 
   test('realtime adds a widget created elsewhere without selecting it', async () => {
@@ -151,9 +182,10 @@ describe('dashboardApplication store', () => {
     expect(
       store.getters['dashboardApplication/getDataSourceById'](dataSource.id)
     ).toMatchObject(dataSource)
-    expect(store.state.dashboardApplication.data[dataSource.id]).toEqual(
-      dataSourceResult
-    )
+    expect(store.state.dashboardApplication.data[dataSource.id]).toEqual({
+      ...dataSourceResult,
+      _loaded: true,
+    })
   })
 
   test.each(['local', 'realtime'])(
@@ -221,9 +253,10 @@ describe('dashboardApplication store', () => {
 
         expect(loadingStates.length).toBeGreaterThan(0)
         expect(loadingStates).not.toContain(true)
-        expect(store.state.dashboardApplication.data[dataSource.id]).toEqual(
-          dataSourceResult
-        )
+        expect(store.state.dashboardApplication.data[dataSource.id]).toEqual({
+          ...dataSourceResult,
+          _loaded: true,
+        })
       } finally {
         unsubscribe()
       }
@@ -241,7 +274,7 @@ describe('dashboardApplication store', () => {
       })
       expect(
         store.state.dashboardApplication.data[existingDataSource.id]
-      ).toEqual(dataSourceResult)
+      ).toEqual({ ...dataSourceResult, _loaded: true })
     }
   )
 })

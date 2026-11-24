@@ -659,6 +659,7 @@ class AutomationWorkflowHandler:
                 automation,
                 workflow_values,
                 id_mapping,
+                import_export_config=import_export_config,
                 files_zip=files_zip,
                 storage=storage,
                 progress=progress,
@@ -743,6 +744,7 @@ class AutomationWorkflowHandler:
         serialized_workflow: Dict[str, Any],
         id_mapping: Dict[str, Dict[int, int]],
         progress: Optional[ChildProgressBuilder] = None,
+        import_export_config: Optional[ImportExportConfig] = None,
         **kwargs: Any,
     ):
         """Create a workflow with its serialized trust state before importing nodes."""
@@ -759,7 +761,11 @@ class AutomationWorkflowHandler:
                 :WORKFLOW_DESCRIPTION_MAX_LEN
             ],
             order=serialized_workflow["order"],
-            state=serialized_workflow["state"] or WorkflowState.DRAFT,
+            state=(
+                WorkflowState.DRAFT
+                if self._is_external_import_export(import_export_config)
+                else serialized_workflow["state"] or WorkflowState.DRAFT
+            ),
             graph=serialized_workflow.get("graph", {}),
         )
         if (

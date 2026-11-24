@@ -72,6 +72,14 @@ class Job(CreatedAndUpdatedOnMixin, PolymorphicContentTypeMixin, models.Model):
         help_text="A machine readable error code indicating why the job failed.",
     )
 
+    END_STATE_FIELDS = (
+        "state",
+        "error",
+        "human_readable_error",
+        "error_code",
+        "updated_on",
+    )
+
     objects = JobQuerySet.as_manager()
 
     def get_from_cache(self) -> dict | None:

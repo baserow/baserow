@@ -54,6 +54,9 @@ export class DataSourceDataProviderType extends DataProviderType {
    * @param {Object} applicationContext
    */
   async initOnce(applicationContext) {
+    if (applicationContext.withoutLiveData) {
+      return
+    }
     const page = this.app.$store.getters['page/getSharedPage'](
       applicationContext.builder
     )
@@ -82,6 +85,9 @@ export class DataSourceDataProviderType extends DataProviderType {
    * @param {Object} applicationContext
    */
   async init(applicationContext) {
+    if (applicationContext.withoutLiveData) {
+      return
+    }
     const dataSources = this.app.$store.getters[
       'dataSource/getPageDataSources'
     ](applicationContext.page)

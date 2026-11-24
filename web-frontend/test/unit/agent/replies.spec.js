@@ -503,6 +503,49 @@ describe('Agent replies', () => {
     }
   )
 
+  test.each([
+    ['the reply they asked for', { id: 1, name: 'Viewer' }, true],
+    ["another member's reply", { id: 2, name: 'Ada' }, false],
+  ])(
+    'lets a member who may not update the agent stop %s in a shared conversation: %s',
+    async (_, sender, canStop) => {
+      mockConversations(
+        testApp,
+        conversationsPage([{ ...existingConversation, shared: true }])
+      )
+      mockMessages(
+        testApp,
+        existingConversation.uuid,
+        page([prompt, reply('running', '', { runId: 'run-5', sender })])
+      )
+      allowed.value = withoutConfiguration
+      const wrapper = await mount()
+
+      await selectConversation(wrapper, existingConversation.title)
+
+      expect(wrapper.find('.chat-composer__button--stop').exists()).toBe(
+        canStop
+      )
+    }
+  )
+
+  test('tells a member who may no longer send why, with Stop for their running private reply', async () => {
+    withConversation([prompt, runningReply('run-6')])
+    allowed.value = (operation) =>
+      withoutConfiguration(operation) && !operation.includes('create')
+    const wrapper = await mount()
+
+    await selectConversation(wrapper, existingConversation.title)
+
+    expect(wrapper.find('.chat-composer').exists()).toBe(false)
+    expect(wrapper.get('.agent-chat__shared-text').text()).toBe(
+      'agent.cannotSendMessages'
+    )
+    await wrapper.get('.agent-chat__shared .button').trigger('click')
+    await flushPromises()
+    expect(api.cancel).toHaveBeenCalledExactlyOnceWith('run-6')
+  })
+
   test('lets only members who may update the agent stop a trigger run', async () => {
     const shared = sharedConversation('conversation-a', 'Conversation A')
     mockConversations(testApp, conversationsPage([shared]))
@@ -511,7 +554,7 @@ describe('Agent replies', () => {
       shared.uuid,
       page([
         message('t1', 'Trigger data', { id: 1, role: 'trigger' }),
-        runningReply('run-4', 4),
+        reply('running', '', { id: 4, runId: 'run-4', sender: null }),
       ])
     )
     allowed.value = withoutConfiguration

@@ -255,6 +255,7 @@ def test_a_test_conversation_asks_first_for_mcp_tools_that_change_data(
             uuid=uuid4(),
             role=AgentMessage.Role.ASSISTANT,
             content="",
+            sender=user,
         )
         request = AgentHandler().get_reply_request(reply)
         asks[is_test] = {
@@ -316,6 +317,7 @@ def test_a_test_conversation_asks_first_for_every_tool_that_changes_data(
             uuid=uuid4(),
             role=AgentMessage.Role.ASSISTANT,
             content="",
+            sender=user,
         )
         requests[is_test] = AgentHandler().get_reply_request(reply)
 

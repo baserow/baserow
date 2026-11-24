@@ -26,6 +26,15 @@ export class WidgetType extends Registerable {
     }
   }
 
+  /**
+   * Preview size in grid units. Keep it aligned with `grid_layout.default_width`
+   * and `default_height` in `baserow.contrib.dashboard.widgets.registries` and
+   * `baserow.contrib.dashboard.widgets.widget_types`.
+   */
+  get initialGridSize() {
+    return { width: 3, height: 9 }
+  }
+
   get name() {
     return null
   }
@@ -70,6 +79,10 @@ export class WidgetType extends Registerable {
   }
 
   isLoading(widget, data) {
+    return false
+  }
+
+  hasLoadedData(widget, data) {
     return false
   }
 
@@ -160,9 +173,21 @@ export class DataSourceWidgetType extends WidgetType {
     return data?.[widget.data_source_id]
   }
 
-  isLoading(widget, data) {
+  isLoading(widget, data, withoutLiveData = false) {
+    if (withoutLiveData) {
+      return false
+    }
     const dataSourceData = this.getDataSourceData(widget, data)
-    return !dataSourceData || Object.keys(dataSourceData).length === 0
+    return (
+      !dataSourceData ||
+      dataSourceData._loading === true ||
+      Object.keys(dataSourceData).length === 0
+    )
+  }
+
+  hasLoadedData(widget, data) {
+    const source = this.getDataSourceData(widget, data)
+    return source?._loaded === true
   }
 
   isMisconfigured(widget, data) {
@@ -173,6 +198,10 @@ export class DataSourceWidgetType extends WidgetType {
 export class SummaryWidgetType extends DataSourceWidgetType {
   static getType() {
     return 'summary'
+  }
+
+  get initialGridSize() {
+    return { width: 2, height: 4 }
   }
 
   get name() {
@@ -349,6 +378,10 @@ export class TextFilterWidgetType extends FilterWidgetType {
   }
   static getType() {
     return 'text_filter'
+  }
+
+  get initialGridSize() {
+    return { width: 2, height: 2 }
   }
 
   get name() {

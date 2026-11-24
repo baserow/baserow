@@ -4,6 +4,7 @@ from baserow.core.models import Workspace
 from baserow_enterprise.features import (
     ADVANCED_WEBHOOKS,
     AUDIT_LOG,
+    AUTOMATIC_SNAPSHOTS,
     BUILDER_CUSTOM_CODE,
     BUILDER_FILE_INPUT,
     BUILDER_GRAPH_ELEMENT,
@@ -38,6 +39,7 @@ COMMON_ADVANCED_FEATURES = [
     RBAC,
     TEAMS,
     AUDIT_LOG,
+    AUTOMATIC_SNAPSHOTS,
     # database
     DATA_SYNC,
     ADVANCED_WEBHOOKS,

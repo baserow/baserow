@@ -1,4 +1,6 @@
 @mixin alert-style($background, $color, $accent-color, $border-color) {
+  --alert-message-color: #{$color};
+
   background-color: $background;
   border: 1px solid $border-color;
 

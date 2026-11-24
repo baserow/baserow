@@ -138,7 +138,7 @@
               <ButtonText
                 icon="iconoir-plus"
                 class="dashboard-widget-filter-targets__create"
-                :loading="creatingTarget?.filterId === widget.id"
+                :disabled="!canCreateTarget"
                 @click="openCreateWidget"
                 >{{ $t('textFilterWidget.createWidget') }}</ButtonText
               >
@@ -309,7 +309,7 @@
       <CreateWidgetModal
         ref="createWidgetModal"
         :dashboard="dashboard"
-        :loading="Boolean(creatingTarget)"
+        :loading="isCreatingWidget"
         hide-filters
         @widget-variation-selected="createTarget"
       />
@@ -358,6 +358,9 @@ const props = defineProps({
   storePrefix: { type: String, default: '' },
 })
 const { $store, $registry, $i18n } = useNuxtApp()
+const createDashboardWidget = inject('createDashboardWidget', null)
+const widgetCreation = inject('dashboardWidgetCreation', null)
+const isCreatingWidget = computed(() => widgetCreation?.value?.loading ?? false)
 const { optionState, options } = useWidgetOptions(props)
 const defaultValue = computed(() => getTextFilterDefaultValue(props.widget))
 const hasDefaultValue = computed(() => defaultValue.value.length > 0)
@@ -373,42 +376,39 @@ const targetMenu = ref(null)
 const menuTarget = ref(null)
 const targetsSaving = ref(false)
 const createWidgetModal = ref(null)
-/** The filter a widget is being created for, if any. */
-const creatingTarget = ref(null)
 const configuringTarget = ref(null)
 const configurationModal = ref(null)
+const canCreateTarget = computed(
+  () =>
+    Boolean(createDashboardWidget) &&
+    !isCreatingWidget.value &&
+    !configuringTarget.value
+)
 let disposed = false
 onBeforeUnmount(() => {
   disposed = true
 })
 const openCreateWidget = () => {
+  if (!canCreateTarget.value) return
   targetPicker.value?.hide()
   createWidgetModal.value?.show()
 }
 /** Create a widget without leaving the originating filter's settings. */
 async function createTarget(variation) {
   const filterId = props.widget.id
-  if (creatingTarget.value || configuringTarget.value) return
-  creatingTarget.value = { filterId }
+  if (!canCreateTarget.value || !variation.type.isDisplayWidget) return
   try {
-    const type = $registry.get('dashboardWidget', variation.type.getType())
-    if (!type.isDisplayWidget) return
-    const created = await $store.dispatch(
-      `${props.storePrefix}dashboardApplication/createWidget`,
-      {
-        dashboard: props.dashboard,
-        widget: { title: type.name, type: type.getType(), ...variation.params },
-        select: false,
-      }
-    )
-    if (disposed || props.widget.id !== filterId) return
+    const created = await createDashboardWidget({
+      type: variation.type.getType(),
+      params: variation.params,
+      select: false,
+    })
+    if (!created || disposed || props.widget.id !== filterId) return
     configuringTarget.value = { filterId, widgetId: created.id }
     await nextTick()
     configurationModal.value?.show()
   } catch (error) {
     notifyIf(error, 'dashboard')
-  } finally {
-    creatingTarget.value = null
   }
 }
 

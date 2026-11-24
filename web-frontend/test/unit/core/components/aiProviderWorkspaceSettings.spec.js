@@ -233,9 +233,12 @@ describe('AIProviderWorkspaceSettings', () => {
     })
     await flushPromises()
 
-    const header = wrapper.find('.ai-provider-admin__header')
-    expect(header.find('button').text()).toBe('aiProviderAdmin.addProvider')
-    expect(header.find('button').attributes('disabled')).toBeUndefined()
+    expect(wrapper.find('.ai-provider-admin__header button').exists()).toBe(
+      false
+    )
+    const emptyState = wrapper.find('.ai-provider-empty')
+    expect(emptyState.find('button').text()).toBe('aiProviderAdmin.addProvider')
+    expect(emptyState.find('button').attributes('disabled')).toBeUndefined()
     expect(
       wrapper.find('.ai-provider-workspace-settings__toolbar').exists()
     ).toBe(false)

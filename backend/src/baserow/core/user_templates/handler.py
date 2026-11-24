@@ -54,6 +54,7 @@ from baserow.core.registries import ImportExportConfig, application_type_registr
 from baserow.core.storage import get_default_storage
 from baserow.core.trash.handler import TrashHandler
 from baserow.core.user.exceptions import UserNotFound
+from baserow.core.user.handler import UserHandler
 from baserow.core.user_templates.archive import (
     delete_template_archive_file,
     delete_template_archives,
@@ -310,7 +311,7 @@ class UserTemplateHandler:
         template.full_clean(exclude=["slug", "open_application"])
 
         with transaction.atomic():
-            if not self._lock_user(owner):
+            if not UserHandler().lock_user(owner):
                 raise UserNotFound("The owner of the template was deleted.")
 
             for _ in range(SLUG_MAX_ATTEMPTS):
@@ -1854,25 +1855,17 @@ class UserTemplateHandler:
             user, root, private_link_token=root.private_link_token
         )
 
-    def _lock_user(self, user: AbstractUser) -> bool:
-        """
-        Locks the row of the user until the end of the transaction. Creating a
-        template and deleting its owner both lock it, so that a template is either
-        committed before the deletion marks it, or not created at all.
-
-        :return: Whether the user still exists.
-        """
-
-        return User.objects.select_for_update().filter(id=user.id).exists()
-
     def mark_owned_templates_for_deletion(self, user: AbstractUser) -> None:
         """
         Marks the user templates owned by the user for deletion. The templates
         themselves are removed later. Must run in the transaction deleting the
-        user, see `_lock_user`.
+        user. Creating a template locks the user too, so that a template is either
+        committed before the deletion marks it, or not created at all.
         """
 
-        self._lock_user(user)
+        # `FOR UPDATE`, so that no row referencing the user can be saved from here
+        # until the user is deleted.
+        User.objects.select_for_update().filter(id=user.id).exists()
         Template.objects.user().filter(
             owner=user, root__isnull=True, marked_for_deletion_at__isnull=True
         ).update(marked_for_deletion_at=timezone.now())

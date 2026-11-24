@@ -132,7 +132,7 @@ export class BuilderApplicationType extends ApplicationType {
     }
   }
 
-  async loadExtraData(builder, mode) {
+  async loadExtraData(builder, mode, withoutLiveData = false) {
     const { $store, $registry } = this.app
     if (!builder._loadedOnce) {
       const sharedPage = $store.getters['page/getSharedPage'](builder)
@@ -160,6 +160,7 @@ export class BuilderApplicationType extends ApplicationType {
         {
           builder,
           mode,
+          withoutLiveData,
         }
       )
 

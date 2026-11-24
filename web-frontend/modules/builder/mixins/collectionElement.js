@@ -153,6 +153,7 @@ export default {
           search: this.adhocRefinements.search,
           mode: this.applicationContext.mode,
           replace,
+          withoutLiveData: this.applicationContext.withoutLiveData,
         })
         this.currentOffset = range[0] + this.element.items_per_page
       } catch (error) {

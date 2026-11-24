@@ -1,0 +1,3 @@
+from .serializers import get_workspace_invitation_with_data_serializer
+
+WorkspaceInvitationWithDataSerializer = get_workspace_invitation_with_data_serializer()

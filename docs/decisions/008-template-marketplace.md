@@ -104,7 +104,9 @@ The preview is read-only and inert: viewers cannot write into it, reach it throu
 public views or forms, sign in as its users, or make it run the author's services. As a
 result it cannot show anything that needs a signed-in app user or the author's
 services, such as pages behind login or data in builder pages and dashboards; installed
-copies work fully. Official template previews are unchanged.
+copies work fully. Official template previews are unchanged for signed-in viewers;
+signed out, every template preview shows apps and dashboards without live data or app
+login.
 
 ### 4. Access
 

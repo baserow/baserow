@@ -1,3 +1,4 @@
+import type { Page } from "@playwright/test";
 import { getClient } from "../../client";
 import { Workspace } from "../workspace";
 
@@ -56,6 +57,38 @@ export async function createSummaryWidget(
     }
   );
   return response.data;
+}
+
+export async function pauseWidgetRequest(
+  page: Page,
+  method: "POST" | "PATCH",
+  path: string
+) {
+  let release!: () => void;
+  const pending = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  let received = false;
+  await page.route(`**${path}`, async (route) => {
+    if (route.request().method() === method) {
+      received = true;
+      await pending;
+    }
+    await route.continue();
+  });
+  return {
+    received: () => received,
+    release,
+    complete() {
+      const response = page.waitForResponse(
+        (response) =>
+          response.request().method() === method &&
+          response.url().endsWith(path)
+      );
+      release();
+      return response;
+    },
+  };
 }
 
 export async function getDashboardWidgets(

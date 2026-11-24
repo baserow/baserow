@@ -172,6 +172,10 @@ class AllowIfTemplatePermissionManagerType(PermissionManagerType):
     Allows read operations on the templates the actor can open, see
     `Workspace.has_openable_template`, and the one whose private link the request
     was made with, see `get_private_link_token`.
+
+    Live operations, which run data sources or sign in as an app user, are only
+    allowed to signed-in users on official templates, and refused on every other
+    template, so that a later manager can't allow them.
     """
 
     type = "allow_if_template"
@@ -188,22 +192,24 @@ class AllowIfTemplatePermissionManagerType(PermissionManagerType):
         ListIntegrationsApplicationOperationType.type,
         ListUserSourcesApplicationOperationType.type,
         ReadUserSourceOperationType.type,
-        LoginUserSourceOperationType.type,
         ReadFieldRuleOperationType.type,
     ]
 
+    LIVE_OPERATIONS_ON_TEMPLATES = [LoginUserSourceOperationType.type]
+
     def check_multiple_permissions(self, checks, workspace=None, include_trash=False):
+        if not workspace:
+            return {}
+
+        result = self._check_live_operations(checks, workspace)
+
         allowed_checks = [
             check
             for check in checks
             if check.operation_name in self.OPERATION_ALLOWED_ON_TEMPLATES
         ]
-        if not allowed_checks or not workspace:
-            return {}
-
         # Checked once per actor, because it can need a query for a user template.
         openable_by = {}
-        result = {}
         for check in allowed_checks:
             if check.actor not in openable_by:
                 openable_by[check.actor] = workspace.has_openable_template(
@@ -214,6 +220,28 @@ class AllowIfTemplatePermissionManagerType(PermissionManagerType):
             if openable_by[check.actor]:
                 result[check] = True
         return result
+
+    def _check_live_operations(self, checks, workspace):
+        live_checks = [
+            check
+            for check in checks
+            if check.operation_name in self.LIVE_OPERATIONS_ON_TEMPLATES
+        ]
+        if not live_checks:
+            return {}
+
+        template_types = workspace.get_template_types()
+        if not template_types:
+            return {}
+
+        # Official templates can always be opened, user templates never run.
+        allowed = Template.Type.USER not in template_types
+        return {
+            check: True
+            if allowed and check.actor.is_authenticated
+            else PermissionDenied(check.actor)
+            for check in live_checks
+        }
 
     def get_permissions_object(self, actor, workspace=None):
         # Not every template the actor can open, so that the list doesn't grow with

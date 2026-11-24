@@ -500,6 +500,15 @@ def test_create_user_template_job_cleans_up_on_error_after_the_copy(data_fixture
     assert_no_copy_left(source["workspace"])
 
 
+def test_create_user_template_job_is_not_started_for_a_deleted_user(data_fixture):
+    user = data_fixture.create_user()
+    job = CreateUserTemplateJob(user=user)
+    type(user).objects.filter(id=user.id).delete()
+
+    with pytest.raises(UserNotFound), transaction.atomic():
+        CreateUserTemplateJobType().can_schedule_or_raise(job)
+
+
 def test_create_user_template_job_fails_on_the_second_application(data_fixture):
     user = data_fixture.create_user()
     workspace = data_fixture.create_workspace(user=user)

@@ -806,6 +806,7 @@ jobs:
           E2E_HTTP_STUB_URL: http://httpbin:80
           E2E_SLACK_STUB: "yes"
           E2E_KUMA_MODEL_STUB: "yes"
+          E2E_AGENT_MODEL_HOST: http://kuma-model-stub:8080
           # MailHog as the tests reach it, from the runner.
           E2E_MAIL_API_URL: http://localhost:8025
           # The barrier as the backend reaches it, and as the tests reach it.

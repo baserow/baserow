@@ -35,9 +35,11 @@ export const state = () => ({
   // password protected dashboard.
   publicSlug: null,
   publicAuthToken: null,
+  withoutLiveData: false,
 })
 
 const widgetUpdates = new WeakMap()
+const widgetLayoutUpdates = new WeakMap()
 
 const DEFAULT_DATA_SOURCE_DISPATCH_CONCURRENCY = 5
 const DATA_SOURCE_DISPATCH_MAX_RETRIES = 3
@@ -380,6 +382,10 @@ export const mutations = {
     state.data = {}
     state.publicSlug = null
     state.publicAuthToken = null
+    state.withoutLiveData = false
+  },
+  SET_WITHOUT_LIVE_DATA(state, value) {
+    state.withoutLiveData = value
   },
   SET_PUBLIC(state, { slug, authToken = null }) {
     state.publicSlug = slug
@@ -879,9 +885,13 @@ export const actions = {
       )
     )
   },
-  async fetchInitial({ state, commit, dispatch }, { dashboardId, forEditing }) {
+  async fetchInitial(
+    { state, commit, dispatch },
+    { dashboardId, forEditing, withoutLiveData = false }
+  ) {
     const { $client } = this
     commit('RESET')
+    commit('SET_WITHOUT_LIVE_DATA', withoutLiveData)
     commit('SET_LOADING', true)
     commit('SET_DASHBOARD_ID', dashboardId)
     const request = {
@@ -1019,15 +1029,21 @@ export const actions = {
   /**
    * Create a widget and select it, unless `select` is false: an editor adding
    * a widget from another widget's settings keeps working on that one.
+   * Notify `onCreated` after the POST succeeds, before refreshing related data.
    */
   async createWidget(
     { state, dispatch },
-    { dashboard, widget, select = true }
+    { dashboard, widget, select = true, onCreated }
   ) {
     const { $client } = this
     const request = {
       dashboardId: dashboard.id,
       dashboardGeneration: state.dashboardGeneration,
+    }
+    // The server places the new widget using the saved layout.
+    const layoutUpdate = widgetLayoutUpdates.get(state)
+    if (layoutUpdate?.dashboardId === dashboard.id) {
+      await layoutUpdate.promise.catch(() => {})
     }
     const { data: widgetData } = await WidgetService($client).create(
       dashboard.id,
@@ -1036,6 +1052,7 @@ export const actions = {
     if (!isDashboardRequestCurrent(state, request)) {
       return widgetData
     }
+    onCreated?.(widgetData.id)
     const createdWidget = await dispatch('handleNewWidgetCreated', widgetData)
     if (!isDashboardRequestCurrent(state, request)) {
       return createdWidget
@@ -1057,6 +1074,9 @@ export const actions = {
     return widget
   },
   async dispatchDataSource({ state, commit }, requestValues) {
+    if (state.withoutLiveData) {
+      return
+    }
     const { $client, $config, $registry } = this
     const requestContext = normalizeDataSourceRequestContext(
       requestValues,
@@ -1073,7 +1093,10 @@ export const actions = {
 
     commit('INVALIDATE_DATA_SOURCE_DISPATCH', requestContext.dataSourceId)
     const request = getDataSourceDispatchRequest(requestContext, state)
-    commit('UPDATE_DATA', { dataSourceId: request.dataSourceId, values: null })
+    commit('UPDATE_DATA', {
+      dataSourceId: request.dataSourceId,
+      values: { ...state.data[request.dataSourceId], _loading: true },
+    })
     const queue = getDataSourceDispatchQueue(
       state,
       getDataSourceDispatchConcurrency($config)
@@ -1123,7 +1146,7 @@ export const actions = {
       }
       commit('UPDATE_DATA', {
         dataSourceId: request.dataSourceId,
-        values: response.data,
+        values: { ...response.data, _loaded: true },
       })
     } catch (error) {
       if (!isDataSourceDispatchCurrent(state, request)) {
@@ -1159,10 +1182,7 @@ export const actions = {
     }
     applyWidgetDelete(context, this.$registry, widgetId)
   },
-  async updateWidgetLayout(
-    { state, commit, dispatch },
-    { dashboardId, layout }
-  ) {
+  async updateWidgetLayout({ state, commit }, { dashboardId, layout }) {
     const { $client } = this
     commit('INVALIDATE_WIDGET_FETCH')
     const request = normalizeDashboardFetchRequest(
@@ -1170,15 +1190,22 @@ export const actions = {
       state,
       'widgetFetchGeneration'
     )
-    const { data } = await WidgetService($client).updateLayout(
+    const update = {
       dashboardId,
-      layout
-    )
-    if (!isFetchRequestCurrent(state, request, 'widgetFetchGeneration')) {
-      return data
+      promise: WidgetService($client).updateLayout(dashboardId, layout),
     }
-    commit('UPDATE_WIDGET_LAYOUTS', data)
-    return data
+    widgetLayoutUpdates.set(state, update)
+    try {
+      const { data } = await update.promise
+      if (isFetchRequestCurrent(state, request, 'widgetFetchGeneration')) {
+        commit('UPDATE_WIDGET_LAYOUTS', data)
+      }
+      return data
+    } finally {
+      if (widgetLayoutUpdates.get(state) === update) {
+        widgetLayoutUpdates.delete(state)
+      }
+    }
   },
   async handleWidgetsLayoutUpdated({ state, commit, dispatch }) {
     commit('INVALIDATE_WIDGET_FETCH')
@@ -1200,6 +1227,9 @@ export const getters = {
   },
   isLoading(state) {
     return state.loading
+  },
+  isWithoutLiveData(state) {
+    return state.withoutLiveData
   },
   isEmpty(state) {
     return state.widgets.length === 0

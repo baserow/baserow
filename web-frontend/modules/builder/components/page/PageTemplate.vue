@@ -22,6 +22,7 @@ const mode = 'editing'
 export default {
   name: 'PageTemplate',
   components: { PageTemplateContent, PageSkeleton },
+  inject: { withoutLiveData: { default: false } },
   props: {
     pageValue: {
       type: Object,
@@ -81,7 +82,11 @@ export default {
           'application',
           BuilderApplicationType.getType()
         )
-        await builderApplicationType.loadExtraData(builder)
+        await builderApplicationType.loadExtraData(
+          builder,
+          mode,
+          this.withoutLiveData
+        )
 
         await Promise.all([
           this.$store.dispatch('dataSource/fetch', {
@@ -97,6 +102,7 @@ export default {
             builder,
             page,
             mode,
+            withoutLiveData: this.withoutLiveData,
           }
         )
 

@@ -88,17 +88,24 @@ describe('Workspace sidebar', () => {
     expect(document.activeElement).toBe(switcher.element)
   })
 
-  test('shows the logo link above the All Workspaces menu', async () => {
+  test('shows the logo link and keeps workspace notifications off the account menu', async () => {
+    testApp.store.commit('notification/SET_PER_WORKSPACE_UNREAD_COUNT', {
+      1: 2,
+    })
     const wrapper = await testApp.mount(SidebarAllWorkspaces, {
       props: { selectedWorkspace: {} },
       global: {
         stubs: {
           SidebarAllWorkspacesMenu: true,
-          SidebarFoot: true,
+          SidebarAccountMenu: true,
         },
       },
     })
 
+    const account = wrapper.get('.sidebar__account-trigger')
+    expect(account.find('.sidebar__unread-notifications-icon').exists()).toBe(
+      false
+    )
     const brand = wrapper.get('a.sidebar__brand')
     expect(brand.attributes('href')).toBe('/all-workspaces')
     expect(brand.get('img').isVisible()).toBe(true)
@@ -158,6 +165,14 @@ describe('Workspace sidebar', () => {
     const firstHelpItem = helpMenu.get('.context__menu-item-link')
     expect(document.activeElement).toBe(firstHelpItem.element)
     expect(knowledgeBase.text()).toBe('sidebar.knowledgeBase')
+    expect(helpMenu.get('a[href="https://academy.baserow.io/"]').text()).toBe(
+      'dashboard.academy'
+    )
+    expect(
+      helpMenu
+        .get('a[href="https://baserow.io/blog/category/tutorials"]')
+        .text()
+    ).toBe('dashboard.tutorials')
     expect(helpMenu.get('a[href="/api-docs"]').text()).toBe(
       'sidebar.apiDocumentation'
     )

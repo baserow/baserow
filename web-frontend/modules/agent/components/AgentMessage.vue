@@ -17,7 +17,7 @@
   </ChatMessage>
   <ChatMessage
     v-else
-    :own="own"
+    :own="ownMessage"
     :class="{ 'chat-message--steps': entries.length }"
   >
     <template v-for="entry in entries" :key="entry.key">
@@ -42,7 +42,18 @@
         :item-errors="entry.group.itemErrors || []"
       />
     </template>
-    <div v-if="own" class="chat-message__bubble">{{ message.content }}</div>
+    <div
+      v-if="fromUser && !ownMessage"
+      class="chat-message__bubble chat-message__bubble--peer"
+    >
+      <div class="chat-message__sender">
+        {{ message.sender?.name || $t('agent.deletedSender') }}
+      </div>
+      <div class="chat-message__text">{{ message.content }}</div>
+    </div>
+    <div v-else-if="fromUser" class="chat-message__bubble">
+      {{ message.content }}
+    </div>
     <div
       v-else-if="shown.content || (shown.replying && !entries.length)"
       class="chat-message__bubble"
@@ -119,7 +130,13 @@ defineEmits(['decide'])
 const store = useStore()
 const { $registry } = useNuxtApp()
 const { t } = useI18n()
-const own = computed(() => props.message.role === MESSAGE_ROLE.USER)
+const fromUser = computed(() => props.message.role === MESSAGE_ROLE.USER)
+// Others write in a shared conversation too, so only the viewer's own are theirs.
+const ownMessage = computed(
+  () =>
+    fromUser.value &&
+    props.message.sender?.id === store.getters['auth/getUserId']
+)
 /** The saved message, with each field its unsaved run already wrote. */
 const shown = computed(() => {
   const { message } = props
@@ -183,10 +200,12 @@ function stepEntries(steps, approvals) {
 
 // Stable arrays let text deltas skip rebuilding and re-rendering the steps.
 const steps = computed(() =>
-  own.value || !Array.isArray(shown.value.steps) ? NO_STEPS : shown.value.steps
+  fromUser.value || !Array.isArray(shown.value.steps)
+    ? NO_STEPS
+    : shown.value.steps
 )
 const approvals = computed(() =>
-  own.value || !Array.isArray(shown.value.approvals)
+  fromUser.value || !Array.isArray(shown.value.approvals)
     ? NO_APPROVALS
     : shown.value.approvals
 )
