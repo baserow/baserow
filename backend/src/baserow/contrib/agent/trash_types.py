@@ -12,9 +12,9 @@ from .signals import agent_conversation_activity
 
 class AgentConversationTrashableItemType(TrashableItemType):
     """
-    A conversation only its owner sees and restores in the trash; a shared one has
-    no owner, so every reader sees it there but, as for trashing it, only a user
-    who may update the Agent restores it.
+    A private conversation only its owner sees and restores in the trash; every
+    reader sees a shared one there but, as for trashing it, only a user who may
+    update the Agent restores it.
     """
 
     type = "agent_conversation"
@@ -33,7 +33,7 @@ class AgentConversationTrashableItemType(TrashableItemType):
             which every trash reader sees.
         """
 
-        return trashed_item.owner_user
+        return None if trashed_item.shared else trashed_item.owner_user
 
     def permanently_delete_item(
         self,

@@ -1,4 +1,5 @@
 import asyncio
+import json
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 from functools import cached_property, partial
@@ -74,10 +75,12 @@ from .action_tools.tools import BoundActionTool
 from .constants import (
     ASK_FIRST_INSTRUCTIONS,
     CONVERSATION_USER_INSTRUCTIONS,
+    DELETED_SENDER_NAME,
     INTERRUPTED_CHANGES_NOTE,
     INTERRUPTED_REPLY_NOTE,
     OUTPUT_RETRIES,
     REPLY_REQUEST_LIMIT,
+    SHARED_CONVERSATION_INSTRUCTIONS,
     TOOL_RETRIES,
     TRIGGER_CONVERSATION_INSTRUCTIONS,
     UNAVAILABLE_WORKSPACE_ACCESS_INSTRUCTIONS,
@@ -91,7 +94,12 @@ from .constants import (
 from .models import AgentMessage
 from .previews import arguments_preview
 from .registries import AgentToolType, agent_tool_type_registry, input_shower
-from .types import AgentPausedRun, AgentReplyRequest, AgentReplyResult
+from .types import (
+    AgentConversationUser,
+    AgentPausedRun,
+    AgentReplyRequest,
+    AgentReplyResult,
+)
 from .web_fetch import web_fetch_tool
 
 if TYPE_CHECKING:
@@ -121,12 +129,34 @@ def _interruption_note(reply: AgentMessage) -> str:
     )
 
 
-def build_history(messages: list[AgentMessage]) -> list[ModelMessage]:
+def name_sender(content: str, sender: AgentConversationUser | None) -> str:
+    """
+    :param content: What a person wrote in a shared conversation.
+    :param sender: Who wrote it, or None for a deleted user.
+    :return: A JSON object naming who wrote the content, which neither the
+        content nor the name can end early to pass for another sender.
+    """
+
+    return json.dumps(
+        {
+            "sender": sender.name if sender else DELETED_SENDER_NAME,
+            "user_id": sender.id if sender else None,
+            "message": content,
+        },
+        ensure_ascii=False,
+    )
+
+
+def build_history(
+    messages: list[AgentMessage], names_senders: bool = False
+) -> list[ModelMessage]:
     """
     Turn earlier prompts, sent by a person or a trigger, and replies into model
     history, marking replies that did not complete.
 
     :param messages: Earlier messages of the conversation, oldest first.
+    :param names_senders: Whether each person's message names who wrote it, which
+        needs the messages' senders.
     :return: The history; replies before the first prompt in the window are left
         out, so it always starts with a prompt.
     """
@@ -135,9 +165,13 @@ def build_history(messages: list[AgentMessage]) -> list[ModelMessage]:
     history: list[ModelMessage] = []
     for message in messages:
         if message.role in prompt_roles:
-            history.append(
-                ModelRequest(parts=[UserPromptPart(content=message.content)])
-            )
+            content = message.content
+            if names_senders and message.role == AgentMessage.Role.USER:
+                sender = message.sender
+                content = name_sender(
+                    content, sender and AgentConversationUser.of(sender)
+                )
+            history.append(ModelRequest(parts=[UserPromptPart(content=content)]))
         elif history:
             text = message.content
             if message.status != ChatRunStatus.COMPLETED:
@@ -403,6 +437,8 @@ class AgentResponder:
                 name=request.conversation_user.name,
                 user_id=request.conversation_user.id,
             )
+            if request.names_senders:
+                instructions += f"\n\n{SHARED_CONVERSATION_INSTRUCTIONS}"
         if request.run_as_unavailable:
             instructions += f"\n\n{UNAVAILABLE_WORKSPACE_ACCESS_INSTRUCTIONS}"
         if request.started_by_trigger:
@@ -500,9 +536,16 @@ class AgentResponder:
             agent.output_validator(partial(self._validate_output, validator))
         resume = request.resume
         # A paused run carries its own history, and pydantic-ai refuses both.
-        history = build_history(request.history) if resume is None else None
+        history = (
+            build_history(request.history, request.names_senders)
+            if resume is None
+            else None
+        )
+        prompt = request.prompt
+        if prompt is not None and request.names_senders:
+            prompt = name_sender(prompt, request.conversation_user)
         async with agent.run_stream_events(
-            request.prompt,
+            prompt,
             conversation=resume.paused_conversation if resume else None,
             message_history=history,
             deferred_tool_results=resume.deferred_tool_results if resume else None,

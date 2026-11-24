@@ -30,6 +30,7 @@ from baserow.contrib.agent.actions import (
     CreateAgentMessageActionType,
     DecideAgentToolApprovalsActionType,
     DeleteAgentConversationActionType,
+    ShareAgentConversationActionType,
     UpdateAgentConfigurationActionType,
     UpdateAgentConversationActionType,
 )
@@ -43,7 +44,7 @@ from baserow.contrib.agent.exceptions import (
     AgentToolApprovalNotPending,
 )
 from baserow.contrib.agent.handler import AgentHandler
-from baserow.contrib.agent.models import AgentApplication
+from baserow.contrib.agent.models import AgentApplication, AgentConversation
 from baserow.contrib.agent.service import AgentService
 from baserow.contrib.agent.signals import agent_loaded
 from baserow.contrib.agent.types import AgentMessageCreated
@@ -84,6 +85,7 @@ from .serializers import (
     AgentRunAsOptionSerializer,
     AgentToolDecisionsSerializer,
     AgentToolSerializer,
+    get_listed_conversation_context,
 )
 
 AGENT_ID_PATH_PARAMETER = OpenApiParameter(
@@ -137,25 +139,36 @@ APPROVAL_WRITE_ERRORS = {
 }
 
 
-def _accepted_context(result: AgentMessageCreated) -> dict[str, dict[int, UUID]]:
+def _serialize_conversation(conversation: AgentConversation) -> dict:
+    """
+    :param conversation: The conversation to serialize, as its list shows it.
+    :return: The conversation with its running reply and pending approval count.
+    """
+
+    context = get_listed_conversation_context([conversation.id])
+    return AgentConversationSerializer(conversation, context=context).data
+
+
+def _accepted_context(result: AgentMessageCreated) -> dict[str, object]:
     """
     Build the serializer context for the reply and the conversation independently.
     New sends retain their run even if a fast reply ends before serialization.
 
     :param result: The accepted message with its reply and run.
-    :return: The context, with the run id by reply id under ``active_runs`` and by
-        conversation id under ``conversation_runs``.
+    :return: The context showing the conversation as its list does, with the run
+        id by reply id under ``active_runs``.
     """
 
+    conversation_runs = (
+        {result.conversation.id: result.conversation_run_id}
+        if result.conversation_run_id is not None
+        else {}
+    )
     return {
+        **get_listed_conversation_context([result.conversation.id], conversation_runs),
         "active_runs": (
             {result.reply.id: result.run_id}
             if result.reply is not None and result.run_id is not None
-            else {}
-        ),
-        "conversation_runs": (
-            {result.conversation.id: result.conversation_run_id}
-            if result.conversation_run_id is not None
             else {}
         ),
     }
@@ -356,10 +369,9 @@ class AgentConversationsView(RealtimeRecoveryPrimaryReadMixin, APIView):
         tags=["Agent applications"],
         operation_id="list_agent_conversations",
         description=(
-            "Lists the authenticated user's own conversations with the agent and the "
-            "shared ones its triggers started, pinned first, then most recently active "
-            "within each group. Each includes its number of tool calls waiting for the "
-            "user's approval."
+            "Lists the authenticated user's own private conversations with the agent "
+            "and the shared ones, pinned first, then most recently active within each "
+            "group. Each includes its number of tool calls waiting for a decision."
         ),
         parameters=[
             AGENT_ID_PATH_PARAMETER,
@@ -372,6 +384,23 @@ class AgentConversationsView(RealtimeRecoveryPrimaryReadMixin, APIView):
                 "has_pending_approvals",
                 OpenApiTypes.BOOL,
                 description="Only conversations with or without calls waiting for approval.",
+            ),
+            OpenApiParameter(
+                "shared",
+                OpenApiTypes.BOOL,
+                description="Only shared or private conversations. Omit for both.",
+            ),
+            OpenApiParameter(
+                "started_by_trigger",
+                OpenApiTypes.BOOL,
+                description="Only conversations a trigger started or not. Omit for "
+                "both.",
+            ),
+            OpenApiParameter(
+                "last_reply_failed",
+                OpenApiTypes.BOOL,
+                description="Only conversations whose latest reply failed or not. "
+                "Omit for both.",
             ),
             OpenApiParameter(
                 "limit",
@@ -407,6 +436,9 @@ class AgentConversationsView(RealtimeRecoveryPrimaryReadMixin, APIView):
                 query_params.get("cursor"),
                 pinned=query_params.get("pinned"),
                 has_pending_approvals=query_params.get("has_pending_approvals"),
+                shared=query_params.get("shared"),
+                started_by_trigger=query_params.get("started_by_trigger"),
+                last_reply_failed=query_params.get("last_reply_failed"),
             )[: limit + 1]
         )
         page = conversations[:limit]
@@ -415,13 +447,7 @@ class AgentConversationsView(RealtimeRecoveryPrimaryReadMixin, APIView):
             if len(conversations) > limit
             else None
         )
-        page_ids = [item.id for item in page]
-        context = {
-            "conversation_runs": AgentHandler().get_conversation_runs(page_ids),
-            "conversation_pending_approvals": (
-                AgentHandler().get_conversation_pending_approval_counts(page_ids)
-            ),
-        }
+        context = get_listed_conversation_context([item.id for item in page])
         return Response(
             {
                 "results": AgentConversationSerializer(
@@ -490,17 +516,7 @@ class AgentConversationView(APIView):
         conversation = action_type_registry.get_by_type(
             UpdateAgentConversationActionType
         ).do(request.user, agent_id, conversation_uuid, **data)
-        context = {
-            "conversation_runs": AgentHandler().get_conversation_runs(
-                [conversation.id]
-            ),
-            "conversation_pending_approvals": (
-                AgentHandler().get_conversation_pending_approval_counts(
-                    [conversation.id]
-                )
-            ),
-        }
-        return Response(AgentConversationSerializer(conversation, context=context).data)
+        return Response(_serialize_conversation(conversation))
 
     @extend_schema(
         tags=["Agent applications"],
@@ -523,6 +539,30 @@ class AgentConversationView(APIView):
             request.user, agent_id, conversation_uuid
         )
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class ShareAgentConversationView(APIView):
+    @extend_schema(
+        tags=["Agent applications"],
+        operation_id="share_agent_conversation",
+        description=(
+            "Shares one of the authenticated user's private conversations with "
+            "everyone who may read the agent's conversations. Sharing can't be undone."
+        ),
+        parameters=[AGENT_ID_PATH_PARAMETER, CLIENT_SESSION_ID_SCHEMA_PARAMETER],
+        request=None,
+        responses={200: AgentConversationSerializer, **CONVERSATION_READ_ERRORS},
+    )
+    @map_exceptions(AGENT_EXCEPTIONS)
+    def post(
+        self, request: Request, agent_id: int, conversation_uuid: UUID
+    ) -> Response:
+        """Shares a private conversation of the authenticated owner."""
+
+        conversation = action_type_registry.get_by_type(
+            ShareAgentConversationActionType
+        ).do(request.user, agent_id, conversation_uuid)
+        return Response(_serialize_conversation(conversation))
 
 
 class AgentMessagesView(RealtimeRecoveryPrimaryReadMixin, APIView):
