@@ -196,8 +196,7 @@ def ops(*operations: dict) -> list[FilterOperation]:
 
 @pytest.mark.django_db
 def test_list_filterable_data_sources(seeded, data_fixture):
-    # Not listed: another workspace's data sources, and summary widgets which
-    # have no filters.
+    # Another workspace's data sources must not be listed.
     other_builder = data_fixture.create_builder_application(
         workspace=data_fixture.create_workspace()
     )
@@ -211,6 +210,7 @@ def test_list_filterable_data_sources(seeded, data_fixture):
     items = {(item["kind"], item["name"]): item for item in result["data_sources"]}
     assert set(items) == {
         ("builder_data_source", "Tasks"),
+        ("dashboard_data_source", "Task count"),
         ("automation_node", "Get"),
         ("automation_node", "Later"),
     }
@@ -229,7 +229,7 @@ def test_list_filterable_data_sources(seeded, data_fixture):
         "filter_count": 0,
     }
     assert items[("automation_node", "Get")]["location"] == "Flow"
-    assert result["total"] == 3
+    assert result["total"] == 4
     assert result["has_more"] is False
 
     only_automation = list_filterable_data_sources(
@@ -340,21 +340,23 @@ def test_update_service_filters_stays_in_the_workspace(seeded, data_fixture):
 
 
 @pytest.mark.django_db
-def test_summary_widget_filters_cannot_be_changed(seeded):
-    # The summary widget's form doesn't show filters. The charts' filters are
-    # tested with the premium charts.
-    with rejected("Summary widgets don't have filters"):
-        list_service_filters(
-            ctx(seeded), "dashboard_data_source", seeded.dashboard_data_source.id
-        )
-    with rejected("Summary widgets don't have filters"):
-        update_service_filters(
-            ctx(seeded),
-            "dashboard_data_source",
-            seeded.dashboard_data_source.id,
-            ops(add(seeded.amount.id, "higher_than", "1")),
-        )
-    assert filters_of(seeded.dashboard_data_source.service) == []
+def test_summary_widget_filters_can_be_changed(seeded):
+    """Summary widgets expose their existing filters and save new conditions."""
+    data_source = seeded.dashboard_data_source
+    description = list_service_filters(
+        ctx(seeded), "dashboard_data_source", data_source.id
+    )
+    assert description["filters"] == []
+    result = update_service_filters(
+        ctx(seeded),
+        "dashboard_data_source",
+        data_source.id,
+        ops(add(seeded.amount.id, "higher_than", "1")),
+    )
+    assert result["changed"] is True
+    assert filters_of(data_source.service) == [
+        (seeded.amount.id, "higher_than", "1", "raw")
+    ]
 
 
 @pytest.mark.django_db

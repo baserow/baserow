@@ -22,9 +22,6 @@ from baserow.contrib.integrations.local_baserow.service_filters.exceptions impor
 from baserow.contrib.integrations.local_baserow.service_filters.registries import (
     ServiceFilterTargetType,
 )
-from baserow.contrib.integrations.local_baserow.service_types import (
-    LocalBaserowAggregateRowsUserServiceType,
-)
 from baserow.core.db import specific_iterator
 from baserow.core.handler import CoreHandler
 from baserow.core.models import Workspace
@@ -67,13 +64,6 @@ class DashboardDataSourceServiceFilterTargetType(ServiceFilterTargetType):
         if titles is None:
             titles = _widget_titles(owner.dashboard)
         return titles.get(owner.id) or owner.name
-
-    def get_filters_unsupported_reason(self, owner, service) -> str | None:
-        # The summary widget's form doesn't show filters, so they couldn't be seen
-        # or removed there.
-        if service.get_type().type == LocalBaserowAggregateRowsUserServiceType.type:
-            return "Summary widgets don't have filters, only charts do."
-        return None
 
     def get_location(self, owner: DashboardDataSource) -> str:
         return owner.dashboard.name
