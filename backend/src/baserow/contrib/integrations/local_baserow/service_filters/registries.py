@@ -53,10 +53,17 @@ class ServiceFilterTargetType(Instance):
 
         raise NotImplementedError
 
-    def list_owners(self, user: AbstractUser, application: Application) -> Iterable:
+    def get_application_id(self, owner: Any) -> int:
+        """Return the application owning an object returned by list_owners."""
+
+        raise NotImplementedError
+
+    def list_owners(
+        self, user: AbstractUser, applications: list[Application]
+    ) -> Iterable:
         """
-        Returns the objects of the application the user can list, filterable or
-        not.
+        Returns the objects of the nonempty list of same-workspace applications
+        the user can list, filterable or not, in their existing per-application order.
         """
 
         raise NotImplementedError

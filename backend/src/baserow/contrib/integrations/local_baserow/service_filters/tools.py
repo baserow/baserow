@@ -4,14 +4,21 @@ Service filter tools shared by the clients that act for a user, see
 """
 
 import inspect
+from collections import defaultdict
 from typing import Annotated, Any
 
 from django.core.exceptions import ValidationError as DjangoValidationError
+from django.db.models import Count
 
 from pydantic import Field
 
+from baserow.contrib.integrations.local_baserow.models import (
+    LocalBaserowTableService,
+    LocalBaserowTableServiceFilter,
+)
+from baserow.core.db import specific_iterator
 from baserow.core.exceptions import ApplicationDoesNotExist
-from baserow.core.registries import application_type_registry
+from baserow.core.services.models import Service
 from baserow.core.tools import ToolContext, tool_execution
 from baserow.core.tools.applications import MAX_PAGE_SIZE, visible_applications
 
@@ -86,42 +93,78 @@ def list_filterable_data_sources(
         if not applications.exists():
             raise ApplicationDoesNotExist(application_id)
 
-    items = []
+    applications = specific_iterator(applications.select_related("workspace"))
+    applications_by_type = defaultdict(list)
     for application in applications:
-        application = application.specific
-        application_type = application_type_registry.get_by_model(application).type
+        applications_by_type[application.get_type().type].append(application)
+
+    owners_by_application = defaultdict(list)
+    for application_type, batch in applications_by_type.items():
         target_type = target_types[application_type]
-        for owner in target_type.list_owners(ctx.user, application):
-            service = owner.service.specific if owner.service else None
+        owners = list(target_type.list_owners(ctx.user, batch))
+        services = {
+            service.id: service
+            for service in specific_iterator(
+                [owner.service for owner in owners if owner.service_id],
+                base_model=Service,
+                per_content_type_queryset_hook=lambda model, queryset: (
+                    queryset.select_related("table")
+                    if issubclass(model, LocalBaserowTableService)
+                    else queryset
+                ),
+            )
+        }
+        for owner in owners:
+            service = services.get(owner.service_id)
             if (
                 not is_filterable_service(service)
                 or target_type.get_filters_unsupported_reason(owner, service)
                 is not None
             ):
                 continue
-            items.append(
-                {
-                    "kind": target_type.type,
-                    "id": owner.id,
-                    "name": target_type.get_name(owner),
-                    "application": {
-                        "id": application.id,
-                        "name": application.name,
-                        "type": application_type,
-                    },
-                    "location": target_type.get_location(owner),
-                    "service_type": service.get_type().type,
-                    "table_id": service.table_id,
-                    "filter_count": service.service_filters.count(),
-                }
+            owners_by_application[target_type.get_application_id(owner)].append(
+                (target_type, owner, service)
             )
 
+    # Keep sidebar and per-application ordering, but load response metadata and
+    # count filters only for the requested page.
+    candidates = [
+        (application, *candidate)
+        for application in applications
+        for candidate in owners_by_application[application.id]
+    ]
     offset = (page - 1) * size
+    selected = candidates[offset : offset + size]
+    filter_counts = dict(
+        LocalBaserowTableServiceFilter.objects.filter(
+            service_id__in=[service.id for _, _, _, service in selected]
+        )
+        .values("service_id")
+        .annotate(count=Count("id"))
+        .values_list("service_id", "count")
+    )
+    items = [
+        {
+            "kind": target_type.type,
+            "id": owner.id,
+            "name": target_type.get_name(owner),
+            "application": {
+                "id": application.id,
+                "name": application.name,
+                "type": target_type.application_type,
+            },
+            "location": target_type.get_location(owner),
+            "service_type": service.get_type().type,
+            "table_id": service.table_id,
+            "filter_count": filter_counts.get(service.id, 0),
+        }
+        for application, target_type, owner, service in selected
+    ]
     return {
-        "data_sources": items[offset : offset + size],
-        "total": len(items),
+        "data_sources": items,
+        "total": len(candidates),
         "page": page,
-        "has_more": offset + size < len(items),
+        "has_more": offset + size < len(candidates),
     }
 
 

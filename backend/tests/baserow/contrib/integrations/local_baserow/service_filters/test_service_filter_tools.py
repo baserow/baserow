@@ -9,8 +9,9 @@ from dataclasses import dataclass
 from typing import Any
 
 from django.core.exceptions import ValidationError as DjangoValidationError
-from django.db import transaction
+from django.db import connection, transaction
 from django.http import HttpRequest
+from django.test.utils import CaptureQueriesContext
 
 import pytest
 from asgiref.sync import async_to_sync
@@ -243,6 +244,74 @@ def test_list_filterable_data_sources(seeded, data_fixture):
 
     with pytest.raises(ApplicationDoesNotExist):
         list_filterable_data_sources(ctx(seeded), application_id=0)
+
+
+@pytest.mark.django_db
+def test_discovery_query_count_does_not_grow_per_application(seeded, data_fixture):
+    """Batch applications, service subclasses and counts across all target kinds."""
+    list_filterable_data_sources(ctx(seeded), size=1)
+    with CaptureQueriesContext(connection) as small:
+        list_filterable_data_sources(ctx(seeded), size=1)
+
+    for index in range(10):
+        builder = data_fixture.create_builder_application(workspace=seeded.workspace)
+        page = data_fixture.create_builder_page(builder=builder, name=f"Page {index}")
+        data_fixture.create_builder_local_baserow_list_rows_data_source(
+            page=page, table=seeded.table
+        )
+        dashboard = data_fixture.create_dashboard_application(
+            workspace=seeded.workspace
+        )
+        source = data_fixture.create_dashboard_local_baserow_aggregate_rows_data_source(
+            dashboard=dashboard, table=seeded.table
+        )
+        data_fixture.create_summary_widget(
+            dashboard=dashboard, data_source=source, title=f"Summary {index}"
+        )
+        automation = data_fixture.create_automation_application(
+            workspace=seeded.workspace
+        )
+        workflow = data_fixture.create_automation_workflow(
+            user=seeded.user, automation=automation, create_trigger=False
+        )
+        data_fixture.create_local_baserow_get_row_action_node(
+            user=seeded.user, workflow=workflow, service_kwargs={"table": seeded.table}
+        )
+
+    with CaptureQueriesContext(connection) as large:
+        result = list_filterable_data_sources(ctx(seeded), size=1)
+
+    assert result["total"] == 34
+    assert len(result["data_sources"]) == 1
+    assert result["has_more"] is True
+    assert len(large) <= len(small)
+
+
+@pytest.mark.django_db
+def test_discovery_pagination_preserves_order_and_filter_counts(seeded):
+    """Pagination retains sidebar ordering, totals and page-specific filter counts."""
+    seeded.data_source.service.service_filters.create(
+        field=seeded.name,
+        type="equal",
+        value={"formula": "Bob", "mode": "raw"},
+        order=0,
+    )
+    all_items = list_filterable_data_sources(ctx(seeded))["data_sources"]
+    first = list_filterable_data_sources(ctx(seeded), page=1, size=2)
+    second = list_filterable_data_sources(ctx(seeded), page=2, size=2)
+    empty = list_filterable_data_sources(ctx(seeded), page=3, size=2)
+
+    assert first["data_sources"] + second["data_sources"] == all_items
+    assert first["has_more"] is True
+    assert second["has_more"] is False
+    assert empty["data_sources"] == [] and empty["has_more"] is False
+    assert first["total"] == second["total"] == empty["total"] == 4
+    assert (
+        next(item for item in all_items if item["kind"] == "builder_data_source")[
+            "filter_count"
+        ]
+        == 1
+    )
 
 
 @pytest.mark.django_db

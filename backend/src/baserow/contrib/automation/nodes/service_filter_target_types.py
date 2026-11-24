@@ -60,16 +60,19 @@ class AutomationNodeServiceFilterTargetType(ServiceFilterTargetType):
     def get_location(self, owner: AutomationNode) -> str:
         return owner.workflow.name
 
-    def list_owners(self, user: AbstractUser, application) -> Iterable[AutomationNode]:
+    def get_application_id(self, owner: AutomationNode) -> int:
+        return owner.workflow.automation_id
+
+    def list_owners(self, user: AbstractUser, applications) -> Iterable[AutomationNode]:
         return CoreHandler().filter_queryset(
             user,
             self.list_operation_type,
             AutomationNode.objects.filter(
-                workflow__automation=application, workflow__trashed=False
+                workflow__automation__in=applications, workflow__trashed=False
             )
             .select_related("workflow", "service")
             .order_by("workflow_id", "id"),
-            workspace=application.workspace,
+            workspace=applications[0].workspace,
         )
 
     def get_formula_check(

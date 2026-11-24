@@ -99,14 +99,17 @@ class BuilderDataSourceServiceFilterTargetType(ServiceFilterTargetType):
     def get_location(self, owner: DataSource) -> str:
         return "Shared by all pages" if owner.page.shared else owner.page.name
 
-    def list_owners(self, user: AbstractUser, application) -> Iterable[DataSource]:
+    def get_application_id(self, owner: DataSource) -> int:
+        return owner.page.builder_id
+
+    def list_owners(self, user: AbstractUser, applications) -> Iterable[DataSource]:
         return CoreHandler().filter_queryset(
             user,
             self.list_operation_type,
             DataSource.objects.filter(
-                page__builder=application, page__trashed=False
+                page__builder__in=applications, page__trashed=False
             ).select_related("page", "service"),
-            workspace=application.workspace,
+            workspace=applications[0].workspace,
         )
 
     def get_formula_check(
