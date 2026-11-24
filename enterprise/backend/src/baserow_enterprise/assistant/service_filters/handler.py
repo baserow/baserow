@@ -19,6 +19,7 @@ from baserow.contrib.integrations.local_baserow.service_filters.state import (
     FilterState,
     ServiceFilterValidationError,
 )
+from baserow.core.registries import application_type_registry
 from baserow.core.tools import ToolContext
 from baserow_enterprise.assistant.exceptions import ServiceFilterGenerationFailed
 
@@ -47,21 +48,10 @@ def _formula_examples(user: AbstractUser, target: ServiceFilterTarget) -> Any | 
     the shape of the page parameters, user or previous node outputs.
     """
 
-    if target.kind == "builder_data_source":
-        from baserow.contrib.builder.tools.formulas import (
-            BuilderFormulaContext,
-        )
-
-        context = BuilderFormulaContext(target.owner.page)
-        context.load_data_source_filter_context()
-        return context
-    if target.kind == "automation_node":
-        from baserow_enterprise.assistant.tools.automation.agents import (
-            WorkflowExamples,
-        )
-
-        return WorkflowExamples(user).context_for(target.owner)
-    return None
+    application_type = application_type_registry.get(
+        target.target_type.application_type
+    )
+    return application_type.get_formula_examples(user, target.owner)
 
 
 def _describe_examples(formula_examples: Any | None) -> dict[str, Any] | None:

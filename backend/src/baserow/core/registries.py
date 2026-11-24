@@ -421,6 +421,14 @@ class ApplicationType(
 
     """
 
+    def get_formula_examples(self, user, target):
+        """Return formula example context for an application-owned target, if supported.
+
+        The target is interpreted by the application type. Applications without
+        formula examples return None; this hook does not invoke a language model.
+        """
+        return None
+
     instance_serializer_class = None
     """This serializer that is used to serialize the instance model."""
 

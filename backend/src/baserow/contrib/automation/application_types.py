@@ -50,6 +50,12 @@ class AutomationApplicationType(ApplicationType):
     # Automation applications are imported third (after database, builder)
     import_application_priority = 0
 
+    def get_formula_examples(self, user, target):
+        """Build examples for a automation filter target without invoking a model."""
+        from baserow.contrib.automation.tools.formula_examples import WorkflowExamples
+
+        return WorkflowExamples(user).context_for(target)
+
     def get_api_urls(self):
         from .api import urls as api_urls
 
