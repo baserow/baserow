@@ -3,6 +3,7 @@ import IntegrationCreateEditModal from '@baserow/modules/core/components/integra
 import OAuthAccountForm from '@baserow/modules/integrations/oauthAccount/components/OAuthAccountForm'
 import {
   TEST_OAUTH_TYPE,
+  TestOAuthIntegrationType,
   registerTestOAuthType,
 } from '@baserow/test/unit/integrations/oauthAccount/testIntegrationType'
 
@@ -120,5 +121,48 @@ describe('IntegrationCreateEditModal', () => {
     wrapper.vm.createdBySelf(integration)
     expect(wrapper.emitted('created')).toEqual([[integration]])
     unregister()
+  })
+
+  test('an account form gets its type even when the integration is saved first', async () => {
+    class SaveFirstType extends TestOAuthIntegrationType {
+      static getType() {
+        return 'test_oauth_save_first'
+      }
+
+      get createsItself() {
+        return false
+      }
+    }
+    const registry = testApp.getRegistry()
+    registry.register('integration', new SaveFirstType({ app: testApp._app }))
+    testApp.mock
+      .onGet('/integrations/oauth/test_oauth_save_first/config/')
+      .reply(200, { configured: true, redirect_uri: '' })
+    const application = { id: 1, workspace: { id: 1 }, integrations: [] }
+    try {
+      const wrapper = await testApp.mount(IntegrationCreateEditModal, {
+        props: {
+          application,
+          create: true,
+          integrationType: registry.get('integration', 'test_oauth_save_first'),
+        },
+      })
+
+      wrapper.vm.show()
+      await wrapper.vm.$nextTick()
+      await wrapper.vm.$nextTick()
+
+      const form = wrapper.findComponent(OAuthAccountForm)
+      expect(form.props('integrationType').getType()).toBe(
+        'test_oauth_save_first'
+      )
+      // It's saved with the modal's button.
+      const buttons = document.body.querySelectorAll('.actions--right button')
+      expect([...buttons].map((b) => b.textContent.trim())).toContain(
+        'action.create'
+      )
+    } finally {
+      registry.unregister('integration', 'test_oauth_save_first')
+    }
   })
 })

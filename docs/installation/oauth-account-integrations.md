@@ -74,8 +74,10 @@ For developers. A provider is an integration type built on the shared base in
 4. Service types that extend `OAuthAccountServiceTypeMixin`, with `required_scopes` and
    `permission_description`. `request_as_account` sends a request as the account and
    turns the provider's answers into dispatch errors; build paths from formulas with
-   `quote_path_segments`.
+   `quote_path_segments`. Services serialize their `required_scopes`, so the
+   frontend never repeats them.
 5. On the frontend, a type that extends `OAuthAccountIntegrationType` with its
    `providerName` and `image`. Its form is `OAuthAccountForm`, or a form of its own
-   that wraps it and adds fields in its `extras` slot.
+   that wraps it and adds fields in its `extras` slot. To offer "Grant access" in an
+   action's form, use the type's `getMissingScopes(integration, service)`.
 6. A setup page in `docs/installation/` that links to this one.

@@ -59,11 +59,12 @@ def _retry_after(response) -> int | None:
         return None
 
 
-class MissingScopesField(serializers.Field):
+class RequiredScopesField(serializers.Field):
     """
-    The scopes a service's type needs that its integration's account hasn't
-    granted, so the frontend can offer to grant them without repeating the
-    scope lists.
+    The scopes a service's type needs, as its provider normalizes them. The
+    frontend compares them with the scopes of the integration it holds, which
+    stays current when someone grants access, so the scope lists are only
+    written on the backend.
     """
 
     def __init__(self, service_type: "OAuthAccountServiceTypeMixin", **kwargs):
@@ -72,13 +73,12 @@ class MissingScopesField(serializers.Field):
         kwargs.setdefault("source", "*")
         kwargs.setdefault(
             "help_text",
-            "The permissions this service needs that its integration's account "
-            "hasn't granted. Empty when it isn't connected.",
+            "The permissions this service needs its integration's account to grant.",
         )
         super().__init__(**kwargs)
 
     def to_representation(self, service) -> List[str]:
-        return self.service_type.get_missing_scopes(service)
+        return self.service_type.get_required_scopes()
 
 
 class OAuthAccountServiceTypeMixin:
@@ -117,7 +117,7 @@ class OAuthAccountServiceTypeMixin:
         names = super().get_field_names(request_serializer, extra_params, **kwargs)
         if request_serializer or (extra_params or {}).get("public"):
             return names
-        return [*names, "missing_scopes"]
+        return [*names, "required_scopes"]
 
     def get_field_overrides(
         self, request_serializer: bool, extra_params=None, **kwargs
@@ -127,7 +127,17 @@ class OAuthAccountServiceTypeMixin:
         )
         if request_serializer or (extra_params or {}).get("public"):
             return overrides
-        return {**overrides, "missing_scopes": MissingScopesField(self)}
+        return {**overrides, "required_scopes": RequiredScopesField(self)}
+
+    def get_required_scopes(self) -> list[str]:
+        """
+        :return: The scopes the service needs, as its provider normalizes them,
+            so they compare with an integration's granted `scopes`.
+        """
+
+        return self.oauth_integration_type.provider.normalize_scopes(
+            self.required_scopes
+        )
 
     def get_missing_scopes(self, service) -> list[str]:
         """
@@ -238,7 +248,7 @@ class OAuthAccountServiceTypeMixin:
         :param deadline: The `time.monotonic()` the whole exchange must be over
             by, the token refresh included.
         :param kwargs: Passed on to `send_http_request`, e.g. `params`, `json`.
-        :return: The response, with a status below 400.
+        :return: The response, with a 2xx status.
         """
 
         if deadline is None:
@@ -252,7 +262,9 @@ class OAuthAccountServiceTypeMixin:
                 response = self._send_as_account(method, url, token, deadline, kwargs)
                 if response.status_code == 401:
                     raise ReconnectRequired()
-            if response.status_code >= 400:
+            # Redirects aren't followed, so the token never leaves the address
+            # that was configured: one is a refusal, not an answer.
+            if response.status_code >= 300:
                 raise ProviderAPIError(
                     response.status_code,
                     self.get_api_error_code(response),

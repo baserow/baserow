@@ -20,9 +20,10 @@
       :application="application"
       :default-values="defaultValues"
       v-bind="
-        integrationType.createsItself
-          ? { integrationName: values.name, serviceTypes, integrationType }
-          : {}
+        integrationType.getFormProps({
+          integrationName: values.name,
+          serviceTypes,
+        })
       "
       @created="$emit('created', $event)"
     />

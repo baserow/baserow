@@ -176,6 +176,12 @@ class OAuthProvider(ABC):
     default_token_lifetime_seconds: int = 3600
     """Assumed for an access token the provider gives no lifetime for."""
 
+    max_token_lifetime_seconds: int = 86400
+    """
+    Longest an access token is taken to be valid, whatever the provider says,
+    so a token is still refreshed now and then.
+    """
+
     reconnect_errors: frozenset[str] = frozenset(
         {"invalid_grant", "interaction_required", "consent_required", "login_required"}
     )
@@ -575,8 +581,9 @@ class OAuthProvider(ABC):
         refresh_token = payload.get("refresh_token")
         try:
             expires_in = int(payload.get("expires_in"))
-        except (TypeError, ValueError):
+        except (TypeError, ValueError, OverflowError):
             expires_in = self.default_token_lifetime_seconds
+        expires_in = max(0, min(expires_in, self.max_token_lifetime_seconds))
         id_token = payload.get("id_token")
         return TokenSet(
             access_token=access_token,
