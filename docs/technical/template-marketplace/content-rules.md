@@ -63,8 +63,8 @@ workspace export; see #6116.
 | Module | What enforces it | Status | Owner |
 | --- | --- | --- | --- |
 | Builder | `UserSourceHandler.export_user_source` passes the config through `UserSourceType.serialize_property` to auth providers | done | WAB |
-| Enterprise SSO | `OpenIdConnectAppAuthProviderType` must mark `secret` sensitive | to do | WAB |
-| Enterprise SSO | `SamlAppAuthProviderType` must remove `metadata` and reset `is_verified` | to do | WAB |
+| Enterprise SSO | `OpenIdConnectAppAuthProviderType.sensitive_fields` removes `secret`; import restores an empty string | done | WAB |
+| Enterprise SSO | `SamlAppAuthProviderType.sensitive_fields` removes `metadata` and `is_verified` when `exclude_sensitive_data=True`; import restores empty metadata and an unverified login | done | WAB |
 
 ## Data sync connections
 
