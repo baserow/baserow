@@ -1,0 +1,18 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`DashboardWidget > retains loaded content during refresh > refreshing 1`] = `
+"<div class="dashboard-widget dashboard-widget--selectable dashboard-widget--layout-editable">
+  <!--v-if-->
+  <div class="widget__header widget__header--edit-mode">
+    <div class="widget__header-main">
+      <div class="widget__header-title-wrapper">
+        <div class="widget__header-title">Loading chart</div>
+        <!--v-if-->
+        <!--v-if-->
+      </div>
+      <!--v-if-->
+    </div><button class="widget-context-menu-button" widget="[object Object]" dashboard="[object Object]">⋮</button>
+  </div><span class="dashboard-widget__refreshing" role="status" aria-label="dashboard.widgetsLoading"></span>
+  <div class="loading-widget-content" widget="[object Object]" store-prefix="">false</div>
+</div>"
+`;

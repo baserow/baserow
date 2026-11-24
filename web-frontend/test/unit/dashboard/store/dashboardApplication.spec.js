@@ -515,10 +515,41 @@ describe('Dashboard application store', () => {
 
     expect(dispatchDataSource).toHaveBeenCalledTimes(2)
     expect(dashboardState.data).toEqual({
-      1: { result: 'first' },
-      2: { result: 'second' },
+      1: { result: 'first', _loaded: true },
+      2: { result: 'second', _loaded: true },
     })
   })
+
+  test.each([{ result: 0 }, { result: null }, { results: [] }])(
+    'keeps previous data during dispatch and replaces it with %j',
+    async (newData) => {
+      const dashboardState = createDashboardState()
+      dashboardState.dataSources = [{ id: 1 }]
+      const request = deferred()
+      DataSourceService.mockReturnValue({ dispatch: () => request.promise })
+      const context = {
+        state: dashboardState,
+        commit: applyCommit(dashboardState),
+      }
+      const client = { $client: {}, $registry: providerRegistry }
+      const initial = actions.dispatchDataSource.call(client, context, 1)
+      expect(dashboardState.data[1]).toEqual({ _loading: true })
+      request.resolve({ data: { result: 42 } })
+      await initial
+
+      const refresh = deferred()
+      DataSourceService.mockReturnValue({ dispatch: () => refresh.promise })
+      const pending = actions.dispatchDataSource.call(client, context, 1)
+      expect(dashboardState.data[1]).toEqual({
+        result: 42,
+        _loaded: true,
+        _loading: true,
+      })
+      refresh.resolve({ data: newData })
+      await pending
+      expect(dashboardState.data[1]).toEqual({ ...newData, _loaded: true })
+    }
+  )
 
   test('ignores an obsolete dispatch response for the same data source', async () => {
     const dashboardState = createDashboardState()
@@ -556,7 +587,7 @@ describe('Dashboard application store', () => {
     firstRequest.resolve({ data: { result: 'stale' } })
     await firstDispatch
 
-    expect(dashboardState.data[1]).toEqual({ result: 'newest' })
+    expect(dashboardState.data[1]).toEqual({ result: 'newest', _loaded: true })
   })
 
   test('retries a throttled dispatch after the retry-after delay', async () => {
@@ -589,7 +620,10 @@ describe('Dashboard application store', () => {
       await dispatch
 
       expect(dispatchDataSource).toHaveBeenCalledTimes(2)
-      expect(dashboardState.data[1]).toEqual({ result: 'retried' })
+      expect(dashboardState.data[1]).toEqual({
+        result: 'retried',
+        _loaded: true,
+      })
     } finally {
       vi.useRealTimers()
     }
@@ -808,12 +842,18 @@ describe('Dashboard application store', () => {
     expect(dataSourceUpdated).toHaveBeenCalledWith(widget, updatedDataSource)
     expect(dispatchDataSource).toHaveBeenCalledTimes(2)
     expect(dashboardState.dataSources).toEqual([updatedDataSource])
-    expect(dashboardState.data[dataSourceId]).toEqual({ result: 'updated' })
+    expect(dashboardState.data[dataSourceId]).toEqual({
+      result: 'updated',
+      _loaded: true,
+    })
 
     collectionDispatchRequest.resolve({ data: { result: 'stale' } })
     await collectionPromise
 
-    expect(dashboardState.data[dataSourceId]).toEqual({ result: 'updated' })
+    expect(dashboardState.data[dataSourceId]).toEqual({
+      result: 'updated',
+      _loaded: true,
+    })
   })
 
   test('keeps a realtime update authoritative over a pending local update', async () => {
@@ -863,7 +903,10 @@ describe('Dashboard application store', () => {
     await localUpdate
 
     expect(dashboardState.dataSources).toEqual([realtimeDataSource])
-    expect(dashboardState.data[dataSourceId]).toEqual({ result: 'remote' })
+    expect(dashboardState.data[dataSourceId]).toEqual({
+      result: 'remote',
+      _loaded: true,
+    })
     expect(dispatchDataSource).toHaveBeenCalledOnce()
   })
 
@@ -911,7 +954,10 @@ describe('Dashboard application store', () => {
 
     await expect(localUpdate).rejects.toBe(updateError)
     expect(dashboardState.dataSources).toEqual([realtimeDataSource])
-    expect(dashboardState.data[dataSourceId]).toEqual({ result: 'remote' })
+    expect(dashboardState.data[dataSourceId]).toEqual({
+      result: 'remote',
+      _loaded: true,
+    })
   })
 
   test.each([10, 20])(
@@ -1286,7 +1332,7 @@ describe('Dashboard application store public mode', () => {
       { widget_data: {} }
     )
     expect(privateDispatch).not.toHaveBeenCalled()
-    expect(dashboardState.data).toEqual({ 7: { result: '60' } })
+    expect(dashboardState.data).toEqual({ 7: { result: '60', _loaded: true } })
   })
 
   test('fetchInitial leaves the public mode', async () => {
