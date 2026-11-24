@@ -88,6 +88,21 @@ def is_string_literal(value: str) -> bool:
     return isinstance(tree.expr(), BaserowFormula.StringLiteralContext)
 
 
+def is_direct_variable_reference(value: str) -> bool:
+    """Recognize a single get call with a literal path without executing it."""
+
+    try:
+        expression = get_parse_tree_for_formula(value).expr()
+    except (BaserowFormulaException, RecursionError):
+        return False
+    return (
+        isinstance(expression, BaserowFormula.FunctionCallContext)
+        and expression.func_name().getText().lower() == "get"
+        and len(expression.expr()) == 1
+        and isinstance(expression.expr(0), BaserowFormula.StringLiteralContext)
+    )
+
+
 def wrap_static_string(value: str) -> str:
     """
     A literal as a formula string literal. A value that already is one (``'Submit'``)

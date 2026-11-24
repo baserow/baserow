@@ -1,6 +1,6 @@
 <template>
   <div v-if="page" class="preview-navigation-bar">
-    <div class="preview-navigation-bar__user-selector">
+    <div v-if="!withoutLiveData" class="preview-navigation-bar__user-selector">
       <UserSelector />
     </div>
     <div class="preview-navigation-bar__address-bar">
@@ -63,6 +63,7 @@ import {
 
 export default {
   components: { PreviewNavigationBarInput, UserSelector },
+  inject: { withoutLiveData: { default: false } },
   props: {
     page: {
       type: Object,

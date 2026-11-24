@@ -84,6 +84,7 @@ const actions = {
       mode,
       data: dispatchContext,
       replace = false,
+      withoutLiveData = false,
     }
   ) {
     const { $registry, $i18n, $client, $config } = this
@@ -95,7 +96,7 @@ const actions = {
      * No content is stored for this element directly. It's content will be deduced
      * from the applicationContext and the content of the parent element
      */
-    if (!dataSource) {
+    if (!dataSource || withoutLiveData) {
       // No data source means no content for this element directly. It will then take
       // it's content from the parent element so we can fake the end of the loading.
       commit('SET_HAS_MORE_PAGE', { element, value: false })

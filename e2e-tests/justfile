@@ -392,6 +392,7 @@ test *ARGS:
     export E2E_HTTP_STUB_URL=http://e2e-httpbin:80
     export E2E_SLACK_STUB=yes
     export E2E_KUMA_MODEL_STUB=yes
+    export E2E_AGENT_MODEL_HOST=http://e2e-kuma-model:8080
     export E2E_MAIL_API_URL=http://localhost:{{ mail_api_port }}
     export E2E_BARRIER_STUB_URL=http://e2e-barrier:8080
     export E2E_BARRIER_CONTROL_URL=http://localhost:{{ barrier_control_port }}

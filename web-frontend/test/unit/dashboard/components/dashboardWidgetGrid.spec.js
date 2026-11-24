@@ -20,6 +20,15 @@ const GridLayoutStub = {
   name: 'GridLayout',
   props: ['colNum', 'isDraggable', 'isResizable', 'verticalCompact'],
   emits: ['layout-ready', 'layout-updated'],
+  methods: {
+    getItem(id) {
+      return {
+        wrapper: this.$el.querySelector(
+          `[data-testid="dashboard-widget-grid-item-${id}"]`
+        ),
+      }
+    },
+  },
   template: `
     <div
       class="vgl-layout"
@@ -99,6 +108,7 @@ describe('DashboardWidgetGrid', () => {
     widgetList = widgets,
     editMode = ref(true),
     storePrefix = '',
+    widgetCreation = ref(null),
   } = {}) {
     wrapper = mount(DashboardWidgetGrid, {
       props: {
@@ -106,6 +116,7 @@ describe('DashboardWidgetGrid', () => {
         storePrefix,
       },
       global: {
+        provide: { dashboardWidgetCreation: widgetCreation },
         mocks: {
           $hasPermission: hasPermission,
           $t: (key) => key,
@@ -211,6 +222,30 @@ describe('DashboardWidgetGrid', () => {
     animationFrames.shift()()
     await nextTick()
     expect(placing(2)).toBe(false)
+  })
+
+  test('reveals only the locally created widget once the grid has placed it', async () => {
+    const widgetList = reactive([...widgets])
+    const widgetCreation = ref(null)
+    mountGrid({ widgetList, widgetCreation })
+    await measureGrid(1200)
+    await wrapper.findComponent(GridLayoutStub).vm.$emit('layout-ready')
+    animationFrames.shift()()
+    await nextTick()
+
+    const local = { ...widgets[0], id: 2 }
+    widgetList.push(local, { ...widgets[0], id: 3 })
+    widgetCreation.value = { widgetId: local.id }
+    await nextTick()
+    const cards = wrapper.findAllComponents(GridItemStub)
+    const scrolls = cards.map((card) =>
+      vi.spyOn(card.element, 'scrollIntoView')
+    )
+    expect(scrolls[1]).not.toHaveBeenCalled()
+    animationFrames.shift()()
+    animationFrames.shift()()
+    await nextTick()
+    expect(scrolls.map((scroll) => scroll.mock.calls.length)).toEqual([0, 1, 0])
   })
 
   test('cleans up the resize cursor when a pointer operation ends outside a grid item', async () => {

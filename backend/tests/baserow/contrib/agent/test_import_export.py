@@ -55,11 +55,14 @@ def conversation_values(agent: AgentApplication) -> list[tuple]:
             conversation.title,
             conversation.pinned,
             conversation.owner_user_id,
+            conversation.shared,
+            conversation.started_by_trigger,
             conversation.created_on,
             conversation.updated_on,
             [
                 (
                     message.role,
+                    message.sender_id,
                     message.content,
                     message.status,
                     message.error_code,
@@ -445,7 +448,7 @@ def test_conversations_are_excluded_outside_full_internal_copies(
 
 
 @pytest.mark.django_db
-def test_internal_copy_skips_conversations_of_deleted_owners(
+def test_internal_copy_skips_private_conversations_of_deleted_owners(
     data_fixture, configured_agent
 ):
     owner = data_fixture.create_user()
@@ -453,6 +456,10 @@ def test_internal_copy_skips_conversations_of_deleted_owners(
     agent = configured_agent(user=owner)
     for user in (owner, deleted_user):
         data_fixture.create_agent_message(user=user, agent=agent)
+    shared = data_fixture.create_agent_conversation(
+        user=deleted_user, agent=agent, shared=True
+    )
+    data_fixture.create_agent_message(conversation=shared)
     serialized = export_internal(agent)
     deleted_user.delete()
 
@@ -460,7 +467,9 @@ def test_internal_copy_skips_conversations_of_deleted_owners(
         agent.workspace, serialized, INTERNAL_CONFIG, {}
     )
 
-    assert copied.conversations.get().owner_user_id == owner.id
+    assert sorted(
+        copied.conversations.values_list("shared", "owner_user_id", "messages__sender")
+    ) == [(False, owner.id, owner.id), (True, None, None)]
 
 
 @pytest.mark.django_db(transaction=True)

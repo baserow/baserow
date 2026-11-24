@@ -70,6 +70,7 @@ describe('Agent conversation realtime updates', () => {
       updatedOn = '2026-10-22T10:00:00Z',
       agentId = agentData.id,
       title = '',
+      failed = false,
     } = {}
   ) => {
     receivers.agent_conversation_activity(
@@ -81,6 +82,7 @@ describe('Agent conversation realtime updates', () => {
           ...conversation(uuid, title, updatedOn),
           run_id: runId,
           pending_approval_count: 0,
+          last_reply_failed: failed,
         },
       }
     )
@@ -464,7 +466,7 @@ describe('Agent conversation realtime updates', () => {
         .filter((item) =>
           item.find('.agent-conversations__status--replying').exists()
         )
-        .map((item) => item.text())
+        .map((item) => item.get('.agent-conversations__item-name').text())
     const reads = testApp.mock.history.get.length
     expect(replying()).toEqual(['Conversation B'])
 
@@ -484,6 +486,25 @@ describe('Agent conversation realtime updates', () => {
     })
     expect(replying()).toEqual([])
     expect(testApp.mock.history.get).toHaveLength(reads)
+  })
+
+  test('marks a listed conversation failed, then clears it from the Failed filter once a reply succeeds', async () => {
+    mockConversations(
+      testApp,
+      conversationsPage([first]),
+      conversationsPage([{ ...first, last_reply_failed: true }])
+    )
+    const wrapper = await mount()
+
+    await update(first.uuid, { failed: true })
+    expect(wrapper.find('.agent-conversations__status--failed').exists()).toBe(
+      true
+    )
+
+    await filterConversations(wrapper, 'agent.failed')
+    expect(conversationTitles(wrapper)).toEqual([first.title])
+    await update(first.uuid, { updatedOn: '2026-10-22T10:00:01Z' })
+    expect(conversationTitles(wrapper)).toEqual([])
   })
 
   test('does not read private data without conversation access or for another Agent', async () => {
@@ -700,7 +721,9 @@ describe('Agent conversation realtime updates', () => {
     expect(conversationTitles(wrapper)).toEqual(['B', 'A'])
     expect(testApp.mock.history.get).toHaveLength(reads)
     expect(composer(wrapper).element.value).toBe('Unsent')
-    expect(selected(wrapper).text()).toBe('A')
+    expect(
+      selected(wrapper).get('.agent-conversations__item-name').text()
+    ).toBe('A')
   })
 
   test('keeps an open conversation unpinned while offline, with its draft', async () => {
@@ -761,7 +784,7 @@ describe('Agent conversation realtime updates', () => {
     mockMessages(testApp, b.uuid, page([]))
     mockMessages(testApp, c.uuid, page([]))
     const wrapper = await mount()
-    await filterConversations(wrapper, 'agent.waitingForApprovalFilter')
+    await filterConversations(wrapper, 'agent.waiting')
     await selectConversation(wrapper, 'B')
     await update(b.uuid, { updatedOn: b.updated_on })
 
@@ -783,7 +806,7 @@ describe('Agent conversation realtime updates', () => {
     )
     mockMessages(testApp, first.uuid, page([message('m', 'Hello')]))
     const wrapper = await mount()
-    await filterConversations(wrapper, 'agent.waitingForApprovalFilter')
+    await filterConversations(wrapper, 'agent.waiting')
     await selectConversation(wrapper, first.title)
     await composer(wrapper).setValue('Draft')
     await update(first.uuid)

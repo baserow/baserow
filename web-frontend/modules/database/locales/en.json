@@ -1000,7 +1000,7 @@
     "askAnAdmin": "Ask an admin to change it.",
     "maxSnapshotsZeroRaise": "Taking a snapshot raises its max snapshots to {count}.",
     "allProtectedRaise": "It's at its max snapshots and every one is protected, so taking another raises its max to {count}. Or unprotect or delete one below so it's replaced instead.",
-    "allProtectedCantRaise": "It's at its max snapshots and every one is protected. Unprotect or delete one below to make room.",
+    "allProtectedCantRaise": "All {count} snapshots are protected. Unprotect or delete one to make room.",
     "cantRaiseAboveMaximum": "Its max can't go higher: an application can have at most {count} snapshots.",
     "cantRaiseAllowance": "Its max can't go higher: the workspace's snapshot allowance is fully reserved. Lower another application's max snapshots to free some.",
     "replaces": "It's at its max snapshots, so a new snapshot replaces “{name}”, its oldest unprotected one.",

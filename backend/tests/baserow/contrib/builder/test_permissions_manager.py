@@ -144,7 +144,7 @@ def test_allow_if_template_permission_manager(data_fixture):
         ("Anonymous", "builder.list_pages", "template", True),
         ("Anonymous", "builder.page.list_elements", "template", True),
         ("Anonymous", "builder.page.list_workflow_actions", "template", True),
-        ("Anonymous", "builder.page.data_source.dispatch", "template", True),
+        ("Anonymous", "builder.page.data_source.dispatch", "template", False),
         ("Anonymous", "builder.page.list_data_sources", "template", True),
     ]
 

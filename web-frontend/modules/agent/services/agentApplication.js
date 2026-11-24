@@ -57,6 +57,11 @@ export default (client) => ({
       values
     )
   },
+  shareConversation(agentId, conversationUuid) {
+    return client.post(
+      `/agent/${agentId}/conversations/${conversationUuid}/share/`
+    )
+  },
   deleteConversation(agentId, conversationUuid) {
     return client.delete(`/agent/${agentId}/conversations/${conversationUuid}/`)
   },

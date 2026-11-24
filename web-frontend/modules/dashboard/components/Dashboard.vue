@@ -5,20 +5,20 @@
       :loading="loading"
       :is-creating-widget="isCreatingWidget"
       :store-prefix="storePrefix"
-      @widget-variation-selected="createWidget"
+      @widget-variation-selected="addWidget"
     />
     <DashboardContent
       :dashboard="dashboard"
       :loading="loading"
       :is-creating-widget="isCreatingWidget"
       :store-prefix="storePrefix"
-      @widget-variation-selected="createWidget"
+      @widget-variation-selected="addWidget"
     />
   </div>
 </template>
 
 <script>
-import { computed } from 'vue'
+import { computed, reactive } from 'vue'
 import DashboardHeader from '@baserow/modules/dashboard/components/DashboardHeader'
 import DashboardContent from '@baserow/modules/dashboard/components/DashboardContent'
 import { notifyIf } from '@baserow/modules/core/utils/error'
@@ -27,7 +27,11 @@ export default {
   name: 'Dashboard',
   components: { DashboardHeader, DashboardContent },
   provide() {
-    return { storePrefix: computed(() => this.storePrefix) }
+    return {
+      storePrefix: computed(() => this.storePrefix),
+      dashboardWidgetCreation: computed(() => this.widgetCreation),
+      createDashboardWidget: this.createWidget,
+    }
   },
   props: {
     dashboard: {
@@ -46,37 +50,80 @@ export default {
   },
   data() {
     return {
-      isCreatingWidget: false,
+      widgetCreation: null,
     }
   },
+  computed: {
+    isCreatingWidget() {
+      return this.widgetCreation?.loading ?? false
+    },
+  },
+  watch: {
+    'dashboard.id'() {
+      this.widgetCreation = null
+    },
+  },
+  beforeUnmount() {
+    this.widgetCreation = null
+  },
   methods: {
-    async createWidget(widgetVariation) {
+    async addWidget(variation) {
+      try {
+        await this.createWidget({
+          type: variation.type.getType(),
+          params: variation.params,
+        })
+      } catch (error) {
+        notifyIf(error, 'dashboard')
+      }
+    },
+    async createWidget({ type: widgetType, params, select = true }) {
       if (this.isCreatingWidget) {
         return
       }
 
-      const widgetType = widgetVariation.type.getType()
-      const typeFromRegistry = this.$registry.get('dashboardWidget', widgetType)
-      this.isCreatingWidget = true
+      const dashboard = this.dashboard
+      const store = `${this.storePrefix}dashboardApplication`
+      const type = this.$registry.get('dashboardWidget', widgetType)
+      const widget = {
+        title: type.name,
+        type: widgetType,
+        ...params,
+      }
+      const creation = reactive({
+        title: widget.title,
+        size: type.initialGridSize,
+        widgetId: null,
+        loading: true,
+      })
+      const wasEditing = this.$store.getters[`${store}/isEditMode`]
+      this.widgetCreation = creation
       try {
-        await this.$store.dispatch(
-          `${this.storePrefix}dashboardApplication/createWidget`,
-          {
-            dashboard: this.dashboard,
-            widget: {
-              title: typeFromRegistry.name,
-              type: widgetType,
-              ...widgetVariation.params,
-            },
-          }
-        )
-        await this.$store.dispatch(
-          `${this.storePrefix}dashboardApplication/enterEditMode`
-        )
+        await this.$store.dispatch(`${store}/enterEditMode`)
+        return await this.$store.dispatch(`${store}/createWidget`, {
+          dashboard,
+          widget,
+          select,
+          onCreated: (widgetId) => {
+            creation.widgetId = widgetId
+          },
+        })
       } catch (error) {
-        notifyIf(error, 'dashboard')
+        if (
+          this.widgetCreation === creation &&
+          creation.widgetId === null &&
+          !wasEditing &&
+          this.$store.getters[`${store}/getDashboardId`] === dashboard.id &&
+          this.$store.getters[`${store}/isEditMode`]
+        ) {
+          this.$store.dispatch(`${store}/toggleEditMode`)
+        }
+        throw error
       } finally {
-        this.isCreatingWidget = false
+        creation.loading = false
+        if (this.widgetCreation === creation && creation.widgetId === null) {
+          this.widgetCreation = null
+        }
       }
     },
   },

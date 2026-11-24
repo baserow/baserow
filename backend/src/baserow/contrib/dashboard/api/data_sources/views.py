@@ -21,6 +21,9 @@ from baserow.contrib.dashboard.api.data_sources.serializers import (
     DashboardDispatchSerializer,
 )
 from baserow.contrib.dashboard.api.errors import ERROR_DASHBOARD_DOES_NOT_EXIST
+from baserow.contrib.dashboard.api.permissions import (
+    IsAuthenticatedOrTemplateDashboardRead,
+)
 from baserow.contrib.dashboard.application_types import DashboardApplicationType
 from baserow.contrib.dashboard.data_sources.actions import (
     UpdateDashboardDataSourceActionType,
@@ -58,7 +61,7 @@ from .serializers import (
 
 
 class DashboardDataSourcesView(APIView):
-    permission_classes = (IsAuthenticated,)
+    permission_classes = (IsAuthenticatedOrTemplateDashboardRead,)
 
     @extend_schema(
         parameters=[
@@ -74,7 +77,9 @@ class DashboardDataSourcesView(APIView):
         operation_id="list_dashboard_data_sources",
         description=(
             "Lists all the data sources of the dashboard if "
-            "the user has access to the related dashboard's workspace."
+            "the user has access to the related dashboard's workspace. "
+            "If the workspace is related to a template, then this endpoint will be "
+            "publicly accessible."
         ),
         responses={
             200: DiscriminatorCustomFieldsMappingSerializer(

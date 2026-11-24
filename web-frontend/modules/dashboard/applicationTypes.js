@@ -4,7 +4,6 @@ import DashboardForm from '@baserow/modules/dashboard/components/form/DashboardF
 import SidebarComponentDashboard from '@baserow/modules/dashboard/components/sidebar/SidebarComponentDashboard'
 import DashboardTemplateSidebar from '@baserow/modules/dashboard/components/sidebar/DashboardTemplateSidebar'
 import DashboardTemplate from '@baserow/modules/dashboard/components/DashboardTemplate'
-import { DEVELOPMENT_STAGES } from '@baserow/modules/core/constants'
 import { pageFinished } from '@baserow/modules/core/utils/routing'
 import { nextTick } from '#imports'
 
@@ -100,10 +99,6 @@ export class DashboardApplicationType extends ApplicationType {
         throw error
       }
     }
-  }
-
-  get developmentStage() {
-    return DEVELOPMENT_STAGES.BETA
   }
 
   getOrder() {

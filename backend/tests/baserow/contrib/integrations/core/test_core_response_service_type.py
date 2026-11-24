@@ -23,7 +23,49 @@ from baserow.core.formula.types import (
     BASEROW_FORMULA_MODE_RAW,
     BaserowFormulaObject,
 )
+from baserow.core.registries import ImportExportConfig
 from baserow.core.services.exceptions import InvalidContextContentDispatchException
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("is_user_template", [False, True])
+@pytest.mark.parametrize("exclude_sensitive_data", [False, True])
+def test_response_service_export_removes_sensitive_headers(
+    data_fixture, is_user_template, exclude_sensitive_data
+):
+    """External copies omit header names and values without changing the source."""
+
+    service = data_fixture.create_core_response_service()
+    header = CoreResponseHeader.objects.create(
+        service=service, key="X-Private-Customer", value="'private token'"
+    )
+    service_type = service.get_type()
+    config = ImportExportConfig(
+        include_permission_data=False,
+        is_user_template=is_user_template,
+        exclude_sensitive_data=exclude_sensitive_data,
+    )
+    exported = service_type.export_serialized(service, config)
+    expected = (
+        []
+        if exclude_sensitive_data
+        else [{"key": "X-Private-Customer", "value": header.value}]
+    )
+    assert exported["headers"] == expected
+
+    imported = service_type.import_serialized(
+        None, exported, {}, import_export_config=config
+    )
+    assert list(imported.headers.values("key", "value")) == expected
+
+    installed_export = service_type.export_serialized(imported, config)
+    installed = service_type.import_serialized(
+        None, installed_export, {}, import_export_config=config
+    )
+    assert list(installed.headers.values("key", "value")) == expected
+    assert list(service.headers.values("key", "value")) == [
+        {"key": "X-Private-Customer", "value": header.value}
+    ]
 
 
 @pytest.mark.parametrize(

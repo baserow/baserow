@@ -13,6 +13,7 @@ import { notifyIf } from '@baserow/modules/core/utils/error'
 export default {
   name: 'DashboardTemplate',
   components: { Dashboard },
+  inject: { withoutLiveData: { default: false } },
   props: {
     pageValue: {
       type: Object,
@@ -42,6 +43,7 @@ export default {
           {
             dashboardId: dashboard.id,
             forEditing: false,
+            withoutLiveData: this.withoutLiveData,
           }
         )
       } catch (error) {

@@ -339,19 +339,39 @@ class AgentConfigurationUpdateSerializer(
         return values
 
 
+class AgentConversationUserSerializer(serializers.Serializer):
+    id = serializers.IntegerField(read_only=True)
+    name = serializers.CharField(source="first_name", read_only=True)
+
+
 class AgentConversationSerializer(serializers.ModelSerializer):
     run_id = serializers.SerializerMethodField(
         help_text="The run writing a reply in this conversation, or null."
+    )
+    last_reply_failed = serializers.SerializerMethodField(
+        help_text="Whether the latest reply in this conversation failed."
     )
     pending_approval_count = serializers.SerializerMethodField(
         help_text="The number of held tool calls in this conversation waiting for "
         "a decision."
     )
-    shared = serializers.SerializerMethodField(
-        help_text="Whether a trigger started this conversation. A shared conversation "
-        "is read by everyone who may read the agent's conversations, accepts no "
-        "messages, and its held tool calls are decided by anyone who may send the "
-        "agent messages."
+    shared = serializers.BooleanField(
+        read_only=True,
+        help_text="Whether everyone who may read the agent's conversations reads "
+        "this one, and anyone who may send the agent messages decides its held tool "
+        "calls. Otherwise only its owner sees it.",
+    )
+    started_by_trigger = serializers.BooleanField(
+        read_only=True,
+        help_text="Whether a trigger started this shared conversation, so it "
+        "accepts no messages.",
+    )
+    owner = AgentConversationUserSerializer(
+        source="owner_user",
+        read_only=True,
+        allow_null=True,
+        help_text="The person who started the conversation. Null when a trigger "
+        "started it or the person was deleted.",
     )
     trigger_id = serializers.IntegerField(
         read_only=True,
@@ -376,9 +396,12 @@ class AgentConversationSerializer(serializers.ModelSerializer):
             "created_on",
             "updated_on",
             "run_id",
+            "last_reply_failed",
             "pending_approval_count",
             "pinned",
             "shared",
+            "started_by_trigger",
+            "owner",
             "trigger_id",
             "trigger_type",
             "trigger_name",
@@ -388,20 +411,15 @@ class AgentConversationSerializer(serializers.ModelSerializer):
     def get_run_id(self, conversation: AgentConversation) -> UUID | None:
         return self.context.get("conversation_runs", {}).get(conversation.id)
 
+    @extend_schema_field(serializers.BooleanField())
+    def get_last_reply_failed(self, conversation: AgentConversation) -> bool:
+        return conversation.id in self.context.get("failed_conversation_ids", ())
+
     @extend_schema_field(serializers.IntegerField())
     def get_pending_approval_count(self, conversation: AgentConversation) -> int:
         return self.context.get("conversation_pending_approvals", {}).get(
             conversation.id, 0
         )
-
-    @extend_schema_field(serializers.BooleanField())
-    def get_shared(self, conversation: AgentConversation) -> bool:
-        """
-        :param conversation: The serialized conversation.
-        :return: Whether a trigger started it, so it has no owner.
-        """
-
-        return conversation.is_shared
 
     @extend_schema_field(serializers.CharField(allow_null=True))
     def get_trigger_type(self, conversation: AgentConversation) -> str | None:
@@ -428,6 +446,31 @@ class AgentConversationSerializer(serializers.ModelSerializer):
 
         trigger = conversation.trigger
         return None if trigger is None else trigger.name
+
+
+def get_listed_conversation_context(
+    conversation_ids: list[int],
+    conversation_runs: dict[int, UUID | str] | None = None,
+) -> dict[str, object]:
+    """
+    :param conversation_ids: The ids of the conversations to serialize.
+    :param conversation_runs: The run replying in each, read when omitted.
+    :return: The context ``AgentConversationSerializer`` needs to show each
+        conversation as its list does.
+    """
+
+    handler = AgentHandler()
+    if conversation_runs is None:
+        conversation_runs = handler.get_conversation_runs(conversation_ids)
+    return {
+        "conversation_runs": conversation_runs,
+        "failed_conversation_ids": handler.get_failed_conversation_ids(
+            conversation_ids
+        ),
+        "conversation_pending_approvals": (
+            handler.get_conversation_pending_approval_counts(conversation_ids)
+        ),
+    }
 
 
 class AgentConversationUpdateSerializer(
@@ -485,6 +528,12 @@ class AgentPendingReplySerializer(serializers.ModelSerializer):
 
 
 class AgentMessageSerializer(serializers.ModelSerializer):
+    sender = AgentConversationUserSerializer(
+        read_only=True,
+        allow_null=True,
+        help_text="The person who sent the message, or whom the reply answers. "
+        "Null for a trigger or a deleted user.",
+    )
     steps = AgentMessageStepSerializer(many=True, allow_null=True, read_only=True)
     approvals = AgentToolApprovalSerializer(
         many=True,
@@ -505,6 +554,7 @@ class AgentMessageSerializer(serializers.ModelSerializer):
             "id",
             "uuid",
             "role",
+            "sender",
             "content",
             "created_on",
             "status",
@@ -627,6 +677,9 @@ class AgentConversationCursorField(KeysetCursorField):
 class AgentConversationsQuerySerializer(serializers.Serializer):
     pinned = serializers.BooleanField(required=False)
     has_pending_approvals = serializers.BooleanField(required=False)
+    shared = serializers.BooleanField(required=False)
+    started_by_trigger = serializers.BooleanField(required=False)
+    last_reply_failed = serializers.BooleanField(required=False)
     limit = serializers.IntegerField(
         default=20,
         min_value=1,

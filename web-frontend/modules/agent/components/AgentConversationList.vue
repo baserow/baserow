@@ -14,13 +14,33 @@
       />
       <DropdownItem
         value="waiting"
-        :name="$t('agent.waitingForApprovalFilter')"
+        :name="$t('agent.waiting')"
         icon="iconoir-clock"
+      />
+      <DropdownItem
+        value="failed"
+        :name="$t('agent.failed')"
+        icon="iconoir-warning-circle"
       />
       <DropdownItem
         value="pinned"
         :name="$t('agent.pinned')"
         icon="iconoir-pin"
+      />
+      <DropdownItem
+        value="triggered"
+        :name="$t('agent.triggered')"
+        icon="iconoir-flash"
+      />
+      <DropdownItem
+        value="private"
+        :name="$t('agent.private')"
+        icon="iconoir-lock"
+      />
+      <DropdownItem
+        value="shared"
+        :name="$t('agent.shared')"
+        icon="iconoir-community"
       />
     </Dropdown>
     <InfiniteScroll
@@ -103,41 +123,57 @@
               :aria-current="item.uuid === selected ? 'true' : undefined"
               @click="$emit('select', item)"
             >
-              <Icon
-                :icon="conversationIcon(item)"
-                type="secondary"
-                aria-hidden="true"
-              />
-              <span class="agent-conversations__item-name">{{
-                item.title || $t('agent.newConversation')
-              }}</span>
-              <span
-                v-if="!item.shared"
-                class="agent-conversations__private"
-                role="img"
-                :aria-label="$t('agent.privateConversation')"
-                :title="$t('agent.privateConversation')"
-                ><i class="iconoir-lock" aria-hidden="true"></i
-              ></span>
-              <span v-if="item.local" class="agent-conversations__draft">{{
-                $t('agent.draft')
-              }}</span>
-              <span
-                v-if="item.pending_approval_count > 0"
-                class="agent-conversations__status-label"
-                >{{
-                  $t(
-                    item.shared
-                      ? 'agent.waitingForApprovalShared'
-                      : 'agent.waitingForApproval'
-                  )
-                }}</span
-              >
-              <span
-                class="agent-conversations__status"
-                :class="statusClass(item)"
-                aria-hidden="true"
-              />
+              <span class="agent-conversations__origin">
+                <Icon
+                  :icon="conversationIcon(item)"
+                  type="secondary"
+                  aria-hidden="true"
+                />
+                <span
+                  v-if="hasStatus(item)"
+                  class="agent-conversations__status"
+                  :class="`agent-conversations__status--${status(item)}`"
+                  aria-hidden="true"
+                ></span>
+              </span>
+              <span class="agent-conversations__text">
+                <span class="agent-conversations__title">
+                  <span
+                    class="agent-conversations__item-name"
+                    :title="item.title"
+                    >{{ item.title || $t('agent.newConversation') }}</span
+                  >
+                  <span
+                    v-if="!item.shared"
+                    class="agent-conversations__private"
+                    role="img"
+                    :aria-label="$t('agent.privateConversation')"
+                    :title="$t('agent.privateConversation')"
+                    ><i class="iconoir-lock" aria-hidden="true"></i
+                  ></span>
+                </span>
+                <span class="agent-conversations__meta">
+                  <span
+                    v-if="hasStatus(item)"
+                    class="agent-conversations__status-label"
+                    >{{ $t(`agent.${status(item)}`) }}</span
+                  >
+                  <span v-else class="agent-conversations__detail">{{
+                    startedBy(item)
+                  }}</span>
+                  <span v-if="item.local" class="agent-conversations__draft">{{
+                    $t('agent.draft')
+                  }}</span>
+                  <time
+                    v-else-if="item.updated_on"
+                    class="agent-conversations__age"
+                    :datetime="item.updated_on"
+                    >{{
+                      getHumanAgoLabel(t, item.updated_on, now ?? undefined)
+                    }}</time
+                  >
+                </span>
+              </span>
             </button>
             <button
               v-if="hasOptions(item) && item.uuid !== renamingUuid"
@@ -188,6 +224,15 @@
     </div>
     <Context ref="menu" @hidden="menuItem = null">
       <ul v-if="menuItem" class="context__menu">
+        <li
+          v-if="canUpdateItem(menuItem) && !menuItem.shared"
+          class="context__menu-item"
+        >
+          <a class="context__menu-item-link" @click="share">
+            <i class="context__menu-item-icon iconoir-community"></i>
+            {{ $t('agent.share') }}
+          </a>
+        </li>
         <li v-if="canUpdateItem(menuItem)" class="context__menu-item">
           <a class="context__menu-item-link" @click="togglePin">
             <i class="context__menu-item-icon iconoir-pin"></i>
@@ -217,6 +262,10 @@
         </li>
       </ul>
     </Context>
+    <AgentShareConversationModal
+      ref="shareModal"
+      @share="$emit('share', $event)"
+    />
   </aside>
 </template>
 
@@ -225,7 +274,12 @@ import { nextTick, ref, watch } from 'vue'
 import Icon from '@baserow/modules/core/components/Icon'
 import Context from '@baserow/modules/core/components/Context'
 import InfiniteScroll from '@baserow/modules/core/components/helpers/InfiniteScroll'
+import AgentShareConversationModal from '@baserow/modules/agent/components/AgentShareConversationModal'
+import { useStore } from 'vuex'
+import { useI18n } from 'vue-i18n'
 import { useNuxtApp } from '#app'
+import { getHumanAgoLabel } from '@baserow/modules/core/utils/date'
+import { injectNow } from '@baserow/modules/core/composables/useNow'
 import { serviceTypeOf } from '@baserow/modules/agent/utils/triggers'
 
 const props = defineProps({
@@ -249,14 +303,19 @@ const emit = defineEmits([
   'load-more',
   'create',
   'update',
+  'share',
   'delete',
 ])
 
 const { $registry } = useNuxtApp()
+const { t } = useI18n()
+const store = useStore()
+const now = injectNow()
 
 const scroll = ref(null)
 const menu = ref(null)
 const menuItem = ref(null)
+const shareModal = ref(null)
 const renameInput = ref([])
 const renamingUuid = ref(null)
 const renameTitle = ref('')
@@ -269,6 +328,21 @@ function conversationIcon(item) {
   return (
     serviceTypeOf($registry, item.trigger_type)?.icon || 'iconoir-chat-bubble'
   )
+}
+
+/** The trigger or the person that started the conversation, by name. */
+function startedBy(item) {
+  if (item.started_by_trigger) {
+    return (
+      item.trigger_name ||
+      serviceTypeOf($registry, item.trigger_type)?.name ||
+      t('agent.startedByTrigger')
+    )
+  }
+  if (!item.owner) return item.shared ? t('agent.deletedSender') : ''
+  return item.owner.id === store.getters['auth/getUserId']
+    ? t('agent.you')
+    : item.owner.name
 }
 const canUpdateItem = (item) =>
   props.canUpdate && (!item.shared || props.canUpdateAgent)
@@ -308,13 +382,14 @@ function setItemButton(uuid, element) {
   else delete itemButtons[uuid]
 }
 
-function statusClass(item) {
-  if (item.pending_approval_count > 0) {
-    return 'agent-conversations__status--waiting'
-  }
-  return item.run_id
-    ? 'agent-conversations__status--replying'
-    : 'agent-conversations__status--idle'
+function status(item) {
+  if (item.pending_approval_count > 0) return 'waiting'
+  if (item.run_id) return 'replying'
+  return item.last_reply_failed ? 'failed' : null
+}
+
+function hasStatus(item) {
+  return status(item) !== null
 }
 
 function toggleMenu(target, item) {
@@ -360,6 +435,12 @@ function togglePin() {
   const item = menuItem.value
   menu.value.hide()
   emit('update', item, { pinned: !item.pinned })
+}
+
+function share() {
+  const item = menuItem.value
+  menu.value.hide()
+  shareModal.value.show(item)
 }
 
 function remove() {

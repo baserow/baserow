@@ -34,7 +34,9 @@
         />
       </div>
       <template v-else>
-        <div class="workflow-editor__trigger-selector" @scroll.stop>
+        <!-- `nowheel` stops Vue Flow from panning the graph on wheel events,
+        so the trigger list scrolls instead. -->
+        <div class="workflow-editor__trigger-selector nowheel">
           <WorkflowAddNodeMenu
             :only-trigger="true"
             @change="emit('add-node', { type: $event })"

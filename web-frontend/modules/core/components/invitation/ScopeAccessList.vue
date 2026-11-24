@@ -5,6 +5,9 @@
       <div>{{ emptyDescription }}</div>
     </div>
     <ul v-else class="invite-list__items invite-list__items--scrollable">
+      <li v-if="roleHeading" class="invite-list__heading" aria-hidden="true">
+        {{ roleHeading }}
+      </li>
       <li v-for="item in items" :key="item.key" class="invite-list__item">
         <div class="invite-list__subject">
           <component
@@ -33,7 +36,16 @@
                 {{ item.badge }}
               </Badge>
             </div>
-            <div v-if="item.subtitle" class="invite-list__subtitle">
+            <div
+              v-if="item.subtitle"
+              v-tooltip:[subtitleTooltipOptions]="item.subtitleTooltip || null"
+              class="invite-list__subtitle"
+              :class="{
+                'invite-list__subtitle--with-tooltip': item.subtitleTooltip,
+              }"
+              :tabindex="item.subtitleTooltip ? 0 : null"
+              :aria-label="item.subtitleTooltip || null"
+            >
               {{ item.subtitle }}
             </div>
           </div>
@@ -86,11 +98,13 @@ export default {
   components: { ScopeRoleSelector },
   props: {
     /**
-     * Rows of `{ key, name, subtitle, badge, badgeColor, avatarComponent, subject,
+     * Rows of `{ key, name, subtitle, subtitleTooltip, badge, badgeColor, avatarComponent, subject,
      * initials, icon, color,
      * roleUid, roles, disabled, allowRemovingRole, removeOnly, helpText }`,
      * prepared by the
-     * caller. `helpText`, when set, explains the role next to it.
+     * caller. `helpText`, when set, explains the role next to it, and
+     * `subtitleTooltip`, when set, is shown on hovering or focusing the subtitle
+     * and read out as its label.
      */
     items: {
       type: Array,
@@ -108,12 +122,31 @@ export default {
       type: String,
       required: true,
     },
+    /**
+     * An optional heading shown above the roles of the rows, like "Role".
+     */
+    roleHeading: {
+      type: String,
+      required: false,
+      default: null,
+    },
     workspace: {
       type: Object,
       required: true,
     },
   },
   emits: ['role-updated'],
+  data() {
+    return {
+      subtitleTooltipOptions: {
+        contentClasses: [
+          'tooltip__content--expandable',
+          'tooltip__content--expandable-plain-text',
+        ],
+        showOnFocus: true,
+      },
+    }
+  },
   methods: {
     getRole(item) {
       return (

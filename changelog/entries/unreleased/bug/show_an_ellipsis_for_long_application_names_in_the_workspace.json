@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Show an ellipsis for long application names in the workspace sidebar",
+    "issue_origin": "github",
+    "issue_number": null,
+    "domain": "core",
+    "bullet_points": [],
+    "created_at": "2026-11-24"
+}

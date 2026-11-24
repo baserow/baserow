@@ -3,6 +3,7 @@ from typing import Optional
 from django.contrib.auth import get_user_model
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError
+from django.db import transaction
 from django.db.models import Q
 
 from baserow.core.admin.users.exceptions import (
@@ -173,14 +174,17 @@ class UserAdminHandler:
         if requesting_user.id == user_id:
             raise CannotDeleteYourselfException()
 
-        try:
-            user = User.objects.get(id=user_id)
+        with transaction.atomic():
+            try:
+                # Locked before the delete gathers its cascade, so that a concurrent
+                # insert referencing the user is either deleted with it or fails.
+                user = User.objects.select_for_update().get(id=user_id)
+            except User.DoesNotExist:
+                raise UserDoesNotExistException()
 
             before_user_deleted.send(self, user=user)
 
             user.delete()
-        except User.DoesNotExist:
-            raise UserDoesNotExistException()
 
     def disable_user_two_factor_auth(self, requesting_user: User, user_id: int):
         """

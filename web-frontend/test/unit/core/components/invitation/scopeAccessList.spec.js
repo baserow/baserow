@@ -58,3 +58,30 @@ test('disables the removal of a disabled row', async () => {
 
   expect(wrapper.find('.button-icon').attributes('disabled')).toBeDefined()
 })
+
+test('shows the role heading above the rows only', async () => {
+  const wrapper = await mountSuspended(ScopeAccessList, {
+    props: {
+      items: [item('with-role')],
+      roles,
+      workspace,
+      emptyTitle: 'Empty',
+      emptyDescription: 'Nobody yet',
+      roleHeading: 'Role',
+    },
+    global: {
+      stubs: {
+        ScopeRoleSelector: { template: '<div class="role-selector"></div>' },
+      },
+    },
+  })
+
+  expect(wrapper.find('.invite-list__heading').text()).toBe('Role')
+
+  await wrapper.setProps({ items: [] })
+  expect(wrapper.find('.invite-list__heading').exists()).toBe(false)
+  expect(wrapper.find('.invite-list__empty').exists()).toBe(true)
+
+  await wrapper.setProps({ items: [item('with-role')], roleHeading: null })
+  expect(wrapper.find('.invite-list__heading').exists()).toBe(false)
+})

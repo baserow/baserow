@@ -1,4 +1,6 @@
 import { WidgetDataProviderType } from '@baserow/modules/dashboard/dataProviderTypes'
+import { mountSuspended } from '@nuxt/test-utils/runtime'
+import flushPromises from 'flush-promises'
 import { afterEach, describe, expect, test, vi } from 'vitest'
 
 import {
@@ -11,6 +13,8 @@ import {
 import DataSourceService from '@baserow/modules/dashboard/services/dataSource'
 import PublicDashboardService from '@baserow/modules/dashboard/services/publicDashboard'
 import WidgetService from '@baserow/modules/dashboard/services/widget'
+import DashboardWidget from '@baserow/modules/dashboard/components/widget/DashboardWidget'
+import DashboardTemplate from '@baserow/modules/dashboard/components/DashboardTemplate'
 
 vi.mock('@baserow/modules/dashboard/services/dataSource', () => ({
   default: vi.fn(),
@@ -515,10 +519,41 @@ describe('Dashboard application store', () => {
 
     expect(dispatchDataSource).toHaveBeenCalledTimes(2)
     expect(dashboardState.data).toEqual({
-      1: { result: 'first' },
-      2: { result: 'second' },
+      1: { result: 'first', _loaded: true },
+      2: { result: 'second', _loaded: true },
     })
   })
+
+  test.each([{ result: 0 }, { result: null }, { results: [] }])(
+    'keeps previous data during dispatch and replaces it with %j',
+    async (newData) => {
+      const dashboardState = createDashboardState()
+      dashboardState.dataSources = [{ id: 1 }]
+      const request = deferred()
+      DataSourceService.mockReturnValue({ dispatch: () => request.promise })
+      const context = {
+        state: dashboardState,
+        commit: applyCommit(dashboardState),
+      }
+      const client = { $client: {}, $registry: providerRegistry }
+      const initial = actions.dispatchDataSource.call(client, context, 1)
+      expect(dashboardState.data[1]).toEqual({ _loading: true })
+      request.resolve({ data: { result: 42 } })
+      await initial
+
+      const refresh = deferred()
+      DataSourceService.mockReturnValue({ dispatch: () => refresh.promise })
+      const pending = actions.dispatchDataSource.call(client, context, 1)
+      expect(dashboardState.data[1]).toEqual({
+        result: 42,
+        _loaded: true,
+        _loading: true,
+      })
+      refresh.resolve({ data: newData })
+      await pending
+      expect(dashboardState.data[1]).toEqual({ ...newData, _loaded: true })
+    }
+  )
 
   test('ignores an obsolete dispatch response for the same data source', async () => {
     const dashboardState = createDashboardState()
@@ -556,7 +591,7 @@ describe('Dashboard application store', () => {
     firstRequest.resolve({ data: { result: 'stale' } })
     await firstDispatch
 
-    expect(dashboardState.data[1]).toEqual({ result: 'newest' })
+    expect(dashboardState.data[1]).toEqual({ result: 'newest', _loaded: true })
   })
 
   test('retries a throttled dispatch after the retry-after delay', async () => {
@@ -589,7 +624,10 @@ describe('Dashboard application store', () => {
       await dispatch
 
       expect(dispatchDataSource).toHaveBeenCalledTimes(2)
-      expect(dashboardState.data[1]).toEqual({ result: 'retried' })
+      expect(dashboardState.data[1]).toEqual({
+        result: 'retried',
+        _loaded: true,
+      })
     } finally {
       vi.useRealTimers()
     }
@@ -808,12 +846,18 @@ describe('Dashboard application store', () => {
     expect(dataSourceUpdated).toHaveBeenCalledWith(widget, updatedDataSource)
     expect(dispatchDataSource).toHaveBeenCalledTimes(2)
     expect(dashboardState.dataSources).toEqual([updatedDataSource])
-    expect(dashboardState.data[dataSourceId]).toEqual({ result: 'updated' })
+    expect(dashboardState.data[dataSourceId]).toEqual({
+      result: 'updated',
+      _loaded: true,
+    })
 
     collectionDispatchRequest.resolve({ data: { result: 'stale' } })
     await collectionPromise
 
-    expect(dashboardState.data[dataSourceId]).toEqual({ result: 'updated' })
+    expect(dashboardState.data[dataSourceId]).toEqual({
+      result: 'updated',
+      _loaded: true,
+    })
   })
 
   test('keeps a realtime update authoritative over a pending local update', async () => {
@@ -863,7 +907,10 @@ describe('Dashboard application store', () => {
     await localUpdate
 
     expect(dashboardState.dataSources).toEqual([realtimeDataSource])
-    expect(dashboardState.data[dataSourceId]).toEqual({ result: 'remote' })
+    expect(dashboardState.data[dataSourceId]).toEqual({
+      result: 'remote',
+      _loaded: true,
+    })
     expect(dispatchDataSource).toHaveBeenCalledOnce()
   })
 
@@ -911,7 +958,10 @@ describe('Dashboard application store', () => {
 
     await expect(localUpdate).rejects.toBe(updateError)
     expect(dashboardState.dataSources).toEqual([realtimeDataSource])
-    expect(dashboardState.data[dataSourceId]).toEqual({ result: 'remote' })
+    expect(dashboardState.data[dataSourceId]).toEqual({
+      result: 'remote',
+      _loaded: true,
+    })
   })
 
   test.each([10, 20])(
@@ -1286,7 +1336,7 @@ describe('Dashboard application store public mode', () => {
       { widget_data: {} }
     )
     expect(privateDispatch).not.toHaveBeenCalled()
-    expect(dashboardState.data).toEqual({ 7: { result: '60' } })
+    expect(dashboardState.data).toEqual({ 7: { result: '60', _loaded: true } })
   })
 
   test('fetchInitial leaves the public mode', async () => {
@@ -1365,5 +1415,68 @@ describe('Dashboard application store public mode', () => {
     )
 
     expect(token).toBe(null)
+  })
+})
+
+describe('Dashboard application store without live data', () => {
+  afterEach(() => {
+    vi.clearAllMocks()
+  })
+
+  test('a template preview shows its widgets without running their data sources', async () => {
+    const widget = {
+      id: 1,
+      type: 'summary',
+      title: 'Open tasks',
+      description: '',
+      data_source_id: 7,
+      grid_x: 0,
+      grid_y: 0,
+      grid_width: 2,
+      grid_height: 2,
+    }
+    const dataSource = {
+      id: 7,
+      type: 'local_baserow_aggregate_rows',
+      aggregation_type: 'sum',
+      context_data: { field: { id: 3, type: 'number' } },
+    }
+    const dispatch = vi.fn()
+    WidgetService.mockReturnValue({
+      getAllWidgets: vi.fn().mockResolvedValue({ data: [widget] }),
+    })
+    DataSourceService.mockReturnValue({
+      getAllDataSources: vi.fn().mockResolvedValue({ data: [dataSource] }),
+      dispatch,
+    })
+    PublicDashboardService.mockReturnValue({ dispatch })
+
+    const template = await mountSuspended(DashboardTemplate, {
+      props: { pageValue: { dashboard: { id: 42 } } },
+      global: {
+        provide: { withoutLiveData: true },
+        stubs: { Dashboard: true },
+      },
+    })
+    await flushPromises()
+    const wrapper = await mountSuspended(DashboardWidget, {
+      props: {
+        dashboard: { id: 42, workspace: { id: 1 } },
+        widget,
+        storePrefix: 'template/',
+      },
+      global: { stubs: { WidgetContextMenu: true } },
+    })
+    await flushPromises()
+
+    expect(dispatch).not.toHaveBeenCalled()
+    expect(wrapper.text()).toContain('Open tasks')
+    expect(wrapper.classes()).not.toContain('skeleton-loading')
+    expect(
+      wrapper.find('.dashboard-widget__configuration-status').exists()
+    ).toBe(false)
+    expect(wrapper.find('.dashboard-summary-widget__summary').text()).toBe('')
+    wrapper.unmount()
+    template.unmount()
   })
 })

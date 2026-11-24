@@ -333,7 +333,7 @@ class Plugin(APIUrlsInstanceMixin, Instance):
         Returns the snapshot allowance of the provided workspace: how many snapshots
         its applications can keep together. A negative value means there is no
         limit and 0 disables snapshots. `None` leaves it to the other plugins, and
-        then to `BASEROW_MAX_SNAPSHOTS_PER_GROUP`.
+        then to `BASEROW_MAX_SNAPSHOTS_PER_WORKSPACE`.
 
         :param workspace: The workspace.
         :return: The allowance, or `None`.

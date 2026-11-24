@@ -1045,7 +1045,7 @@ def test_update_user_template_queued_before_the_template_is_deleted(
             job = update_details(user, root)
         else:
             job = update_content(user, root, workspace, [database])
-    queue.assert_called_once_with(job.id)
+    queue.delay.assert_called_once_with(job.id)
     assert job.state == JOB_PENDING
 
     delete_the_template(user, root)
@@ -1073,7 +1073,7 @@ def test_update_user_template_runs_when_the_deletion_of_its_template_rolls_back(
 
     with queued() as queue:
         job = update_details(user, root)
-    queue.assert_called_once_with(job.id)
+    queue.delay.assert_called_once_with(job.id)
 
     # The deletion cancels the job, then fails when it's registered.
     with (
@@ -1144,7 +1144,7 @@ def test_update_user_template_task_running_after_the_template_is_removed(
             job = update_details(user, root)
         else:
             job = update_content(user, root, workspace, [database])
-    queue.assert_called_once_with(job.id)
+    queue.delay.assert_called_once_with(job.id)
 
     delete_the_template(user, root)
     purge_after_the_grace_period()

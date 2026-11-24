@@ -6,6 +6,8 @@ import MemberRolesTableContextItem from '@baserow_enterprise/components/member-r
 import MemberRolesViewContextItem from '@baserow_enterprise/components/member-roles/MemberRolesViewContextItem'
 import EnterpriseFeatures from '@baserow_enterprise/features'
 import SnapshotModalWarning from '@baserow_enterprise/components/SnapshotModalWarning'
+import AutomaticSnapshotsSettings from '@baserow_enterprise/components/automaticSnapshots/AutomaticSnapshotsSettings'
+import AutomaticSnapshotScheduleSection from '@baserow_enterprise/components/automaticSnapshots/AutomaticSnapshotScheduleSection'
 import EnterpriseSettings from '@baserow_enterprise/components/EnterpriseSettings'
 import EnterpriseSettingsOverrideDashboardHelp from '@baserow_enterprise/components/EnterpriseSettingsOverrideDashboardHelp'
 import EnterpriseLogo from '@baserow_enterprise/components/EnterpriseLogo'
@@ -96,12 +98,20 @@ export class EnterprisePlugin extends BaserowPlugin {
     return components
   }
 
-  getExtraSnapshotModalComponents(workspace) {
+  getExtraSnapshotModalComponents(workspace, application) {
     const rbacSupport = this.app.$hasFeature(
       EnterpriseFeatures.RBAC,
       workspace.id
     )
     return rbacSupport ? SnapshotModalWarning : null
+  }
+
+  getSnapshotModalComponents(workspace, application) {
+    return [AutomaticSnapshotScheduleSection]
+  }
+
+  getWorkspaceSnapshotSettingsComponents(workspace) {
+    return [AutomaticSnapshotsSettings]
   }
 
   getExtraExportWorkspaceModalComponents(workspace) {

@@ -531,7 +531,11 @@
     "linkPasswordProtected": "Password protected",
     "pendingTitle": "Pending invitations",
     "pendingEmptyTitle": "No invitations are pending.",
-    "pendingEmptyDescription": "Invitations show up here until they are accepted."
+    "pendingEmptyDescription": "Invitations show up here until they are accepted.",
+    "pendingRoleHeading": "Workspace role",
+    "pendingInvitedTo": "Invited to: {targets}",
+    "pendingWorkspace": "Workspace",
+    "pendingMoreTargets": "+{count} more"
   },
   "invitationLinkPasswordModal": {
     "newTitle": "Protect link with a password",
@@ -619,8 +623,8 @@
     "sourceWorkspace": "Inherited from workspace (default: {count}).",
     "change": "Change",
     "descriptionNone": "No snapshots can be taken while it's 0.",
-    "descriptionDefault": "Up to {count}, the workspace default. Once it's reached, a new snapshot replaces the oldest unprotected one.",
-    "descriptionOwn": "Up to {count}. Once it's reached, a new snapshot replaces the oldest unprotected one.",
+    "descriptionDefault": "{count} snapshots maximum (workspace default). Oldest unprotected replaced automatically.",
+    "descriptionOwn": "{count} snapshots maximum. Oldest unprotected replaced automatically.",
     "upTo": "Up to {count}",
     "save": "Save",
     "useDefault": "Use workspace default ({count})",
@@ -1674,6 +1678,7 @@
     "modelScopeInstance": "Instance",
     "modelScopeWorkspace": "Workspace",
     "noFeatureModels": "No eligible models are available. Edit a model and choose which features may use it.",
+    "noFeatureModelsWithoutProviders": "Add a provider to choose a model for these features.",
     "featureSettingError": "The AI feature setting could not be saved.",
     "featureSettingErrorDescription": "Refresh the page and choose an available model.",
     "modelDiscoveryHelp": "Choose a model from the list or enter any custom identifier.",

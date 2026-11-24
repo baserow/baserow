@@ -36,6 +36,7 @@
           :roles="assignableRoles"
           :empty-title="$t('shareScope.emptyTitle', { type: scopeTypeName })"
           :empty-description="$t('shareScope.emptyDescription')"
+          :role-heading="$t('shareScope.roleHeading')"
           :workspace="workspace"
           @role-updated="updateItemRole"
         />

@@ -96,16 +96,25 @@ def find_values(data, keys):
             yield from find_values(item, keys)
 
 
+def request_and_run(user, **kwargs):
+    """Requests the job in a transaction, like the jobs endpoint, so that it starts
+    when the transaction commits."""
+
+    with transaction.atomic():
+        job = JobHandler().create_and_start_job(
+            user, CreateUserTemplateJobType.type, **kwargs
+        )
+    return type(job).objects.get(id=job.id)
+
+
 def start_job(user, workspace, applications, **kwargs):
     kwargs.setdefault("name", "My template")
     kwargs.setdefault("description", "What it does")
     kwargs.setdefault("icon", ICON)
     if "category_ids" not in kwargs:
         kwargs["category_ids"] = [TemplateCategory.objects.create(name="Cat").id]
-    return JobHandler().create_and_start_job(
+    return request_and_run(
         user,
-        CreateUserTemplateJobType.type,
-        sync=True,
         workspace_id=workspace.id,
         application_ids=[application.id for application in applications],
         **kwargs,
@@ -118,20 +127,16 @@ def update_details(user, template, **kwargs):
     kwargs.setdefault("icon", OTHER_ICON)
     if "category_ids" not in kwargs:
         kwargs["category_ids"] = [TemplateCategory.objects.create(name="New").id]
-    return JobHandler().create_and_start_job(
+    return request_and_run(
         user,
-        CreateUserTemplateJobType.type,
-        sync=True,
         template_id=template.id,
         **kwargs,
     )
 
 
 def update_content(user, template, workspace, applications, **kwargs):
-    return JobHandler().create_and_start_job(
+    return request_and_run(
         user,
-        CreateUserTemplateJobType.type,
-        sync=True,
         template_id=template.id,
         workspace_id=workspace.id,
         application_ids=[application.id for application in applications],

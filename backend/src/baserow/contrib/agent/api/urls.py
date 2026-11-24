@@ -12,6 +12,7 @@ from .views import (
     AgentRunAsIdentitiesView,
     AgentToolApprovalsView,
     AgentToolsView,
+    ShareAgentConversationView,
 )
 
 app_name = "baserow.contrib.agent"
@@ -42,6 +43,11 @@ urlpatterns = [
         "<int:agent_id>/conversations/<uuid:conversation_uuid>/",
         AgentConversationView.as_view(),
         name="conversation",
+    ),
+    path(
+        "<int:agent_id>/conversations/<uuid:conversation_uuid>/share/",
+        ShareAgentConversationView.as_view(),
+        name="share_conversation",
     ),
     path(
         "<int:agent_id>/conversations/<uuid:conversation_uuid>/messages/",

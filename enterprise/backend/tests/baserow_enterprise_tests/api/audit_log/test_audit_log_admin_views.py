@@ -280,7 +280,7 @@ def test_audit_log_action_type_filter_returns_action_types_correctly(
         ),
     }
 
-    # searching by name should return only the correct action_type
+    # Searching by name returns all matching action types.
     response = api_client.get(
         reverse("api:enterprise:audit_log:action_types")
         + f"?search=create+application",
@@ -289,10 +289,16 @@ def test_audit_log_action_type_filter_returns_action_types_correctly(
     )
     assert response.status_code == HTTP_200_OK
     assert response.json() == {
-        "count": 1,
+        "count": 2,
         "next": None,
         "previous": None,
-        "results": [{"id": "create_application", "value": "Create application"}],
+        "results": [
+            {"id": "create_application", "value": "Create application"},
+            {
+                "id": "create_application_automatic_snapshot_schedule",
+                "value": "Create application automatic snapshot schedule",
+            },
+        ],
     }
 
 

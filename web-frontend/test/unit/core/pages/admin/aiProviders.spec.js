@@ -38,10 +38,22 @@ describe('AdminAIProviders', () => {
     const wrapper = await testApp.mount(AdminAIProviders)
     await flushPromises()
 
-    const header = wrapper.find('.ai-provider-admin__header')
-    expect(header.find('button').text()).toBe('aiProviderAdmin.addProvider')
-    expect(wrapper.find('.ai-provider-feature-settings').exists()).toBe(true)
-    expect(wrapper.text()).toContain('aiProviderAdmin.noProviders')
+    // The add button moves from the header into the empty state, which comes
+    // before the feature settings because they need a provider first.
+    expect(wrapper.find('.ai-provider-admin__header button').exists()).toBe(
+      false
+    )
+    const emptyState = wrapper.find('.ai-provider-empty')
+    expect(emptyState.text()).toContain('aiProviderAdmin.noProviders')
+    expect(emptyState.find('button').text()).toBe('aiProviderAdmin.addProvider')
+    expect(emptyState.find('button').attributes('disabled')).toBeUndefined()
+    const featureSettings = wrapper.find('.ai-provider-feature-settings')
+    expect(featureSettings.exists()).toBe(true)
+    expect(
+      emptyState.element.compareDocumentPosition(featureSettings.element) &
+        Node.DOCUMENT_POSITION_FOLLOWING
+    ).toBeTruthy()
+    expect(wrapper.find('.placeholder').exists()).toBe(false)
   })
 
   test('shows the skeleton while the providers are being fetched', async () => {

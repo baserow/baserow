@@ -2,6 +2,7 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, NotRequired, TypedDict
 from uuid import UUID
 
+from django.contrib.auth.models import AbstractUser
 from django.db.models import F, Value
 
 from pydantic_ai import Conversation, DeferredToolResults, WebSearchTool
@@ -12,7 +13,12 @@ from baserow.core.models import Workspace
 from baserow.core.pagination import KeysetCursor, RowLessThan
 from baserow.core.types import Subject
 
-from .constants import AgentConfigurationErrorCode, AgentReadinessState, AgentRunAsState
+from .constants import (
+    CONVERSATION_USER_NAME_MAX_LENGTH,
+    AgentConfigurationErrorCode,
+    AgentReadinessState,
+    AgentRunAsState,
+)
 from .models import AgentApplication, AgentConversation, AgentMessage, AgentTrigger
 
 if TYPE_CHECKING:
@@ -163,10 +169,21 @@ class AgentReplyResume:
 
 @dataclass(frozen=True)
 class AgentConversationUser:
-    """The person a private conversation is with."""
+    """A person writing in a conversation, as the model is told about them."""
 
     id: int
     name: str
+
+    @classmethod
+    def of(cls, user: AbstractUser) -> "AgentConversationUser":
+        """
+        :param user: The person.
+        :return: The person named on one short line, as the name ends up in what
+            the model reads.
+        """
+
+        name = " ".join(user.first_name.split())
+        return cls(user.id, name[:CONVERSATION_USER_NAME_MAX_LENGTH])
 
 
 @dataclass(frozen=True)
@@ -197,7 +214,9 @@ class AgentReplyRequest:
     timezone: str | None = None
     """The timezone of the owner, for the dates the tools read and write."""
     conversation_user: AgentConversationUser | None = None
-    """The person the conversation is with, or None when a trigger started it."""
+    """The person the reply answers, or None when a trigger started the conversation."""
+    names_senders: bool = False
+    """Whether each person's message names who wrote it, as several people can."""
     mcp_servers: tuple[MCPServerSnapshot, ...] = ()
     """The MCP servers with tools turned on, as reviewed when the reply started."""
     reasoning_effort: str | None = None

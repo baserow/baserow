@@ -84,6 +84,26 @@ const CONVERSATION_CHANGED_ERRORS = [
   API_ERROR_CODE.AGENT_TOOL_APPROVAL_NOT_PENDING,
 ]
 
+// Each list filter as conversation list query parameters, and as a local check.
+const CONVERSATION_FILTERS = {
+  all: { params: {}, matches: () => true },
+  waiting: {
+    params: { has_pending_approvals: true },
+    matches: (conversation) => conversation.pending_approval_count > 0,
+  },
+  failed: {
+    params: { last_reply_failed: true },
+    matches: ({ last_reply_failed: failed }) => failed,
+  },
+  pinned: { params: { pinned: true }, matches: ({ pinned }) => pinned },
+  private: { params: { shared: false }, matches: ({ shared }) => !shared },
+  shared: { params: { shared: true }, matches: ({ shared }) => shared },
+  triggered: {
+    params: { started_by_trigger: true },
+    matches: ({ started_by_trigger: startedByTrigger }) => startedByTrigger,
+  },
+}
+
 /** Page-local conversations, private or shared, gated by the Agent configuration. */
 export function useAgentConversations(agent, configuration) {
   const store = useStore()
@@ -191,14 +211,19 @@ export function useAgentConversations(agent, configuration) {
       Boolean(selectedConversation.value) &&
       (!selectedConversation.value.local || canCreateConversation.value)
   )
-  // A shared conversation takes no messages until continuation ships.
+  // A conversation a trigger started takes no messages until continuation ships.
   const canWriteSelected = computed(
-    () => canMessageSelected.value && !selectedConversation.value.shared
+    () =>
+      canMessageSelected.value && !selectedConversation.value.started_by_trigger
   )
+  // A running reply is the newest message, and who asked for it may stop it.
   const canStopSelected = computed(
     () =>
       Boolean(selectedConversation.value) &&
-      (!selectedConversation.value.shared || canUpdateAgent.value)
+      (!selectedConversation.value.shared ||
+        canUpdateAgent.value ||
+        currentHistory.value?.items.at(-1)?.sender?.id ===
+          store.getters['auth/getUserId'])
   )
   // Sending is blocked while a reply waits, so the waiting reply is the newest.
   const pendingApprovalCount = computed(
@@ -300,10 +325,7 @@ export function useAgentConversations(agent, configuration) {
           data ? data.next_cursor : cursor,
           {
             realtimeRecovery: reload,
-            ...(conversationFilter.value === 'pinned' ? { pinned: true } : {}),
-            ...(conversationFilter.value === 'waiting'
-              ? { has_pending_approvals: true }
-              : {}),
+            ...CONVERSATION_FILTERS[conversationFilter.value].params,
           }
         ))
         if (
@@ -351,9 +373,7 @@ export function useAgentConversations(agent, configuration) {
   }
 
   function matchesFilter(conversation) {
-    return conversationFilter.value === 'waiting'
-      ? isWaiting(conversation)
-      : conversationFilter.value !== 'pinned' || conversation.pinned
+    return CONVERSATION_FILTERS[conversationFilter.value].matches(conversation)
   }
 
   function unlistConversation(conversationUuid) {
@@ -759,10 +779,6 @@ export function useAgentConversations(agent, configuration) {
     }
   }
 
-  function isWaiting(conversation) {
-    return conversation.pending_approval_count > 0
-  }
-
   function openPendingConversation(conversation) {
     if (!findConversation(conversation.uuid))
       unlistedConversation.value = conversation
@@ -782,7 +798,22 @@ export function useAgentConversations(agent, configuration) {
       // A filter switch can have replaced the object this request changed.
       receiveConversation(data)
     } catch (error) {
-      applyConversationValues(conversation, previous)
+      revertConversationValues(conversation, previous)
+      if (isDeletedElsewhere(error)) removeConversation(conversation.uuid)
+      else notifyIf(error)
+    }
+  }
+
+  async function shareConversation(conversation) {
+    applyConversationValues(conversation, { shared: true })
+    try {
+      const { data } = await service.shareConversation(
+        agent.value.id,
+        conversation.uuid
+      )
+      receiveConversation(data)
+    } catch (error) {
+      revertConversationValues(conversation, { shared: false })
       if (isDeletedElsewhere(error)) removeConversation(conversation.uuid)
       else notifyIf(error)
     }
@@ -796,6 +827,14 @@ export function useAgentConversations(agent, configuration) {
     if (conversations.value.includes(conversation)) {
       placeConversation(conversation)
     }
+  }
+
+  /** Undo a failed local change, listing the conversation again if it left. */
+  function revertConversationValues(conversation, previous) {
+    Object.assign(conversation, previous)
+    // A filter switch can have loaded a newer copy, which is kept.
+    const known = findConversation(conversation.uuid)
+    if (!known || known === conversation) placeConversation(conversation)
   }
 
   function isDeletedElsewhere(error) {
@@ -908,6 +947,7 @@ export function useAgentConversations(agent, configuration) {
           'run_id',
           'updated_on',
           'pending_approval_count',
+          'last_reply_failed',
         ])
         if (byNewest(conversation, activity) >= 0) {
           applyConversationValues(conversation, activity)
@@ -1039,6 +1079,7 @@ export function useAgentConversations(agent, configuration) {
     canReviewPending,
     stopReply,
     updateConversation,
+    shareConversation,
     deleteConversation,
   }
 }

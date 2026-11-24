@@ -1901,6 +1901,97 @@ class RoleAssignmentHandler:
                 f"The scoped invitation with id {scoped_invitation_id} does not exist."
             )
 
+    def get_readable_scoped_invitations(
+        self, user: AbstractUser, workspace: Workspace, invitation_ids: List[int]
+    ) -> Dict[int, List[Tuple[WorkspaceScopedInvitation, ScopeObject]]]:
+        """
+        Returns the scopes the given pending invitations grant a role on, as shown to
+        the given user: only scopes whose roles the user may read, and not scopes
+        that are in the trash, or that are inside something in the trash.
+
+        :param user: The user the scopes are shown to.
+        :param workspace: The workspace the invitations belong to.
+        :param invitation_ids: The ids of the invitations.
+        :return: Per invitation id, its scoped invitations, each with its scope,
+            oldest first.
+        """
+
+        result = defaultdict(list)
+        scoped_invitations = list(
+            WorkspaceScopedInvitation.objects.filter(
+                invitation_id__in=invitation_ids, invitation__workspace=workspace
+            ).select_related("role")
+        )
+        if not scoped_invitations:
+            return result
+
+        scope_types = [
+            object_scope_type_registry.get(scope_type_name)
+            for scope_type_name in ROLE_ASSIGNABLE_OBJECT_MAP
+            if scope_type_name != WorkspaceObjectScopeType.type
+        ]
+        scope_ids_per_content_type_id = defaultdict(set)
+        for scoped_invitation in scoped_invitations:
+            scope_ids_per_content_type_id[scoped_invitation.scope_type_id].add(
+                scoped_invitation.scope_id
+            )
+        scopes = {}
+        for content_type_id, scope_ids in scope_ids_per_content_type_id.items():
+            # The scope can be stored as a specific type, like a database for the
+            # application scope type, which shares the id of the application.
+            model_class = ContentType.objects.get_for_id(content_type_id).model_class()
+            scope_type = next(
+                (
+                    scope_type
+                    for scope_type in scope_types
+                    if model_class is not None
+                    and issubclass(model_class, scope_type.model_class)
+                ),
+                None,
+            )
+            if scope_type is None:
+                continue
+            for scope in scope_type.get_enhanced_queryset(include_trash=True).filter(
+                id__in=scope_ids
+            ):
+                scopes[(content_type_id, scope.id)] = scope
+
+        def is_trashed(scope_object):
+            while scope_object is not None and not isinstance(scope_object, Workspace):
+                if getattr(scope_object, "trashed", False):
+                    return True
+                scope_object = scope_object.get_parent()
+            return False
+
+        listed = []
+        for scoped_invitation in scoped_invitations:
+            scope = scopes.get(
+                (scoped_invitation.scope_type_id, scoped_invitation.scope_id)
+            )
+            if scope is not None and not is_trashed(scope):
+                listed.append((scoped_invitation, scope))
+
+        checks = {}
+        for _, scope in listed:
+            scope_type_name = get_assignable_scope_type(scope).type
+            scope_key = (scope_type_name, scope.id)
+            if scope_key not in checks:
+                checks[scope_key] = PermissionCheck(
+                    user, ROLE_ASSIGNABLE_OBJECT_MAP[scope_type_name]["READ"], scope
+                )
+        permissions = CoreHandler().check_multiple_permissions(
+            list(checks.values()), workspace=workspace
+        )
+
+        for scoped_invitation, scope in listed:
+            scope_key = (get_assignable_scope_type(scope).type, scope.id)
+            if permissions[checks[scope_key]] is True:
+                result[scoped_invitation.invitation_id].append(
+                    (scoped_invitation, scope)
+                )
+
+        return result
+
     def update_scoped_invitation(
         self,
         user: AbstractUser,

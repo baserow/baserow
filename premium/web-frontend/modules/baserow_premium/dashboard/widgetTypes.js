@@ -9,9 +9,15 @@ import PremiumFeatures from '@baserow_premium/features'
 import PaidFeaturesModal from '@baserow_premium/components/PaidFeaturesModal'
 import { ChartPaidFeature } from '@baserow_premium/paidFeatures'
 
+// Chart and pie preview sizes mirror grid_layout in
+// baserow_premium.dashboard.widgets.widget_types.
 export class ChartWidgetType extends DataSourceWidgetType {
   static getType() {
     return 'chart'
+  }
+
+  get initialGridSize() {
+    return { width: 6, height: 9 }
   }
 
   get name() {
@@ -99,6 +105,10 @@ export class ChartWidgetType extends DataSourceWidgetType {
 export class PieChartWidgetType extends ChartWidgetType {
   static getType() {
     return 'pie_chart'
+  }
+
+  get initialGridSize() {
+    return { width: 3, height: 9 }
   }
 
   get name() {
