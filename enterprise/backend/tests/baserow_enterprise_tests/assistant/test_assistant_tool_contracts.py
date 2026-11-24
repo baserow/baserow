@@ -625,8 +625,8 @@ def _check_list_filterable_data_sources(result: Any, seed: SeededWorkspace) -> N
     assert {(item["kind"], item["id"]) for item in items} >= {
         ("builder_data_source", seed.data_source.id)
     }
-    # The seeded dashboard only has a summary widget, which has no filters.
-    assert "dashboard_data_source" not in {item["kind"] for item in items}
+    # Summary widget sources support filters, just like chart sources.
+    assert "dashboard_data_source" in {item["kind"] for item in items}
 
 
 READ_TOOL_CASES: list[ReadToolCase] = [
