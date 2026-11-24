@@ -84,6 +84,22 @@ export class IntegrationType extends Registerable {
   }
 
   /**
+   * The props the integration form gets besides `application` and
+   * `defaultValues`. A form that creates the integration itself gets the
+   * name typed around it, the service types it's used for and this type.
+   *
+   * @param {Object} context
+   * @param {string} context.integrationName The name typed in the modal.
+   * @param {string[]} context.serviceTypes What the integration is used for.
+   * @returns {Object}
+   */
+  getFormProps({ integrationName, serviceTypes }) {
+    return this.createsItself
+      ? { integrationName, serviceTypes, integrationType: this }
+      : {}
+  }
+
+  /**
    * Default values on integration creation.
    *
    * @returns an object with the default values.

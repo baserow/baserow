@@ -30,6 +30,26 @@ export class OAuthAccountIntegrationType extends IntegrationType {
     return Boolean(config?.configured)
   }
 
+  /**
+   * The scopes a service needs that the integration's account hasn't granted,
+   * to offer "Grant access". Compared with the integration as the store holds
+   * it, so it's current as soon as someone grants access. The backend writes
+   * both lists, normalized the same way, and checks again at dispatch.
+   *
+   * @param {Object} integration The integration, from the store.
+   * @param {Object} service The service, with its `required_scopes`.
+   * @returns {string[]} Empty when it isn't connected: it must sign in first.
+   */
+  getMissingScopes(integration, service) {
+    if (!integration?.connected) return []
+    const granted = new Set(
+      (integration.scopes || []).map((scope) => scope.toLowerCase())
+    )
+    return (service?.required_scopes || []).filter(
+      (scope) => !granted.has(scope.toLowerCase())
+    )
+  }
+
   getSummary(integration) {
     const account = integration.account_email || integration.account_name
     if (!account) {
@@ -57,6 +77,18 @@ export class OAuthAccountIntegrationType extends IntegrationType {
 
   get formComponent() {
     return OAuthAccountForm
+  }
+
+  /**
+   * The account form needs this type, even when the provider's own form saves
+   * the integration before anyone signs in.
+   */
+  getFormProps(context) {
+    return {
+      ...super.getFormProps(context),
+      integrationType: this,
+      serviceTypes: context.serviceTypes,
+    }
   }
 
   /** The sign-in creates the integration, not the modal's create button. */

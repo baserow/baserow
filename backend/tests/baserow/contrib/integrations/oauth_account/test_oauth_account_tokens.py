@@ -388,6 +388,11 @@ def test_a_token_refused_twice_must_be_connected_again(
         ),
         (FakeResponse(429, {}, {"Retry-After": "7"}), RemoteBusyDispatchException),
         (FakeResponse(503, {}), RemoteBusyDispatchException),
+        # Not followed: the token only goes where it was configured to.
+        (
+            FakeResponse(302, None, {"Location": "https://evil.example.com"}),
+            RemoteRefusedDispatchException,
+        ),
         (request_exceptions.ReadTimeout("secret"), RuntimeDispatchException),
     ],
 )
@@ -522,15 +527,31 @@ def test_services_say_which_scopes_are_missing(data_fixture, fake_oauth):
         service = data_fixture.create_local_baserow_get_row_service(
             integration=fake_oauth.create(**kwargs)
         )
-        return service_type.get_serializer(service, ServiceSerializer).data[
-            "missing_scopes"
-        ]
+        return service_type.get_missing_scopes(service)
 
     assert missing(scopes=["openid"]) == ["Messages.Send"]
     assert missing(scopes=SEND_SCOPES) == []
     # Nothing to grant before it's connected.
     assert missing(connected=False) == []
 
+
+@pytest.mark.django_db
+def test_services_say_which_scopes_they_need_without_querying(
+    data_fixture, fake_oauth, django_assert_num_queries
+):
+    service_type = StubOAuthServiceType()
+    service = data_fixture.create_local_baserow_get_row_service(
+        integration=fake_oauth.create()
+    )
+    service_type.required_scopes = ["messages.send", "Messages.Send", "Chat.Read"]
+
+    with django_assert_num_queries(0):
+        serialized = service_type.get_serializer(service, ServiceSerializer).data
+
+    # As the provider normalizes them, to compare with an integration's scopes.
+    assert serialized["required_scopes"] == ["Chat.Read", "messages.send"]
     # Never in requests, nor in public serializers.
-    assert "missing_scopes" not in service_type.get_field_names(True, {})
-    assert "missing_scopes" not in service_type.get_field_names(False, {"public": True})
+    assert "required_scopes" not in service_type.get_field_names(True, {})
+    assert "required_scopes" not in service_type.get_field_names(
+        False, {"public": True}
+    )

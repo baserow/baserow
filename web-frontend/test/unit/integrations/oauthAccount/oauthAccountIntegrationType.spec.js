@@ -58,4 +58,30 @@ describe('OAuthAccountIntegrationType', () => {
     expect(type.canSignIn({ configured: false }, {})).toBe(false)
     expect(type.canSignIn(null, {})).toBe(false)
   })
+
+  test('says which scopes a service still needs from the live integration', () => {
+    const type = integrationType()
+    const service = { required_scopes: ['Messages.Send', 'Chat.Read'] }
+
+    expect(
+      type.getMissingScopes(
+        { connected: true, scopes: ['openid', 'messages.send'] },
+        service
+      )
+    ).toEqual(['Chat.Read'])
+    expect(
+      type.getMissingScopes(
+        { connected: true, scopes: ['Messages.Send', 'Chat.Read'] },
+        service
+      )
+    ).toEqual([])
+    // Not connected: it signs in first, which asks for them.
+    expect(
+      type.getMissingScopes({ connected: false, scopes: [] }, service)
+    ).toEqual([])
+    expect(type.getMissingScopes(null, service)).toEqual([])
+    expect(type.getMissingScopes({ connected: true, scopes: [] }, {})).toEqual(
+      []
+    )
+  })
 })

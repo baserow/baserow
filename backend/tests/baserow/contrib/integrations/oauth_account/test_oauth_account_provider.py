@@ -6,6 +6,8 @@ from urllib.parse import parse_qs, urlparse
 from django.test import override_settings
 from django.utils import timezone
 
+import pytest
+
 from baserow.contrib.integrations.oauth_account.exceptions import SignInCancelled
 from baserow.contrib.integrations.oauth_account.providers import (
     OAuthClient,
@@ -96,3 +98,24 @@ def test_the_token_answer_is_parsed_defensively():
     assert token_set.scopes == []
     assert token_set.claims == {}
     assert token_set.expires_at > timezone.now() + timedelta(minutes=59)
+
+
+def test_a_token_lifetime_is_bounded_whatever_the_provider_says():
+    provider = FakeOAuthProvider()
+
+    def expires_in(value):
+        token_set = provider.parse_token_response(
+            {"access_token": "a", "expires_in": value}
+        )
+        return (token_set.expires_at - timezone.now()).total_seconds()
+
+    assert expires_in(10**20) <= provider.max_token_lifetime_seconds
+    assert expires_in(10**20) > provider.max_token_lifetime_seconds - 60
+    assert expires_in(float("inf")) == pytest.approx(3600, abs=60)
+    # A token already expired is refreshed before it's used.
+    assert expires_in(-500) <= 0
+    assert provider.expires_soon(
+        provider.parse_token_response(
+            {"access_token": "a", "expires_in": -500}
+        ).expires_at
+    )
