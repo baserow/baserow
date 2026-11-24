@@ -49,7 +49,7 @@
 
   &:hover,
   &:focus-within {
-    background: $palette-neutral-100;
+    background: rgba($palette-neutral-1300, 0.04);
   }
 }
 
@@ -164,7 +164,7 @@ button.sidebar-workspace-picker__item,
   color: $palette-neutral-900;
 
   &:hover {
-    background: $palette-neutral-100;
+    background: rgba($palette-neutral-1300, 0.04);
     color: $palette-neutral-1200;
   }
 }
