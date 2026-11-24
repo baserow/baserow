@@ -157,7 +157,7 @@ Button field row actions use the Local Baserow service types above and follow th
 
 | Module | What enforces it | Status | Owner |
 | --- | --- | --- | --- |
-| Automation | `AutomationWorkflowHandler.import_workflow_only` sets `state` to draft on import (low priority) | to do | core/database |
+| Automation | `AutomationWorkflowHandler.import_workflow_only` forces `state` to draft for external imports, including user templates; internal copies and official template imports retain their serialized state | done | core/database |
 | Database | Two-way and scheduled data sync off (see Data sync connections) | to do | core/database |
 | Automation | Only draft workflows are exported; published workflows are not part of the workspace | done | WAB |
 | Automation | Test run fields (`allow_test_run_until`) are not exported by `AutomationWorkflowHandler.export_workflow` | done | WAB |
