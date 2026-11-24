@@ -38,8 +38,6 @@ const schedule = (values = {}) => ({
   day_of_week: 0,
   day_of_month: 1,
   next_run_at: '2026-11-09T05:30:00Z',
-  last_run_at: null,
-  last_error: '',
   paused_reason: null,
   ...values,
 })
@@ -86,7 +84,6 @@ describe('AutomaticSnapshotsSettings', () => {
         interval: 'DAY',
         hour: 2,
         minute: 0,
-        last_error: 'The workspace has reached its snapshot limit.',
       }),
       schedule({ id: 3, application_id: 3, enabled: false }),
     ],
@@ -123,33 +120,10 @@ describe('AutomaticSnapshotsSettings', () => {
     expect(rows).toHaveLength(3)
     expect(rows[0].text()).toContain('CRM')
     expect(rows[0].text()).toContain('automaticSnapshots.badgeOwn')
-    expect(rows[0].text()).not.toContain(
-      'The workspace has reached its snapshot limit.'
-    )
     expect(rows[1].text()).toContain('Portal')
     expect(rows[1].text()).toContain('automaticSnapshots.badgeWorkspace')
     expect(rows[1].text()).toContain('automaticSnapshots.everyWeek')
     expect(rows[2].text()).toContain('automaticSnapshots.badgeOff')
-  })
-
-  test('does not repeat historical failures from workspace or application schedules', async () => {
-    testApp.mock.onGet(url).reply(
-      200,
-      response({
-        workspace_default: schedule({
-          last_error: 'Historical workspace failure',
-        }),
-      })
-    )
-    const wrapper = await mountComponent()
-
-    expect(wrapper.text()).not.toContain('Historical workspace failure')
-    expect(wrapper.text()).not.toContain(
-      'The workspace has reached its snapshot limit.'
-    )
-    expect(wrapper.text()).toContain(
-      'automaticSnapshotsSettings.workspaceSchedule'
-    )
   })
 
   test('warns about scheduled applications that runs can not snapshot', async () => {

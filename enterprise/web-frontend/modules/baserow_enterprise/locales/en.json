@@ -1148,7 +1148,11 @@
     "everyDay": "Every day at {time}",
     "everyWeek": "Every {day} at {time}",
     "everyMonth": "Every month on day {day} at {time}",
-    "noRoom": "There is not enough room to create a new snapshot."
+    "noRoom": "There is not enough room to create a new snapshot.",
+    "lastExecution": "Last execution",
+    "executionFailed": "Failed",
+    "executionSucceeded": "Succeeded",
+    "viewError": "View error"
   },
   "automaticSnapshotsSettings": {
     "title": "Automatic snapshots",

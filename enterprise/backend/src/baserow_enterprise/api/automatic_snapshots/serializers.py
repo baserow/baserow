@@ -1,7 +1,10 @@
 from rest_framework import serializers
 
 from baserow.contrib.integrations.core.constants import PERIODIC_INTERVAL_CHOICES
-from baserow_enterprise.automatic_snapshots.models import AutomaticSnapshotSchedule
+from baserow_enterprise.automatic_snapshots.models import (
+    AutomaticSnapshotLastRun,
+    AutomaticSnapshotSchedule,
+)
 
 AUTOMATIC_SNAPSHOT_SCHEDULE_WRITABLE_FIELDS = [
     "enabled",
@@ -24,8 +27,6 @@ class AutomaticSnapshotScheduleSerializer(serializers.ModelSerializer):
             "application_id",
             *AUTOMATIC_SNAPSHOT_SCHEDULE_WRITABLE_FIELDS,
             "next_run_at",
-            "last_run_at",
-            "last_error",
             "paused_reason",
         ]
         read_only_fields = fields
@@ -49,7 +50,15 @@ class UpdateAutomaticSnapshotScheduleSerializer(serializers.ModelSerializer):
         }
 
 
+class AutomaticSnapshotLastRunSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = AutomaticSnapshotLastRun
+        fields = ["finished_at", "error"]
+        read_only_fields = fields
+
+
 class ApplicationAutomaticSnapshotOverviewSerializer(serializers.Serializer):
+    last_run = AutomaticSnapshotLastRunSerializer(allow_null=True)
     state = serializers.ChoiceField(
         choices=["workspace_default", "own_schedule", "off"],
         help_text="`workspace_default` when the application follows the workspace "

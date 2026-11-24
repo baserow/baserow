@@ -42,7 +42,11 @@ from .exceptions import (
     AutomaticSnapshotScheduleIntervalTooShort,
     AutomaticSnapshotScheduleInvalid,
 )
-from .models import AUTOMATIC_SNAPSHOT_PAUSED_LICENSE, AutomaticSnapshotSchedule
+from .models import (
+    AUTOMATIC_SNAPSHOT_PAUSED_LICENSE,
+    AutomaticSnapshotLastRun,
+    AutomaticSnapshotSchedule,
+)
 from .notification_types import AutomaticSnapshotFailedNotificationType
 
 # The shortest length, in minutes, of each interval. A month is at least 28 days.
@@ -481,13 +485,9 @@ class AutomaticSnapshotScheduleHandler:
             schedule.save(update_fields=["next_run_at", "paused_reason"])
             return
 
-        # Each run starts without an error. The snapshots of a workspace default
-        # share the schedule, so an error one of them records stays until the next
-        # run, even when another one succeeds after it. `last_run_at` is only set
-        # once a snapshot is created, because a run can skip every application.
+        # Keep the previous failure until that application successfully snapshots.
         schedule.paused_reason = None
-        schedule.last_error = ""
-        schedule.save(update_fields=["next_run_at", "paused_reason", "last_error"])
+        schedule.save(update_fields=["next_run_at", "paused_reason"])
 
         transaction.on_commit(
             lambda schedule_id=schedule.id: queue_automatic_snapshots.delay(schedule_id)
@@ -622,13 +622,13 @@ class AutomaticSnapshotScheduleHandler:
             MaxSnapshotsFullOfProtected,
             ApplicationOperationNotSupported,
         ) as exc:
-            self._set_last_error(schedule, exc, application)
+            self._record_failure(schedule, exc, application)
             return
         except Exception as exc:
             logger.exception(
                 "Starting automatic snapshot of application {} failed.", application.id
             )
-            self._set_last_error(schedule, exc, application)
+            self._record_failure(schedule, exc, application)
             return
 
         application_type = application_type_registry.get_by_model(
@@ -642,12 +642,10 @@ class AutomaticSnapshotScheduleHandler:
                 "Automatic snapshot of application {} failed.", application.id
             )
             snapshot.delete()
-            self._set_last_error(schedule, exc, application)
+            self._record_failure(schedule, exc, application)
             return
 
-        AutomaticSnapshotSchedule.objects.filter(id=schedule.id).update(
-            last_run_at=timezone.now()
-        )
+        self._record_run_result(schedule, application)
 
         try:
             snapshot_handler.rotate_after_create(application.id)
@@ -663,21 +661,19 @@ class AutomaticSnapshotScheduleHandler:
         # the other snapshots were protected, or the max lowered, while this one was
         # created, that's the new snapshot itself, so the run tells why it's gone.
         if Snapshot.objects.filter(id=snapshot.id, mark_for_deletion=True).exists():
-            AutomaticSnapshotSchedule.objects.filter(id=schedule.id).update(
-                last_error=REPLACED_RIGHT_AWAY_MESSAGE
-            )
+            self._record_run_result(schedule, application, REPLACED_RIGHT_AWAY_MESSAGE)
             AutomaticSnapshotFailedNotificationType.notify_admins(
                 schedule, application, NO_ROOM_FOR_SNAPSHOT_MESSAGE
             )
 
-    def _set_last_error(
+    def _record_failure(
         self,
         schedule: AutomaticSnapshotSchedule,
         exc: Exception,
         application: Application,
     ) -> None:
         """
-        Stores a message for the failed run that the schedule's admins can read.
+        Records the failed application attempt for the snapshots modal.
         Notify workspace admins without exposing internal exception details.
         Only known failures get a specific message. Any other failure gets a
         generic one, and its details are only in the server log.
@@ -691,9 +687,24 @@ class AutomaticSnapshotScheduleHandler:
             message = "The application doesn't support snapshots."
         else:
             message = UNEXPECTED_ERROR_MESSAGE
-        AutomaticSnapshotSchedule.objects.filter(id=schedule.id).update(
-            last_error=message
-        )
+        self._record_run_result(schedule, application, message)
         AutomaticSnapshotFailedNotificationType.notify_admins(
             schedule, application, message
+        )
+
+    def _record_run_result(
+        self,
+        schedule: AutomaticSnapshotSchedule,
+        application: Application,
+        error: str = "",
+    ) -> None:
+        """Keep the latest application result, clearing only its own previous failure."""
+
+        AutomaticSnapshotLastRun.objects.update_or_create(
+            application=application,
+            defaults={
+                "schedule": schedule,
+                "finished_at": timezone.now(),
+                "error": error,
+            },
         )

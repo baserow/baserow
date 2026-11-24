@@ -112,3 +112,18 @@
   margin-left: auto;
   color: $palette-neutral-900;
 }
+
+.automatic-snapshot-schedule__last-run {
+  margin: 0 20px 20px;
+  color: $palette-neutral-900;
+
+  summary {
+    cursor: pointer;
+  }
+}
+
+.automatic-snapshot-schedule__last-run-error {
+  margin-top: 8px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}

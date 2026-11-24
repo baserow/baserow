@@ -22,7 +22,7 @@ from .handler import (
     UpdatedAutomaticSnapshotSchedule,
     get_schedule_state,
 )
-from .models import AutomaticSnapshotSchedule
+from .models import AutomaticSnapshotLastRun, AutomaticSnapshotSchedule
 from .operations import (
     ReadApplicationAutomaticSnapshotScheduleOperationType,
     ReadWorkspaceAutomaticSnapshotScheduleOperationType,
@@ -143,7 +143,7 @@ class AutomaticSnapshotScheduleService:
         :param user: The user requesting the overview.
         :param application: The application.
         :return: A dict with the `state`, the application `schedule` and the
-            `workspace_default`.
+            `workspace_default`, and the application's latest completed attempt.
         """
 
         self._check_application(
@@ -163,6 +163,9 @@ class AutomaticSnapshotScheduleService:
             workspace_default = None
 
         return {
+            "last_run": AutomaticSnapshotLastRun.objects.filter(
+                application=application
+            ).first(),
             "state": get_schedule_state(schedule),
             "schedule": schedule,
             "workspace_default": workspace_default,

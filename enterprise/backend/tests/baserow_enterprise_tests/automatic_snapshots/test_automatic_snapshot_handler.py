@@ -202,8 +202,8 @@ def test_run_due_schedules_queues_every_covered_application(
     delay_mock.assert_called_once_with(schedule.id, first.id, [second.id])
     schedule.refresh_from_db()
     assert schedule.next_run_at == datetime(2026, 11, 5, 2, 0, tzinfo=timezone.utc)
-    # `last_run_at` is only set once a snapshot is created, not when it's queued.
-    assert schedule.last_run_at is None
+    # Queuing a run does not create a completed application result.
+    assert not schedule.last_runs.exists()
     assert schedule.paused_reason is None
 
 
@@ -229,7 +229,7 @@ def test_run_due_schedules_skips_workspaces_without_the_license(
     schedule.refresh_from_db()
     assert schedule.paused_reason == AUTOMATIC_SNAPSHOT_PAUSED_LICENSE
     assert schedule.next_run_at == datetime(2026, 11, 9, 2, 0, tzinfo=timezone.utc)
-    assert schedule.last_run_at is None
+    assert not schedule.last_runs.exists()
     assert schedule.enabled is True
 
 
@@ -261,7 +261,9 @@ def test_create_automatic_snapshot_creates_and_rotates(
     assert first.name == "Automatic snapshot 2026-11-04 02:00"
     assert first.snapshot_to_application is not None
     schedule.refresh_from_db()
-    assert schedule.last_run_at == datetime(2026, 11, 4, 2, 0, tzinfo=timezone.utc)
+    assert schedule.last_runs.get(application=application).finished_at == datetime(
+        2026, 11, 4, 2, 0, tzinfo=timezone.utc
+    )
 
     with freeze_time("2026-11-05 02:00"):
         handler.create_automatic_snapshot(schedule.id, application.id)
@@ -329,7 +331,10 @@ def test_create_automatic_snapshot_records_disabled_snapshots(
 
     assert not Snapshot.objects.filter(created_automatically=True).exists()
     schedule.refresh_from_db()
-    assert schedule.last_error == NO_ROOM_FOR_SNAPSHOT_MESSAGE
+    assert (
+        schedule.last_runs.get(application=application).error
+        == NO_ROOM_FOR_SNAPSHOT_MESSAGE
+    )
 
 
 @pytest.mark.django_db(transaction=True)
@@ -355,8 +360,10 @@ def test_create_automatic_snapshot_reports_an_application_full_of_protected_snap
 
     assert not Snapshot.objects.filter(created_automatically=True).exists()
     schedule.refresh_from_db()
-    assert schedule.last_error == NO_ROOM_FOR_SNAPSHOT_MESSAGE
-    assert schedule.last_run_at is None
+    assert (
+        schedule.last_runs.get(application=application).error
+        == NO_ROOM_FOR_SNAPSHOT_MESSAGE
+    )
 
 
 @pytest.mark.django_db(transaction=True)
@@ -375,7 +382,7 @@ def test_create_automatic_snapshot_skips_an_application_with_a_max_of_zero(
 
     assert not Snapshot.objects.exists()
     schedule.refresh_from_db()
-    assert schedule.last_error == ""
+    assert not schedule.last_runs.exists()
 
 
 @pytest.mark.django_db(transaction=True)
@@ -420,7 +427,10 @@ def test_create_automatic_snapshot_stores_a_generic_error(
     )
 
     schedule.refresh_from_db()
-    assert schedule.last_error == UNEXPECTED_ERROR_MESSAGE
+    assert (
+        schedule.last_runs.get(application=application).error
+        == UNEXPECTED_ERROR_MESSAGE
+    )
     assert not Snapshot.objects.filter(snapshot_from_application=application).exists()
 
 
@@ -431,6 +441,8 @@ def test_a_success_doesnt_clear_an_error_of_the_same_run(
     mocker,
     django_capture_on_commit_callbacks,
 ):
+    """Keep a failure across run starts and other apps succeeding, until recovery."""
+
     workspace = enterprise_data_fixture.create_workspace()
     set_default_max_snapshots(workspace, 1)
     first = enterprise_data_fixture.create_database_application(workspace=workspace)
@@ -441,7 +453,7 @@ def test_a_success_doesnt_clear_an_error_of_the_same_run(
     delay_mock = mocker.patch(
         "baserow_enterprise.automatic_snapshots.tasks.create_automatic_snapshot.delay"
     )
-    mocker.patch(
+    perform_create = mocker.patch(
         "baserow.core.snapshots.handler.SnapshotHandler.perform_create",
         side_effect=[RuntimeError("failed"), None],
     )
@@ -458,9 +470,9 @@ def test_a_success_doesnt_clear_an_error_of_the_same_run(
     handler.create_automatic_snapshot(schedule.id, second.id)
 
     schedule.refresh_from_db()
-    assert schedule.last_error == UNEXPECTED_ERROR_MESSAGE
+    assert schedule.last_runs.get(application=first).error == UNEXPECTED_ERROR_MESSAGE
 
-    # The next run starts without the error.
+    # Starting the next run must not hide an unresolved failure.
     with (
         freeze_time("2026-11-05 02:00"),
         django_capture_on_commit_callbacks(execute=True),
@@ -468,7 +480,16 @@ def test_a_success_doesnt_clear_an_error_of_the_same_run(
     ):
         handler.run_due_schedules()
     schedule.refresh_from_db()
-    assert schedule.last_error == ""
+    assert schedule.last_runs.get(application=first).error == UNEXPECTED_ERROR_MESSAGE
+
+    perform_create.side_effect = None
+    handler.create_automatic_snapshot(schedule.id, first.id)
+    schedule.refresh_from_db()
+    assert schedule.last_runs.get(application=first).error == ""
+    from baserow_enterprise.automatic_snapshots.models import AutomaticSnapshotLastRun
+
+    assert AutomaticSnapshotLastRun.objects.get(application=first).error == ""
+    assert AutomaticSnapshotLastRun.objects.get(application=second).error == ""
 
 
 @pytest.mark.django_db
@@ -701,7 +722,10 @@ def test_create_automatic_snapshot_records_a_snapshot_replaced_right_away(
     newer = Snapshot.objects.exclude(id=older.id).get(created_automatically=True)
     assert newer.mark_for_deletion is True
     schedule.refresh_from_db()
-    assert schedule.last_error == REPLACED_RIGHT_AWAY_MESSAGE
+    assert (
+        schedule.last_runs.get(application=application).error
+        == REPLACED_RIGHT_AWAY_MESSAGE
+    )
     notification = Notification.objects.get(type="automatic_snapshot_failed")
     assert notification.data["application_id"] == application.id
     assert notification.data["error"] == NO_ROOM_FOR_SNAPSHOT_MESSAGE
@@ -750,7 +774,7 @@ def test_a_license_that_ends_pauses_the_schedule_and_keeps_the_snapshots(
     schedule.refresh_from_db()
     assert schedule.paused_reason == AUTOMATIC_SNAPSHOT_PAUSED_LICENSE
     assert schedule.enabled is True
-    assert schedule.last_error == ""
+    assert not schedule.last_runs.exists()
     # Nothing is created, and the existing automatic snapshot isn't rotated away.
     assert list(
         Snapshot.objects.filter(

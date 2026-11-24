@@ -105,6 +105,28 @@
     </Alert>
 
     <div
+      v-if="hasFeature && overview?.last_run"
+      class="automatic-snapshot-schedule__last-run"
+    >
+      <div>{{ $t('automaticSnapshots.lastExecution') }}</div>
+      <div>
+        {{ moment.utc(overview.last_run.finished_at).local().format('lll') }}
+        ·
+        {{
+          overview.last_run.error
+            ? $t('automaticSnapshots.executionFailed')
+            : $t('automaticSnapshots.executionSucceeded')
+        }}
+      </div>
+      <details v-if="overview.last_run.error">
+        <summary>{{ $t('automaticSnapshots.viewError') }}</summary>
+        <div class="automatic-snapshot-schedule__last-run-error">
+          {{ overview.last_run.error }}
+        </div>
+      </details>
+    </div>
+
+    <div
       v-if="hasFeature && overview && !isEmpty && canUpdate"
       class="automatic-snapshot-schedule__footer"
     >

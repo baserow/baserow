@@ -177,7 +177,10 @@ def test_quota_failure_notification_reports_no_room(
 
     schedule.refresh_from_db()
     notification = Notification.objects.get(type="automatic_snapshot_failed")
-    assert schedule.last_error == NO_ROOM_FOR_SNAPSHOT_MESSAGE
+    assert (
+        schedule.last_runs.get(application=application).error
+        == NO_ROOM_FOR_SNAPSHOT_MESSAGE
+    )
     assert notification.data["error"] == NO_ROOM_FOR_SNAPSHOT_MESSAGE
 
 
@@ -212,7 +215,10 @@ def test_blocked_rotation_notifies_with_sufficient_workspace_allowance(
     schedule.refresh_from_db()
     notification = Notification.objects.get(type="automatic_snapshot_failed")
     assert notification.data["error"] == NO_ROOM_FOR_SNAPSHOT_MESSAGE
-    assert schedule.last_error == NO_ROOM_FOR_SNAPSHOT_MESSAGE
+    assert (
+        schedule.last_runs.get(application=application).error
+        == NO_ROOM_FOR_SNAPSHOT_MESSAGE
+    )
     assert (
         NotificationRecipient.objects.get(notification=notification).recipient_id
         == admin.id

@@ -47,8 +47,6 @@ const schedule = (values = {}) => ({
   day_of_week: 0,
   day_of_month: 1,
   next_run_at: '2026-11-05T02:00:00Z',
-  last_run_at: null,
-  last_error: '',
   paused_reason: null,
   ...values,
 })
@@ -118,6 +116,38 @@ describe('AutomaticSnapshotScheduleSection', () => {
     expect(wrapper.classes()).toContain('automatic-snapshot-schedule--empty')
   })
 
+  test.each(['', 'No room for this application'])(
+    'shows the last application result with optional details: %s',
+    async (error) => {
+      giveEnterpriseLicense()
+      testApp.mock.onGet(url).reply(
+        200,
+        overview({
+          workspace_default: schedule(),
+          last_run: { finished_at: '2026-11-24T08:00:00Z', error },
+        })
+      )
+      const wrapper = await mountComponent()
+      const result = wrapper.find('.automatic-snapshot-schedule__last-run')
+      expect(result.text()).toContain('automaticSnapshots.lastExecution')
+      expect(result.text()).toContain(
+        error
+          ? 'automaticSnapshots.executionFailed'
+          : 'automaticSnapshots.executionSucceeded'
+      )
+      expect(result.find('details').exists()).toBe(Boolean(error))
+      if (error) {
+        expect(result.find('details').attributes('open')).toBeUndefined()
+        expect(result.find('summary').text()).toBe(
+          'automaticSnapshots.viewError'
+        )
+        expect(
+          result.find('.automatic-snapshot-schedule__last-run-error').text()
+        ).toBe(error)
+      }
+    }
+  )
+
   test('turns an application off from the workspace schedule', async () => {
     giveEnterpriseLicense()
     testApp.mock
@@ -152,7 +182,7 @@ describe('AutomaticSnapshotScheduleSection', () => {
     ])
   })
 
-  test('shows the own schedule without its historical error', async () => {
+  test('shows the own schedule', async () => {
     giveEnterpriseLicense()
     testApp.mock.onGet(url).reply(
       200,
@@ -160,7 +190,6 @@ describe('AutomaticSnapshotScheduleSection', () => {
         state: 'own_schedule',
         schedule: schedule({
           application_id: 10,
-          last_error: 'The workspace has reached its snapshot limit.',
         }),
       })
     )
@@ -168,10 +197,6 @@ describe('AutomaticSnapshotScheduleSection', () => {
     const wrapper = await mountComponent()
 
     expect(wrapper.text()).toContain('automaticSnapshots.badgeOwn')
-    expect(wrapper.text()).not.toContain('automaticSnapshots.lastError')
-    expect(wrapper.text()).not.toContain(
-      'The workspace has reached its snapshot limit.'
-    )
     expect(wrapper.find('.switch').classes()).toContain('switch--active')
     expect(footerLabels(wrapper)).toEqual([
       'automaticSnapshots.edit',

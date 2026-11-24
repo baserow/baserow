@@ -75,15 +75,6 @@ class AutomaticSnapshotSchedule(models.Model):
         db_index=True,
         help_text="The next time the schedule runs.",
     )
-    last_run_at = models.DateTimeField(
-        null=True,
-        help_text="The last time the schedule created a snapshot.",
-    )
-    last_error = models.TextField(
-        blank=True,
-        default="",
-        help_text="The error of the last run, if it failed.",
-    )
     paused_reason = models.CharField(
         max_length=32,
         null=True,
@@ -110,3 +101,17 @@ class AutomaticSnapshotSchedule(models.Model):
     @property
     def is_workspace_default(self) -> bool:
         return self.application_id is None
+
+
+class AutomaticSnapshotLastRun(models.Model):
+    """The latest completed automatic snapshot attempt for each application."""
+
+    application = models.OneToOneField(Application, on_delete=models.CASCADE)
+    schedule = models.ForeignKey(
+        AutomaticSnapshotSchedule,
+        null=True,
+        on_delete=models.SET_NULL,
+        related_name="last_runs",
+    )
+    finished_at = models.DateTimeField()
+    error = models.TextField(default="", db_default="", blank=True)

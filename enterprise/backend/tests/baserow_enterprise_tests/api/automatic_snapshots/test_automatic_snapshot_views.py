@@ -57,6 +57,7 @@ def test_application_schedule_lifecycle(api_client, enterprise_data_fixture):
     assert response.status_code == HTTP_200_OK
     assert response.json() == {
         "state": "workspace_default",
+        "last_run": None,
         "schedule": None,
         "workspace_default": None,
         "min_interval_minutes": 60,
@@ -493,3 +494,39 @@ def test_bulk_permission_checks_dont_grow_with_the_applications(
     # Warm up the caches of the first request.
     count_queries(1)
     assert count_queries(10) == count_queries(2)
+
+
+@pytest.mark.django_db
+def test_last_run_is_specific_to_the_application(api_client, enterprise_data_fixture):
+    """A workspace run must not report one application's failure on another."""
+
+    from django.utils import timezone
+
+    from baserow_enterprise.automatic_snapshots.models import AutomaticSnapshotLastRun
+
+    fixture = enterprise_data_fixture
+    user, token = fixture.create_user_and_token()
+    workspace = fixture.create_workspace(user=user)
+    first = fixture.create_database_application(workspace=workspace)
+    second = fixture.create_database_application(workspace=workspace)
+    schedule = AutomaticSnapshotSchedule.objects.create(
+        workspace=workspace, interval="DAY"
+    )
+    failed = AutomaticSnapshotLastRun.objects.create(
+        application=first,
+        schedule=schedule,
+        finished_at=timezone.now(),
+        error="No room",
+    )
+    AutomaticSnapshotLastRun.objects.create(
+        application=second, schedule=schedule, finished_at=timezone.now(), error=""
+    )
+    auth = {"HTTP_AUTHORIZATION": f"JWT {token}"}
+    first_response = api_client.get(application_url(first), **auth)
+    second_response = api_client.get(application_url(second), **auth)
+    assert first_response.status_code == HTTP_200_OK
+    assert first_response.json()["last_run"]["error"] == "No room"
+    assert first_response.json()["last_run"][
+        "finished_at"
+    ] == failed.finished_at.isoformat().replace("+00:00", "Z")
+    assert second_response.json()["last_run"]["error"] == ""

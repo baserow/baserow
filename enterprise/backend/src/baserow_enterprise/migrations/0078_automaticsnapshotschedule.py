@@ -92,21 +92,6 @@ class Migration(migrations.Migration):
                     ),
                 ),
                 (
-                    "last_run_at",
-                    models.DateTimeField(
-                        help_text="The last time the schedule created a snapshot.",
-                        null=True,
-                    ),
-                ),
-                (
-                    "last_error",
-                    models.TextField(
-                        blank=True,
-                        default="",
-                        help_text="The error of the last run, if it failed.",
-                    ),
-                ),
-                (
                     "paused_reason",
                     models.CharField(
                         blank=True,
@@ -154,5 +139,37 @@ class Migration(migrations.Migration):
                     ),
                 ],
             },
+        ),
+        migrations.CreateModel(
+            name="AutomaticSnapshotLastRun",
+            fields=[
+                (
+                    "id",
+                    models.AutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("finished_at", models.DateTimeField()),
+                ("error", models.TextField(blank=True, db_default="", default="")),
+                (
+                    "application",
+                    models.OneToOneField(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        to="core.application",
+                    ),
+                ),
+                (
+                    "schedule",
+                    models.ForeignKey(
+                        null=True,
+                        on_delete=django.db.models.deletion.SET_NULL,
+                        related_name="last_runs",
+                        to="baserow_enterprise.automaticsnapshotschedule",
+                    ),
+                ),
+            ],
         ),
     ]
