@@ -431,7 +431,6 @@ def test_dashboard_data_source_filters_are_saved(data_fixture, monkeypatch):
     table = data_fixture.create_database_table(database=database, name="Deals")
     amount = data_fixture.create_number_field(table=table, name="Amount")
     dashboard = data_fixture.create_dashboard_application(workspace=workspace)
-    # Only the charts show filters, not the summary widgets.
     data_source = data_fixture.create_dashboard_data_source(
         dashboard=dashboard,
         service_model_class=LocalBaserowGroupedAggregateRows,
@@ -468,7 +467,7 @@ def test_dashboard_data_source_filters_are_saved(data_fixture, monkeypatch):
     ]
     prompt = received[0][0].parts[-1].content
     assert "can't be formulas here" in prompt
-    assert "## Filter groups" in prompt
+    assert "Not available for this data source" not in prompt
 
 
 @pytest.mark.django_db
