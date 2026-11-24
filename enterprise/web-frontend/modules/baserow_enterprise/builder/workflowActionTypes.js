@@ -4,6 +4,7 @@ import {
   CoreXLSFileReaderServiceType,
 } from '@baserow_enterprise/integrations/core/serviceTypes'
 import { MicrosoftTeamsWriteMessageServiceType } from '@baserow_enterprise/integrations/microsoftTeams/serviceTypes'
+import { MicrosoftOutlookSendEmailServiceType } from '@baserow_enterprise/integrations/microsoftOutlook/serviceTypes'
 
 export class CoreCodeWorkflowActionType extends WorkflowActionServiceType {
   static getType() {
@@ -57,5 +58,22 @@ export class MicrosoftTeamsWriteMessageWorkflowActionType extends WorkflowAction
 
   getOrder() {
     return 91
+  }
+}
+
+export class MicrosoftOutlookSendEmailWorkflowActionType extends WorkflowActionServiceType {
+  static getType() {
+    return 'microsoft_outlook_send_email'
+  }
+
+  get serviceType() {
+    return this.app.$registry.get(
+      'service',
+      MicrosoftOutlookSendEmailServiceType.getType()
+    )
+  }
+
+  getOrder() {
+    return 92
   }
 }

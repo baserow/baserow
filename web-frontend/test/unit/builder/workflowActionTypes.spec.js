@@ -40,6 +40,7 @@ describe('Builder workflow action types', () => {
       'xls_file_reader',
       'slack_write_message',
       'microsoft_teams_write_message',
+      'microsoft_outlook_send_email',
     ])
   })
 

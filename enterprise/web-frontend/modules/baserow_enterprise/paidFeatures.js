@@ -391,6 +391,32 @@ export class MicrosoftTeamsPaidFeature extends PaidFeature {
   }
 }
 
+export class MicrosoftOutlookPaidFeature extends PaidFeature {
+  static getType() {
+    return 'microsoft_outlook'
+  }
+
+  getPlan() {
+    return 'Advanced'
+  }
+
+  getIconClass() {
+    return 'iconoir-send-mail'
+  }
+
+  getName() {
+    return this.app.$i18n.t('enterpriseFeatures.microsoftOutlook')
+  }
+
+  getImage() {
+    return null
+  }
+
+  getContent() {
+    return this.app.$i18n.t('enterpriseFeatures.microsoftOutlookContent')
+  }
+}
+
 export class SemanticSearchPaidFeature extends PaidFeature {
   static getType() {
     return 'semantic_search'

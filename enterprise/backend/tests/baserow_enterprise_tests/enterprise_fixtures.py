@@ -9,6 +9,9 @@ from baserow_enterprise.integrations.core.models import (
 from baserow_enterprise.integrations.local_baserow.models import (
     LocalBaserowSemanticSearch,
 )
+from baserow_enterprise.integrations.microsoft_outlook.models import (
+    MicrosoftOutlookSendEmailService,
+)
 from baserow_enterprise.integrations.microsoft_teams.models import (
     MicrosoftTeamsWriteMessageService,
 )
@@ -58,6 +61,9 @@ class EnterpriseFixtures:
 
     def create_microsoft_teams_write_message_service(self, **kwargs):
         return self.create_service(MicrosoftTeamsWriteMessageService, **kwargs)
+
+    def create_microsoft_outlook_send_email_service(self, **kwargs):
+        return self.create_service(MicrosoftOutlookSendEmailService, **kwargs)
 
     def create_team(self, **kwargs):
         if "name" not in kwargs:

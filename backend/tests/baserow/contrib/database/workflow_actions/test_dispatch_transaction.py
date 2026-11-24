@@ -199,6 +199,7 @@ def test_only_services_that_reach_outside_are_external():
         "ai_agent",
         # Enterprise, posting to Microsoft Graph.
         "microsoft_teams_write_message",
+        "microsoft_outlook_send_email",
     }
 
 

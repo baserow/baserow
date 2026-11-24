@@ -96,7 +96,11 @@
     "microsoftTeamsMissingTeam": "Choose the team to send the message to.",
     "microsoftTeamsMissingChannel": "Choose the channel to send the message to.",
     "microsoftTeamsMissingChat": "Choose the chat to send the message to.",
-    "microsoftTeamsMissingMessage": "Write the message to send."
+    "microsoftTeamsMissingMessage": "Write the message to send.",
+    "microsoftOutlookSendEmail": "Send Outlook email",
+    "microsoftOutlookSendEmailDescription": "Send an email from the Outlook mailbox of a connected Microsoft account.",
+    "microsoftOutlookMissingIntegration": "Choose a Microsoft account to send the email from.",
+    "microsoftOutlookMissingRecipient": "Enter at least one recipient."
   },
   "coreCodeServiceForm": {
     "codeLabel": "Code",
@@ -125,7 +129,9 @@
     "xlsFileReaderLabel": "Read an XLS file",
     "localBaserowSemanticSearchLabel": "Semantic search in {tableName}",
     "microsoftTeamsWriteMessageName": "Send Teams message",
-    "microsoftTeamsWriteMessageLabel": "Send Teams message to {destination}"
+    "microsoftTeamsWriteMessageLabel": "Send Teams message to {destination}",
+    "microsoftOutlookSendEmailName": "Send Outlook email",
+    "microsoftOutlookSendEmailLabel": "Send Outlook email to {recipient}"
   },
   "semanticSearchFieldSetting": {
     "label": "Semantic search",
@@ -655,7 +661,9 @@
     "automaticSnapshots": "Automatic snapshots",
     "automaticSnapshotsContent": "Snapshot your applications on a schedule, for the whole workspace or one application at a time, so there's always a recent copy to go back to. The oldest unprotected snapshots are replaced as new ones are taken.",
     "microsoftTeams": "Microsoft Teams",
-    "microsoftTeamsContent": "Send messages to Microsoft Teams channels and chats from applications and automations, as a connected Microsoft account."
+    "microsoftTeamsContent": "Send messages to Microsoft Teams channels and chats from applications and automations, as a connected Microsoft account.",
+    "microsoftOutlook": "Microsoft Outlook",
+    "microsoftOutlookContent": "Send emails from the Outlook mailbox of a connected Microsoft account, from applications and automations."
   },
   "assistantSidebarItem": {
     "title": "Kuma AI"
@@ -1361,5 +1369,17 @@
     "loadFailed": "Couldn't load the list from Microsoft.",
     "messageLabel": "Message",
     "messagePlaceholder": "Enter the message"
+  },
+  "microsoftOutlookForm": {
+    "alertMessage": "Sign in with Microsoft to send emails from your Outlook mailbox. Work, school and personal accounts can be used.",
+    "integrationLabel": "Microsoft account",
+    "sentFrom": "Sent from {name} ({email}).",
+    "grantAccessTitle": "Allow Baserow to send email",
+    "grantAccessDescription": "This account hasn't allowed Baserow to send email from its mailbox yet.",
+    "grantAccess": "Grant access",
+    "reconnectTitle": "Reconnect this account",
+    "reconnectDescription": "Microsoft stopped accepting this account's sign-in. Sign in again to keep sending emails.",
+    "reconnect": "Reconnect",
+    "submittedHelper": "Outlook accepts the email for delivery and saves it in Sent Items. It doesn't confirm that it was delivered."
   }
 }

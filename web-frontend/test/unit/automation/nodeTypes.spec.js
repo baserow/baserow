@@ -154,6 +154,7 @@ describe('Automation node types', () => {
       'wait',
       'slack_write_message',
       'microsoft_teams_write_message',
+      'microsoft_outlook_send_email',
     ])
   })
 

@@ -18,9 +18,15 @@ from baserow_enterprise.automation.nodes.models import (
     CoreXLSFileReaderActionNode,
     LocalBaserowRowCommentPostedTriggerNode,
     LocalBaserowSemanticSearchActionNode,
+    MicrosoftOutlookSendEmailActionNode,
     MicrosoftTeamsWriteMessageActionNode,
 )
-from baserow_enterprise.features import CODE_RUNNER, MICROSOFT_TEAMS, XLS_FILE_READER
+from baserow_enterprise.features import (
+    CODE_RUNNER,
+    MICROSOFT_OUTLOOK,
+    MICROSOFT_TEAMS,
+    XLS_FILE_READER,
+)
 from baserow_enterprise.integrations.core.service_types import (
     CoreCodeServiceType,
     CoreXLSFileReaderServiceType,
@@ -31,6 +37,9 @@ from baserow_enterprise.integrations.local_baserow.models import (
 from baserow_enterprise.integrations.local_baserow.service_types import (
     LocalBaserowRowCommentPostedTriggerServiceType,
     LocalBaserowSemanticSearchServiceType,
+)
+from baserow_enterprise.integrations.microsoft_outlook.service_types import (
+    MicrosoftOutlookSendEmailServiceType,
 )
 from baserow_enterprise.integrations.microsoft_teams.service_types import (
     MicrosoftTeamsWriteMessageServiceType,
@@ -167,4 +176,23 @@ class MicrosoftTeamsWriteMessageActionNodeType(AutomationActionNodeType):
     def raise_if_deactivated(self, workspace) -> None:
         LicenseHandler.raise_if_workspace_doesnt_have_feature(
             MICROSOFT_TEAMS, workspace
+        )
+
+
+class MicrosoftOutlookSendEmailActionNodeType(AutomationActionNodeType):
+    type = "microsoft_outlook_send_email"
+    model_class = MicrosoftOutlookSendEmailActionNode
+    service_type = MicrosoftOutlookSendEmailServiceType.type
+    display_name = _("Send Outlook email")
+
+    def get_pytest_params(self, pytest_data_fixture):
+        service = pytest_data_fixture.create_microsoft_outlook_send_email_service()
+        return {"service": service}
+
+    def is_deactivated(self, workspace) -> bool:
+        return not LicenseHandler.workspace_has_feature(MICROSOFT_OUTLOOK, workspace)
+
+    def raise_if_deactivated(self, workspace) -> None:
+        LicenseHandler.raise_if_workspace_doesnt_have_feature(
+            MICROSOFT_OUTLOOK, workspace
         )

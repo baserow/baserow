@@ -15,6 +15,8 @@ import {
   LocalBaserowRowCommentPostedTriggerServiceType,
 } from '@baserow_enterprise/integrations/localBaserow/serviceTypes'
 import { MicrosoftTeamsWriteMessageServiceType } from '@baserow_enterprise/integrations/microsoftTeams/serviceTypes'
+import { MicrosoftOutlookSendEmailServiceType } from '@baserow_enterprise/integrations/microsoftOutlook/serviceTypes'
+import { literalFromFormula } from '@baserow_enterprise/integrations/microsoftTeams/utils'
 
 export class CoreCodeActionNodeType extends ActionNodeTypeMixin(NodeType) {
   static getType() {
@@ -149,6 +151,41 @@ export class MicrosoftTeamsWriteMessageActionNodeType extends ActionNodeTypeMixi
     return this.app.$registry.get(
       'service',
       MicrosoftTeamsWriteMessageServiceType.getType()
+    )
+  }
+}
+
+export class MicrosoftOutlookSendEmailActionNodeType extends ActionNodeTypeMixin(
+  NodeType
+) {
+  static getType() {
+    return 'microsoft_outlook_send_email'
+  }
+
+  getOrder() {
+    return 92
+  }
+
+  get name() {
+    return this.app.$i18n.t('nodeType.microsoftOutlookSendEmailName')
+  }
+
+  /**
+   * Named after the recipient when the email goes to one fixed address.
+   */
+  getDefaultLabel({ node }) {
+    const recipient = literalFromFormula(node?.service?.to_emails)?.trim()
+    return recipient && !recipient.includes(',')
+      ? this.app.$i18n.t('nodeType.microsoftOutlookSendEmailLabel', {
+          recipient,
+        })
+      : this.name
+  }
+
+  get serviceType() {
+    return this.app.$registry.get(
+      'service',
+      MicrosoftOutlookSendEmailServiceType.getType()
     )
   }
 }

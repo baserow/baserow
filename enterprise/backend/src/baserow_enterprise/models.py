@@ -32,6 +32,9 @@ from baserow_enterprise.integrations.local_baserow.models import (
     LocalBaserowRowCommentPosted,
     LocalBaserowSemanticSearch,
 )
+from baserow_enterprise.integrations.microsoft_outlook.models import (
+    MicrosoftOutlookSendEmailService,
+)
 from baserow_enterprise.integrations.microsoft_teams.models import (
     MicrosoftTeamsWriteMessageService,
 )
@@ -82,4 +85,5 @@ __all__ = [
     "SemanticSearchField",
     "SemanticSearchPendingUpdate",
     "MicrosoftTeamsWriteMessageService",
+    "MicrosoftOutlookSendEmailService",
 ]

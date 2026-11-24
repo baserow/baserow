@@ -112,6 +112,31 @@ def register_microsoft_teams_features():
     automation_node_type_registry.register(MicrosoftTeamsWriteMessageActionNodeType())
 
 
+def register_microsoft_outlook_features():
+    from baserow.contrib.automation.nodes.registries import (
+        automation_node_type_registry,
+    )
+    from baserow.contrib.builder.workflow_actions.registries import (
+        builder_workflow_action_type_registry,
+    )
+    from baserow.core.services.registries import service_type_registry
+    from baserow_enterprise.automation.nodes.node_types import (
+        MicrosoftOutlookSendEmailActionNodeType,
+    )
+    from baserow_enterprise.builder.workflow_actions.workflow_action_types import (
+        MicrosoftOutlookSendEmailActionType,
+    )
+    from baserow_enterprise.integrations.microsoft_outlook.service_types import (
+        MicrosoftOutlookSendEmailServiceType,
+    )
+
+    service_type_registry.register(MicrosoftOutlookSendEmailServiceType())
+    builder_workflow_action_type_registry.register(
+        MicrosoftOutlookSendEmailActionType()
+    )
+    automation_node_type_registry.register(MicrosoftOutlookSendEmailActionNodeType())
+
+
 def register_semantic_search_features():
     from baserow.api.settings.registries import settings_data_registry
     from baserow.contrib.agent.action_tools.registries import (
@@ -565,6 +590,7 @@ class BaserowEnterpriseConfig(AppConfig):
         register_row_comment_trigger()
         register_agent_channel_types()
         register_microsoft_teams_features()
+        register_microsoft_outlook_features()
         register_semantic_search_features()
 
         from baserow.contrib.builder.elements.registries import element_type_registry

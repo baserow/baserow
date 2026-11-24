@@ -127,6 +127,7 @@ import {
   XLSFileReaderPaidFeature,
   AutomaticSnapshotsPaidFeature,
   MicrosoftTeamsPaidFeature,
+  MicrosoftOutlookPaidFeature,
 } from '@baserow_enterprise/paidFeatures'
 import { FieldPermissionsContextItemType } from '@baserow_enterprise/fieldContextItemTypes'
 import {
@@ -146,6 +147,7 @@ import {
   CoreCodeWorkflowActionType,
   CoreXLSFileReaderWorkflowActionType,
   MicrosoftTeamsWriteMessageWorkflowActionType,
+  MicrosoftOutlookSendEmailWorkflowActionType,
 } from '@baserow_enterprise/builder/workflowActionTypes'
 import {
   CoreCodeActionNodeType,
@@ -153,6 +155,7 @@ import {
   LocalBaserowSemanticSearchActionNodeType,
   LocalBaserowRowCommentPostedTriggerNodeType,
   MicrosoftTeamsWriteMessageActionNodeType,
+  MicrosoftOutlookSendEmailActionNodeType,
 } from '@baserow_enterprise/automation/nodeTypes'
 import { RowCommentPostedAgentTriggerType } from '@baserow_enterprise/agent/agentTriggerTypes'
 import {
@@ -165,6 +168,7 @@ import {
 } from '@baserow_enterprise/integrations/localBaserow/serviceTypes'
 import { LocalBaserowSemanticSearchToolPresentationType } from '@baserow_enterprise/agentToolPresentationTypes'
 import { MicrosoftTeamsWriteMessageServiceType } from '@baserow_enterprise/integrations/microsoftTeams/serviceTypes'
+import { MicrosoftOutlookSendEmailServiceType } from '@baserow_enterprise/integrations/microsoftOutlook/serviceTypes'
 import { SemanticSearchFieldFormAdvancedSettingType } from '@baserow_enterprise/fieldFormAdvancedSettingTypes'
 import {
   AISemanticSearchFieldType,
@@ -346,6 +350,18 @@ export default defineNuxtPlugin({
       'node',
       new MicrosoftTeamsWriteMessageActionNodeType(context)
     )
+    $registry.register(
+      'service',
+      new MicrosoftOutlookSendEmailServiceType(context)
+    )
+    $registry.register(
+      'workflowAction',
+      new MicrosoftOutlookSendEmailWorkflowActionType(context)
+    )
+    $registry.register(
+      'node',
+      new MicrosoftOutlookSendEmailActionNodeType(context)
+    )
 
     $registry.registerNamespace('semanticSearchFieldType')
     for (const SemanticSearchFieldType of [
@@ -491,6 +507,7 @@ export default defineNuxtPlugin({
     $registry.register('paidFeature', new CodeRunnerPaidFeature(context))
     $registry.register('paidFeature', new XLSFileReaderPaidFeature(context))
     $registry.register('paidFeature', new MicrosoftTeamsPaidFeature(context))
+    $registry.register('paidFeature', new MicrosoftOutlookPaidFeature(context))
     $registry.register('paidFeature', new SemanticSearchPaidFeature(context))
 
     $registry.register('paidFeature', new DataScannerPaidFeature(context))

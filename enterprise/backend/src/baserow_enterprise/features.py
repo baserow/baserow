@@ -21,6 +21,7 @@ CODE_RUNNER = "code_runner"
 XLS_FILE_READER = "xls_file_reader"
 # Not `TEAMS`: that is the RBAC teams feature.
 MICROSOFT_TEAMS = "microsoft_teams"
+MICROSOFT_OUTLOOK = "microsoft_outlook"
 
 DATE_DEPENDENCY = "date_dependency"
 DATA_SCANNER = "data_scanner"

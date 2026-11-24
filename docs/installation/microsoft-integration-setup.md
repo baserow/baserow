@@ -46,8 +46,12 @@ users and admins review:
 | Action                                    | Delegated permissions                                                                                      |
 | ----------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
 | Send Teams message (Advanced, Enterprise) | `ChannelMessage.Send`, `ChatMessage.Send`, `Team.ReadBasic.All`, `Channel.ReadBasic.All`, `Chat.ReadBasic` |
+| Send Outlook email (Advanced, Enterprise) | `Mail.Send`                                                                                                |
 
-The Teams action only works with work or school accounts.
+The Teams action only works with work or school accounts. The Outlook action works with
+personal accounts too, and needs an Exchange Online mailbox for work or school accounts.
+Outlook accepts an email for delivery and keeps a copy in Sent Items. Microsoft doesn't
+say whether it was delivered, nor give its message ID.
 
 None of these permissions need admin consent by default, but your organisation may
 only let admins approve apps. Then either click **Grant admin consent** for your
