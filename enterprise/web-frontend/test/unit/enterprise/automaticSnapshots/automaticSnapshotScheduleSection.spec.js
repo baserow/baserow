@@ -157,25 +157,22 @@ describe('AutomaticSnapshotScheduleSection', () => {
       )
       const wrapper = await mountComponent()
       const result = wrapper.find('.automatic-snapshot-schedule__last-run')
-      expect(result.text()).toContain('automaticSnapshots.lastExecution:')
+      expect(result.text()).toContain('automaticSnapshots.lastRun')
       expect(wrapper.text()).not.toContain(
         'automaticSnapshots.upToMaxSnapshots'
       )
       expect(result.html()).toMatchSnapshot()
-      expect(result.text()).toContain(
-        error
-          ? 'automaticSnapshots.executionFailed'
-          : 'automaticSnapshots.executionSucceeded'
-      )
-      expect(result.find('details').exists()).toBe(true)
+      // The time, and the error if it failed, are in the label of the info icon,
+      // which is also its tooltip.
+      const info = result.find('.automatic-snapshot-schedule__last-run-info')
+      expect(info.classes()).toContain('iconoir-info-circle')
+      expect(info.attributes('tabindex')).toBe('0')
+      const label = info.attributes('aria-label')
+      expect(label).toContain('Tue 24 Nov, 08:00 UTC')
       if (error) {
-        expect(result.find('details').attributes('open')).toBeUndefined()
-        expect(result.find('summary').attributes('aria-label')).toBe(
-          'automaticSnapshots.executionDetails'
-        )
-        expect(
-          result.find('.automatic-snapshot-schedule__last-run-error').text()
-        ).toContain(error)
+        expect(label).toContain(error)
+      } else {
+        expect(label).not.toContain('\n')
       }
     }
   )

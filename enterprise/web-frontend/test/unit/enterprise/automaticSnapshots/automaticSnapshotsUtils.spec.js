@@ -58,32 +58,24 @@ describe('automatic snapshot utils', () => {
     const warn = (values) =>
       getScheduleBlockedWarning(
         { limit: 10, maxSnapshots: 3, protectedCount: 0, ...values },
-        'CRM',
         t
       )
     expect(warn({})).toBeNull()
     expect(warn({ protectedCount: 2 })).toBeNull()
-    expect(warn({ protectedCount: 3 })).toBe(
-      'automaticSnapshots.fullOfProtectedWarning {"name":"CRM","count":3}'
-    )
-    expect(warn({ maxSnapshots: 0 })).toBe(
-      'automaticSnapshots.maxSnapshotsZeroWarning {"name":"CRM"}'
-    )
-    expect(warn({ limit: 0 })).toBe('automaticSnapshots.disabledWarning')
+    expect(warn({ protectedCount: 3 })).toEqual({
+      message: 'automaticSnapshots.blockedFullOfProtected {"count":3}',
+      type: 'error',
+    })
+    // A max of 0 is a choice, so it isn't shown as an error.
+    expect(warn({ maxSnapshots: 0 })).toEqual({
+      message: 'automaticSnapshots.blockedMaxSnapshotsZero',
+      type: 'info-neutral',
+    })
+    expect(warn({ limit: 0 })).toEqual({
+      message: 'automaticSnapshots.blockedDisabled',
+      type: 'error',
+    })
   })
-
-  test.each([
-    { limit: 0, maxSnapshots: 3, protectedCount: 0 },
-    { limit: 10, maxSnapshots: 0, protectedCount: 0 },
-    { limit: 10, maxSnapshots: 3, protectedCount: 3 },
-  ])(
-    'uses the same capacity message in the workspace list for %j',
-    (values) => {
-      expect(getScheduleBlockedWarning(values, 'CRM', t, true)).toBe(
-        'automaticSnapshots.noRoom'
-      )
-    }
-  )
 
   test('describes when a schedule runs', () => {
     expect(describeSchedule(schedule({ minute: 5 }), t)).toBe(

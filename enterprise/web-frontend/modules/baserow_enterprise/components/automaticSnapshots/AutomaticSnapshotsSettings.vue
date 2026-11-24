@@ -291,11 +291,11 @@
                   <td></td>
                   <td colspan="4">
                     <Alert
-                      type="error"
+                      :type="row.blockedWarning.type"
                       appearance="compact"
                       class="automatic-snapshots-settings__row-warning"
                     >
-                      {{ row.blockedWarning }}
+                      {{ row.blockedWarning.message }}
                     </Alert>
                   </td>
                 </tr>
@@ -536,20 +536,16 @@ function getBlockedWarning(application) {
   const settings = props.snapshotSettings
   const snapshotSettings = snapshotSettingsByApplicationId.value[application.id]
   if (!settings || !snapshotSettings) {
-    return ''
+    return null
   }
-  return (
-    getScheduleBlockedWarning(
-      {
-        limit: settings.limit,
-        maxSnapshots:
-          snapshotSettings.max_snapshots ?? settings.default_max_snapshots,
-        protectedCount: snapshotSettings.protected_count,
-      },
-      application.name,
-      t,
-      true
-    ) || ''
+  return getScheduleBlockedWarning(
+    {
+      limit: settings.limit,
+      maxSnapshots:
+        snapshotSettings.max_snapshots ?? settings.default_max_snapshots,
+      protectedCount: snapshotSettings.protected_count,
+    },
+    t
   )
 }
 
@@ -607,7 +603,7 @@ const rows = computed(() => {
             date: formatNextRun(active),
           })
         : '',
-      blockedWarning: active ? getBlockedWarning(application) : '',
+      blockedWarning: active ? getBlockedWarning(application) : null,
     }
   })
 })

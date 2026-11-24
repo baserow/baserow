@@ -150,10 +150,17 @@ describe('AutomaticSnapshotsSettings', () => {
         ? next.text()
         : ''
     }
-    expect(warningAfter('CRM')).toContain('automaticSnapshots.noRoom')
-    expect(warningAfter('Portal')).toContain('automaticSnapshots.noRoom')
+    expect(warningAfter('CRM')).toContain(
+      'automaticSnapshots.blockedFullOfProtected'
+    )
+    expect(warningAfter('Portal')).toContain(
+      'automaticSnapshots.blockedMaxSnapshotsZero'
+    )
     expect(warningAfter('Archive')).toBe('')
-    expect(wrapper.findAll('.alert--error.alert--compact')).toHaveLength(2)
+    expect(wrapper.findAll('.alert--error.alert--compact')).toHaveLength(1)
+    expect(wrapper.findAll('.alert--info-neutral.alert--compact')).toHaveLength(
+      1
+    )
   })
 
   test('offers to set up a workspace schedule when there is none', async () => {
