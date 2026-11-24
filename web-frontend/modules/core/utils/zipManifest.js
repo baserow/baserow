@@ -69,3 +69,13 @@ export function convertManifestToApplicationGroups(manifest) {
     }))
     .filter((group) => group.applications.length > 0)
 }
+
+/**
+ * Whether an export file holds identities beside its applications.
+ * @param {Object} manifest - The manifest object from the ZIP file
+ * @returns {boolean}
+ */
+export function manifestHasIdentities(manifest) {
+  const identities = manifest?.workspace_objects?.identities
+  return Array.isArray(identities) && identities.length > 0
+}

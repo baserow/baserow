@@ -1148,19 +1148,17 @@
     "minutePastLabel": "Minutes past the hour (UTC)",
     "timezoneLabel": "Timezone",
     "maxSnapshotsNote": "Each application keeps up to its max snapshots, set in the snapshots modal or as the workspace default. Once it's reached, a new snapshot replaces the oldest unprotected one. Applications with a max of 0 are skipped.",
-    "maxSnapshotsZeroWarning": "There is not enough room to create a new snapshot. {name} has a max of 0 snapshots. Raise its max snapshots to enable automatic snapshots.",
-    "fullOfProtectedWarning": "There is not enough room to create a new snapshot. {name} is at its max of {count} snapshots and every one is protected. Unprotect or delete a snapshot, or raise its max snapshots.",
-    "disabledWarning": "There is not enough room to create a new snapshot. Snapshots are turned off for this workspace. Increase its snapshot allowance to enable snapshots.",
     "everyMinutes": "Every minute | Every {minutes} minutes",
     "everyHour": "Every hour at minute {minute} (UTC)",
     "everyDay": "Every day at {time}",
     "everyWeek": "Every {day} at {time}",
     "everyMonth": "Every month on day {day} at {time}",
-    "noRoom": "There is not enough room to create a new snapshot.",
-    "lastExecution": "Last",
+    "blockedDisabled": "Runs fail: snapshots are turned off.",
+    "blockedMaxSnapshotsZero": "Runs skip it: its max snapshots is 0.",
+    "blockedFullOfProtected": "Runs skip it: it's at its max of {count} and every snapshot is protected.",
+    "lastRun": "Last run: {status}",
     "executionFailed": "Failed",
     "executionSucceeded": "Succeeded",
-    "executionDetails": "Last execution details",
     "scheduleBlocked": "Scheduled snapshots will not be created until there is room."
   },
   "automaticSnapshotsSettings": {
@@ -1196,5 +1194,32 @@
   "automaticSnapshotFailedNotification": {
     "title": "Automatic snapshot of {name} failed.",
     "description": "{error} Open the application's snapshots modal for details."
+  },
+  "kumaInlinePrompt": {
+    "createWithKuma": "Create with Kuma AI",
+    "working": "Working…",
+    "workingHint": "Usually takes a few seconds",
+    "keyboardHint": "Enter to send · Shift + Enter for a new line",
+    "tryAgain": "Try again",
+    "tryAgainHint": "Edit your request and try again",
+    "undo": "Undo",
+    "close": "Close",
+    "dismiss": "Dismiss"
+  },
+  "serviceFilterKumaPrompt": {
+    "title": "Create a filter with Kuma AI",
+    "placeholder": "Describe the rows to show, e.g. only tasks that are done",
+    "submit": "Create filter",
+    "working": "Reading the table and writing your filter…",
+    "unsavedChanges": "Kuma works from the saved filters. Save your filter changes, or close this and undo them, before asking Kuma.",
+    "unsavedTable": "Kuma works from the saved table. Save the new table, or close this and pick the saved one again, before asking Kuma.",
+    "suggestion_pageParameter": "Use a page parameter",
+    "suggestion_pageParameter_prompt": "Only show rows where [field] equals the [name] page parameter",
+    "suggestion_user": "Only the logged-in user's rows",
+    "suggestion_user_prompt": "Only show the rows that belong to the logged-in user",
+    "suggestion_previousNode": "Use a previous step's value",
+    "suggestion_previousNode_prompt": "Only rows where [field] equals the [field] of the trigger",
+    "suggestion_change": "Change or remove a filter",
+    "suggestion_change_prompt": "Change the [field] filter to "
   }
 }

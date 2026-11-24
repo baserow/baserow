@@ -74,9 +74,10 @@ describe('SnapshotsModal', () => {
     })
 
     expect(wrapper.vm.blockedReason).toBe('none')
+    // A max of 0 is a choice, so it isn't shown as an error.
     expect(
       wrapper.find('.snapshots-modal__capacity-alert').classes()
-    ).toContain('alert--error')
+    ).toContain('alert--info-neutral')
     expect(
       wrapper.find('.snapshots-modal__capacity-alert').html()
     ).toMatchSnapshot()

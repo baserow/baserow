@@ -20,6 +20,10 @@ def test_a_valid_formula_passes():
     check_automation_formula("subject", "concat('Hi ', get('previous_node.1.0.name'))")
 
 
+def test_current_node_remains_valid_for_retry_conditions():
+    check_automation_formula("retry_condition", "get('current_node.id') = 1")
+
+
 @pytest.mark.parametrize(
     "formula,message",
     [

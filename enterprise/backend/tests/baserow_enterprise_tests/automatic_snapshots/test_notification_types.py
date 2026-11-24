@@ -63,35 +63,93 @@ def test_failure_notifies_only_active_workspace_admins(enterprise_data_fixture):
     }
 
 
+def _failed_notifications():
+    return list(
+        Notification.objects.filter(type="automatic_snapshot_failed")
+        .order_by("id")
+        .values_list("data__error", flat=True)
+    )
+
+
 @pytest.mark.django_db
-@pytest.mark.parametrize("dismissal", ["read", "cleared"])
-def test_failures_are_deduplicated_per_recipient_and_application(
-    enterprise_data_fixture, dismissal
+def test_failures_notify_only_when_the_error_changes(
+    enterprise_data_fixture, enable_enterprise, mocker
 ):
-    """Repeated failures do not spam admins; read/cleared alerts can notify anew."""
+    """A failure repeating on every run notifies once, even after it was read."""
 
     fixture = enterprise_data_fixture
     admin = fixture.create_user()
     workspace = fixture.create_workspace(user=admin)
-    other_admin = fixture.create_user()
-    fixture.create_user_workspace(
-        workspace=workspace, user=other_admin, permissions="ADMIN"
+    application = fixture.create_database_application(
+        workspace=workspace, max_snapshots=2
     )
-    application = fixture.create_database_application(workspace=workspace)
-    other_application = fixture.create_database_application(workspace=workspace)
-    schedule = AutomaticSnapshotScheduleHandler().create_schedule(
-        workspace, interval="DAY"
+    other_application = fixture.create_database_application(
+        workspace=workspace, max_snapshots=2
     )
-    notify = AutomaticSnapshotFailedNotificationType.notify_admins
+    handler = AutomaticSnapshotScheduleHandler()
+    schedule = handler.create_schedule(workspace, interval="DAY")
+    mocker.patch(
+        "baserow.core.snapshots.handler.SnapshotHandler.perform_create",
+        side_effect=RuntimeError("failed"),
+    )
 
-    notify(schedule, application, "Failed")
-    assert notify(schedule, application, "Failed again") == []
-    assert NotificationRecipient.objects.count() == 2
-    NotificationRecipient.objects.filter(recipient=admin).update(**{dismissal: True})
+    handler.create_automatic_snapshot(schedule.id, application.id)
+    assert _failed_notifications() == [UNEXPECTED_ERROR_MESSAGE]
 
-    recipients = notify(schedule, application, "Failed after dismissal")
-    assert [recipient.recipient_id for recipient in recipients] == [admin.id]
-    assert len(notify(schedule, other_application, "Other application failed")) == 2
+    NotificationRecipient.objects.update(read=True)
+    handler.create_automatic_snapshot(schedule.id, application.id)
+    assert _failed_notifications() == [UNEXPECTED_ERROR_MESSAGE]
+
+    # Each application has its own last run.
+    handler.create_automatic_snapshot(schedule.id, other_application.id)
+    assert _failed_notifications() == [UNEXPECTED_ERROR_MESSAGE] * 2
+
+    # A different error notifies again.
+    create_automatic = mocker.patch(
+        "baserow.core.snapshots.handler.SnapshotHandler.create_automatic",
+        side_effect=MaximumSnapshotsReached(),
+    )
+    handler.create_automatic_snapshot(schedule.id, application.id)
+    assert _failed_notifications() == [UNEXPECTED_ERROR_MESSAGE] * 2 + [
+        NO_ROOM_FOR_SNAPSHOT_MESSAGE
+    ]
+    mocker.stop(create_automatic)
+
+
+@pytest.mark.django_db(transaction=True)
+def test_a_failure_after_a_success_notifies_again(
+    enterprise_data_fixture, enable_enterprise, mocker
+):
+    """Recovering clears the failure, so the next one is new and notifies."""
+
+    fixture = enterprise_data_fixture
+    admin = fixture.create_user()
+    workspace = fixture.create_workspace(user=admin)
+    application = fixture.create_database_application(
+        workspace=workspace, max_snapshots=2
+    )
+    handler = AutomaticSnapshotScheduleHandler()
+    schedule = handler.create_schedule(
+        workspace, application=application, interval="DAY"
+    )
+    perform_create = mocker.patch(
+        "baserow.core.snapshots.handler.SnapshotHandler.perform_create",
+        side_effect=RuntimeError("failed"),
+    )
+
+    handler.create_automatic_snapshot(schedule.id, application.id)
+    mocker.stop(perform_create)
+    handler.create_automatic_snapshot(schedule.id, application.id)
+    assert schedule.last_runs.get(application=application).error == ""
+    assert _failed_notifications() == [UNEXPECTED_ERROR_MESSAGE]
+
+    mocker.patch(
+        "baserow.core.snapshots.handler.SnapshotHandler.perform_create",
+        side_effect=RuntimeError("failed"),
+    )
+    handler.create_automatic_snapshot(schedule.id, application.id)
+    assert _failed_notifications() == [UNEXPECTED_ERROR_MESSAGE] * 2
+    assert NotificationRecipient.objects.filter(recipient=admin).count() == 2
 
 
 @pytest.mark.django_db(transaction=True)

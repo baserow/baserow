@@ -3,7 +3,7 @@ from django.db import migrations, models
 
 class Migration(migrations.Migration):
     dependencies = [
-        ("agent", "0022_conversation_sharing"),
+        ("agent", "0023_identity_definition"),
     ]
 
     operations = [

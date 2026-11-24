@@ -1,3 +1,4 @@
+import dataclasses
 import json
 import os
 import sys
@@ -5,6 +6,7 @@ import sys
 from django.core.management.base import BaseCommand
 
 from baserow.core.handler import CoreHandler
+from baserow.core.identities.import_export import IdentityExport
 from baserow.core.models import Workspace
 from baserow.core.registries import ImportExportConfig
 
@@ -65,14 +67,33 @@ class Command(BaseCommand):
         # `RoleAssignment` can't be exported->imported across workspaces
         # if the subjects are teams, or if the user subject doesn't belong
         # to the imported workspace.
+        identity_export = IdentityExport()
         with open(files_path, "wb") as files_buffer:
             exported_applications = CoreHandler().export_workspace_applications(
                 workspace,
                 files_buffer=files_buffer,
-                import_export_config=cli_import_export_config,
+                import_export_config=dataclasses.replace(
+                    cli_import_export_config, identity_export=identity_export
+                ),
             )
 
         with open(export_path, "w") as export_buffer:
             json.dump(
                 exported_applications, export_buffer, indent=2 if indent else None
             )
+
+        # The identities the applications act as, for `create_template` to put
+        # beside them. Only written when there are any.
+        workspace_objects = identity_export.serialize(
+            None, [application["id"] for application in exported_applications]
+        )
+        objects_path = os.path.join(current_path, f"{file_name}.workspace_objects.json")
+        if workspace_objects is None:
+            # One left by an earlier export doesn't belong to this one.
+            if os.path.exists(objects_path):
+                os.remove(objects_path)
+        else:
+            with open(objects_path, "w") as objects_buffer:
+                json.dump(
+                    workspace_objects, objects_buffer, indent=2 if indent else None
+                )

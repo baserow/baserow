@@ -64,7 +64,7 @@
 
       <Alert
         v-if="blockedReason"
-        type="error"
+        :type="blockedReason === 'none' ? 'info-neutral' : 'error'"
         class="snapshots-modal__capacity-alert"
       >
         <template #title>{{

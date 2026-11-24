@@ -21,6 +21,7 @@ import pytest
 
 from baserow.contrib.automation.models import Automation
 from baserow.contrib.automation.workflows.models import AutomationWorkflow
+from baserow.contrib.builder.data_sources.models import DataSource
 from baserow.contrib.builder.elements.models import Element
 from baserow.contrib.builder.models import Builder
 from baserow.contrib.builder.pages.models import Page
@@ -65,6 +66,10 @@ from baserow_enterprise.assistant.tools.database.tools import (
 )
 from baserow_enterprise.assistant.tools.database.types import ListTablesFilterArg
 from baserow_enterprise.assistant.tools.registries import assistant_tool_registry
+from baserow_enterprise.assistant.tools.services.tools import (
+    list_filterable_data_sources,
+    list_service_filters,
+)
 from baserow_enterprise.audit_log.models import AuditLogEntry
 from baserow_premium.row_comments.models import RowComment
 
@@ -107,6 +112,7 @@ class SeededWorkspace:
     linked_table: Table
     builder: Builder
     page: Page
+    data_source: DataSource
     button: Element
     automation: Automation
     workflow: AutomationWorkflow
@@ -252,7 +258,12 @@ def _seed_builder(
         page=page, element=button, event="click", service=upsert_service
     )
 
-    return {"builder": builder, "page": page, "button": button}
+    return {
+        "builder": builder,
+        "page": page,
+        "data_source": data_source,
+        "button": button,
+    }
 
 
 def _seed_automation(
@@ -314,6 +325,7 @@ def seed(premium_data_fixture: Any, enable_enterprise, synced_roles) -> SeededWo
         linked_table=db_parts["linked_table"],
         builder=builder_parts["builder"],
         page=builder_parts["page"],
+        data_source=builder_parts["data_source"],
         button=builder_parts["button"],
         automation=automation_parts["automation"],
         workflow=automation_parts["workflow"],
@@ -604,6 +616,36 @@ def _check_list_actions(result: Any, seed: SeededWorkspace) -> None:
     )
 
 
+def _check_list_service_filters(result: Any, seed: SeededWorkspace) -> None:
+    assert result["table"]["id"] == seed.table.id
+    assert result["filter_type"] in ("AND", "OR")
+    assert isinstance(result["filters"], list)
+    assert isinstance(result["groups"], list)
+
+
+def _check_list_filterable_data_sources(result: Any, seed: SeededWorkspace) -> None:
+    items = result["data_sources"]
+    assert_items(
+        items,
+        {
+            "kind": str,
+            "id": int,
+            "name": str,
+            "application": dict,
+            "location": str,
+            "service_type": str,
+            "table_id": int,
+            "filter_count": int,
+        },
+        "list_filterable_data_sources",
+    )
+    assert {(item["kind"], item["id"]) for item in items} >= {
+        ("builder_data_source", seed.data_source.id)
+    }
+    # Summary widget sources support filters, just like chart sources.
+    assert "dashboard_data_source" in {item["kind"] for item in items}
+
+
 READ_TOOL_CASES: list[ReadToolCase] = [
     ReadToolCase(
         "list_builders",
@@ -728,6 +770,20 @@ READ_TOOL_CASES: list[ReadToolCase] = [
         lambda ctx, s: list_element_actions(ctx, page_id=s.page.id, thought="contract"),
         _check_list_actions,
     ),
+    ReadToolCase(
+        "list_service_filters",
+        lambda ctx, s: list_service_filters(
+            ctx, kind="builder_data_source", id=s.data_source.id, thought="contract"
+        ),
+        _check_list_service_filters,
+    ),
+    ReadToolCase(
+        "list_filterable_data_sources",
+        lambda ctx, s: list_filterable_data_sources(
+            ctx, application_id=None, thought="contract"
+        ),
+        _check_list_filterable_data_sources,
+    ),
 ]
 
 COVERED_TOOLS: frozenset[str] = frozenset(case.name for case in READ_TOOL_CASES)
@@ -760,6 +816,7 @@ EXEMPT_TOOLS: dict[str, str] = {
     "load_row_tools": _CONTROL,
     "search_user_docs": _LLM,
     "generate_formula": _LLM,
+    "update_service_filters": _LLM,
     "create_database": _WRITE,
     "create_automation": _WRITE,
     "create_dashboard": _WRITE,

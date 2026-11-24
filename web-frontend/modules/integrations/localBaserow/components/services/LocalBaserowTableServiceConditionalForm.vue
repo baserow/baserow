@@ -25,6 +25,8 @@
       full-width
       sorted
       class="filters__items"
+      :class="{ 'filters__items--frozen': frozen }"
+      :inert="frozen ? '' : null"
       :prepare-value="prepareValue"
       :add-condition-string="
         $t('localBaserowTableServiceConditionalForm.addFilter')
@@ -94,6 +96,7 @@
           size="small"
           icon="iconoir-plus"
           class="filters__add"
+          :disabled="frozen"
           @click.prevent="addFilter()"
         >
           {{ $t('localBaserowTableServiceConditionalForm.addFilter') }}
@@ -103,11 +106,17 @@
           size="small"
           icon="iconoir-plus"
           class="filters__add"
+          :disabled="frozen"
           @click.prevent="addFilterGroup()"
         >
           {{ $t('localBaserowTableServiceConditionalForm.addFilterGroup') }}
         </ButtonText>
       </slot>
+      <component
+        :is="component"
+        v-for="(component, index) in footerComponents"
+        :key="index"
+      />
     </div>
   </div>
 </template>
@@ -124,6 +133,18 @@ export default {
   components: {
     InjectedFormulaInput,
     ViewFieldConditionsForm,
+  },
+  provide() {
+    return {
+      // Lets a footer component, like Kuma's prompt, work with the filters.
+      serviceFilterForm: {
+        // Freezes the filters, e.g. while Kuma is asked to change them, so
+        // they can't change underneath the request.
+        setFrozen: (frozen) => {
+          this.frozen = frozen
+        },
+      },
+    }
   },
   props: {
     defaultFilterValue: {
@@ -151,9 +172,19 @@ export default {
     },
   },
   emits: ['update:modelValue', 'update:filterGroups', 'update:filterType'],
+  data() {
+    return {
+      frozen: false,
+    }
+  },
   computed: {
     filterTypes() {
       return this.$registry.getAll('viewFilter')
+    },
+    footerComponents() {
+      return Object.values(this.$registry.getAll('plugin'))
+        .flatMap((plugin) => plugin.getServiceFilterFooterComponents())
+        .filter((component) => component)
     },
     databaseSelected() {
       return this.databases.find(

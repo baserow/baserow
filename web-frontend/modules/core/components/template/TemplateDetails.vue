@@ -95,6 +95,7 @@
             <TemplateInstall
               :template="template"
               :workspace="workspace"
+              :applications="applications"
               :copy-link-kind="copyLinkKind"
               :latest="ownerActions || isOwner"
               @installed="emit('installed')"

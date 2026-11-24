@@ -69,6 +69,54 @@ class CreateIdentityActionType(ActionType):
         return WorkspaceActionScopeType.value(workspace_id)
 
 
+class CreateScopedIdentityActionType(ActionType):
+    type = "create_scoped_identity"
+    description = ActionTypeDescription(
+        _("Create identity with access to some applications"),
+        _(
+            'Identity "%(identity_name)s" (%(identity_id)s) created without '
+            "workspace access"
+        ),
+        WORKSPACE_ACTION_CONTEXT,
+    )
+    analytics_params = ["workspace_id", "identity_id"]
+
+    @dataclasses.dataclass
+    class Params:
+        workspace_id: int
+        workspace_name: str
+        identity_id: int
+        identity_name: str
+
+    @classmethod
+    def do(cls, user: AbstractUser, workspace: Workspace, name: str) -> User:
+        """
+        Creates an identity without workspace access, and records who did it. See
+        `IdentityService.create_scoped_identity`. The roles it's given on
+        applications afterwards are recorded by their own action.
+
+        :return: The newly created identity.
+        """
+
+        identity = IdentityService().create_scoped_identity(user, workspace, name=name)
+        cls.register_action(
+            user=user,
+            params=cls.Params(
+                workspace.id,
+                workspace.name,
+                identity.id,
+                identity.first_name,
+            ),
+            scope=cls.scope(workspace.id),
+            workspace=workspace,
+        )
+        return identity
+
+    @classmethod
+    def scope(cls, workspace_id: int) -> ActionScopeStr:
+        return WorkspaceActionScopeType.value(workspace_id)
+
+
 class UpdateIdentityActionType(ActionType):
     type = "update_identity"
     description = ActionTypeDescription(

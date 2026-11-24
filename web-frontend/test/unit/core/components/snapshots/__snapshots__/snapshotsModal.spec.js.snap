@@ -16,8 +16,8 @@ exports[`SnapshotsModal > offers unprotecting or deleting when the max cannot be
 `;
 
 exports[`SnapshotsModal > takes a snapshot and raises the max snapshots when it keeps none 1`] = `
-"<div class="alert alert--error snapshots-modal__capacity-alert">
-  <div class="alert__wrapper"><i class="alert__icon iconoir-warning-circle"></i>
+"<div class="alert alert--info-neutral snapshots-modal__capacity-alert">
+  <div class="alert__wrapper"><i class="alert__icon iconoir-info-empty"></i>
     <div class="alert__content">
       <div class="alert__title">snapshotsModal.maxSnapshotsZeroTitle</div>
       <div class="alert__message">snapshotsModal.maxSnapshotsZero

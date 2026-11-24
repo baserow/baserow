@@ -31,13 +31,14 @@ def mark_owned_user_templates_deleted(sender, instance, **kwargs):
 def delete_create_user_template_job_content(sender, instance, **kwargs):
     """
     Deleting an unfinished job, when it expires or with its user, would lose
-    track of the workspace and archive it copied, so they're deleted along.
+    track of the workspace and archive it copied, so they're recorded for the sweep
+    to delete.
     """
 
     # What a finished job created is its template's. An update job has its
     # template from the start, the commit sets its revision.
     if instance.revision_id is None:
-        UserTemplateHandler().delete_content_of_deleted_job(
+        UserTemplateHandler().track_content_of_deleted_job(
             instance.template_workspace_id, instance.archive_name
         )
 

@@ -1,7 +1,7 @@
 import shutil
 from dataclasses import dataclass
 from tempfile import SpooledTemporaryFile
-from typing import IO, Any, Dict, Iterator, List
+from typing import IO, Any, Dict, Iterator, List, Optional
 
 from django.core.files.storage import Storage
 
@@ -57,3 +57,5 @@ class TemplateFilesTransfer:
 class TemplateContent:
     applications: List[Dict[str, Any]]
     files: TemplateFilesTransfer
+    # What the content holds beside its applications, like their identities.
+    workspace_objects: Optional[Dict[str, Any]] = None

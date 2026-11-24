@@ -82,7 +82,9 @@ def resolve_node_refs(formula: str, refs: dict[str, int]) -> str:
     return formula
 
 
-def check_automation_formula(field: str, formula: str) -> None:
+def check_automation_formula(
+    field: str, formula: str, *, allow_current_node: bool = True
+) -> None:
     """
     Check that a formula is valid in an automation: it parses, and its functions,
     arguments and data providers exist. ``check_output_paths`` checks the
@@ -90,6 +92,8 @@ def check_automation_formula(field: str, formula: str) -> None:
 
     :param field: The name of the value, for the error message.
     :param formula: The formula to check.
+    :param allow_current_node: Whether the node has produced a result when this
+        formula is evaluated, as it has for a retry condition but not its service.
     :raises InvalidAutomationFormula: With the parser's message, or with a request
         for a formula when it is empty or a ``$formula:`` description.
     """
@@ -122,6 +126,7 @@ def check_automation_formula(field: str, formula: str) -> None:
         BaserowFormulaValidationVisitor(
             formula_runtime_function_registry,
             data_provider_type_registry=automation_data_provider_type_registry,
+            validation_context={"allow_current_node": allow_current_node},
         ).visit(tree)
     except InstanceTypeDoesNotExist as exc:
         raise InvalidAutomationFormula(

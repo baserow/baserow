@@ -981,7 +981,6 @@
   },
   "snapshotsModal": {
     "heading": "Snapshots of {name}",
-    "intro": "Full copies you can go back to. Restoring one creates a new {applicationTypeName} next to this one.",
     "learnMore": "How snapshots work",
     "workspaceUsage": "Workspace snapshot allowance",
     "usage": "{used} of {limit} reserved",

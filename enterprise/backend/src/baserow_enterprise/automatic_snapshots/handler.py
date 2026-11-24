@@ -645,8 +645,6 @@ class AutomaticSnapshotScheduleHandler:
             self._record_failure(schedule, exc, application)
             return
 
-        self._record_run_result(schedule, application)
-
         try:
             snapshot_handler.rotate_after_create(application.id)
         except Exception:
@@ -655,6 +653,7 @@ class AutomaticSnapshotScheduleHandler:
             logger.exception(
                 "Rotating the snapshots of application {} failed.", application.id
             )
+            self._record_run_result(schedule, application)
             return
 
         # The rotation deletes the oldest unprotected snapshots beyond the max. When
@@ -662,9 +661,8 @@ class AutomaticSnapshotScheduleHandler:
         # created, that's the new snapshot itself, so the run tells why it's gone.
         if Snapshot.objects.filter(id=snapshot.id, mark_for_deletion=True).exists():
             self._record_run_result(schedule, application, REPLACED_RIGHT_AWAY_MESSAGE)
-            AutomaticSnapshotFailedNotificationType.notify_admins(
-                schedule, application, NO_ROOM_FOR_SNAPSHOT_MESSAGE
-            )
+        else:
+            self._record_run_result(schedule, application)
 
     def _record_failure(
         self,
@@ -673,10 +671,13 @@ class AutomaticSnapshotScheduleHandler:
         application: Application,
     ) -> None:
         """
-        Records the failed application attempt for the snapshots modal.
-        Notify workspace admins without exposing internal exception details.
-        Only known failures get a specific message. Any other failure gets a
-        generic one, and its details are only in the server log.
+        Records the failed application attempt for the snapshots modal. Only known
+        failures get a specific message. Any other failure gets a generic one, and
+        its details are only in the server log.
+
+        :param schedule: The schedule that ran.
+        :param exc: The exception the attempt failed with.
+        :param application: The application the attempt was for.
         """
 
         if isinstance(exc, DatabaseSnapshotMaxLocksExceededException):
@@ -688,9 +689,6 @@ class AutomaticSnapshotScheduleHandler:
         else:
             message = UNEXPECTED_ERROR_MESSAGE
         self._record_run_result(schedule, application, message)
-        AutomaticSnapshotFailedNotificationType.notify_admins(
-            schedule, application, message
-        )
 
     def _record_run_result(
         self,
@@ -698,13 +696,33 @@ class AutomaticSnapshotScheduleHandler:
         application: Application,
         error: str = "",
     ) -> None:
-        """Keep the latest application result, clearing only its own previous failure."""
+        """
+        Keeps the result of the latest attempt of the provided application. The
+        workspace admins are notified when it fails for a new reason: the previous
+        attempt succeeded, there was none, or it failed with another error. A
+        failure that repeats on every run notifies them only once.
 
-        AutomaticSnapshotLastRun.objects.update_or_create(
-            application=application,
-            defaults={
-                "schedule": schedule,
-                "finished_at": timezone.now(),
-                "error": error,
-            },
-        )
+        :param schedule: The schedule that ran.
+        :param application: The application the attempt was for.
+        :param error: The error the attempt failed with, empty when it succeeded.
+        """
+
+        with transaction.atomic():
+            previous_error = (
+                AutomaticSnapshotLastRun.objects.select_for_update()
+                .filter(application=application)
+                .values_list("error", flat=True)
+                .first()
+            )
+            AutomaticSnapshotLastRun.objects.update_or_create(
+                application=application,
+                defaults={
+                    "schedule": schedule,
+                    "finished_at": timezone.now(),
+                    "error": error,
+                },
+            )
+            if error and error != previous_error:
+                AutomaticSnapshotFailedNotificationType.notify_admins(
+                    schedule, application, error
+                )

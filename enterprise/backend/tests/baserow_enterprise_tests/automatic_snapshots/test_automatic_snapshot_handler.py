@@ -728,7 +728,7 @@ def test_create_automatic_snapshot_records_a_snapshot_replaced_right_away(
     )
     notification = Notification.objects.get(type="automatic_snapshot_failed")
     assert notification.data["application_id"] == application.id
-    assert notification.data["error"] == NO_ROOM_FOR_SNAPSHOT_MESSAGE
+    assert notification.data["error"] == REPLACED_RIGHT_AWAY_MESSAGE
 
 
 @pytest.mark.django_db

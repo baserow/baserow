@@ -28,6 +28,33 @@ describe('Test enterprise Baserow plugin', () => {
     ).toEqual([])
   })
 
+  describe('canCreateScopedIdentities', () => {
+    const workspace = { id: 7 }
+    const OPERATIONS = ['identity.create_scoped', 'identity.bind']
+
+    const pluginWith = ({ rbac = true, denied = null } = {}) =>
+      new EnterprisePlugin({
+        app: {
+          ...app,
+          $hasFeature: (feature, workspaceId) =>
+            rbac && feature === 'RBAC' && workspaceId === workspace.id,
+          $hasPermission: (operation) => operation !== denied,
+        },
+      })
+
+    test('needs roles and the permissions to create and bind scoped identities', () => {
+      expect(pluginWith().canCreateScopedIdentities(workspace)).toBe(true)
+      expect(
+        pluginWith({ rbac: false }).canCreateScopedIdentities(workspace)
+      ).toBe(false)
+      for (const denied of OPERATIONS) {
+        expect(
+          pluginWith({ denied }).canCreateScopedIdentities(workspace)
+        ).toBe(false)
+      }
+    })
+  })
+
   // Regression test for the custom CSS/JS injection ordering. unhead v2 (pulled
   // in by the Nuxt 4 upgrade) dropped the legacy `body: true` flag, which caused
   // the custom stylesheet to render in <head> before the bundled theme CSS. With

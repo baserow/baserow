@@ -114,12 +114,19 @@ export function describeSchedule(schedule, t) {
 /**
  * Formats a run time of a schedule with its timezone. Runs at a time of day are
  * shown in the schedule's timezone, so they match its description. The other runs
- * are calculated in UTC, so they're shown in UTC.
+ * are calculated in UTC, so they're shown in UTC. Without a schedule, for example
+ * the last run of an application that no longer has one, the time is shown in the
+ * viewer's timezone.
+ *
+ * @param {object|null} schedule The schedule of the run, if there still is one.
  */
 export function formatRunTime(schedule, time, format = 'ddd D MMM, HH:mm') {
-  const zone = LOCAL_TIME_INTERVALS.includes(schedule.interval)
-    ? schedule.timezone
-    : 'UTC'
+  let zone = moment.tz.guess()
+  if (schedule) {
+    zone = LOCAL_TIME_INTERVALS.includes(schedule.interval)
+      ? schedule.timezone
+      : 'UTC'
+  }
   return moment.utc(time).tz(zone).format(`${format} z`)
 }
 
@@ -202,39 +209,38 @@ export function getNextRun(schedule, from = moment()) {
 
 /**
  * Returns why scheduled runs can't create a snapshot of an application, or `null`
- * when they can: snapshots are turned off, the application has a max of 0, so runs
- * skip it, or every snapshot it keeps is protected, so runs fail.
+ * when they can: snapshots are turned off, so runs fail, the application has a max
+ * of 0, so runs skip it on purpose, or every snapshot it keeps is protected, so
+ * runs skip it.
  *
  * @param {object} values
  * @param {number|null} values.limit The workspace allowance, `null` without one.
  * @param {number} values.maxSnapshots The max snapshots of the application.
  * @param {number} values.protectedCount How many of its snapshots are protected.
- * @param {string} name The name of the application.
  * @param {Function} t The translation function.
- * @param {boolean} short Whether to return the common capacity message used in
- *   workspace lists, instead of the detailed explanation for the snapshots modal.
+ * @returns {{message: string, type: string}|null} The message, and the `Alert`
+ *   type to show it with. A max of 0 is a choice, not an error, so it's neutral.
  */
 export function getScheduleBlockedWarning(
   { limit, maxSnapshots, protectedCount },
-  name,
-  t,
-  short = false
+  t
 ) {
   if (limit === 0) {
-    return short
-      ? t('automaticSnapshots.noRoom')
-      : t('automaticSnapshots.disabledWarning')
+    return { message: t('automaticSnapshots.blockedDisabled'), type: 'error' }
   }
   if (maxSnapshots === 0) {
-    return short
-      ? t('automaticSnapshots.noRoom')
-      : t('automaticSnapshots.maxSnapshotsZeroWarning', { name })
+    return {
+      message: t('automaticSnapshots.blockedMaxSnapshotsZero'),
+      type: 'info-neutral',
+    }
   }
   if (protectedCount >= maxSnapshots) {
-    const params = { name, count: maxSnapshots }
-    return short
-      ? t('automaticSnapshots.noRoom')
-      : t('automaticSnapshots.fullOfProtectedWarning', params)
+    return {
+      message: t('automaticSnapshots.blockedFullOfProtected', {
+        count: maxSnapshots,
+      }),
+      type: 'error',
+    }
   }
   return null
 }

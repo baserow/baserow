@@ -68,6 +68,17 @@ export class BaserowPlugin extends Registerable {
   }
 
   /**
+   * Every registered plugin can display components after the "Add filter" links of
+   * a Local Baserow service's filter form. The form's host provides
+   * `serviceFilterTarget` (a computed `{ kind, id }`) identifying the data source or
+   * node, and `serviceFilters` to check for unsaved filter changes. The filter form
+   * provides `serviceFilterForm` to freeze the filters.
+   */
+  getServiceFilterFooterComponents() {
+    return []
+  }
+
+  /**
    * Every registered plugin can display an additional item in the right sidebar within
    * the workspace context.
    */
@@ -337,6 +348,16 @@ export class BaserowPlugin extends Registerable {
    */
   getExtraImportWorkspaceModalComponents(workspace) {
     return null
+  }
+
+  /**
+   * Whether the user can create, in the workspace, an identity that has access to
+   * only some of its applications, and make an application act as it. A template
+   * install or an import then creates the identities that come with it.
+   * @returns {boolean}
+   */
+  canCreateScopedIdentities(workspace) {
+    return false
   }
 
   /**

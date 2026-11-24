@@ -117,6 +117,8 @@ import DashboardTableSelector from '@baserow/modules/dashboard/components/data_s
 import DashboardServiceRefinementForms from '@baserow/modules/dashboard/components/data_source/DashboardServiceRefinementForms'
 import { useVuelidate } from '@vuelidate/core'
 import form from '@baserow/modules/core/mixins/form'
+import { computed } from 'vue'
+import serviceFiltersSync from '@baserow/modules/integrations/localBaserow/mixins/serviceFiltersSync'
 import { required } from '@vuelidate/validators'
 import tableFields from '@baserow/modules/database/mixins/tableFields'
 
@@ -134,7 +136,15 @@ const includesIfSet = (array) => (value) => {
 export default {
   name: 'AggregateRowsDataSourceForm',
   components: { DashboardTableSelector, DashboardServiceRefinementForms },
-  mixins: [form, tableFields],
+  mixins: [form, tableFields, serviceFiltersSync],
+  provide() {
+    return {
+      serviceFilterTarget: computed(() => ({
+        kind: 'dashboard_data_source',
+        id: this.dataSource.id,
+      })),
+    }
+  },
   props: {
     /** Whether the widget's own filter conditions can be edited here. */
     showOwnFilters: {
@@ -260,8 +270,8 @@ export default {
     },
   },
   watch: {
-    dataSource: {
-      async handler(values) {
+    'dataSource.id': {
+      async handler() {
         this.setEmitValues(false)
         // Reset the form to set default values
         // again after a different widget is selected
@@ -272,7 +282,6 @@ export default {
         await this.$nextTick()
         this.setEmitValues(true)
       },
-      deep: true,
     },
     fieldsLoading(loading) {
       if (this.tableIdHasChanged && !loading) {
@@ -337,6 +346,9 @@ export default {
     }
   },
   methods: {
+    getServiceFiltersSource() {
+      return this.dataSource
+    },
     /* Overrides the method in the tableFields mixin */
     getTableId() {
       return this.values.table_id

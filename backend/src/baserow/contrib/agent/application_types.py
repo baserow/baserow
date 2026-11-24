@@ -8,6 +8,7 @@ from django.urls import URLResolver, include, path
 
 from baserow.contrib.agent.action_tools.handler import AgentActionHandler
 from baserow.contrib.agent.action_tools.registries import agent_action_type_registry
+from baserow.contrib.agent.actions import UpdateAgentConfigurationActionType
 from baserow.contrib.agent.api.serializers import AgentApplicationSerializer
 from baserow.contrib.agent.constants import AgentRunAsState
 from baserow.contrib.agent.handler import AgentHandler
@@ -21,17 +22,25 @@ from baserow.contrib.agent.registries import (
     agent_tool_type_registry,
 )
 from baserow.contrib.agent.triggers.handler import AgentTriggerHandler
+from baserow.core.action.registries import action_type_registry
 from baserow.core.ai_provider.constants import AI_PROVIDER_FEATURE_AI_AGENT
+from baserow.core.feature_flags import FF_AGENT_BUILDER, feature_flag_is_enabled
 from baserow.core.generative_ai.constants import ReasoningEffort
 from baserow.core.generative_ai.registries import generative_ai_model_type_registry
 from baserow.core.handler import CoreHandler
+from baserow.core.identities.import_export import (
+    identity_importer,
+    imported_identity,
+    imported_identity_definition,
+)
 from baserow.core.identities.service import IdentityService
 from baserow.core.integrations.handler import IntegrationHandler
 from baserow.core.integrations.models import Integration
 from baserow.core.integrations.operations import ReadIntegrationOperationType
-from baserow.core.models import Workspace
+from baserow.core.models import IdentityDefinition, Workspace
 from baserow.core.registries import ApplicationType, ImportExportConfig
 from baserow.core.storage import ExportZipFile
+from baserow.core.subjects import UserSubjectType
 from baserow.core.types import PermissionCheck
 from baserow.core.utils import ChildProgressBuilder
 
@@ -40,7 +49,7 @@ class AgentApplicationType(ApplicationType):
     type = "agent"
     model_class = AgentApplication
     data_provider_type_registry = agent_data_provider_type_registry
-    serializer_field_names = ["name", "readiness"]
+    serializer_field_names = ["name", "readiness", "waits_for_identity"]
     serializer_mixins = [AgentApplicationSerializer]
     request_serializer_field_names = ["name"]
     request_serializer_mixins = []
@@ -95,6 +104,36 @@ class AgentApplicationType(ApplicationType):
         return None, None
 
     @staticmethod
+    def _exported_identity_key(
+        application: AgentApplication, import_export_config: ImportExportConfig
+    ) -> str | None:
+        """
+        Records the identity the Agent acts as, or the one it waits for, with the
+        identities of the export, so that an import can create it again.
+
+        :param application: The exported Agent.
+        :param import_export_config: How the Agent is exported.
+        :return: The key of the identity in the export, or None when the Agent has
+            none or the export carries no identities.
+        """
+
+        identity_export = import_export_config.identity_export
+        if identity_export is None:
+            return None
+        if not (application.run_as_subject_type and application.run_as_subject_id):
+            # A copy waiting for an identity, like the Agent of a user template.
+            definition = application.identity_definition
+            return None if definition is None else identity_export.key_for(definition)
+        resolution = AgentHandler().resolve_run_as_subject(
+            application.run_as_subject_type,
+            application.run_as_subject_id,
+            application.workspace,
+        )
+        if resolution.status != AgentRunAsState.ACTIVE:
+            return None
+        return identity_export.key_for(resolution.subject)
+
+    @staticmethod
     def _enabled_models(workspace: Workspace) -> dict[str, list[str]]:
         return generative_ai_model_type_registry.get_enabled_models_per_type(
             workspace, feature_type=AI_PROVIDER_FEATURE_AI_AGENT
@@ -145,6 +184,41 @@ class AgentApplicationType(ApplicationType):
             return author_model
         default = self._default_model(enabled)
         return default if default[0] else author_model
+
+    def get_imported_identity_keys(
+        self, serialized_values: dict, imported_by: AbstractUser | None
+    ) -> set[str]:
+        key = serialized_values.get("run_as_identity_key")
+        if not (isinstance(key, str) and key):
+            return set()
+        # Without the feature, the user can't see the Agents or their identities.
+        if imported_by is not None and not feature_flag_is_enabled(
+            FF_AGENT_BUILDER, user=imported_by
+        ):
+            return set()
+        return {key}
+
+    @staticmethod
+    def _act_as_imported_identity(
+        application: AgentApplication, identity: AbstractUser, id_mapping: dict
+    ) -> None:
+        """
+        Makes an imported Agent act as the identity the import created for it,
+        which turns its pending tools on, as when an identity is picked. Audited,
+        because the Agent gets the identity's access.
+
+        :param application: The imported Agent, which has no identity yet.
+        :param identity: The identity the import created.
+        :param id_mapping: The export-to-import id map.
+        """
+
+        action_type_registry.get_by_type(UpdateAgentConfigurationActionType).do(
+            identity_importer(id_mapping),
+            application.id,
+            run_as_subject_type=UserSubjectType.type,
+            run_as_subject_id=identity.id,
+        )
+        application.refresh_from_db()
 
     def supports_integration_type(self, integration_type) -> bool:
         """MCP servers, and the integrations its action types' services use."""
@@ -305,7 +379,13 @@ class AgentApplicationType(ApplicationType):
             serialized.update(
                 run_as_subject_type=application.run_as_subject_type,
                 run_as_subject_id=application.run_as_subject_id,
+                # A copy of an Agent waiting for an identity waits for it too.
+                identity_definition_id=application.identity_definition_id,
             )
+        else:
+            key = self._exported_identity_key(application, import_export_config)
+            if key is not None:
+                serialized["run_as_identity_key"] = key
         if self._includes_conversations(import_export_config):
             serialized["conversations"] = AgentHandler().export_conversations(
                 application
@@ -375,26 +455,46 @@ class AgentApplicationType(ApplicationType):
             serialized_values.get("allowed_tools") or [],
             serialized_values.get("ask_first_tools") or [],
         )
+        key = serialized_values.get("run_as_identity_key")
+        identity = imported_identity(id_mapping, key)
         if application.run_as_subject_type and application.run_as_subject_id:
             handler.set_allowed_tools(
                 application, tools["allowed_tools"], tools["ask_first_tools"]
             )
-        elif tools["allowed_tools"]:
-            # Without an identity tools are off. They wait for the first one, and
-            # those that change data ask first: whoever picks the identity didn't
-            # choose to let them run unattended.
-            application.pending_tool_choices = handler.filter_tool_choices(
-                tools["allowed_tools"],
-                [
-                    *tools["ask_first_tools"],
-                    *(
-                        name
-                        for name in tools["allowed_tools"]
-                        if agent_tool_type_registry.get(name).changes_data
-                    ),
-                ],
+        else:
+            if tools["allowed_tools"]:
+                # Without an identity tools are off. They wait for the first one,
+                # and those that change data ask first: whoever picks the identity
+                # didn't choose to let them run unattended.
+                application.pending_tool_choices = handler.filter_tool_choices(
+                    tools["allowed_tools"],
+                    [
+                        *tools["ask_first_tools"],
+                        *(
+                            name
+                            for name in tools["allowed_tools"]
+                            if agent_tool_type_registry.get(name).changes_data
+                        ),
+                    ],
+                )
+            if import_export_config.keeps_unmapped_references:
+                # An internal copy waits for the same identity as its original. A
+                # snapshot has no workspace, and keeps it for its restore.
+                definitions = IdentityDefinition.objects.filter(
+                    id=serialized_values.get("identity_definition_id")
+                )
+                if workspace is not None:
+                    definitions = definitions.filter(workspace=workspace)
+                application.identity_definition = definitions.first()
+            elif identity is None:
+                # The identity the Agent came with, when the export carries it
+                # and the import didn't create it.
+                application.identity_definition = imported_identity_definition(
+                    id_mapping, key
+                )
+            application.save(
+                update_fields=["pending_tool_choices", "identity_definition"]
             )
-            application.save(update_fields=["pending_tool_choices"])
         for serialized_integration in serialized_integrations:
             IntegrationHandler().import_integration(
                 application,
@@ -424,4 +524,6 @@ class AgentApplicationType(ApplicationType):
             AgentHandler().import_conversations(
                 application, serialized_values.get("conversations", []), id_mapping
             )
+        if identity is not None and not application.run_as_subject_id:
+            self._act_as_imported_identity(application, identity, id_mapping)
         return application
