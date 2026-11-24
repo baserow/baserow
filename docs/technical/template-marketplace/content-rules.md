@@ -51,7 +51,7 @@ workspace export; see #6116.
 
 | Module | What enforces it | Status | Owner |
 | --- | --- | --- | --- |
-| Integrations | `CoreResponseServiceType` must mark `headers` sensitive | to do | WAB |
+| Integrations | `CoreResponseServiceType.serialize_property` exports no response headers (names or values) when `exclude_sensitive_data=True`, including user-template copies; internal copies with sensitive-data removal disabled retain them | done | WAB |
 | Builder | `PageHandler.export_page` passes the config to data sources, workflow actions and their services; see #6115 | done | WAB |
 | Automation | `AutomationNodeType.serialize_property` passes the config to the node service; see #6115 | done | WAB |
 | Dashboard | `DashboardDataSourceHandler.export_data_source` passes the config to the data source service | done | WAB |
