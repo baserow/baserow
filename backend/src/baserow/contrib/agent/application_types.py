@@ -29,7 +29,6 @@ from baserow.core.generative_ai.constants import ReasoningEffort
 from baserow.core.generative_ai.registries import generative_ai_model_type_registry
 from baserow.core.handler import CoreHandler
 from baserow.core.identities.import_export import (
-    identity_importer,
     imported_identity,
     imported_identity_definition,
 )
@@ -186,12 +185,13 @@ class AgentApplicationType(ApplicationType):
         return default if default[0] else author_model
 
     def get_imported_identity_keys(
-        self, serialized_values: dict, imported_by: AbstractUser | None
+        self, serialized_values: dict, import_export_config: ImportExportConfig
     ) -> set[str]:
         key = serialized_values.get("run_as_identity_key")
         if not (isinstance(key, str) and key):
             return set()
         # Without the feature, the user can't see the Agents or their identities.
+        imported_by = import_export_config.imported_by
         if imported_by is not None and not feature_flag_is_enabled(
             FF_AGENT_BUILDER, user=imported_by
         ):
@@ -200,7 +200,9 @@ class AgentApplicationType(ApplicationType):
 
     @staticmethod
     def _act_as_imported_identity(
-        application: AgentApplication, identity: AbstractUser, id_mapping: dict
+        application: AgentApplication,
+        identity: AbstractUser,
+        import_export_config: ImportExportConfig,
     ) -> None:
         """
         Makes an imported Agent act as the identity the import created for it,
@@ -209,11 +211,11 @@ class AgentApplicationType(ApplicationType):
 
         :param application: The imported Agent, which has no identity yet.
         :param identity: The identity the import created.
-        :param id_mapping: The export-to-import id map.
+        :param import_export_config: How the Agent is imported, and by whom.
         """
 
         action_type_registry.get_by_type(UpdateAgentConfigurationActionType).do(
-            identity_importer(id_mapping),
+            import_export_config.imported_by,
             application.id,
             run_as_subject_type=UserSubjectType.type,
             run_as_subject_id=identity.id,
@@ -525,5 +527,5 @@ class AgentApplicationType(ApplicationType):
                 application, serialized_values.get("conversations", []), id_mapping
             )
         if identity is not None and not application.run_as_subject_id:
-            self._act_as_imported_identity(application, identity, id_mapping)
+            self._act_as_imported_identity(application, identity, import_export_config)
         return application

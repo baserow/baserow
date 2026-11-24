@@ -730,7 +730,9 @@ class UserTemplateHandler:
         # Unlike the copy into the template, the installed tables are used right
         # away, so their search data is filled in like with the official install.
         config = dataclasses.replace(
-            user_template_copy_config(), reduce_disk_space_usage=False
+            user_template_copy_config(),
+            reduce_disk_space_usage=False,
+            imported_by=user,
         )
         applications, _ = CoreHandler().import_applications_to_workspace(
             workspace,
@@ -740,7 +742,6 @@ class UserTemplateHandler:
             storage=content.files.storage,
             progress_builder=progress_builder,
             workspace_objects=content.workspace_objects,
-            imported_by=user,
         )
 
         CoreHandler().mark_applications_installed_from_template(

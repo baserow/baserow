@@ -963,7 +963,8 @@ class ImportExportHandler:
             applications.
         :param import_tmp_path: The temporary path where the import files are stored.
         :param import_export_config: Configuration options for the import/export
-            process.
+            process. The identities of the file are created for its
+            `imported_by`, not for `user`.
         :param zip_file: The ZipFile instance containing the applications to be
             imported.
         :param storage: The storage instance to use for file operations.
@@ -978,10 +979,7 @@ class ImportExportHandler:
         imported_applications = []
         id_mapping: Dict[str, Any] = {}
         identity_import = IdentityImport(
-            workspace,
-            manifest.get(WORKSPACE_OBJECTS),
-            user,
-            import_export_config,
+            workspace, manifest.get(WORKSPACE_OBJECTS), import_export_config
         )
         # The file may not hold the databases and automations its applications
         # reference, or only some applications are picked. Such references are
@@ -1295,6 +1293,7 @@ class ImportExportHandler:
                     include_permission_data=False,
                     reduce_disk_space_usage=False,
                     only_structure=only_structure,
+                    imported_by=user,
                 )
 
                 imported_applications = self.import_multiple_applications(

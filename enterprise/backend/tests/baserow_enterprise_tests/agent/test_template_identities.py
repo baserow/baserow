@@ -2,6 +2,7 @@ import json
 from unittest.mock import ANY, patch
 from zipfile import ZipFile
 
+from django.core.management import call_command
 from django.db import transaction
 from django.urls import reverse
 
@@ -1899,7 +1900,7 @@ def test_an_application_of_another_type_can_refer_to_several_identities(
         patch.object(
             site_type,
             "get_imported_identity_keys",
-            lambda serialized, imported_by: set(serialized["acts_as"]),
+            lambda serialized, config: set(serialized["acts_as"]),
         ),
         patch.object(site_type, "import_serialized", import_resolving),
     ):
@@ -1968,7 +1969,10 @@ def test_what_refers_to_an_address_two_identities_share_goes_to_the_first(
 
 
 @pytest.mark.django_db(transaction=True)
-def test_a_failed_file_import_leaves_no_identity_behind(enterprise_data_fixture, admin):
+@pytest.mark.parametrize("importer_role", ["ADMIN", "BUILDER"])
+def test_a_failed_file_import_leaves_no_identity_behind(
+    enterprise_data_fixture, admin, importer_role
+):
     source = enterprise_data_fixture.create_workspace(user=admin)
     author = enterprise_data_fixture.create_identity(
         workspace=source, name="Author", role_uid="NO_ACCESS"
@@ -1980,7 +1984,11 @@ def test_a_failed_file_import_leaves_no_identity_behind(enterprise_data_fixture,
     export_path = enterprise_data_fixture.export_workspace_applications_file(
         [database, agent]
     )
-    target = enterprise_data_fixture.create_workspace(user=admin)
+    # A builder may import, but not delete identities.
+    importer = enterprise_data_fixture.create_user()
+    target = enterprise_data_fixture.create_workspace(
+        users=[admin], custom_permissions=[(importer, importer_role)]
+    )
 
     # A file import has no transaction that would roll the identity back.
     with (
@@ -1989,7 +1997,7 @@ def test_a_failed_file_import_leaves_no_identity_behind(enterprise_data_fixture,
         ),
         pytest.raises(ValueError),
     ):
-        import_zip(admin, target, export_path)
+        import_zip(importer, target, export_path)
 
     # Trashed, like the applications of a failed import.
     assert not IdentityHandler().get_queryset(target).exists()
@@ -2113,3 +2121,28 @@ def test_a_waiting_agent_says_it_came_with_an_identity(
         agent.name: AgentApplicationSerializer(agent).data["waits_for_identity"]
         for agent in AgentApplication.objects.filter(workspace=workspace)
     } == {"Agent 0": True, "Agent 1": True}
+
+
+@pytest.mark.django_db(transaction=True)
+def test_the_import_command_reads_the_identities_the_export_command_wrote(
+    enterprise_data_fixture, admin, tmp_path, monkeypatch
+):
+    database, agent = make_source(
+        enterprise_data_fixture, [READ_TOOLS], source_roles={"CRM": "VIEWER"}
+    )
+    target = enterprise_data_fixture.create_workspace(user=admin)
+    monkeypatch.chdir(tmp_path)
+
+    call_command("export_workspace_applications", agent.workspace_id, name="kit")
+    call_command("import_workspace_applications", target.id, "kit")
+
+    # Nobody imports, so the Agent waits for the identity the files describe.
+    imported = AgentApplication.objects.get(workspace=target)
+    assert_waits(imported)
+    definition = IdentityDefinition.objects.get(workspace=target)
+    assert imported.identity_definition_id == definition.id
+    assert definition.name == "Author"
+    assert definition.roles == [
+        workspace_role("NO_ACCESS"),
+        role_on(Database.objects.get(workspace=target), "VIEWER"),
+    ]
