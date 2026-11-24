@@ -7,7 +7,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('agent', '0021_agentapplication_pending_tool_choices'),
+        ('agent', '0022_conversation_sharing'),
         ('core', '0144_identity_definition'),
     ]
 
