@@ -24,6 +24,9 @@ from baserow.api.utils import (
     validate_data_custom_fields,
 )
 from baserow.contrib.dashboard.api.errors import ERROR_DASHBOARD_DOES_NOT_EXIST
+from baserow.contrib.dashboard.api.permissions import (
+    IsAuthenticatedOrTemplateDashboardRead,
+)
 from baserow.contrib.dashboard.exceptions import DashboardDoesNotExist
 from baserow.contrib.dashboard.signals import dashboard_loaded
 from baserow.contrib.dashboard.widgets.actions import (
@@ -63,7 +66,7 @@ def serialize_widgets(widgets):
 
 
 class WidgetsView(APIView):
-    permission_classes = (IsAuthenticated,)
+    permission_classes = (IsAuthenticatedOrTemplateDashboardRead,)
 
     @extend_schema(
         parameters=[
@@ -80,6 +83,8 @@ class WidgetsView(APIView):
         description=(
             "Lists all the widgets of the dashboard related to the provided parameter if "
             "the user has access to the related workspace. "
+            "If the workspace is related to a template, then this endpoint will be "
+            "publicly accessible."
         ),
         responses={
             200: DiscriminatorCustomFieldsMappingSerializer(

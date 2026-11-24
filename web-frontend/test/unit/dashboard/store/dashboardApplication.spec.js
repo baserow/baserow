@@ -1,4 +1,6 @@
 import { WidgetDataProviderType } from '@baserow/modules/dashboard/dataProviderTypes'
+import { mountSuspended } from '@nuxt/test-utils/runtime'
+import flushPromises from 'flush-promises'
 import { afterEach, describe, expect, test, vi } from 'vitest'
 
 import {
@@ -11,6 +13,8 @@ import {
 import DataSourceService from '@baserow/modules/dashboard/services/dataSource'
 import PublicDashboardService from '@baserow/modules/dashboard/services/publicDashboard'
 import WidgetService from '@baserow/modules/dashboard/services/widget'
+import DashboardWidget from '@baserow/modules/dashboard/components/widget/DashboardWidget'
+import DashboardTemplate from '@baserow/modules/dashboard/components/DashboardTemplate'
 
 vi.mock('@baserow/modules/dashboard/services/dataSource', () => ({
   default: vi.fn(),
@@ -1411,5 +1415,68 @@ describe('Dashboard application store public mode', () => {
     )
 
     expect(token).toBe(null)
+  })
+})
+
+describe('Dashboard application store without live data', () => {
+  afterEach(() => {
+    vi.clearAllMocks()
+  })
+
+  test('a template preview shows its widgets without running their data sources', async () => {
+    const widget = {
+      id: 1,
+      type: 'summary',
+      title: 'Open tasks',
+      description: '',
+      data_source_id: 7,
+      grid_x: 0,
+      grid_y: 0,
+      grid_width: 2,
+      grid_height: 2,
+    }
+    const dataSource = {
+      id: 7,
+      type: 'local_baserow_aggregate_rows',
+      aggregation_type: 'sum',
+      context_data: { field: { id: 3, type: 'number' } },
+    }
+    const dispatch = vi.fn()
+    WidgetService.mockReturnValue({
+      getAllWidgets: vi.fn().mockResolvedValue({ data: [widget] }),
+    })
+    DataSourceService.mockReturnValue({
+      getAllDataSources: vi.fn().mockResolvedValue({ data: [dataSource] }),
+      dispatch,
+    })
+    PublicDashboardService.mockReturnValue({ dispatch })
+
+    const template = await mountSuspended(DashboardTemplate, {
+      props: { pageValue: { dashboard: { id: 42 } } },
+      global: {
+        provide: { withoutLiveData: true },
+        stubs: { Dashboard: true },
+      },
+    })
+    await flushPromises()
+    const wrapper = await mountSuspended(DashboardWidget, {
+      props: {
+        dashboard: { id: 42, workspace: { id: 1 } },
+        widget,
+        storePrefix: 'template/',
+      },
+      global: { stubs: { WidgetContextMenu: true } },
+    })
+    await flushPromises()
+
+    expect(dispatch).not.toHaveBeenCalled()
+    expect(wrapper.text()).toContain('Open tasks')
+    expect(wrapper.classes()).not.toContain('skeleton-loading')
+    expect(
+      wrapper.find('.dashboard-widget__configuration-status').exists()
+    ).toBe(false)
+    expect(wrapper.find('.dashboard-summary-widget__summary').text()).toBe('')
+    wrapper.unmount()
+    template.unmount()
   })
 })

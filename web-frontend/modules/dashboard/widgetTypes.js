@@ -164,7 +164,10 @@ export class DataSourceWidgetType extends WidgetType {
     return data?.[widget.data_source_id]
   }
 
-  isLoading(widget, data) {
+  isLoading(widget, data, withoutLiveData = false) {
+    if (withoutLiveData) {
+      return false
+    }
     const dataSourceData = this.getDataSourceData(widget, data)
     return (
       !dataSourceData ||

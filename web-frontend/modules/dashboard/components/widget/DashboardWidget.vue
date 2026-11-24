@@ -148,7 +148,16 @@ export default {
       return this.isEditMode && this.widgetType.hasControls
     },
     isLoading() {
-      return this.widgetType.isLoading(this.widget, this.widgetData)
+      return this.widgetType.isLoading(
+        this.widget,
+        this.widgetData,
+        this.withoutLiveData
+      )
+    },
+    withoutLiveData() {
+      return this.$store.getters[
+        `${this.storePrefix}dashboardApplication/isWithoutLiveData`
+      ]
     },
     isInitialLoading() {
       return (

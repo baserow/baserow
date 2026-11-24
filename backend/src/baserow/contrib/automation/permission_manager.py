@@ -27,5 +27,9 @@ class AllowIfTemplatePermissionManagerType(CoreAllowIfTemplatePermissionManagerT
             + self.AUTOMATION_OPERATION_ALLOWED_ON_TEMPLATES
         )
 
+    @property
+    def LIVE_OPERATIONS_ON_TEMPLATES(self):
+        return self.prev_manager_type.LIVE_OPERATIONS_ON_TEMPLATES
+
     def __init__(self, prev_manager_type: PermissionManagerType):
         self.prev_manager_type = prev_manager_type

@@ -258,7 +258,10 @@ export default {
     },
     async updateDefaultRecordNames(recordIdsToFetch) {
       // There is no need to resolve the default value when there is no data source
-      if (!this.element.data_source_id) {
+      if (
+        !this.element.data_source_id ||
+        this.applicationContext.withoutLiveData
+      ) {
         this.defaultValueOptions = []
         return
       }

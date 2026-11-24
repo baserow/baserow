@@ -161,6 +161,7 @@ export function useCollectionElement(props) {
         search: adhocRefinements.value.search,
         mode: ctx.mode,
         replace,
+        withoutLiveData: ctx.withoutLiveData,
       })
 
       currentOffset.value = range[0] + el.items_per_page

@@ -49,6 +49,13 @@ test.each([
   }
 )
 
+test('shows no number before its data source and data are known', async () => {
+  const wrapper = await testApp.mount(SummaryWidget, {
+    props: { widget: { id: 5, type: 'summary', data_source_id: 4 } },
+  })
+  expect(wrapper.find('.dashboard-summary-widget__summary').text()).toBe('')
+})
+
 /** Exercise retained results through the dashboard wrapper and real summary content. */
 test('keeps the previous summary visible during refresh, then displays an empty result', async () => {
   const store = testApp.store
