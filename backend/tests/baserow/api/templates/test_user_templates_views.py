@@ -1,5 +1,7 @@
 from datetime import datetime, timezone
+from unittest.mock import patch
 
+from django.contrib.auth import get_user_model
 from django.db import connection
 from django.shortcuts import reverse
 from django.test.utils import CaptureQueriesContext
@@ -14,10 +16,16 @@ from rest_framework.status import (
     HTTP_403_FORBIDDEN,
     HTTP_404_NOT_FOUND,
 )
+from rest_framework.test import APIClient
 
+from baserow.core.admin.users.handler import UserAdminHandler
 from baserow.core.models import Template, TemplateCategory
+from baserow.core.user.handler import UserHandler
 from baserow.core.user_templates.job_types import CreateUserTemplateJobType
 from baserow.core.user_templates.models import CreateUserTemplateJob
+from tests.baserow.core.user_templates.utils import create_template, queued
+
+User = get_user_model()
 
 pytestmark = pytest.mark.django_db
 
@@ -1000,6 +1008,112 @@ def test_update_user_template_details_without_content(api_client, data_fixture):
 
     assert response.status_code == HTTP_400_BAD_REQUEST
     assert response.json()["error"] == "ERROR_TEMPLATE_HAS_NO_CONTENT"
+    assert not CreateUserTemplateJob.objects.exists()
+
+
+@pytest.mark.django_db(transaction=True)
+@pytest.mark.parametrize("mode", ["create", "update_content"])
+def test_create_user_template_job_simultaneous_requests(
+    data_fixture, test_thread, mode
+):
+    user, token = data_fixture.create_user_and_token()
+    workspace = data_fixture.create_workspace(user=user)
+    database = data_fixture.create_database_application(workspace=workspace)
+    overrides = {}
+    if mode == "update_content":
+        template = create_template(data_fixture, user)
+        overrides = dict.fromkeys(["name", "description", "icon", "category_ids"])
+        overrides["template_id"] = template.id
+    after_job_creation = CreateUserTemplateJobType.after_job_creation
+    responses = []
+    waited = []
+
+    def post_simultaneously():
+        try:
+            responses.append(
+                create_job(APIClient(), token, workspace, [database], **overrides)
+            )
+        finally:
+            connection.close()
+
+    with test_thread(post_simultaneously) as thread:
+
+        def start_second_request(self, job, values):
+            if thread.ident is None:
+                thread.start()
+                waited.append(not thread.thread_stopped.wait(0.3))
+            return after_job_creation(self, job, values)
+
+        with (
+            queued(),
+            patch.object(
+                CreateUserTemplateJobType, "after_job_creation", start_second_request
+            ),
+        ):
+            responses.insert(
+                0, create_job(APIClient(), token, workspace, [database], **overrides)
+            )
+
+    assert waited == [True]
+    assert responses[0].status_code == HTTP_200_OK, responses[0].json()
+    assert responses[1].status_code == HTTP_400_BAD_REQUEST
+    assert responses[1].json()["error"] == "ERROR_MAX_JOB_COUNT_EXCEEDED"
+    assert CreateUserTemplateJob.objects.count() == 1
+
+
+def test_create_user_template_job_for_a_user_deleted_meanwhile(data_fixture):
+    user, token = data_fixture.create_user_and_token()
+    workspace = data_fixture.create_workspace(user=user)
+    database = data_fixture.create_database_application(workspace=workspace)
+
+    with patch.object(UserHandler, "lock_user", return_value=False):
+        response = create_job(APIClient(), token, workspace, [database])
+
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response.json()["error"] == "ERROR_USER_NOT_FOUND"
+    assert not CreateUserTemplateJob.objects.exists()
+
+
+@pytest.mark.django_db(transaction=True)
+def test_admin_deletes_a_user_while_their_template_job_is_created(
+    data_fixture, test_thread
+):
+    admin = data_fixture.create_user(is_staff=True)
+    user, token = data_fixture.create_user_and_token()
+    workspace = data_fixture.create_workspace(user=user)
+    database = data_fixture.create_database_application(workspace=workspace)
+    after_job_creation = CreateUserTemplateJobType.after_job_creation
+    outcome = []
+    waited = []
+
+    def delete_user():
+        try:
+            UserAdminHandler().delete_user(admin, user.id)
+            outcome.append("deleted")
+        except Exception as error:
+            outcome.append(error)
+        finally:
+            connection.close()
+
+    with test_thread(delete_user) as thread:
+
+        def delete_user_meanwhile(self, job, values):
+            thread.start()
+            waited.append(not thread.thread_stopped.wait(0.3))
+            return after_job_creation(self, job, values)
+
+        with (
+            queued(),
+            patch.object(
+                CreateUserTemplateJobType, "after_job_creation", delete_user_meanwhile
+            ),
+        ):
+            response = create_job(APIClient(), token, workspace, [database])
+
+    assert response.status_code == HTTP_200_OK, response.json()
+    assert waited == [True]
+    assert outcome == ["deleted"]
+    assert not User.objects.filter(id=user.id).exists()
     assert not CreateUserTemplateJob.objects.exists()
 
 
