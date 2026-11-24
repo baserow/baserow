@@ -12,6 +12,10 @@ from typing import Any, Callable, Literal
 from pydantic import BaseModel as PydanticBaseModel
 from pydantic import ConfigDict, Field, model_validator
 
+from baserow.contrib.database.fields.constants import (
+    BASEROW_BOOLEAN_FIELD_FALSE_VALUES,
+    BASEROW_BOOLEAN_FIELD_TRUE_VALUES,
+)
 from baserow.contrib.database.fields.models import Field as DatabaseField
 from baserow.contrib.database.views.registries import view_filter_type_registry
 from baserow.contrib.database.views.view_filters import (
@@ -34,8 +38,6 @@ class BaseModel(PydanticBaseModel):
 
 
 FilterTypeLiteral = Literal["AND", "OR"]
-
-BOOLEAN_VALUES = {"1", "0", "true", "false"}
 
 
 class ServiceFilterValidationError(Exception):
@@ -335,7 +337,11 @@ def _validate_raw_value(
             return f"{value!r} is not a number."
         return None
 
-    if type_instance.value_type == "boolean" and value.lower() not in BOOLEAN_VALUES:
+    if (
+        type_instance.value_type == "boolean"
+        and value not in BASEROW_BOOLEAN_FIELD_TRUE_VALUES
+        and value not in BASEROW_BOOLEAN_FIELD_FALSE_VALUES
+    ):
         return f"invalid boolean value {value!r}. Use '1' for true or '0' for false."
 
     return None

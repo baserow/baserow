@@ -465,3 +465,38 @@ def test_custom_filter_inherits_raw_value_validation(
             )
     finally:
         view_filter_type_registry.unregister("custom_value_filter")
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "value",
+    [
+        "1",
+        "0",
+        "true",
+        "false",
+        "yes",
+        "no",
+        "on",
+        "off",
+        "checked",
+        "unchecked",
+        "TRUE",
+        "FALSE",
+        "invalid",
+    ],
+)
+def test_boolean_filters_use_shared_boolean_values(data_fixture, builder_setup, value):
+    """Accept the field's boolean spellings while rejecting invalid filter values."""
+    s = builder_setup
+    field = data_fixture.create_boolean_field(table=s.table)
+    ctx = validation_context(s)
+    operation = FilterOperation(
+        op="add_filter", field_id=field.id, type="boolean", value=value
+    )
+    if value == "invalid":
+        with pytest.raises(ServiceFilterValidationError, match="invalid boolean value"):
+            apply_operations(FilterState("AND", (), ()), [operation], ctx)
+    else:
+        result = apply_operations(FilterState("AND", (), ()), [operation], ctx)
+        assert result.filters[0].value == raw(value)
