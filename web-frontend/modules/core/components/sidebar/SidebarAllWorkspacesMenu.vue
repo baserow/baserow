@@ -59,7 +59,7 @@
               }}</span>
             </span>
           </a>
-          <TemplateModal ref="templateModal"></TemplateModal>
+          <TemplateModal ref="templateModal" source="sidebar"></TemplateModal>
         </div>
       </li>
 

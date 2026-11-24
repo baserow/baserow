@@ -10,6 +10,8 @@
       :key="selectedTemplate.id"
       :template="selectedTemplate"
       :categories="selectedTemplateCategories"
+      :source="isPrivateLinkPage(route) ? 'private_link' : 'page'"
+      :tab="pickedTab"
       show-back
       class="templates__body"
       @back="showList = true"
@@ -67,6 +69,7 @@ import { FF_USER_TEMPLATES } from '@baserow/modules/core/plugins/featureFlags'
 import { fetchWorkspacesAndApplications } from '@baserow/modules/core/utils/workspace'
 import { keyboardShortcutsToPriorityEventBus } from '@baserow/modules/core/utils/events'
 import { notifyIf } from '@baserow/modules/core/utils/error'
+import { isPrivateLinkPage } from '@baserow/modules/core/utils/templatePrivateLink'
 import {
   TEMPLATE_MODERATION,
   useTemplateModeration,
@@ -128,6 +131,7 @@ const tab = ref('official')
 const userTemplatesAllowed = computed(() =>
   Boolean($store.getters['settings/get'].allow_user_templates)
 )
+const pickedTab = ref(null)
 const tabs = computed(() => [
   {
     value: 'official',
@@ -167,6 +171,9 @@ watch(
   (newSlug) => {
     // Ignores leaving the page, which would show the list until it's unmounted.
     if (route.name === 'template') {
+      if (newSlug !== currentSlug.value) {
+        pickedTab.value = null
+      }
       currentSlug.value = newSlug
       showList.value = false
       if (selectedTemplate.value === null) {
@@ -200,6 +207,8 @@ provide(
 )
 
 function selectTemplate(template) {
+  pickedTab.value = tab.value
+  currentSlug.value = template.slug
   showList.value = false
   router.push({ name: 'template', params: { slug: template.slug } })
 }

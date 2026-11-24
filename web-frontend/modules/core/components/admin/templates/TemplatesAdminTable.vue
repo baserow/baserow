@@ -67,7 +67,7 @@
         :template="deletedRow"
         @deleted="(id) => deleted(id, slotProps.deleteRow)"
       ></DeleteUserTemplateModal>
-      <TemplateModal ref="templateModal"></TemplateModal>
+      <TemplateModal ref="templateModal" source="admin"></TemplateModal>
     </template>
   </CrudTable>
 </template>

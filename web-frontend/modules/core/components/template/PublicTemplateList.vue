@@ -89,9 +89,9 @@
               class="template-list__card"
               role="button"
               tabindex="0"
-              @click="emit('selected', template)"
-              @keydown.enter.prevent="emit('selected', template)"
-              @keydown.space.prevent="emit('selected', template)"
+              @click="select(template)"
+              @keydown.enter.prevent="select(template)"
+              @keydown.space.prevent="select(template)"
             >
               <div class="template-list__card-title">
                 <div class="template-list__card-icon">
@@ -150,6 +150,7 @@ import TemplateService from '@baserow/modules/core/services/template'
 import { getHumanAgoLabel } from '@baserow/modules/core/utils/date'
 import { notifyIf } from '@baserow/modules/core/utils/error'
 import { isOwnTemplate } from '@baserow/modules/core/utils/userTemplate'
+import { createTemplateSearchTracker } from '@baserow/modules/core/utils/templateAnalytics'
 import {
   getCategoryName,
   sortCategories,
@@ -176,7 +177,7 @@ const props = defineProps({
 
 const emit = defineEmits(['selected'])
 
-const { $client, $i18n, $priorityBus } = useNuxtApp()
+const { $client, $i18n, $priorityBus, $posthog } = useNuxtApp()
 
 const allTemplates = computed(() => $i18n.t('templateCategories.allTemplates'))
 
@@ -208,6 +209,9 @@ const failed = ref(false)
 // The search the shown templates were loaded with.
 const loadedSearch = ref('')
 
+const trackSearch = createTemplateSearchTracker($posthog, 'public')
+let typedSinceOpening = false
+
 // Only the response of the latest request is used, so that a slow response of an
 // older search or category can't replace the results of the current one.
 let lastRequest = 0
@@ -232,6 +236,9 @@ async function fetchPage(pageOffset = 0) {
     }
     if (pageOffset === 0) {
       templates.value = data.results
+      if (typedSinceOpening) {
+        trackSearch(requestSearch, data.count)
+      }
     } else {
       // A template that moved to this page meanwhile, for example because one
       // before it was made private, is shown once.
@@ -300,7 +307,16 @@ function refresh() {
 
 const searchChanged = debounce(() => fetchPage(), 300)
 
-watch(search, searchChanged)
+watch(search, () => {
+  typedSinceOpening = true
+  searchChanged()
+})
+
+function select(template) {
+  trackSearch.flush()
+  typedSinceOpening = false
+  emit('selected', template)
+}
 
 function selectCategory(id) {
   categoryId.value = id

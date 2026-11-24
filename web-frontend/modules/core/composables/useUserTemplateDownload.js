@@ -32,7 +32,10 @@ export function useUserTemplateDownload() {
    * @returns {Promise<boolean>} False only for a repeat click while requesting,
    *   so that the menu stays open.
    */
-  async function download(template, { onOutdated = null } = {}) {
+  async function download(
+    template,
+    { onOutdated = null, onStarted = null } = {}
+  ) {
     if (isDownloading(template)) {
       return false
     }
@@ -46,9 +49,12 @@ export function useUserTemplateDownload() {
       if (!isSameUser()) {
         return true
       }
-      await $registry
+      const started = await $registry
         .get('job', 'download_user_template')
         .startDownload(response, template)
+      if (started) {
+        onStarted?.()
+      }
     } catch (error) {
       if (isSameUser()) {
         notifyIf(error, 'template')

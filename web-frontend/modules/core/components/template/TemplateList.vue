@@ -86,9 +86,9 @@
               class="template-list__card"
               role="button"
               tabindex="0"
-              @click="emit('selected', template)"
-              @keydown.enter.prevent="emit('selected', template)"
-              @keydown.space.prevent="emit('selected', template)"
+              @click="select(template)"
+              @keydown.enter.prevent="select(template)"
+              @keydown.space.prevent="select(template)"
             >
               <div class="template-list__card-title">
                 <div class="template-list__card-icon">
@@ -118,6 +118,7 @@ import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useNuxtApp } from '#app'
 
 import { escapeRegExp } from '@baserow/modules/core/utils/string'
+import { createTemplateSearchTracker } from '@baserow/modules/core/utils/templateAnalytics'
 import {
   getCategoryName,
   sortCategories,
@@ -144,7 +145,7 @@ const props = defineProps({
 
 const emit = defineEmits(['selected'])
 
-const { $i18n, $priorityBus } = useNuxtApp()
+const { $i18n, $priorityBus, $posthog } = useNuxtApp()
 
 const searchInput = ref(null)
 const search = ref('')
@@ -188,6 +189,20 @@ const visibleCategories = computed(() => {
     }))
     .filter((category) => category.templates.length > 0)
 })
+
+const trackSearch = createTemplateSearchTracker($posthog, 'official')
+
+watch(visibleCategories, (categories) => {
+  const found = new Set(
+    categories.flatMap(({ templates }) => templates.map(({ id }) => id))
+  )
+  trackSearch(search.value, found.size)
+})
+
+function select(template) {
+  trackSearch.flush()
+  emit('selected', template)
+}
 
 function toggleCollapsed(categoryId) {
   const index = collapsed.value.indexOf(categoryId)

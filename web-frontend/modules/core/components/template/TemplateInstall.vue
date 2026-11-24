@@ -77,10 +77,7 @@
           class="context__menu-item"
           :class="{ 'context__menu-item--with-separator': hasMenuItems }"
         >
-          <a
-            class="context__menu-item-link"
-            @click.prevent="copyLink(copyLinkItem.url, copiedRef)"
-          >
+          <a class="context__menu-item-link" @click.prevent="copyTemplateLink">
             <i class="context__menu-item-icon iconoir-link"></i>
             {{ $t(copyLinkItem.label) }}
             <Copied ref="copiedRef"></Copied>
@@ -122,6 +119,7 @@ import { useStore } from 'vuex'
 import { useNuxtApp, useRouter, useRuntimeConfig } from '#app'
 
 import { notifyIf } from '@baserow/modules/core/utils/error'
+import { captureTemplateEvent } from '@baserow/modules/core/utils/templateAnalytics'
 import { signedInUserCheck } from '@baserow/modules/core/utils/auth'
 import { useUserTemplateDownload } from '@baserow/modules/core/composables/useUserTemplateDownload'
 import {
@@ -176,7 +174,7 @@ const slots = useSlots()
 const store = useStore()
 const router = useRouter()
 const config = useRuntimeConfig()
-const { $client, $hasPermission, $i18n, $registry } = useNuxtApp()
+const { $client, $hasPermission, $i18n, $posthog, $registry } = useNuxtApp()
 const { copyLink } = useCopyLink()
 
 const moreButton = ref(null)
@@ -310,7 +308,12 @@ async function goToLogin() {
   await router.push({ name: 'login', query: { original } })
 }
 
+function capture(name, properties) {
+  captureTemplateEvent($posthog, name, props.template, properties)
+}
+
 async function use() {
+  capture('install_clicked', { signed_in: isAuthenticated.value })
   if (!isAuthenticated.value) {
     await goToLogin()
     return
@@ -343,6 +346,10 @@ async function use() {
     if (!isSameUser()) {
       return
     }
+    capture('install_failed', {
+      stage: 'request',
+      error_code: error.handler?.code ?? 'unknown',
+    })
     notifyIf(error, 'template')
     // Another revision was made public, or the owner updated the template in
     // another tab, since it was shown. Nothing was installed.
@@ -357,6 +364,12 @@ async function use() {
 // The user stays on the template, which is then installed into the new workspace.
 function workspaceCreated(workspace) {
   chooseWorkspace(workspace.id)
+}
+
+async function copyTemplateLink() {
+  if (await copyLink(copyLinkItem.value.url, copiedRef.value)) {
+    capture('link_copied')
+  }
 }
 
 function hideContext() {
@@ -374,7 +387,8 @@ async function downloadTemplate() {
   }
   const template = props.template
   const onOutdated = () => emit('outdated')
-  if (await download(template, { onOutdated })) {
+  const onStarted = () => capture('downloaded')
+  if (await download(template, { onOutdated, onStarted })) {
     hideContext()
   }
 }

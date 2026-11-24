@@ -23,9 +23,10 @@ export function useCopyLink() {
         title: $i18n.t('copied.linkFailedTitle'),
         message: $i18n.t('copied.linkFailedMessage'),
       })
-      return
+      return false
     }
     copied?.show()
+    return true
   }
 
   return { copyLink }

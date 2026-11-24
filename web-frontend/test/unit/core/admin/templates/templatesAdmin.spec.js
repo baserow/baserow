@@ -13,7 +13,9 @@ import SidebarAdminItem from '@baserow/modules/core/components/sidebar/SidebarAd
 import TemplateModal from '@baserow/modules/core/components/template/TemplateModal'
 
 vi.mock('lodash/debounce', () => ({
-  default: vi.fn((fn) => Object.assign(fn, { cancel: () => {} })),
+  default: vi.fn((fn) =>
+    Object.assign(fn, { cancel: () => {}, flush: () => {} })
+  ),
 }))
 
 const REVIEW_FIELDS = {

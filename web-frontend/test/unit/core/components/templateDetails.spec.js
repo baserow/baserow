@@ -4,6 +4,7 @@ import { defineComponent, h, provide, ref, unref } from 'vue'
 
 import { TestApp } from '@baserow/test/helpers/testApp'
 import { heldBack } from '@baserow/test/helpers/heldBack'
+import { providePosthog } from '@baserow/test/helpers/posthog'
 import {
   mockTemplateApplications,
   template,
@@ -102,6 +103,36 @@ describe('TemplateDetails', () => {
     await wrapper.findAll('.tree__link')[0].trigger('click')
 
     expect(selectedTables(wrapper)).toEqual(['First table'])
+  })
+
+  test('captures the preview, the pages viewed and how it was left', async () => {
+    const posthog = providePosthog(testApp.nuxtApp)
+    const now = vi.spyOn(Date, 'now').mockReturnValue(1000)
+    const wrapper = await mountComponent({
+      source: 'browser',
+      tab: 'official',
+      showBack: true,
+    })
+
+    await wrapper.findAll('.tree__link')[0].trigger('click')
+    await wrapper.find('.template-details__back-link').trigger('click')
+    now.mockReturnValue(13400)
+    wrapper.unmount()
+    now.mockRestore()
+
+    const shown = {
+      template_id: 5,
+      template_slug: 'project-tracker',
+      template_type: 'official',
+    }
+    expect(posthog.capture.mock.calls).toEqual([
+      ['template_previewed', { ...shown, source: 'browser', tab: 'official' }],
+      ['template_preview_navigated', shown],
+      [
+        'template_preview_closed',
+        { ...shown, exit: 'back', pages_viewed: 2, seconds_in_preview: 12 },
+      ],
+    ])
   })
 
   test('installs a user template', async () => {

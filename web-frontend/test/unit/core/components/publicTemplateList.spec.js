@@ -3,6 +3,7 @@ import { flushPromises } from '@vue/test-utils'
 
 import { TestApp } from '@baserow/test/helpers/testApp'
 import { heldBack } from '@baserow/test/helpers/heldBack'
+import { providePosthog } from '@baserow/test/helpers/posthog'
 import PublicTemplateList from '@baserow/modules/core/components/template/PublicTemplateList'
 import InfiniteScroll from '@baserow/modules/core/components/helpers/InfiniteScroll'
 
@@ -328,6 +329,40 @@ describe('PublicTemplateList', () => {
     expect(wrapper.find('.template-empty-state__icon i').classes()).toContain(
       'iconoir-search'
     )
+  })
+
+  test('captures no search it was opened with', async () => {
+    const posthog = providePosthog(testApp.nuxtApp)
+    mockPages(page([listed(1, 'CRM')]))
+    vi.useFakeTimers()
+    await testApp.mount(PublicTemplateList, { props: { initialSearch: 'CRM' } })
+    await vi.runAllTimersAsync()
+
+    expect(requests).toStrictEqual([{ offset: 0, limit: 20, search: 'CRM' }])
+    expect(posthog.capture).not.toHaveBeenCalled()
+  })
+
+  test('captures the search a template was opened from, not one answered after', async () => {
+    const posthog = providePosthog(testApp.nuxtApp)
+    const late = heldBack()
+    mockPages(page([]), page([listed(1, 'CRM')]), late.reply)
+    const wrapper = await mountComponent()
+    vi.useFakeTimers()
+    const searchAndOpen = async (query) => {
+      await wrapper.find('.template-list__search input').setValue(query)
+      await vi.advanceTimersByTimeAsync(300)
+      await wrapper.find('.template-list__card').trigger('click')
+    }
+
+    await searchAndOpen('crm')
+    await searchAndOpen('crm sales')
+    late.send([200, page([])])
+    await vi.runAllTimersAsync()
+
+    expect(wrapper.emitted('selected')).toHaveLength(2)
+    expect(posthog.capture.mock.calls).toEqual([
+      ['template_searched', { query: 'crm', result_count: 1, tab: 'public' }],
+    ])
   })
 
   test('shows all templates once the chosen category is gone', async () => {

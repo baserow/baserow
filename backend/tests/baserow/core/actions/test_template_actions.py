@@ -1,4 +1,5 @@
 import os
+from unittest.mock import patch
 
 from django.conf import settings
 from django.db import transaction
@@ -86,3 +87,24 @@ def test_can_undo_redo_install_user_template(data_fixture):
     assert_undo_redo_actions_are_valid(actions_redone, [InstallTemplateActionType])
     assert Application.objects.filter(pk=installed_applications[0].id).exists()
     assert Template.objects.get(id=root.id).install_count == 1
+
+
+@pytest.mark.django_db
+@override_settings(APPLICATION_TEMPLATES_DIR=TEST_TEMPLATES_DIR)
+@patch("baserow.core.posthog.capture_user_event")
+def test_install_template_event_names_the_official_template(
+    mock_capture_user_event, data_fixture
+):
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    CoreHandler().sync_templates()
+    template = Template.objects.get(slug="example-template")
+
+    action_type_registry.get_by_type(InstallTemplateActionType).do(
+        user, workspace, template
+    )
+
+    properties = mock_capture_user_event.call_args.args[2]
+    assert properties["template_id"] == template.id
+    assert properties["template_type"] == "official"
+    assert properties["template_slug"] == "example-template"

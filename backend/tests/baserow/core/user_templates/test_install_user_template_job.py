@@ -325,6 +325,44 @@ def test_install_user_template_job_access_checked_again_when_it_runs(
     _assert_nothing_installed(target, root, counts)
 
 
+def _posthog_events(mock_capture_user_event):
+    return {call.args[1]: call.args[2] for call in mock_capture_user_event.mock_calls}
+
+
+@install_marks
+@patch("baserow.core.posthog.capture_user_event")
+def test_install_user_template_events_name_the_template(
+    mock_capture_user_event, data_fixture
+):
+    owner = data_fixture.create_user()
+    target = data_fixture.create_workspace(user=owner)
+    root = _create_template(data_fixture, owner, names=["First"])
+    revision = data_fixture.create_user_template_revision(
+        root, review_state=Template.ReviewState.APPROVED
+    )
+    data_fixture.create_template_table(revision.workspace, "Latest", "Latest row")
+    install(owner, target, root, latest=True)
+    job = request_install(owner, target, root)
+    _block({"root": root, "data_fixture": data_fixture})
+    run_job(job)
+
+    template = {
+        "template_id": root.id,
+        "template_type": "user",
+        "template_slug": root.slug,
+    }
+    events = _posthog_events(mock_capture_user_event)
+    assert events["install_template"].items() >= template.items()
+    assert (
+        events["template_install_failed"].items()
+        >= {
+            **template,
+            "stage": "job",
+            "error_code": "TemplateBlocked",
+        }.items()
+    )
+
+
 @install_marks
 def test_install_user_template_job_fails_on_import_of_second_application(
     queued_install,
