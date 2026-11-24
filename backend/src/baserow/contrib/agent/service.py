@@ -62,11 +62,6 @@ from .types import (
 )
 from .validators import validate_message_content
 
-# Members checked per query while listing approvers, so few approvers stay cheap.
-APPROVER_CHECK_BATCH_SIZE = 100
-# The picker lists the first members by name; searching finds the others.
-MAX_APPROVER_CANDIDATES = 1000
-
 
 class AgentService:
     def __init__(self):
@@ -471,7 +466,7 @@ class AgentService:
             raise PermissionDenied()
         return conversation
 
-    def _filter_approvers(
+    def filter_approvers(
         self, agent: AgentApplication, users: list[AbstractUser]
     ) -> list[AbstractUser]:
         """
@@ -529,15 +524,14 @@ class AgentService:
     ) -> list[AbstractUser]:
         """
         List the members the owner of a private conversation may ask to decide
-        the held calls of its waiting reply. Members are checked a batch at a
-        time until the limit is reached, so a page doesn't check everyone.
+        the held calls of its waiting reply. Every member is checked at once, so
+        the number of queries doesn't grow with the workspace.
 
         :param user: The owner asking.
         :param agent_id: The id of the agent.
         :param conversation_uuid: The uuid of the conversation.
         :param search: Only members whose name or email contains it.
-        :param limit: The most members to return, at most
-            `MAX_APPROVER_CANDIDATES`.
+        :param limit: The most members to return.
         :raises PermissionException: When the user may not chat with the agent or
             doesn't own the private conversation.
         :raises AgentConversationDoesNotExist: When the user sees no conversation
@@ -552,22 +546,17 @@ class AgentService:
         if self.handler.get_waiting_reply(conversation) is None:
             return []
         agent = conversation.agent
-        member_ids = self._get_member_ids(
-            agent, list(conversation.participants.values_list("id", flat=True)), search
-        )
-        limit = min(limit, MAX_APPROVER_CANDIDATES)
-        approvers = []
-        offset = 0
-        while len(approvers) < limit:
-            batch_ids = list(member_ids[offset : offset + APPROVER_CHECK_BATCH_SIZE])
-            members = get_user_model().objects.in_bulk(batch_ids)
-            approvers += self._filter_approvers(
-                agent, [members[pk] for pk in batch_ids if pk in members]
+        member_ids = list(
+            self._get_member_ids(
+                agent,
+                list(conversation.participants.values_list("id", flat=True)),
+                search,
             )
-            if len(batch_ids) < APPROVER_CHECK_BATCH_SIZE:
-                break
-            offset += APPROVER_CHECK_BATCH_SIZE
-        return approvers[:limit]
+        )
+        members = get_user_model().objects.in_bulk(member_ids)
+        return self.filter_approvers(
+            agent, [members[pk] for pk in member_ids if pk in members]
+        )[:limit]
 
     @transaction.atomic
     def request_approval(
@@ -603,7 +592,7 @@ class AgentService:
         member_ids = self._get_member_ids(agent, [user.id]).filter(
             subject_id__in=user_ids
         )
-        approvers = self._filter_approvers(
+        approvers = self.filter_approvers(
             agent, list(get_user_model().objects.filter(id__in=member_ids))
         )
         if len(approvers) != len(set(user_ids)):
@@ -658,13 +647,28 @@ class AgentService:
         )
         return conversation
 
+    def leave_conversations_of_workspace(self, workspace_id: int, user_id: int) -> None:
+        """
+        Take a person who left a workspace out of the private conversations they
+        were asked into there, and tell those who remain in them.
+
+        :param workspace_id: The id of the workspace the person left.
+        :param user_id: The id of the person.
+        """
+
+        for conversation in self.handler.leave_conversations_of_workspace(
+            workspace_id, user_id
+        ):
+            if not conversation.trashed:
+                self._send_participants_updated(None, conversation)
+
     def _send_participants_updated(
-        self, user: AbstractUser, conversation: AgentConversation
+        self, user: AbstractUser | None, conversation: AgentConversation
     ) -> None:
         """
         Tell the participants' sessions who takes part in the conversation now.
 
-        :param user: The acting user.
+        :param user: The acting user, or None when nobody acts in a session.
         :param conversation: The private conversation.
         """
 

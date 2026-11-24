@@ -47,6 +47,8 @@
     "default": "Default",
     "loading": "Loading…",
     "chooseSubjects": "Choose at least one person or team for “{setting}”.",
+    "noApproverTitle": "Nobody could approve",
+    "noApproverDescription": "None of these people or team members has Editor access or higher on this agent. Keep at least one who does.",
     "unlicensedNote": "Without Advanced or Enterprise, every member can chat and approve tool calls, and nobody can continue conversations started by triggers."
   },
   "agentPermissionSubjects": {

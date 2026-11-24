@@ -502,11 +502,10 @@ const showComposer = computed(
 )
 const readOnlyNote = computed(() => {
   const conversation = state.selectedConversation
-  if (conversation?.started_by_trigger) return 'agent.sharedNoMessages'
-  if (conversation && !conversation.local && !state.canWriteSelected) {
-    return 'agent.cannotSendMessages'
-  }
-  return ''
+  if (!conversation || conversation.local || state.canWriteSelected) return ''
+  return conversation.started_by_trigger
+    ? 'agent.sharedNoMessages'
+    : 'agent.cannotSendMessages'
 })
 const warningTitle = computed(() =>
   hasLoadError.value

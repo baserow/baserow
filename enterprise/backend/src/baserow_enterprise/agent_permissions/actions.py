@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 
 from django.contrib.auth.models import AbstractUser
+from django.db import transaction
 from django.utils.translation import gettext_lazy as _
 
 from baserow.contrib.agent.models import AgentApplication
@@ -35,6 +36,7 @@ class UpdateAgentParticipationRuleActionType(ActionType):
         team_ids: list[int]
 
     @classmethod
+    @transaction.atomic
     def do(
         cls,
         user: AbstractUser,

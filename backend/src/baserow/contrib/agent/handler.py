@@ -869,6 +869,45 @@ class AgentHandler:
         # A queryset delete keeps the instance's id for the action and signals.
         AgentConversation.objects.filter(id=conversation.id).delete()
 
+    def leave_conversations_of_workspace(
+        self, workspace_id: int, user_id: int
+    ) -> list[AgentConversation]:
+        """
+        Take a person out of the private conversations they were asked into in a
+        workspace they left, and delete those nobody is left in. The ones they
+        own are kept, as they were before others could be asked in.
+
+        :param workspace_id: The id of the workspace the person left.
+        :param user_id: The id of the person.
+        :return: The conversations others still take part in, with their agent.
+        """
+
+        Participant = AgentConversation.participants.through
+        memberships = Participant.objects.filter(
+            user_id=user_id,
+            agentconversation__agent__workspace_id=workspace_id,
+            agentconversation__shared=False,
+        ).exclude(agentconversation__owner_user_id=user_id)
+        conversation_ids = list(
+            memberships.values_list("agentconversation_id", flat=True)
+        )
+        memberships.delete()
+        kept = []
+        for conversation in (
+            AgentConversation.objects_and_trash.filter(id__in=conversation_ids)
+            .annotate(
+                joined=Exists(
+                    Participant.objects.filter(agentconversation_id=OuterRef("pk"))
+                )
+            )
+            .select_related("agent__workspace")
+        ):
+            if conversation.joined:
+                kept.append(conversation)
+            else:
+                self.delete_conversation_forever(conversation)
+        return kept
+
     def _stop_active_run(self, conversation: AgentConversation) -> None:
         """
         :param conversation: The conversation being removed.
@@ -1716,7 +1755,8 @@ class AgentHandler:
             action_tools=action_tools,
             timezone=self._get_reply_timezone(reply),
             conversation_user=self._get_conversation_user(reply),
-            names_senders=self._has_several_writers(conversation),
+            names_senders=not reply.unattended
+            and self._has_several_writers(conversation),
             mcp_servers=mcp_servers,
             reasoning_effort=agent.reasoning_effort,
             web_search_tool=web_search_tool,
@@ -1873,13 +1913,15 @@ class AgentHandler:
             .first()
         )
 
-    def _get_reply_prompt(self, reply: AgentMessage) -> tuple[str, list[AgentMessage]]:
+    def _get_reply_prompt(
+        self, reply: AgentMessage
+    ) -> tuple[AgentMessage, list[AgentMessage]]:
         """
         Find what a reply answers: the message right before it.
 
         :param reply: The reply.
-        :return: The prompt, and the recent messages before it with their senders,
-            oldest first.
+        :return: The prompt and the recent messages before it, oldest first, each
+            with its sender.
         """
 
         prompt, *history = (
@@ -1887,7 +1929,7 @@ class AgentHandler:
             .select_related("sender")
             .order_by("-id")[: HISTORY_MESSAGE_LIMIT + 1]
         )
-        return prompt.content, history[::-1]
+        return prompt, history[::-1]
 
     def _get_reply_resume(
         self,

@@ -13,6 +13,7 @@ from baserow_enterprise.signals import agent_participation_rule_updated
 from baserow_enterprise.teams.subjects import TeamSubjectType
 from baserow_premium.license.handler import LicenseHandler
 
+from .exceptions import AgentRuleLeavesNoApprover
 from .handler import AgentParticipationHandler
 from .models import AgentParticipationRule
 
@@ -80,6 +81,7 @@ class AgentParticipationService:
         :param role: The lowest role allowed, `CUSTOM` or `NOBODY`.
         :param subjects: The people and teams of a `CUSTOM` rule, each with its
             `subject_type` and `subject_id`.
+        :raises AgentRuleLeavesNoApprover: When nobody could approve tool calls.
         :return: The saved rule, or None when the default applies.
         """
 
@@ -99,6 +101,16 @@ class AgentParticipationService:
             ids_of[UserSubjectType.type],
             ids_of[TeamSubjectType.type],
         )
+        # Checked with the rule saved, so the roles decide as they will afterwards.
+        if (
+            rule is not None
+            and capability == AgentParticipationRule.Capability.APPROVE
+            and rule.role == "CUSTOM"
+            and not AgentService().filter_approvers(
+                agent, self.handler.get_named_users(rule)
+            )
+        ):
+            raise AgentRuleLeavesNoApprover()
         agent_participation_rule_updated.send(self, agent=agent)
         application_pending_count_updated.send(self, application=agent, user_ids=None)
         return rule

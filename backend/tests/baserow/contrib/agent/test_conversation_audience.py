@@ -137,6 +137,42 @@ def test_named_approvers_keep_access_and_only_author_can_share_or_delete(
     assert not AgentConversation.objects_and_trash.filter(pk=conversation.pk).exists()
 
 
+@pytest.mark.parametrize("owner_left_first", [False, True])
+def test_a_member_removed_from_the_workspace_leaves_what_they_were_asked_into(
+    data_fixture, configured_agent, owner_left_first
+):
+    owner, felix = data_fixture.create_user(), data_fixture.create_user()
+    agent = configured_agent(user=owner)
+    membership = data_fixture.create_user_workspace(
+        user=felix, workspace=agent.workspace
+    )
+    conversation = data_fixture.create_agent_conversation(user=owner, agent=agent)
+    conversation.participants.add(felix)
+    own = data_fixture.create_agent_conversation(user=felix, agent=agent)
+    service = AgentService()
+    if owner_left_first:
+        service.leave_conversation(owner, agent.id, conversation.uuid)
+
+    with patch(
+        "baserow.contrib.agent.service.agent_conversation_updated.send"
+    ) as updated:
+        CoreHandler().delete_workspace_user(owner, membership)
+
+    assert list(own.participants.all()) == [felix]
+    if owner_left_first:
+        assert not AgentConversation.objects_and_trash.filter(
+            id=conversation.id
+        ).exists()
+        updated.assert_not_called()
+    else:
+        assert list(conversation.participants.all()) == [owner]
+        assert [
+            person["id"]
+            for person in updated.call_args.kwargs["values"]["participants"]
+        ] == [owner.id]
+        assert service.leave_conversation(owner, agent.id, conversation.uuid).trashed
+
+
 def test_departed_author_cannot_recover_private_history_with_request_uuids(
     data_fixture, configured_agent
 ):

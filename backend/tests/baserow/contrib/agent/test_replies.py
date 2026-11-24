@@ -208,7 +208,7 @@ def test_output_retry_budget_follows_provider_validator(
         instructions="",
         provider_type=provider,
         model_identifier=model_name,
-        prompt="Hi",
+        prompt=AgentMessage(content="Hi"),
     )
     responder = AgentResponder(
         request, mocker.Mock(), FunctionModel(stream_function=stream), {}
@@ -481,13 +481,19 @@ def test_the_model_gets_the_instructions_and_recent_history(
 
 @pytest.mark.django_db
 def test_a_conversation_started_by_a_trigger_names_nobody_to_the_model(
-    data_fixture, configured_agent
+    data_fixture, configured_agent, mocker
 ):
-    reply = queued_reply(data_fixture.create_agent_trigger(agent=configured_agent()))
+    trigger = data_fixture.create_agent_trigger(agent=configured_agent())
+    received = respond(mocker)
 
-    request = AgentHandler().get_reply_request(AgentHandler().get_reply(reply.id))
+    run_reply(
+        run_of(AgentHandler().start_trigger_conversation(trigger, "Tick").conversation)
+    )
 
-    assert request.conversation_user is None
+    (opening,) = received[0]
+    assert opening.parts[0].content == "Tick"
+    assert "You are talking with" not in opening.instructions
+    assert SHARED_CONVERSATION_INSTRUCTIONS not in opening.instructions
 
 
 @pytest.mark.django_db
@@ -547,6 +553,22 @@ def test_a_message_or_a_name_cannot_pass_for_another_sender():
     }
 
 
+def test_senders_stay_explained_when_the_person_answered_is_deleted(mocker):
+    request = AgentReplyRequest(
+        reply_id=1,
+        workspace=None,
+        instructions="",
+        provider_type="openai",
+        model_identifier="gpt",
+        names_senders=True,
+    )
+    responder = AgentResponder(request, mocker.Mock(), mocker.Mock(), {})
+
+    assert (
+        responder._get_instructions(None) == f"\n\n{SHARED_CONVERSATION_INSTRUCTIONS}"
+    )
+
+
 @pytest.mark.django_db
 def test_a_person_continuing_a_triggered_conversation_keeps_its_data_untrusted(
     data_fixture, configured_agent
@@ -567,6 +589,7 @@ def test_a_person_continuing_a_triggered_conversation_keeps_its_data_untrusted(
     request = AgentHandler().get_reply_request(AgentHandler().get_reply(follow_up.id))
 
     assert request.started_by_trigger and request.conversation_user.id == member.id
+    assert request.names_senders
 
 
 @pytest.mark.django_db
@@ -1923,7 +1946,7 @@ def test_reply_requests_carry_the_reasoning_effort(
         instructions="",
         provider_type="openai",
         model_identifier=model_identifier,
-        prompt="Hi",
+        prompt=AgentMessage(content="Hi"),
         history=[],
         reasoning_effort=effort,
     )
@@ -2698,7 +2721,16 @@ def test_an_approved_mcp_call_does_not_run_once_the_tool_is_turned_off(
     ] == [("call_mcp", "denied", DISALLOWED_TOOL_CALL_NOTE)]
 
 
-def test_history_treats_a_trigger_message_like_a_prompt():
+@pytest.mark.parametrize(
+    "names_senders,person_content",
+    [
+        (False, "More?"),
+        (True, '{"sender": "Deleted user", "user_id": null, "message": "More?"}'),
+    ],
+)
+def test_history_treats_a_trigger_message_like_a_prompt_nobody_sent(
+    names_senders, person_content
+):
     messages = [
         AgentMessage(role="trigger", content="Tick"),
         AgentMessage(role="assistant", content="Done", status="completed"),
@@ -2707,11 +2739,11 @@ def test_history_treats_a_trigger_message_like_a_prompt():
 
     assert [
         (type(message).__name__, message.parts[0].content)
-        for message in build_history(messages)
+        for message in build_history(messages, names_senders)
     ] == [
         ("ModelRequest", "Tick"),
         ("ModelResponse", "Done"),
-        ("ModelRequest", "More?"),
+        ("ModelRequest", person_content),
     ]
 
 
@@ -2742,7 +2774,7 @@ def test_an_unattended_reply_waits_for_a_member_to_approve_an_ask_first_call(
         request.ask_first_tool_names,
         len(request.mcp_servers),
         request.timezone,
-        request.prompt,
+        request.prompt.content,
     ) == (["list_tables", "create_rows"], ["create_rows"], 1, "Europe/Rome", "Tick")
     reply = AgentMessage.objects.get(conversation=conversation, role="assistant")
     assert reply_state(reply.id) == ("waiting", "", "")

@@ -730,6 +730,7 @@ class BaserowEnterpriseConfig(AppConfig):
 
         # The signals must always be imported last because they use the registries
         # which need to be filled first.
+        import baserow_enterprise.agent_permissions.receivers  # noqa: F401
         import baserow_enterprise.assistant.tasks  # noqa: F401
         import baserow_enterprise.audit_log.signals  # noqa: F401
         import baserow_enterprise.automatic_snapshots.tasks  # noqa: F401

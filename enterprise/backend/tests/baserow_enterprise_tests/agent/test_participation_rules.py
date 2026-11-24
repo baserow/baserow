@@ -2,6 +2,8 @@ from unittest.mock import patch
 from uuid import uuid4
 
 from django.contrib.auth.models import AbstractUser
+from django.db import connection
+from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
 
 import pytest
@@ -22,11 +24,17 @@ from baserow.contrib.agent.operations import (
     CreateAgentMessageOperationType,
 )
 from baserow.contrib.agent.service import AgentService
+from baserow.core.action.registries import action_type_registry
 from baserow.core.ai_provider.models import AIProviderConfig, AIProviderModel
 from baserow.core.ai_provider.resolution import clear_ai_provider_state_cache
+from baserow.core.cache import local_cache
 from baserow.core.exceptions import PermissionDenied
 from baserow.core.handler import CoreHandler
 from baserow.core.registries import ImportExportConfig, OperationType
+from baserow_enterprise.agent_permissions.actions import (
+    UpdateAgentParticipationRuleActionType,
+)
+from baserow_enterprise.agent_permissions.handler import AgentParticipationHandler
 from baserow_enterprise.agent_permissions.models import AgentParticipationRule
 from baserow_enterprise.audit_log.models import AuditLogEntry
 from baserow_enterprise.role.handler import RoleAssignmentHandler
@@ -94,6 +102,12 @@ def test_paid_rules_and_custom_team_are_independent(
     assert not allowed(viewer, ApproveAgentToolCallsOperationType)
     assert not allowed(other, ApproveAgentToolCallsOperationType)
     assert not allowed(admin, ApproveAgentToolCallsOperationType)
+    response = put(
+        "approve", "CUSTOM", [{"subject_type": "auth.User", "subject_id": viewer.pk}]
+    )
+    assert response.status_code == 400
+    assert response.json()["error"] == "ERROR_AGENT_RULE_LEAVES_NO_APPROVER"
+    assert allowed(editor, ApproveAgentToolCallsOperationType)
     identity = fixture.create_identity(workspace=workspace)
     response = api_client.get(base + "options/", **auth)
     assert response.status_code == 200
@@ -110,10 +124,6 @@ def test_paid_rules_and_custom_team_are_independent(
     response = api_client.get(recipients, **auth)
     assert response.status_code == 200
     assert [person["id"] for person in response.json()["results"]] == [editor.pk]
-    with patch("baserow.contrib.agent.service.APPROVER_CHECK_BATCH_SIZE", 1):
-        assert AgentService().list_approver_candidates(
-            admin, agent.pk, conversation.uuid, "", 1
-        ) == [editor]
     response = api_client.post(
         recipients, {"user_ids": [editor.pk, other.pk]}, format="json", **auth
     )
@@ -154,6 +164,102 @@ def test_paid_rules_and_custom_team_are_independent(
     )
     assert put("chat", "EDITOR").status_code == 200
     assert allowed(other, CreateAgentMessageOperationType)
+
+
+@pytest.mark.django_db
+def test_a_rule_change_that_can_not_be_recorded_is_not_saved(
+    enterprise_data_fixture, synced_roles, settings
+):
+    settings.DEBUG = True
+    fixture = enterprise_data_fixture
+    admin = fixture.create_user()
+    agent = fixture.create_agent_application(
+        workspace=fixture.create_workspace(user=admin)
+    )
+    fixture.enable_enterprise()
+    action_type = UpdateAgentParticipationRuleActionType
+
+    with (
+        patch.object(action_type, "register_action", side_effect=RuntimeError),
+        pytest.raises(RuntimeError),
+    ):
+        action_type_registry.get_by_type(action_type).do(
+            admin, agent.pk, "chat", "NOBODY", []
+        )
+
+    assert not AgentParticipationRule.objects.exists()
+
+
+@pytest.mark.django_db
+def test_listing_approvers_costs_the_same_queries_whatever_the_workspace_size(
+    enterprise_data_fixture, synced_roles, settings
+):
+    settings.DEBUG = True
+    fixture = enterprise_data_fixture
+    owner, approver = fixture.create_user(), fixture.create_user()
+    workspace = fixture.create_workspace(user=owner)
+    fixture.create_user_workspace(user=approver, workspace=workspace)
+    agent = fixture.create_agent_application(workspace=workspace)
+    fixture.enable_enterprise()
+    AgentParticipationHandler().update_rule(agent, "approve", "ADMIN", set(), set())
+    conversation = fixture.create_agent_conversation(agent=agent, user=owner)
+    fixture.create_agent_tool_approval(conversation=conversation)
+
+    def count_queries() -> int:
+        with local_cache.context(), CaptureQueriesContext(connection) as queries:
+            assert AgentService().list_approver_candidates(
+                owner, agent.pk, conversation.uuid, "", 10
+            ) == [approver]
+        return len(queries)
+
+    team = fixture.create_team(workspace=workspace)
+    fixture.create_subject(team=team, subject=approver)
+    # The first call also fills the caches of roles and content types.
+    count_queries()
+    few_members = count_queries()
+    for _ in range(20):
+        editor = fixture.create_user()
+        fixture.create_user_workspace(
+            user=editor, workspace=workspace, permissions="EDITOR"
+        )
+        fixture.create_subject(team=team, subject=editor)
+
+    assert count_queries() == few_members
+
+
+@pytest.mark.django_db
+def test_a_member_removed_from_the_workspace_is_removed_from_the_rules(
+    enterprise_data_fixture, synced_roles, settings
+):
+    settings.DEBUG = True
+    fixture = enterprise_data_fixture
+    admin, editor, leaver = [fixture.create_user() for _ in range(3)]
+    workspace = fixture.create_workspace(user=admin)
+    memberships = [
+        fixture.create_user_workspace(
+            user=user, workspace=workspace, permissions="EDITOR"
+        )
+        for user in (editor, leaver)
+    ]
+    agent = fixture.create_agent_application(workspace=workspace)
+    fixture.enable_enterprise()
+    rule = AgentParticipationHandler().update_rule(
+        agent, "approve", "CUSTOM", {editor.id, leaver.id}, set()
+    )
+
+    CoreHandler().delete_workspace_user(admin, memberships[1])
+    fixture.create_user_workspace(
+        user=leaver, workspace=workspace, permissions="EDITOR"
+    )
+
+    assert list(AgentParticipationRule.objects.get(pk=rule.pk).users.all()) == [editor]
+    assert not CoreHandler().check_permissions(
+        leaver,
+        ApproveAgentToolCallsOperationType.type,
+        context=agent,
+        workspace=workspace,
+        raise_permission_exceptions=False,
+    )
 
 
 @pytest.mark.django_db
@@ -308,7 +414,7 @@ def test_continuing_trigger_runs_has_its_own_rule_that_defaults_to_nobody(
     assert api_client.get(url, **auth).json()["continue"]["role"] == "NOBODY"
     response = put("approve", "NOBODY")
     assert response.status_code == 400
-    assert "Someone must be able to approve tool calls." in str(response.json())
+    assert response.json()["error"] == "ERROR_AGENT_RULE_LEAVES_NO_APPROVER"
 
 
 @pytest.mark.django_db

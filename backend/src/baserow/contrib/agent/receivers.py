@@ -6,11 +6,13 @@ from django.dispatch import receiver
 
 from baserow.contrib.agent.last_viewed_types import AgentLastViewedItemType
 from baserow.contrib.agent.models import AgentApplication, AgentConversation
+from baserow.contrib.agent.service import AgentService
 from baserow.contrib.agent.signals import agent_loaded
 from baserow.contrib.agent.trash_types import AgentConversationTrashableItemType
 from baserow.core.identities.import_export import delete_unused_identity_definitions
 from baserow.core.last_viewed.handler import LastViewedHandler
-from baserow.core.models import TrashEntry
+from baserow.core.models import TrashEntry, WorkspaceUser
+from baserow.core.signals import workspace_user_deleted
 
 User = get_user_model()
 
@@ -64,3 +66,13 @@ def delete_unused_identity_definition(
 
     if instance.identity_definition_id is not None:
         delete_unused_identity_definitions([instance.identity_definition_id])
+
+
+@receiver(workspace_user_deleted)
+def leave_conversations_of_left_workspace(
+    sender, workspace_user: WorkspaceUser, **kwargs
+) -> None:
+    # The signal's user is who removed the member, not always the member.
+    AgentService().leave_conversations_of_workspace(
+        workspace_user.workspace_id, workspace_user.user_id
+    )

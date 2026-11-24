@@ -10,6 +10,7 @@ from pydantic_ai.messages import ModelRequest
 from pydantic_ai.models import ModelRequestParameters
 from pydantic_ai.models.groq import GroqModel
 
+from baserow.contrib.agent.models import AgentMessage
 from baserow.contrib.agent.replies import create_reply_model
 from baserow.contrib.agent.types import AgentReplyRequest
 from baserow.core.ai_provider.models import AIProviderConfig, AIProviderModel
@@ -40,7 +41,7 @@ def configured_reply_model(data_fixture):
                 model_identifier=agent.model_identifier,
                 reasoning_effort=agent.reasoning_effort,
                 instructions="",
-                prompt="Hi",
+                prompt=AgentMessage(content="Hi"),
             )
         )
 

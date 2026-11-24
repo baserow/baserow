@@ -1073,6 +1073,26 @@ describe('Agent conversations', () => {
     expect(warning(wrapper).exists()).toBe(false)
   })
 
+  test('shows who may continue a triggered conversation the configuration warning, not a read-only note', async () => {
+    mockConfiguration(testApp, incompleteConfiguration('instructions'))
+    mockConversations(
+      testApp,
+      conversationsPage([sharedConversation('digest', 'Daily digest')])
+    )
+    mockMessages(
+      testApp,
+      'digest',
+      page([message('t1', 'Trigger data', { id: 1, role: 'trigger' })])
+    )
+    const wrapper = await mount()
+
+    await selectConversation(wrapper, 'Daily digest')
+
+    expect(composerExists(wrapper)).toBe(false)
+    expect(wrapper.find('.agent-chat__shared').exists()).toBe(false)
+    expect(warning(wrapper).exists()).toBe(true)
+  })
+
   test.each([
     ['queued', '', 'agent.replyWaitingForPreviousRun'],
     ['cancelled', 'not_started', 'agent.replyCancelledBeforeStart'],

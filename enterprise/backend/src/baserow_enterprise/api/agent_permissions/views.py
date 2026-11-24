@@ -9,18 +9,21 @@ from baserow.api.decorators import (
     validate_query_parameters,
 )
 from baserow.api.pagination import PageNumberPagination
+from baserow.api.schemas import get_error_schema
 from baserow.api.serializers import get_example_pagination_serializer_class
 from baserow.contrib.agent.api.views import AGENT_EXCEPTIONS, AGENT_ID_PATH_PARAMETER
 from baserow.core.action.registries import action_type_registry
 from baserow_enterprise.agent_permissions.actions import (
     UpdateAgentParticipationRuleActionType,
 )
+from baserow_enterprise.agent_permissions.exceptions import AgentRuleLeavesNoApprover
 from baserow_enterprise.agent_permissions.service import AgentParticipationService
 from baserow_enterprise.api.field_permissions.serializers import (
     FieldPermissionSubjectOptionResponseSerializer,
     FieldPermissionSubjectOptionsRequestSerializer,
 )
 
+from .errors import ERROR_AGENT_RULE_LEAVES_NO_APPROVER
 from .serializers import (
     AgentParticipationRuleResponseSerializer,
     AgentParticipationRuleSerializer,
@@ -63,9 +66,17 @@ class AgentParticipationRuleView(APIView):
         ),
         parameters=[AGENT_ID_PATH_PARAMETER],
         request=AgentParticipationRuleSerializer,
-        responses=AgentParticipationRuleResponseSerializer,
+        responses={
+            200: AgentParticipationRuleResponseSerializer,
+            400: get_error_schema(["ERROR_AGENT_RULE_LEAVES_NO_APPROVER"]),
+        },
     )
-    @map_exceptions(AGENT_EXCEPTIONS)
+    @map_exceptions(
+        {
+            **AGENT_EXCEPTIONS,
+            AgentRuleLeavesNoApprover: ERROR_AGENT_RULE_LEAVES_NO_APPROVER,
+        }
+    )
     @validate_body(AgentParticipationRuleSerializer, return_validated=True)
     def put(
         self, request: Request, agent_id: int, capability: str, data: dict

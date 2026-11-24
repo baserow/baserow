@@ -147,6 +147,20 @@ def name_sender(content: str, sender: AgentConversationUser | None) -> str:
     )
 
 
+def get_prompt_content(message: AgentMessage, names_senders: bool) -> str:
+    """
+    :param message: A prompt, sent by a person or a trigger, with its sender.
+    :param names_senders: Whether people's messages name who wrote them.
+    :return: The content as the model reads it. Only a person's message names
+        its sender, so only one of those can come from a deleted user.
+    """
+
+    if not names_senders or message.role != AgentMessage.Role.USER:
+        return message.content
+    sender = message.sender
+    return name_sender(message.content, sender and AgentConversationUser.of(sender))
+
+
 def build_history(
     messages: list[AgentMessage], names_senders: bool = False
 ) -> list[ModelMessage]:
@@ -165,12 +179,7 @@ def build_history(
     history: list[ModelMessage] = []
     for message in messages:
         if message.role in prompt_roles:
-            content = message.content
-            if names_senders and message.role == AgentMessage.Role.USER:
-                sender = message.sender
-                content = name_sender(
-                    content, sender and AgentConversationUser.of(sender)
-                )
+            content = get_prompt_content(message, names_senders)
             history.append(ModelRequest(parts=[UserPromptPart(content=content)]))
         elif history:
             text = message.content
@@ -437,8 +446,8 @@ class AgentResponder:
                 name=request.conversation_user.name,
                 user_id=request.conversation_user.id,
             )
-            if request.names_senders:
-                instructions += f"\n\n{SHARED_CONVERSATION_INSTRUCTIONS}"
+        if request.names_senders:
+            instructions += f"\n\n{SHARED_CONVERSATION_INSTRUCTIONS}"
         if request.run_as_unavailable:
             instructions += f"\n\n{UNAVAILABLE_WORKSPACE_ACCESS_INSTRUCTIONS}"
         if request.started_by_trigger:
@@ -541,9 +550,11 @@ class AgentResponder:
             if resume is None
             else None
         )
-        prompt = request.prompt
-        if prompt is not None and request.names_senders:
-            prompt = name_sender(prompt, request.conversation_user)
+        prompt = (
+            None
+            if request.prompt is None
+            else get_prompt_content(request.prompt, request.names_senders)
+        )
         async with agent.run_stream_events(
             prompt,
             conversation=resume.paused_conversation if resume else None,

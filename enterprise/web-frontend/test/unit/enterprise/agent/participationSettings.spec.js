@@ -280,6 +280,33 @@ describe('agent participation settings', () => {
     ).toBe(true)
   })
 
+  test('says why an approve rule nobody could use is refused, and keeps the saved people', async () => {
+    const rule = {
+      role: 'CUSTOM',
+      subjects: [team(21, 'Support'), team(22, 'Finance')],
+    }
+    mockRules({ approve: rule })
+    app.dontFailOnErrorResponses()
+    app.mock.onPut(endpoint + 'approve/').reply(400, {
+      error: 'ERROR_AGENT_RULE_LEAVES_NO_APPROVER',
+      detail: 'Nobody could approve tool calls with this rule.',
+    })
+    const wrapper = await mountSidebar()
+    await openPermissions(wrapper)
+    await wrapper.get('.control button').trigger('click')
+    const modal = () => document.querySelector('.modal__box')
+    modal().querySelector('.field-permission-subjects__item button').click()
+    await flushPromises()
+
+    expect(app.store.state.toast.items[0]).toMatchObject({
+      title: 'agentPermissions.noApproverTitle',
+      message: 'agentPermissions.noApproverDescription',
+    })
+    expect(
+      modal().querySelector('.field-permission-subjects__list').textContent
+    ).toContain('Support')
+  })
+
   test('starts a custom rule with the first person or team', async () => {
     const teamType = 'baserow_enterprise.Team'
     mockRules()

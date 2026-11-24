@@ -1,3 +1,4 @@
+from django.contrib.auth.models import AbstractUser
 from django.db.models import Prefetch, QuerySet
 
 from rest_framework.exceptions import ValidationError
@@ -8,6 +9,7 @@ from baserow.core.subjects import UserSubjectType
 from baserow_enterprise.teams.handler import TeamHandler
 from baserow_enterprise.teams.subjects import TeamSubjectType
 
+from .exceptions import AgentRuleLeavesNoApprover
 from .models import DEFAULT_ROLE, AgentParticipationRule
 
 
@@ -17,21 +19,17 @@ class AgentParticipationHandler:
     ) -> QuerySet[AgentParticipationRule]:
         """
         :param agent: The agent, with its workspace.
-        :return: The agent's rules, with the people and teams still in its
-            workspace prefetched, ready to be serialized.
+        :return: The agent's rules, with their people and teams prefetched, ready
+            to be serialized.
         """
 
-        workspace = agent.workspace
         return AgentParticipationRule.objects.filter(agent=agent).prefetch_related(
-            Prefetch(
-                "users",
-                queryset=UserSubjectType()
-                .get_queryset()
-                .filter(workspaceuser__workspace=workspace),
-            ),
+            Prefetch("users", queryset=UserSubjectType().get_queryset()),
             Prefetch(
                 "teams",
-                queryset=TeamHandler().get_teams_queryset().filter(workspace=workspace),
+                queryset=TeamHandler()
+                .get_teams_queryset()
+                .filter(workspace=agent.workspace),
             ),
         )
 
@@ -66,20 +64,17 @@ class AgentParticipationHandler:
         :param role: The lowest role allowed, `CUSTOM` or `NOBODY`.
         :param user_ids: The people of a `CUSTOM` rule.
         :param team_ids: The teams of a `CUSTOM` rule.
-        :raises ValidationError: When the capability is unknown, nobody could
-            approve tool calls, or the people and teams don't fit the role or the
-            workspace.
+        :raises ValidationError: When the capability is unknown, or the people and
+            teams don't fit the role or the workspace.
+        :raises AgentRuleLeavesNoApprover: When nobody could approve tool calls.
         :return: The saved rule, as `get_rules` returns it, or None when the
             default applies.
         """
 
         if capability not in AgentParticipationRule.Capability.values:
             raise ValidationError({"capability": "Unknown permission."})
-        # Without an approver, no held run could resume.
         if capability == AgentParticipationRule.Capability.APPROVE and role == "NOBODY":
-            raise ValidationError(
-                {"role": "Someone must be able to approve tool calls."}
-            )
+            raise AgentRuleLeavesNoApprover()
         if bool(user_ids or team_ids) != (role == "CUSTOM"):
             raise ValidationError(
                 {"subjects": "Choose people or teams for a custom rule."}
@@ -113,6 +108,32 @@ class AgentParticipationHandler:
         rule.users.set(users)
         rule.teams.set(teams)
         return self._get_rules_queryset(agent).get(pk=rule.pk)
+
+    def get_named_users(self, rule: AgentParticipationRule) -> list[AbstractUser]:
+        """
+        :param rule: A `CUSTOM` rule, as `get_rules` returns it.
+        :return: The people the rule names, directly or as members of its teams.
+        """
+
+        users = {user.id: user for user in rule.users.all()}
+        for team in rule.teams.all():
+            for user in TeamSubjectType().get_users_included_in_subject(team):
+                users[user.id] = user
+        return list(users.values())
+
+    def remove_member(self, workspace_id: int, user_id: int) -> None:
+        """
+        Take a person who left a workspace out of the rules of its agents, as
+        their role assignments and team memberships are.
+
+        :param workspace_id: The id of the workspace the person left.
+        :param user_id: The id of the person.
+        """
+
+        AgentParticipationRule.users.through.objects.filter(
+            user_id=user_id,
+            agentparticipationrule__agent__workspace_id=workspace_id,
+        ).delete()
 
     def list_subject_options(
         self,

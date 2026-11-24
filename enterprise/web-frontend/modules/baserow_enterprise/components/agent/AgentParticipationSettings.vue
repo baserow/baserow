@@ -87,6 +87,7 @@ import { computed, inject, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useStore } from 'vuex'
 import { notifyIf } from '@baserow/modules/core/utils/error'
+import { ResponseErrorMessage } from '@baserow/modules/core/plugins/clientHandler'
 import AgentPermissionsService from '@baserow_enterprise/services/agentPermissions'
 import {
   AGENT_CAPABILITIES,
@@ -181,6 +182,17 @@ function fetchOptions(params) {
   return service.fetchSubjectOptions(agent.value.id, params)
 }
 
+function notifySaveError(error) {
+  if (!error.handler) throw error
+  const message = error.handler.getMessage(null, {
+    ERROR_AGENT_RULE_LEAVES_NO_APPROVER: new ResponseErrorMessage(
+      t('agentPermissions.noApproverTitle'),
+      t('agentPermissions.noApproverDescription')
+    ),
+  })
+  error.handler.notifyIf(null, message)
+}
+
 async function saveRule(capability, role, subjects) {
   if (!props.editable || !licensed.value || saving.value) return
   saving.value = { capability, role }
@@ -193,7 +205,7 @@ async function saveRule(capability, role, subjects) {
     if (current === loadCount) rules.value[capability] = data
   } catch (error) {
     if (editingPeople.value === capability) selector.value?.reset()
-    notifyIf(error)
+    notifySaveError(error)
   } finally {
     saving.value = null
   }
