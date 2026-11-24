@@ -84,7 +84,7 @@ denied.
 | 5.10 | Delete for everyone                 | In another such conversation, the owner chooses Delete for everyone.                          | It's gone for everyone.                                                                                               | Pass            |
 | 5.11 | Alone, delete only trashes          | The owner of a conversation nobody else is in deletes it.                                     | It goes to the trash at once, with no "for me" choice.                                                                | Pass            |
 | 5.12 | After the owner left                | After 5.9, Editor B chooses Delete for me.                                                    | It warns that the conversation is deleted for good, then it is gone for everyone. Delete for everyone stays refused.  | Pass (F1 fixed) |
-| 5.13 | Approver removed from the workspace | Remove Editor B from the workspace.                                                           | Editor B no longer reads it; the owner's bar lists only themselves.                                                   | Pass, F2        |
+| 5.13 | Approver removed from the workspace | Remove Editor B from the workspace.                                                           | Editor B no longer reads it; the owner's bar lists only themselves.                                                   | Pass (F2 fixed) |
 | 5.14 | Sharing after asking                | The owner shares a conversation they asked Editor B to approve in.                            | It becomes shared, visible to every reader, and the approvers bar is gone.                                            | Pass            |
 | 5.15 | An approver leaves                  | Editor B, asked to approve, chooses Delete for me while the owner is still in it.             | It leaves Editor B's list; the owner keeps it and the bar drops Editor B.                                             | Pass (unit)     |
 
@@ -113,29 +113,32 @@ denied.
 | ID  | Severity | Status    | Finding                                                                                                                                                                                                                                                                 |
 | --- | -------- | --------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | F1  | Bug      | Fixed     | An approver couldn't remove a conversation they were asked into, and once the owner chose Delete for me nobody could delete it. Now everyone in it can Delete for me; once the owner has left, the last one out deletes it for good (ADR 014).                          |
-| F2  | Minor    | Accepted  | A member removed from the workspace stays a participant. The "Private · …" bar still names them, and they see the conversation again if invited back.                                                                                                                   |
+| F2  | Minor    | Fixed     | A member removed from the workspace stayed a participant and saw the conversation again if invited back. Leaving a workspace now takes them out of the conversations they were asked into, and deletes those nobody is left in.                                         |
 | F3  | Bug      | Fixed     | A reply resumed by someone else's approval runs as that person, but the stop rule read the run's creator as "the person the reply answers". In a shared conversation its author saw Stop and the API refused it. The rule now reads the reply's sender.                 |
 | F4  | Bug      | Fixed     | After the rebase, senders were named to the model only in shared conversations a person started. A private conversation with approvers, or a triggered one people continue, has several writers too. Covered by `test_senders_are_named_once_several_people_can_write`. |
 | O1  | UX note  | Unchanged | People who may not approve see Approve and Reject disabled, without a reason. Same pattern as before this PR.                                                                                                                                                           |
+| F5  | Bug      | Fixed     | Found in review: a trigger's opening message reached the model as written by a "Deleted user". Only a person's message names its sender now.                                                                                                                            |
+| F6  | Bug      | Fixed     | Found in review: someone who may continue a triggered conversation was told they can't send messages while the agent's configuration was incomplete.                                                                                                                    |
+| F7  | Bug      | Fixed     | Found in review: a rule change could be saved without its audit log entry. Both now happen in one transaction.                                                                                                                                                          |
 
 ## Security review
 
 One reviewer pass over the whole PR, by role, licence, endpoint and realtime channel.
 
-| ID  | Severity | Status            | Finding                                                                                                                    |
-| --- | -------- | ----------------- | -------------------------------------------------------------------------------------------------------------------------- |
-| M1  | Medium   | Fixed in #6793    | A message or a name could pass for another sender. Each person's message now reaches the model as a JSON object.           |
-| M2  | Medium   | Fixed             | A person continuing a triggered conversation lost the instruction that its opening message is outside data.                |
-| M3  | Medium   | Fixed             | Rule changes weren't in the audit log. They now go through `update_agent_participation_rule`.                              |
-| L1  | Low      | Fixed             | Resuming a reply whose sender was deleted crashed the run; it now runs without naming anyone.                              |
-| L2  | Low      | Fixed             | One request could make the approver picker check every member; it stops at 1,000.                                          |
-| L3  | Low      | Fixed             | People asked to approve kept receiving run events after losing read access.                                                |
-| L4  | Low      | Fixed             | An owner who may no longer chat could still list members and ask them to approve.                                          |
-| L5  | Low      | Accepted, like F2 | Someone named in a "specific people" rule who leaves and is invited back is allowed again.                                 |
-| L6  | Low      | Fixed             | The permissions object listed agent ids to non-members and included trashed agents.                                        |
-| L7  | Low      | Follow-up         | The owner can't remove someone they asked to approve.                                                                      |
-| L8  | Low      | Known             | A "specific people" approve rule naming only viewers leaves nobody able to approve. The warning only covers an empty list. |
-| L9  | Low      | Known             | Unconfirmed race: deleting a user while the last other person leaves can leave a conversation nobody sees.                 |
+| ID  | Severity | Status         | Finding                                                                                                                                                                                                                |
+| --- | -------- | -------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| M1  | Medium   | Fixed in #6793 | A message or a name could pass for another sender. Each person's message now reaches the model as a JSON object.                                                                                                       |
+| M2  | Medium   | Fixed          | A person continuing a triggered conversation lost the instruction that its opening message is outside data.                                                                                                            |
+| M3  | Medium   | Fixed          | Rule changes weren't in the audit log. They now go through `update_agent_participation_rule`.                                                                                                                          |
+| L1  | Low      | Fixed          | Resuming a reply whose sender was deleted crashed the run; it now runs without naming anyone.                                                                                                                          |
+| L2  | Low      | Fixed          | The approver picker checked members in batches, so few approvers in a large workspace cost hundreds of queries. It checks every member at once, with a fixed number of queries; a faster list is a follow-up in #6626. |
+| L3  | Low      | Fixed          | People asked to approve kept receiving run events after losing read access.                                                                                                                                            |
+| L4  | Low      | Fixed          | An owner who may no longer chat could still list members and ask them to approve.                                                                                                                                      |
+| L5  | Low      | Fixed          | Someone named in a "specific people" rule who left and was invited back was allowed again. Leaving the workspace now removes them from the rules.                                                                      |
+| L6  | Low      | Fixed          | The permissions object listed agent ids to non-members and included trashed agents.                                                                                                                                    |
+| L7  | Low      | Follow-up      | The owner can't remove someone they asked to approve.                                                                                                                                                                  |
+| L8  | Low      | Fixed          | A "specific people" approve rule naming only viewers left nobody able to approve. Saving one is refused.                                                                                                               |
+| L9  | Low      | Known          | Unconfirmed race: deleting a user while the last other person leaves can leave a conversation nobody sees.                                                                                                             |
 
 ## How it ran
 

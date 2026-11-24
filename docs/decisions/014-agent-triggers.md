@@ -111,9 +111,11 @@ Everyone in a private conversation can remove it from their own list ("Delete fo
 and the others keep it; only its owner deletes it for everyone. The owner leaving alone
 trashes it, as deleting does. Once the owner has left, the last person to leave deletes
 it for good, because only an owner's trash may list a private conversation: without one,
-every trash reader would see it. Shared deletion, restoration, renaming and stopping
-require the existing management permissions. A reply stopped by someone else says who
-stopped it. Realtime delivery checks conversation visibility.
+every trash reader would see it. A person removed from the workspace leaves the
+conversations they were asked into, and the rules that name them, as they lose their
+role assignments; the ones they own are kept. Shared deletion, restoration, renaming
+and stopping require the existing management permissions. A reply stopped by someone
+else says who stopped it. Realtime delivery checks conversation visibility.
 
 The opening message, with role `trigger`, holds the resolved trigger message, a runtime
 formula over the event payload. A message with no text opens with the trigger and when
