@@ -5,6 +5,7 @@ const ACTION_FIELD_LABELS = {
   service: 'agent.actionConfiguration',
   type: 'agent.actionFieldType',
   integration_id: 'agent.actionFieldIntegration',
+  run_as: 'agent.workspaceAccess',
 }
 
 export const ACTION_ERROR_LABELS = {

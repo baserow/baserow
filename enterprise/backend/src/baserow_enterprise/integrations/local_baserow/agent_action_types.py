@@ -13,7 +13,7 @@ from baserow.core.services.exceptions import (
 )
 from baserow.core.services.types import DispatchResult
 from baserow.core.tools.results import fit_text_values, json_length
-from baserow.core.trash.handler import TrashHandler
+from baserow.core.types import Subject
 from baserow_enterprise.integrations.local_baserow.models import (
     LocalBaserowSemanticSearch,
 )
@@ -26,11 +26,12 @@ SEMANTIC_SEARCH_ACTION_MAX_RESULT_CHARACTERS = 20_000
 class LocalBaserowSemanticSearchAgentActionType(AgentActionType):
     """
     Finds the rows of a table that match the meaning of what the model looks for,
-    through a Local Baserow integration of the Agent.
+    as the Agent's run identity.
     """
 
     type = "local_baserow_semantic_search"
     changes_data = False
+    acts_as_run_identity = True
 
     def get_defaults(self) -> AgentActionDefaults:
         input_id = str(uuid4())
@@ -90,25 +91,63 @@ class LocalBaserowSemanticSearchAgentActionType(AgentActionType):
             space -= size
         return {**result.data, "results": results}
 
-    def get_configuration_errors(self, action: AgentAction) -> dict[str, str]:
+    def get_configuration_errors(
+        self, action: AgentAction, identity: Subject | None = None
+    ) -> dict[str, str]:
         """
-        Also require the integration and the table the search reads through, as
-        an Agent has no user to read with, a field of the table that can be
+        Also require a table the run identity can read, with a field that can be
         searched, and fixed filter values, as filters are resolved when the call
         is sent, without its inputs.
 
         :param action: The action, with its agent and workspace.
+        :param identity: The Agent's run identity, or None when it has none it can
+            act as.
         :return: An error code by field, empty when the action can be called.
         """
 
-        errors = super().get_configuration_errors(action)
+        return self.get_configuration_errors_by_action([action], identity)[action.id]
+
+    def get_configuration_errors_by_action(
+        self, actions: list[AgentAction], identity: Subject | None = None
+    ) -> dict[int, dict[str, str]]:
+        """
+        Check whether the identity can read the actions' tables in one permission
+        check, so that it doesn't cost a query per action.
+        """
+
+        if not actions:
+            return {}
+        readable_table_ids = self.service_type.get_subject_readable_table_ids(
+            [action.service.specific for action in actions],
+            identity,
+            actions[0].agent.workspace,
+        )
+        return {
+            action.id: self._get_configuration_errors(
+                action, identity, readable_table_ids
+            )
+            for action in actions
+        }
+
+    def _get_configuration_errors(
+        self,
+        action: AgentAction,
+        identity: Subject | None,
+        readable_table_ids: set[int],
+    ) -> dict[str, str]:
+        """
+        :param action: The action, with its agent and workspace.
+        :param identity: The Agent's run identity, or None.
+        :param readable_table_ids: The ids of the tables the identity may read.
+        :return: An error code by field, empty when the action can be called.
+        """
+
+        errors = super().get_configuration_errors(action, identity)
         service = action.service.specific
-        if not service.integration_id:
-            errors["integration_id"] = "required"
         if not service.table_id:
             errors["table_id"] = "required"
-        elif "integration_id" not in errors:
-            if not self._is_table_in_reach(service):
+        elif identity is not None:
+            if service.table_id not in readable_table_ids:
                 errors["table_id"] = "unavailable"
             elif not self._has_fields_to_search(service):
                 errors["search_field_ids"] = "unavailable"
@@ -128,17 +167,6 @@ class LocalBaserowSemanticSearchAgentActionType(AgentActionType):
         except ServiceImproperlyConfiguredDispatchException:
             return False
         return True
-
-    def _is_table_in_reach(self, service: LocalBaserowSemanticSearch) -> bool:
-        """
-        :param service: The action's service, with a table.
-        :return: Whether the table is neither trashed nor outside the workspace
-            of the integration.
-        """
-
-        return not TrashHandler.item_has_a_trashed_parent(
-            service.table, check_item_also=True
-        ) and self.service_type.is_table_in_integration_workspace(service)
 
     def _are_filters_fixed(self, service: LocalBaserowSemanticSearch) -> bool:
         """

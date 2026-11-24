@@ -162,6 +162,7 @@
                 :default-values="action.service"
                 :loading="saving"
                 :allow-integration-editing="editable"
+                v-bind="hostedFormProps"
                 @values-changed="onServiceValuesChanged"
               />
             </ReadOnlyForm>
@@ -219,6 +220,7 @@ import Context from '@baserow/modules/core/components/Context'
 import ReadOnlyForm from '@baserow/modules/core/components/ReadOnlyForm'
 import AgentFormulaInput from '@baserow/modules/agent/components/configuration/AgentFormulaInput'
 import AgentActionInputs from '@baserow/modules/agent/components/configuration/AgentActionInputs'
+import { provideWorkspaceAccessLink } from '@baserow/modules/agent/composables/useWorkspaceAccessLink'
 import { serviceTypeOf } from '@baserow/modules/agent/utils/triggers'
 import {
   ACTION_ERROR_LABELS,
@@ -228,6 +230,10 @@ import {
 const props = defineProps({
   expanded: { type: Boolean, default: true },
   action: { type: Object, required: true },
+  /** What the run identity offers this action's type, or null while it loads. */
+  typeOptions: { type: Object, default: null },
+  /** Whether the Agent acts as a workspace identity that is available. */
+  runAsActive: Boolean,
   workspace: { type: Object, default: null },
   editable: Boolean,
   saving: Boolean,
@@ -250,6 +256,7 @@ const formComponent = computed(() => {
   )
 })
 provide('formulaComponent', AgentFormulaInput)
+provideWorkspaceAccessLink()
 provide('dataProvidersAllowed', ['tool_input'])
 provide('workspace', toRef(props, 'workspace'))
 provide(
@@ -263,6 +270,20 @@ provide(
     },
   })
 )
+const formChoices = computed(() => props.typeOptions?.form_choices ?? null)
+/**
+ * A type that acts as the run identity chooses from what the identity can read,
+ * which is nothing without one. Passed only then, so other forms get no attribute.
+ */
+const hostedFormProps = computed(() => {
+  if (!formChoices.value) return {}
+  return {
+    ...formChoices.value,
+    ...(props.runAsActive
+      ? {}
+      : { formChoicesError: t('agent.noWorkspaceAccessTables') }),
+  }
+})
 const configurationErrors = computed(() =>
   Object.entries(props.action.errors || {}).map(([field, error]) =>
     t('agent.fieldError', {

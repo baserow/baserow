@@ -1,6 +1,5 @@
 import { STEP_STATUS } from '@baserow/modules/core/chatRuns/constants'
 import { ActionToolPresentationType } from '@baserow/modules/agent/toolPresentationTypes'
-import LocalBaserowNodeServiceForm from '@baserow/modules/automation/components/workflow/LocalBaserowNodeServiceForm'
 
 export class LocalBaserowSemanticSearchToolPresentationType extends ActionToolPresentationType {
   static getType() {
@@ -12,7 +11,6 @@ export class LocalBaserowSemanticSearchToolPresentationType extends ActionToolPr
       table: 'localBaserowTableSelector.tableFieldLabel',
       search_query: 'localBaserowSemanticSearchForm.searchQuery',
       max_results: 'localBaserowSemanticSearchForm.maxResults',
-      integration_id: 'localBaserowServiceForm.integrationDropdownLabel',
       table_id: 'localBaserowTableSelector.tableFieldLabel',
       search_field_ids: 'localBaserowSemanticSearchForm.fields',
       filters: 'agentSemanticSearch.filters',
@@ -31,10 +29,5 @@ export class LocalBaserowSemanticSearchToolPresentationType extends ActionToolPr
           ? 'agentSemanticSearch.toolDone'
           : 'agentSemanticSearch.tool'
     )
-  }
-
-  /** The search form only picks a table, so the integration is picked first. */
-  getFormComponent() {
-    return LocalBaserowNodeServiceForm
   }
 }

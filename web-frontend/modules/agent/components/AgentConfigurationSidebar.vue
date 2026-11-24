@@ -126,7 +126,7 @@
 </template>
 
 <script setup>
-import { computed, nextTick, ref } from 'vue'
+import { computed, nextTick, provide, ref } from 'vue'
 import ReadOnlyForm from '@baserow/modules/core/components/ReadOnlyForm'
 import MenuList from '@baserow/modules/core/components/MenuList'
 import Icon from '@baserow/modules/core/components/Icon'
@@ -165,6 +165,11 @@ const sectionItems = computed(() =>
     error: registered.getErrorMessage(props.errors, props.configuration),
   }))
 )
+
+// Lets a section send people to another one, like to set up workspace access.
+provide('openAgentConfigurationSection', (type) => {
+  section.value = type
+})
 
 async function focusField(field) {
   const matchingSection = registeredSections.value.find((registered) =>

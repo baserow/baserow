@@ -27,6 +27,7 @@ from baserow.core.services.exceptions import (
 )
 from baserow.core.services.types import DispatchResult
 from baserow.core.tools.errors import ToolFailedError, ToolInputError
+from baserow.core.types import Subject
 
 from .data_providers import AgentActionDispatchContext
 from .registries import AgentActionDefaults, AgentActionType
@@ -161,7 +162,9 @@ class HTTPRequestAgentActionType(AgentActionType):
             },
         }
 
-    def get_configuration_errors(self, action: AgentAction) -> dict[str, str]:
+    def get_configuration_errors(
+        self, action: AgentAction, identity: Subject | None = None
+    ) -> dict[str, str]:
         # A row is reported by the list it sits in, which the form labels.
         service = action.service.specific
         lists = {
@@ -171,7 +174,7 @@ class HTTPRequestAgentActionType(AgentActionType):
         }
         errors = {
             lists.get(key, key): error
-            for key, error in super().get_configuration_errors(action).items()
+            for key, error in super().get_configuration_errors(action, identity).items()
         }
         if (
             "url" not in errors
@@ -453,7 +456,10 @@ class HTTPRequestAgentActionType(AgentActionType):
         return self._shown_input(service, key) is not None
 
     def dispatch(
-        self, action: AgentAction, resolved_values: dict[str, Any]
+        self,
+        action: AgentAction,
+        resolved_values: dict[str, Any],
+        identity: Subject | None = None,
     ) -> DispatchResult:
         """
         Send the request, with each row's value given to the row now at its
@@ -474,7 +480,7 @@ class HTTPRequestAgentActionType(AgentActionType):
                         f"{field}.{position}"
                     ]
         try:
-            result = super().dispatch(action, values)
+            result = super().dispatch(action, values, identity)
         except AddressNotAllowedDispatchException as exc:
             raise ToolInputError(
                 "This address can't be called from this Baserow instance."

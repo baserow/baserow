@@ -10,6 +10,7 @@ from baserow.core.services.handler import ServiceHandler
 from baserow.core.services.models import Service
 from baserow.core.services.registries import ServiceType, service_type_registry
 from baserow.core.services.types import DispatchResult
+from baserow.core.types import Subject
 
 from .data_providers import AgentActionDispatchContext
 from .formulas import get_formula_errors
@@ -34,6 +35,12 @@ class AgentActionType(Instance, ABC):
 
     changes_data: bool = True
     """Whether a call acts on anything; a type that only reads sets it to False."""
+
+    acts_as_run_identity: bool = False
+    """
+    Whether a call acts as the Agent's run identity, like its triggers and
+    workspace tools, instead of through an integration, which it then never has.
+    """
 
     @property
     def service_type(self) -> ServiceType:
@@ -75,12 +82,16 @@ class AgentActionType(Instance, ABC):
         :return: The readable request, by field.
         """
 
-    def get_configuration_errors(self, action: AgentAction) -> dict[str, str]:
+    def get_configuration_errors(
+        self, action: AgentAction, identity: Subject | None = None
+    ) -> dict[str, str]:
         """
         Check the saved configuration without resolving a formula or contacting
         the integration. An action with errors is not offered to the model.
 
         :param action: The action, with its agent and workspace.
+        :param identity: The Agent's run identity, or None when it has none it can
+            act as.
         :return: An error code by field, empty when the action can be called.
         """
 
@@ -89,7 +100,28 @@ class AgentActionType(Instance, ABC):
         errors.update(get_formula_errors(service, action.inputs))
         if not self.is_available(action.agent.workspace):
             errors["type"] = "unavailable"
+        if self.acts_as_run_identity and identity is None:
+            errors["run_as"] = "required"
         return errors
+
+    def get_configuration_errors_by_action(
+        self, actions: list[AgentAction], identity: Subject | None = None
+    ) -> dict[int, dict[str, str]]:
+        """
+        Check many actions of this type at once, for a type whose checks cost
+        less together, like a permission check of each action's table.
+
+        :param actions: Actions of this type, of one Agent, with their specific
+            services.
+        :param identity: The Agent's run identity, or None when it has none it can
+            act as.
+        :return: The errors of each action, by action id.
+        """
+
+        return {
+            action.id: self.get_configuration_errors(action, identity)
+            for action in actions
+        }
 
     def prepare(self, action: AgentAction, arguments: dict[str, Any]) -> dict[str, Any]:
         """
@@ -177,7 +209,10 @@ class AgentActionType(Instance, ABC):
         return result.data
 
     def dispatch(
-        self, action: AgentAction, resolved_values: dict[str, Any]
+        self,
+        action: AgentAction,
+        resolved_values: dict[str, Any],
+        identity: Subject | None = None,
     ) -> DispatchResult:
         """
         Send a prepared call through the action's service, whose integration must
@@ -185,6 +220,8 @@ class AgentActionType(Instance, ABC):
 
         :param action: The action called.
         :param resolved_values: What ``prepare`` returned for the call.
+        :param identity: The Agent's run identity, which a type that acts as it
+            sends the call as.
         :return: The result of the service.
         """
 
@@ -195,6 +232,7 @@ class AgentActionType(Instance, ABC):
             AgentActionDispatchContext(
                 workspace=action.agent.workspace,
                 resolved_values={service.id: resolved_values},
+                actor=identity if self.acts_as_run_identity else None,
             ),
             application_id=action.agent_id,
         )

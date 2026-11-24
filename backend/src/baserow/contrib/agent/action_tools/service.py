@@ -13,7 +13,7 @@ from baserow.core.services.models import Service
 from baserow.core.services.registries import ServiceType, service_type_registry
 
 from .exceptions import AgentActionTypeNotAvailable
-from .handler import AgentActionHandler, AgentActionUpdated
+from .handler import AgentActionHandler, AgentActionTypeOptions, AgentActionUpdated
 from .inputs import validate_action_name, validate_inputs
 from .registries import agent_action_type_registry
 from .signals import agent_action_created, agent_action_deleted, agent_action_updated
@@ -69,6 +69,25 @@ class AgentActionService:
         )
         return self.handler.list_actions(agent)
 
+    def list_action_types(
+        self, user: AbstractUser, agent_id: int
+    ) -> list[AgentActionTypeOptions]:
+        """
+        Describe the action types as the Agent's run identity sees them, to a user
+        allowed to read its configuration.
+
+        :param user: The user configuring actions.
+        :param agent_id: The id of the Agent.
+        :return: One entry per available type, in registry order.
+        """
+
+        agent = self.agent_service.get_authorized_agent(
+            user, agent_id, ReadAgentConfigurationOperationType.type
+        )
+        return self.handler.list_action_types(
+            agent, self.handler.get_run_identity(agent)
+        )
+
     def get_action(
         self, user: AbstractUser, agent_id: int, action_id: int
     ) -> AgentAction:
@@ -98,10 +117,14 @@ class AgentActionService:
         :param values: The service values to save.
         :param instance: The existing service, when it is updated.
         :return: The values prepared by the service type, whose integration
-            belongs to the Agent and is readable by the user.
+            belongs to the Agent and is readable by the user. A type that acts as
+            the Agent's run identity never has one.
         """
 
-        prepared = service_type.prepare_values(dict(values), user, instance)
+        values = dict(values)
+        if agent_action_type_registry.get(service_type.type).acts_as_run_identity:
+            values.pop("integration_id", None)
+        prepared = service_type.prepare_values(values, user, instance)
         integration = prepared.get(
             "integration", getattr(instance, "integration", None)
         )
