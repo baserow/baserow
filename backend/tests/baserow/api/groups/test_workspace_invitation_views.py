@@ -1,10 +1,12 @@
 import re
+from unittest.mock import patch
 
 from django.shortcuts import reverse
 from django.test.utils import override_settings
 
 import pytest
 from freezegun import freeze_time
+from rest_framework import serializers
 from rest_framework.status import (
     HTTP_200_OK,
     HTTP_204_NO_CONTENT,
@@ -12,6 +14,10 @@ from rest_framework.status import (
     HTTP_404_NOT_FOUND,
 )
 
+from baserow.api.workspaces.invitations.registries import (
+    InvitationDataType,
+    invitation_data_registry,
+)
 from baserow.core.handler import CoreHandler
 from baserow.core.models import WorkspaceInvitation, WorkspaceUser
 from baserow.core.trash.handler import TrashHandler
@@ -801,3 +807,65 @@ def test_when_workspace_is_trashed_so_is_invitation(data_fixture, api_client):
     assert response.status_code == HTTP_200_OK
     response_json = response.json()
     assert response_json["id"] == trashed_invitation.id
+
+
+class StubInvitationDataType(InvitationDataType):
+    type = "stub"
+
+    def get_serializer_field(self):
+        return serializers.ListField(required=False)
+
+    def annotate_serialized_workspace_invitations_data(
+        self, workspace, serialized_data, user
+    ):
+        for invitation in serialized_data:
+            invitation[self.type] = [workspace.id, user.id, invitation["email"]]
+        return serialized_data
+
+
+@pytest.mark.django_db
+def test_workspace_invitation_responses_include_invitation_data_types(
+    api_client, data_fixture
+):
+    user, token = data_fixture.create_user_and_token()
+    workspace = data_fixture.create_workspace(user=user)
+    invitation = data_fixture.create_workspace_invitation(
+        workspace=workspace, invited_by=user, email="test@test.nl"
+    )
+
+    with patch.dict(
+        invitation_data_registry.registry,
+        {"stub": StubInvitationDataType()},
+        clear=True,
+    ):
+        list_response = api_client.get(
+            reverse(
+                "api:workspaces:invitations:list",
+                kwargs={"workspace_id": workspace.id},
+            ),
+            HTTP_AUTHORIZATION=f"JWT {token}",
+        )
+        item_response = api_client.get(
+            reverse(
+                "api:workspaces:invitations:item",
+                kwargs={"workspace_invitation_id": invitation.id},
+            ),
+            HTTP_AUTHORIZATION=f"JWT {token}",
+        )
+        update_response = api_client.patch(
+            reverse(
+                "api:workspaces:invitations:item",
+                kwargs={"workspace_invitation_id": invitation.id},
+            ),
+            {"permissions": "ADMIN"},
+            format="json",
+            HTTP_AUTHORIZATION=f"JWT {token}",
+        )
+
+    expected = [workspace.id, user.id, "test@test.nl"]
+    assert list_response.status_code == HTTP_200_OK
+    assert list_response.json()[0]["stub"] == expected
+    assert item_response.status_code == HTTP_200_OK
+    assert item_response.json()["stub"] == expected
+    assert update_response.status_code == HTTP_200_OK
+    assert update_response.json()["stub"] == expected

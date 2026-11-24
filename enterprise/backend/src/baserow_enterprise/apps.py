@@ -182,6 +182,9 @@ class BaserowEnterpriseConfig(AppConfig):
         identity_extension_type_registry.register(EnterpriseIdentityExtensionType())
 
         from baserow.api.user.registries import member_data_registry
+        from baserow.api.workspaces.invitations.registries import (
+            invitation_data_registry,
+        )
         from baserow.core.action.registries import (
             action_scope_registry,
             action_type_registry,
@@ -193,6 +196,10 @@ class BaserowEnterpriseConfig(AppConfig):
             plugin_registry,
         )
         from baserow.core.trash.registries import trash_item_type_registry
+        from baserow_enterprise.api.invitation_data_types import (
+            EnterpriseInvitationScopesDataType,
+            EnterpriseInvitationTeamsDataType,
+        )
         from baserow_enterprise.api.member_data_types import (
             EnterpriseMemberTeamsDataType,
         )
@@ -300,6 +307,9 @@ class BaserowEnterpriseConfig(AppConfig):
         member_data_registry.register(EnterpriseMemberTeamsDataType())
         member_data_registry.register(EnterpriseRolesDataType())
         member_data_registry.register(EnterpriseRoleAssignmentCountDataType())
+
+        invitation_data_registry.register(EnterpriseInvitationScopesDataType())
+        invitation_data_registry.register(EnterpriseInvitationTeamsDataType())
 
         object_scope_type_registry.register(TeamObjectScopeType())
         object_scope_type_registry.register(TeamSubjectObjectScopeType())
