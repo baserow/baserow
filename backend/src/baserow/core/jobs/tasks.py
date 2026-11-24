@@ -1,7 +1,7 @@
 from datetime import timedelta
 
 from django.conf import settings
-from django.db import transaction
+from django.db import IntegrityError, transaction
 
 from loguru import logger
 
@@ -11,6 +11,14 @@ from baserow.core.jobs.exceptions import JobCancelled
 from baserow.core.jobs.registries import job_type_registry
 from baserow.core.sentry import setup_user_in_sentry
 from baserow.core.telemetry.utils import setup_user_in_baggage_and_spans
+
+
+def _save_ended_job(job):
+    try:
+        job.save()
+    except IntegrityError:
+        # A relation was deleted while the job ran, keep only the end state.
+        job.save(update_fields=job.END_STATE_FIELDS)
 
 
 @app.task(
@@ -62,7 +70,7 @@ def run_async_job(self, job_id: int):
             # job.save(), but this guarantees that the job is in the cancelled state
             # at the end.
             job.set_state_cancelled()
-            job.save()
+            _save_ended_job(job)
             job_type.on_cancelled(job)
         except BaseException as e:
             # BaseException allows catching SystemExit exceptions and all other possible
@@ -87,7 +95,7 @@ def run_async_job(self, job_id: int):
                     break
 
             job.set_state_failed(str(e), error, error_code)
-            job.save()
+            _save_ended_job(job)
 
             try:
                 job_type.on_error(job, e)

@@ -1,7 +1,9 @@
+from contextlib import contextmanager, suppress
 from datetime import datetime, timedelta, timezone
 from unittest.mock import Mock, patch
 
 from django.core.cache import cache
+from django.db import transaction
 
 import pytest
 from celery.exceptions import SoftTimeLimitExceeded
@@ -10,15 +12,18 @@ from requests.exceptions import ConnectionError
 
 from baserow.core.jobs.cache import job_progress_key
 from baserow.core.jobs.constants import (
+    JOB_CANCELLED,
     JOB_FAILED,
     JOB_FINISHED,
     JOB_PENDING,
     JOB_STARTED,
 )
+from baserow.core.jobs.exceptions import JobCancelled
 from baserow.core.jobs.handler import JobHandler
 from baserow.core.jobs.models import Job
-from baserow.core.jobs.registries import JobType
+from baserow.core.jobs.registries import JobType, job_type_registry
 from baserow.core.jobs.tasks import clean_up_jobs, run_async_job
+from baserow.core.trash.handler import TrashHandler
 
 
 class TmpCustomJobType(JobType):
@@ -324,3 +329,62 @@ def test_cleanup_file_import_job(storage_mock, data_fixture, settings):
     assert Job.objects.is_running().count() == 2
     assert Job.objects.is_ended().count() == 2
     assert Job.objects.is_pending_or_running().count() == 3
+
+
+@pytest.mark.django_db(transaction=True)
+@pytest.mark.parametrize(
+    "job_type_name,work_error,expected_state",
+    [
+        ("duplicate_application", None, JOB_FAILED),
+        ("duplicate_application", RuntimeError, JOB_FAILED),
+        ("duplicate_application", JobCancelled, JOB_CANCELLED),
+        ("export_applications", None, JOB_FAILED),
+    ],
+)
+def test_job_ends_when_its_workspace_is_permanently_deleted_while_it_runs(
+    data_fixture,
+    monkeypatch,
+    use_tmp_media_root,
+    job_type_name,
+    work_error,
+    expected_state,
+):
+    user = data_fixture.create_user()
+    application = data_fixture.create_database_application(user=user)
+    job_type = job_type_registry.get(job_type_name)
+    atomic_context = job_type.transaction_atomic_context
+
+    @contextmanager
+    def delete_workspace_on_exit(job):
+        try:
+            with atomic_context(job):
+                yield
+        finally:
+            with transaction.atomic():
+                TrashHandler.permanently_delete(application.workspace)
+
+    def start_job(application):
+        return JobHandler().create_and_start_job(
+            user,
+            job_type_name,
+            sync=True,
+            application_id=application.id,
+            workspace_id=application.workspace_id,
+        )
+
+    monkeypatch.setattr(
+        job_type, "transaction_atomic_context", delete_workspace_on_exit
+    )
+    if work_error:
+        monkeypatch.setattr(job_type, "run", Mock(side_effect=work_error))
+    with suppress(Exception):
+        start_job(application)
+    monkeypatch.undo()
+
+    job = Job.objects.get(user=user)
+    assert job.state == expected_state
+    if expected_state == JOB_FAILED:
+        reason = f"Something went wrong during the {job_type_name} job execution."
+        assert job.human_readable_error == reason
+    other_application = data_fixture.create_database_application(user=user)
+    assert start_job(other_application).state == JOB_FINISHED
