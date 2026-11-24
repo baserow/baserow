@@ -1,4 +1,5 @@
 import asyncio
+import json
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 from functools import cached_property, partial
@@ -74,12 +75,11 @@ from .action_tools.tools import BoundActionTool
 from .constants import (
     ASK_FIRST_INSTRUCTIONS,
     CONVERSATION_USER_INSTRUCTIONS,
-    DELETED_SENDER_LABEL,
+    DELETED_SENDER_NAME,
     INTERRUPTED_CHANGES_NOTE,
     INTERRUPTED_REPLY_NOTE,
     OUTPUT_RETRIES,
     REPLY_REQUEST_LIMIT,
-    SENDER_LABEL,
     SHARED_CONVERSATION_INSTRUCTIONS,
     TOOL_RETRIES,
     TRIGGER_CONVERSATION_INSTRUCTIONS,
@@ -133,15 +133,18 @@ def name_sender(content: str, sender: AgentConversationUser | None) -> str:
     """
     :param content: What a person wrote in a shared conversation.
     :param sender: Who wrote it, or None for a deleted user.
-    :return: The content after a line naming who wrote it.
+    :return: A JSON object naming who wrote the content, which neither the
+        content nor the name can end early to pass for another sender.
     """
 
-    label = (
-        DELETED_SENDER_LABEL
-        if sender is None
-        else SENDER_LABEL.format(name=sender.name, user_id=sender.id)
+    return json.dumps(
+        {
+            "sender": sender.name if sender else DELETED_SENDER_NAME,
+            "user_id": sender.id if sender else None,
+            "message": content,
+        },
+        ensure_ascii=False,
     )
-    return f"{label}\n{content}"
 
 
 def build_history(
