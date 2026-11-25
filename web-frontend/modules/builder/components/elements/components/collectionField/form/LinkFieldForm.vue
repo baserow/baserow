@@ -11,18 +11,6 @@
         v-model="values.link_name"
         :placeholder="$t('linkFieldForm.fieldLinkNamePlaceholder')"
       />
-      <template #after-input>
-        <CustomStyleButton
-          :key="values.variant"
-          v-model="values.styles"
-          style-key="cell"
-          :config-block-types="linkFieldBlockTypes"
-          :theme="baseTheme"
-          :on-styles-changed="onFieldStylesChanged"
-          :extra-args="{ onlyCell: true, noAlignment: true }"
-          variant="normal"
-        />
-      </template>
     </FormGroup>
     <LinkNavigationSelectionForm
       :default-values="defaultValues"
@@ -46,7 +34,6 @@
 <script>
 import collectionFieldForm from '@baserow/modules/builder/mixins/collectionFieldForm'
 import InjectedFormulaInput from '@baserow/modules/core/components/formula/InjectedFormulaInput'
-import CustomStyleButton from '@baserow/modules/builder/components/elements/components/forms/style/CustomStyleButton'
 import LinkNavigationSelectionForm from '@baserow/modules/builder/components/elements/components/forms/general/LinkNavigationSelectionForm'
 import { LINK_VARIANTS } from '@baserow/modules/builder/enums'
 
@@ -54,7 +41,6 @@ export default {
   name: 'LinkField',
   components: {
     InjectedFormulaInput,
-    CustomStyleButton,
     LinkNavigationSelectionForm,
   },
   mixins: [collectionFieldForm],
@@ -69,14 +55,6 @@ export default {
     }
   },
   computed: {
-    linkFieldBlockTypes() {
-      const defaultBlocks = ['table']
-      if (this.values.variant === LINK_VARIANTS.LINK) {
-        return [...defaultBlocks, 'link']
-      } else {
-        return [...defaultBlocks, 'button']
-      }
-    },
     LINK_VARIANTS() {
       return [
         {

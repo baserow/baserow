@@ -113,6 +113,12 @@
       }
     }
 
+    // Lets a formula's data chips shorten to fit instead of pushing the value
+    // under the buttons beside it.
+    .filters__value--formula-input {
+      min-width: 0;
+    }
+
     .control__elements--small {
       margin-bottom: 0;
     }

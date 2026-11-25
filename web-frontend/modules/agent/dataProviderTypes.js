@@ -22,6 +22,14 @@ export class TriggerDataProviderType extends DataProviderType {
   }
 
   /**
+   * The trigger is the source of all its data, so a chip for a row's field
+   * shows the trigger as its source and the rows as a step.
+   */
+  get chipSourceName() {
+    return this.name
+  }
+
+  /**
    * @param {object} applicationContext Holds the trigger the message opens.
    * @returns {object|null} The schema of the trigger's data, or null when its
    *   type isn't registered.

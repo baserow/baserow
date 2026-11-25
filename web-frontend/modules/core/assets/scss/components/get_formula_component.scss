@@ -1,42 +1,154 @@
+// A piece of data in a formula: the source it comes from as a small badge, the
+// steps to get to it, and the data itself.
 .get-formula-component {
   cursor: pointer;
   display: inline-block;
   vertical-align: top;
-  background-color: $palette-neutral-100;
-  font-size: 12px;
-  border-radius: 3px;
-  user-select: none;
+  max-width: 100%;
   min-height: 24px;
-  line-height: 18px;
+  padding: 1px 2px;
   box-sizing: border-box;
-  padding: 2px 8px;
+  border: 1px solid $palette-blue-100;
+  background-color: $palette-blue-50;
+  color: $palette-blue-900;
+  font-size: 12px;
+  line-height: 18px;
+  user-select: none;
 
-  @include rounded($rounded);
+  @include rounded($rounded-2xl);
+
+  &:hover {
+    border-color: $palette-blue-200;
+  }
 }
 
 .get-formula-component--error {
-  background-color: $palette-red-100;
+  border-color: $palette-red-200;
+  background-color: $palette-red-50;
+  color: $palette-red-900;
 }
 
 .get-formula-component--selected {
-  background-color: $palette-blue-50;
+  border-color: $palette-blue-500;
+  background-color: $palette-blue-100;
+}
+
+// The chip stays on one line. When it doesn't fit, the source's name is cut
+// down to a few letters first, then the steps fold into "…" and only then the
+// data's name is cut off (see `compactLevel` and `sourceStyle`).
+.get-formula-component__content {
+  display: inline-flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  column-gap: 4px;
+  max-width: 100%;
+  min-width: 0;
+  padding-left: 1px;
+  overflow: hidden;
+  white-space: nowrap;
+
+  > * {
+    flex: none;
+  }
+}
+
+.get-formula-component__source {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  max-width: 160px;
+  height: 20px;
+  padding: 0 7px 0 6px;
+  background-color: $white;
+  box-shadow: inset 0 0 0 1px $palette-blue-100;
+  color: $palette-neutral-1200;
+  font-weight: 500;
+  white-space: nowrap;
+
+  @include rounded($rounded-2xl);
+
+  .get-formula-component--error & {
+    box-shadow: inset 0 0 0 1px $palette-red-200;
+  }
+}
+
+.get-formula-component__source-icon {
+  flex: none;
+  font-size: 12px;
+  color: $palette-neutral-900;
+}
+
+.get-formula-component__source-name {
+  min-width: 0;
+
+  @extend %ellipsis;
+}
+
+.get-formula-component__step {
+  display: inline-flex;
+  align-items: center;
+  color: $palette-blue-700;
+
+  .get-formula-component--error & {
+    color: $palette-red-700;
+  }
 }
 
 .get-formula-component__caret {
-  color: $palette-neutral-700;
-  padding-left: 3px;
-  padding-right: 3px;
+  padding-left: 2px;
   font-size: 12px;
 }
 
+.get-formula-component__index {
+  display: inline-flex;
+  align-items: center;
+  height: 18px;
+  padding: 0 5px;
+  background-color: $palette-blue-100;
+  font-size: 11px;
+  font-weight: 600;
+
+  @include rounded($rounded);
+
+  .get-formula-component--error & {
+    background-color: $palette-red-100;
+  }
+}
+
+.get-formula-component__leaf {
+  font-weight: 500;
+
+  .get-formula-component--compact-3 & {
+    flex: 0 1 auto;
+    min-width: 24px;
+
+    @extend %ellipsis;
+  }
+
+  &:first-child {
+    padding-left: 6px;
+  }
+}
+
 .get-formula-component__remove {
-  color: $palette-neutral-700;
-  padding-left: 4px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  color: $palette-blue-600;
   font-size: 10px;
+
+  @include rounded($rounded-2xl);
 
   &:hover {
     text-decoration: none;
-    color: $palette-neutral-1100;
+    background-color: $palette-blue-100;
+    color: $palette-blue-900;
+  }
+
+  .get-formula-component--error & {
+    color: $palette-red-700;
   }
 }
 
@@ -45,5 +157,9 @@
 .formula-input-field--read-only {
   .get-formula-component__remove {
     display: none;
+  }
+
+  .get-formula-component__content {
+    padding-right: 6px;
   }
 }

@@ -173,11 +173,34 @@
               />
             </template>
             <template #footer>
-              <template v-if="v$.values.fields.$model.length > 1">
-                <ButtonText icon="iconoir-bin" @click="removeField(field)">
+              <div class="table-element-form__field-footer">
+                <ButtonText
+                  v-if="v$.values.fields.$model.length > 1"
+                  icon="iconoir-bin"
+                  @click="removeField(field)"
+                >
                   {{ $t('action.delete') }}
                 </ButtonText>
-              </template>
+                <CustomStyleButton
+                  v-if="getFieldStyleConfig(field)"
+                  :key="`${field.id}-${field.type}-${field.variant}`"
+                  :model-value="field.styles"
+                  style-key="cell"
+                  :config-block-types="
+                    getFieldStyleConfig(field).configBlockTypes
+                  "
+                  :theme="collectionFieldBaseTheme"
+                  :on-styles-changed="
+                    (newStyleValues, context) =>
+                      onFieldStylesChanged(field, newStyleValues, context)
+                  "
+                  :extra-args="getFieldStyleConfig(field).extraArgs"
+                  variant="text"
+                  class="table-element-form__field-style"
+                >
+                  {{ $t('tableElementForm.styleColumn') }}
+                </CustomStyleButton>
+              </div>
             </template>
           </SidebarExpandable>
         </div>
@@ -384,6 +407,26 @@ export default {
           return field
         }
       )
+    },
+    getFieldStyleConfig(field) {
+      return this.collectionTypes[field.type]?.getStyleConfig(field) || null
+    },
+    /**
+     * Applies a column's new styles, made in the custom style form, to the
+     * table element, and returns the updated element for the form to save.
+     */
+    onFieldStylesChanged(fieldToUpdate, newStyleValues, { styleKey }) {
+      return {
+        ...this.element,
+        fields: this.element.fields.map((field) =>
+          field.id === fieldToUpdate.id
+            ? {
+                ...field,
+                styles: { ...field.styles, [styleKey]: newStyleValues },
+              }
+            : field
+        ),
+      }
     },
     removeField(field) {
       this.v$.values.fields.$model = this.v$.values.fields.$model.filter(

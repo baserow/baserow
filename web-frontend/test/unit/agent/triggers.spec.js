@@ -119,6 +119,12 @@ const httpTrigger = () =>
     },
   })
 
+// A data chip shows its source as a badge and the data after it.
+const chipParts = (chip) => [
+  chip.find('.get-formula-component__source').text(),
+  chip.find('.get-formula-component__leaf').text(),
+]
+
 describe('Agent triggers', () => {
   let testApp, agent
 
@@ -778,8 +784,8 @@ describe('Agent triggers', () => {
     const chips = wrapper.findAll('.get-formula-component')
 
     expect(wrapper.text()).toContain('Periodic trigger fired at')
-    expect(chips.map((chip) => chip.text())).toEqual([
-      'agent.triggerData agent.triggerFiredAt',
+    expect(chips.map(chipParts)).toEqual([
+      ['agent.triggerData', 'agent.triggerFiredAt'],
     ])
   })
 
@@ -1724,17 +1730,38 @@ describe('Agent triggers', () => {
     })
     await flushPromises()
 
-    expect(
-      wrapper.findAll('.get-formula-component').map((chip) => chip.text())
-    ).toEqual([
-      'agent.triggerData serviceType.eventCount',
-      'agent.triggerData serviceType.eventTable',
-      'agent.triggerData agent.triggerRows',
+    expect(wrapper.findAll('.get-formula-component').map(chipParts)).toEqual([
+      ['agent.triggerData', 'serviceType.eventCount'],
+      ['agent.triggerData', 'serviceType.eventTable'],
+      ['agent.triggerData', 'agent.triggerRows'],
     ])
     expect(wrapper.text()).toContain('rows were created in')
     expect(
       wrapper.findComponent(FormulaInputField).props('allowNodeSelection')
     ).toBe('array')
+  })
+
+  test("shows the trigger as the source of a row's field, with the rows as a step", async () => {
+    const trigger = rowsTrigger({
+      message: {
+        formula: "get('trigger.rows.*.field_1')",
+        mode: 'simple',
+        version: '0.1',
+      },
+    })
+    const wrapper = await testApp.mount(AgentTriggerMessageInput, {
+      props: { modelValue: trigger.message },
+      global: {
+        provide: { applicationContext: reactive({ agent, trigger }) },
+      },
+    })
+    await flushPromises()
+
+    const chip = wrapper.find('.get-formula-component')
+    expect(chipParts(chip)).toEqual(['agent.triggerData', 'Name'])
+    expect(
+      chip.findAll('.get-formula-component__step').map((step) => step.text())
+    ).toEqual(['agent.triggerRows'])
   })
 
   test('shows when the run identity cannot read the table and turns the switch back off until a switch-on is accepted', async () => {

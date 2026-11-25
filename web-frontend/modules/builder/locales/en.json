@@ -781,7 +781,8 @@
     "afterLoginLabel": "After login"
   },
   "getExpressionComponent": {
-    "errorTooltip": "Invalid reference"
+    "errorTooltip": "Invalid reference",
+    "remove": "Remove this data"
   },
   "fontSidePanelForm": {
     "label": "Font color"
@@ -799,6 +800,7 @@
     "empty": "No options available"
   },
   "tableElementForm": {
+    "styleColumn": "Styling",
     "dataSource": "Data source",
     "fields": "Fields",
     "fieldValueLabel": "Value",
@@ -874,6 +876,7 @@
   },
   "currentRecordDataProviderType": {
     "index": "Index",
+    "chipSourceName": "Current record",
     "firstPartName": "Data source: {name}",
     "schemaProperty": "{prefixName}: {schemaProperty}"
   },

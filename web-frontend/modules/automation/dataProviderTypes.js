@@ -107,6 +107,11 @@ export class PreviousNodeDataProviderType extends DataProviderType {
     }
   }
 
+  getSourceIcon(applicationContext, identifier) {
+    const found = findNodeAndType(this.app, applicationContext, identifier)
+    return found?.nodeType.iconClass || null
+  }
+
   /**
    * The value the previous node returned the last time it was tested. It's an
    * example shown next to the node's data in the explorer, `undefined` when

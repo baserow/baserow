@@ -262,6 +262,20 @@ export class DataSourceDataProviderType extends DataProviderType {
     }
     return super.getPathTitle(applicationContext, pathParts)
   }
+
+  getSourceIcon(applicationContext, identifier) {
+    const pages = [
+      applicationContext.page,
+      this.app.$store.getters['page/getSharedPage'](applicationContext.builder),
+    ]
+    const dataSource = this.app.$store.getters[
+      'dataSource/getPagesDataSourceById'
+    ](pages, parseInt(identifier))
+    if (!dataSource?.type) {
+      return null
+    }
+    return this.app.$registry.get('service', dataSource.type).icon || null
+  }
 }
 
 export class DataSourceContextDataProviderType extends DataProviderType {
@@ -450,6 +464,14 @@ export class CurrentRecordDataProviderType extends DataProviderType {
 
   get name() {
     return this.app.$i18n.t('dataProviderType.currentRecord')
+  }
+
+  get chipSourceName() {
+    return this.app.$i18n.t('currentRecordDataProviderType.chipSourceName')
+  }
+
+  get chipSourceIcon() {
+    return 'iconoir-repeat'
   }
 
   get indexKey() {
