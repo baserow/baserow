@@ -80,8 +80,7 @@ describe('AgentCreateModal', () => {
     }
   }
 
-  const back = (wrapper) =>
-    wrapper.get('button[aria-label="action.back"]').trigger('click')
+  const back = (wrapper) => button(wrapper, 'action.back').trigger('click')
 
   async function chooseCustomTools(wrapper, label) {
     await choose(

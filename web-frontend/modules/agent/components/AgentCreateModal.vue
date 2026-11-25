@@ -1,51 +1,43 @@
 <template>
-  <Modal
-    ref="modal"
-    small
-    :box-padding="false"
-    :can-close="!loading"
-    @show="reset"
-  >
-    <form class="modal-layout" @submit.self.prevent="next">
-      <div class="modal-layout__header">
+  <Modal ref="modal" small :can-close="!loading" @show="reset">
+    <h2 class="box__title">{{ $t(TITLES[step]) }}</h2>
+    <form @submit.self.prevent="next">
+      <Error :error="error" />
+      <AgentCreateDescribeStep
+        v-if="step === STEP.DESCRIBE"
+        v-model="setup"
+        :workspace="workspace"
+      />
+      <AgentCreateReviewStep
+        v-else-if="step === STEP.REVIEW"
+        v-model="setup"
+        :workspace="workspace"
+        :available-tools="availableTools"
+        :can-bind-identity="canBindIdentity"
+        :can-create-identity="canCreateIdentity"
+        :new-identity-role="suggestedRole"
+      />
+      <AgentCreateModelStep
+        v-else
+        v-model="setup"
+        :workspace="workspace"
+        :available-tools="availableTools"
+      />
+      <p v-if="step > STEP.DESCRIBE" class="color-neutral">
+        {{ $t('agent.setupLaterNote') }}
+      </p>
+      <div class="actions actions--right actions--gap">
         <ButtonText
           v-if="step > STEP.DESCRIBE"
+          class="margin-right-auto"
           type="secondary"
           button-type="button"
           icon="iconoir-nav-arrow-left"
-          :aria-label="$t('action.back')"
           :disabled="loading"
           @click="step--"
-        />
-        <h2 class="modal-layout__title">{{ $t(TITLES[step]) }}</h2>
-      </div>
-      <div class="modal-layout__body">
-        <Error :error="error" />
-        <AgentCreateDescribeStep
-          v-if="step === STEP.DESCRIBE"
-          v-model="setup"
-          :workspace="workspace"
-        />
-        <AgentCreateReviewStep
-          v-else-if="step === STEP.REVIEW"
-          v-model="setup"
-          :workspace="workspace"
-          :available-tools="availableTools"
-          :can-bind-identity="canBindIdentity"
-          :can-create-identity="canCreateIdentity"
-          :new-identity-role="suggestedRole"
-        />
-        <AgentCreateModelStep
-          v-else
-          v-model="setup"
-          :workspace="workspace"
-          :available-tools="availableTools"
-        />
-      </div>
-      <div class="modal-layout__footer">
-        <span v-if="step > STEP.DESCRIBE" class="modal-layout__footer-note">
-          {{ $t('agent.setupLaterNote') }}
-        </span>
+        >
+          {{ $t('action.back') }}
+        </ButtonText>
         <Button
           type="secondary"
           button-type="button"
