@@ -54,7 +54,7 @@
 
     &:hover,
     &:focus-visible {
-      background-color: rgba($palette-neutral-1300, 0.04);
+      background-color: $sidebar-hover-background;
     }
 
     &:focus-visible {
