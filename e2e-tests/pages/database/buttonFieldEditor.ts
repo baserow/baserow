@@ -45,8 +45,13 @@ export async function openFieldEditor(page: Page, name: string) {
  * Saves the open editor and waits for it to close. The field update and each
  * action call go out one after another, and the editor only closes once all
  * of them are done, so navigating away any earlier can cancel part of the save.
+ * The data explorer stays open until the formula input loses focus, and it can
+ * cover Save, so the section heading is clicked first to close it, as in
+ * `addAction`.
  */
 export async function saveField(page: Page) {
+  await page.locator(".button-field-action-list__title").click();
+  await expect(explorer(page)).toBeHidden();
   await page.locator(".field-context button", { hasText: "Save" }).click();
   await expect(page.locator(".button-field-action-list")).toBeHidden();
 }
