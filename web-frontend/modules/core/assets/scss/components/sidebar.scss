@@ -112,7 +112,7 @@ $sidebar-home-inset: calc(($sidebar-home-size - $sidebar-brand-height) / 2);
   border-radius: $rounded-md;
 
   &:hover {
-    background-color: rgba($palette-neutral-1300, 0.04);
+    background-color: $sidebar-hover-background;
   }
 
   &:focus-visible {
@@ -170,7 +170,7 @@ $sidebar-home-inset: calc(($sidebar-home-size - $sidebar-brand-height) / 2);
 
   &:hover,
   &[aria-expanded='true'] {
-    background-color: rgba($palette-neutral-1300, 0.04);
+    background-color: $sidebar-hover-background;
   }
 }
 
@@ -215,7 +215,7 @@ $sidebar-home-inset: calc(($sidebar-home-size - $sidebar-brand-height) / 2);
 
   &:hover,
   &[aria-expanded='true'] {
-    background-color: rgba($palette-neutral-1300, 0.04);
+    background-color: $sidebar-hover-background;
   }
 
   &:focus-visible {
@@ -324,7 +324,7 @@ $sidebar-home-inset: calc(($sidebar-home-size - $sidebar-brand-height) / 2);
 
     &:hover,
     &[aria-expanded='true'] {
-      background-color: rgba($palette-neutral-1300, 0.04);
+      background-color: $sidebar-hover-background;
       color: $palette-neutral-1200;
 
       .context__menu-item-icon {
@@ -451,7 +451,7 @@ $sidebar-home-inset: calc(($sidebar-home-size - $sidebar-brand-height) / 2);
     text-decoration: none;
 
     .sidebar__section--workspace & {
-      background-color: rgba($palette-neutral-1300, 0.04);
+      background-color: $sidebar-hover-background;
     }
   }
 }
@@ -545,7 +545,7 @@ $sidebar-home-inset: calc(($sidebar-home-size - $sidebar-brand-height) / 2);
   &:hover {
     text-decoration: none;
     color: $palette-neutral-1200;
-    background-color: rgba($palette-neutral-1300, 0.04);
+    background-color: $sidebar-hover-background;
   }
 
   &.sidebar__foot-link--loading {
@@ -600,7 +600,7 @@ $sidebar-home-inset: calc(($sidebar-home-size - $sidebar-brand-height) / 2);
   margin-left: -8px;
 
   &:hover {
-    background-color: rgba($palette-neutral-1300, 0.04);
+    background-color: $sidebar-hover-background;
     text-decoration: none;
   }
 
@@ -636,7 +636,7 @@ $sidebar-home-inset: calc(($sidebar-home-size - $sidebar-brand-height) / 2);
   @include rounded($rounded-md);
 
   &:hover {
-    background-color: rgba($palette-neutral-1300, 0.04);
+    background-color: $sidebar-hover-background;
   }
 }
 
