@@ -103,7 +103,7 @@ test("a trigger switched off from asking never offers the question tool", async 
   const trigger = await createTicketTrigger(agent);
   const agentPage = new AgentPage({ page, goto }, agent);
   await agentPage.goto();
-  const section = await agentPage.openSection("When it runs");
+  const section = await agentPage.openSection("Triggers");
   // A lone trigger opens with its settings shown.
   await expect(
     section.getByRole("button", { name: `${TRIGGER_NAME} settings` })
