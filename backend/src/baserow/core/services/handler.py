@@ -366,13 +366,18 @@ class ServiceHandler:
         storage: Optional[Storage] = None,
         cache: Optional[Dict] = None,
     ):
-        return service.get_type().export_serialized(
+        """Serialize the service and register its exported integration reference."""
+        serialized = service.get_type().export_serialized(
             service,
             import_export_config=import_export_config,
             files_zip=files_zip,
             storage=storage,
             cache=cache,
         )
+        IntegrationHandler.register_exported_integration(
+            serialized.get("integration_id")
+        )
+        return serialized
 
     def import_service(
         self,

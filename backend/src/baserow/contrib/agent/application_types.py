@@ -375,6 +375,7 @@ class AgentApplicationType(ApplicationType):
             if allowed.get(check, False) is True
         ]
 
+    @IntegrationHandler.with_referenced_integrations
     def export_serialized(
         self,
         application: AgentApplication,
@@ -410,16 +411,7 @@ class AgentApplicationType(ApplicationType):
                 application, import_export_config
             )
         ]
-        # Only the actions use integrations, the triggers are imported without one.
-        serialized_integrations += (
-            IntegrationHandler().export_referenced_workspace_integrations(
-                application,
-                serialized_actions,
-                import_export_config,
-                files_zip=files_zip,
-                storage=storage,
-            )
-        )
+
         serialized.update(
             instructions=application.instructions,
             suggested_messages=application.suggested_messages,

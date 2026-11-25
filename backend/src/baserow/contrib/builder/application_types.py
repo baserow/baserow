@@ -232,6 +232,7 @@ class BuilderApplicationType(ApplicationType):
         # Create our sample container element.
         builder_init.create_container_element(examples)
 
+    @IntegrationHandler.with_referenced_integrations
     def export_serialized(
         self,
         builder: Builder,
@@ -295,17 +296,6 @@ class BuilderApplicationType(ApplicationType):
             files_zip=files_zip,
             storage=storage,
             cache=cache,
-        )
-
-        serialized_integrations += (
-            IntegrationHandler().export_referenced_workspace_integrations(
-                builder,
-                [serialized_pages, serialized_user_sources],
-                import_export_config,
-                files_zip=files_zip,
-                storage=storage,
-                cache=cache,
-            )
         )
 
         serialized_favicon_file = UserFileHandler().export_user_file(

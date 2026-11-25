@@ -132,6 +132,7 @@ def test_export_import_upsert_row_workflow_action_type(data_fixture):
     }
 
     id_mapping = defaultdict(lambda: MirrorDict())
+    id_mapping["integrations"] = MirrorDict()
     id_mapping["builder_data_sources"] = {data_source.id: data_source2.id}
 
     new_workflow_action = workflow_action_type.import_serialized(

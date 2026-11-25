@@ -343,7 +343,7 @@ class BuilderWorkflowServiceActionType(
 
         if prop_name == "service":
             service = workflow_action.service.specific
-            return service.get_type().export_serialized(
+            return ServiceHandler().export_service(
                 service,
                 import_export_config=import_export_config,
                 files_zip=files_zip,

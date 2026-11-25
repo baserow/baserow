@@ -1,4 +1,7 @@
-from typing import Any, Dict, Iterable, Iterator, List, Optional, Union, cast
+from contextvars import ContextVar
+from functools import wraps
+from inspect import signature
+from typing import Any, Callable, Dict, Iterable, List, Optional, Union, cast
 from zipfile import ZipFile
 
 from django.core.files.storage import Storage
@@ -30,10 +33,14 @@ from baserow.core.registries import ImportExportConfig, application_type_registr
 from baserow.core.storage import ExportZipFile
 from baserow.core.utils import extract_allowed
 
-from .types import IntegrationForUpdate
+from .types import IntegrationExport, IntegrationForUpdate
 
 
 class IntegrationHandler:
+    _export_context: ContextVar[IntegrationExport | None] = ContextVar(
+        "integration_export", default=None
+    )
+
     def get_integration(
         self,
         integration_id: int,
@@ -635,14 +642,65 @@ class IntegrationHandler:
             cache=cache,
         )
 
+    @staticmethod
+    def register_exported_integration(integration_id: int | None) -> None:
+        """Record a typed consumer's reference; standalone consumer exports are unchanged."""
+        context = IntegrationHandler._export_context.get()
+        if (
+            context is None
+            or not isinstance(integration_id, int)
+            or isinstance(integration_id, bool)
+        ):
+            return
+        context.integration_ids.add(integration_id)
+
+    @staticmethod
+    def with_referenced_integrations(export: Callable) -> Callable:
+        """Run a shared integration-export callback after the application is serialized.
+
+        Every application export gets its own collector. Nested exports restore the
+        parent's collector, and a failed export discards its references and callback.
+        """
+        export_signature = signature(export)
+        application_parameter = list(export_signature.parameters)[1]
+
+        @wraps(export)
+        def wrapped(*args, **kwargs):
+            """Collect references during serialization and append shared dependencies."""
+            arguments = export_signature.bind(*args, **kwargs)
+            arguments.apply_defaults()
+            context = IntegrationExport()
+            token = IntegrationHandler._export_context.set(context)
+
+            def export_referenced_integrations(serialized: dict[str, Any]) -> None:
+                """Finish this export using only references registered by its consumers."""
+                values = arguments.arguments
+                serialized["integrations"].extend(
+                    IntegrationHandler().export_referenced_workspace_integrations(
+                        values[application_parameter],
+                        context.integration_ids,
+                        values["import_export_config"],
+                        files_zip=values.get("files_zip"),
+                        storage=values.get("storage"),
+                    )
+                )
+
+            try:
+                serialized = export(*args, **kwargs)
+                export_referenced_integrations(serialized)
+                return serialized
+            finally:
+                IntegrationHandler._export_context.reset(token)
+
+        return wrapped
+
     def export_referenced_workspace_integrations(
         self,
         application: Application,
-        serialized_content: Any,
+        integration_ids: Iterable[int],
         import_export_config: ImportExportConfig,
         files_zip: Optional[ExportZipFile] = None,
         storage: Optional[Storage] = None,
-        cache: Optional[Dict] = None,
     ) -> List[Dict[str, Any]]:
         """
         Exports the workspace integrations an application's services and user
@@ -656,21 +714,18 @@ class IntegrationHandler:
         the workspace integrations and nothing is exported.
 
         :param application: The application being exported.
-        :param serialized_content: The parts of the application's export that can
-            refer to integrations. Every `integration_id` in them is read, apart
-            from those in sample data. The row data of a table must be left out,
-            as it's large and refers to none.
+        :param integration_ids: References registered by the services and user
+            sources actually included in the application export.
         :param import_export_config: How the application is exported.
         :param files_zip: The zip the export's files are written to, if any.
         :param storage: The storage the files are read from.
-        :param cache: Shared across one export, for values worth reusing.
         :return: The serialized integrations, to add to the application's own.
         """
 
         if import_export_config.keeps_unmapped_references:
             return []
 
-        integration_ids = set(self._find_integration_ids(serialized_content))
+        integration_ids = set(integration_ids)
         if not integration_ids or application.workspace_id is None:
             return []
 
@@ -682,40 +737,21 @@ class IntegrationHandler:
             )
         )
 
-        return [
-            self.export_integration(
-                integration,
-                import_export_config,
-                files_zip=files_zip,
-                storage=storage,
-                cache=cache,
-            )
-            for integration in integrations
-        ]
-
-    def _find_integration_ids(self, serialized: Any) -> Iterator[int]:
-        """
-        Yields every integration ID the serialized content names under an
-        `integration_id` key, at any depth. A service's `sample_data` is skipped:
-        it holds what a test dispatch returned, such as a webhook body, so any
-        `integration_id` in it comes from outside and names no integration.
-
-        :param serialized: Serialized content: dicts, lists and plain values.
-        :return: The integration IDs, possibly repeated.
-        """
-
-        if isinstance(serialized, dict):
-            for key, value in serialized.items():
-                if key == "sample_data":
-                    continue
-                if key != "integration_id":
-                    yield from self._find_integration_ids(value)
-                # A boolean is an int too, and would read as integration 0 or 1.
-                elif isinstance(value, int) and not isinstance(value, bool):
-                    yield value
-        elif isinstance(serialized, (list, tuple)):
-            for item in serialized:
-                yield from self._find_integration_ids(item)
+        cache_key = f"integration_export_cache_{id(integration_ids)}"
+        try:
+            cache = local_cache.get(cache_key, dict)
+            return [
+                self.export_integration(
+                    integration,
+                    import_export_config,
+                    files_zip=files_zip,
+                    storage=storage,
+                    cache=cache,
+                )
+                for integration in integrations
+            ]
+        finally:
+            local_cache.delete(cache_key)
 
     def import_integration(
         self,

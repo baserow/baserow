@@ -316,13 +316,18 @@ class UserSourceHandler:
         storage: Optional[Storage] = None,
         cache: Optional[Dict] = None,
     ):
-        return user_source.get_type().export_serialized(
+        """Serialize the consumer and register its typed integration reference."""
+        serialized = user_source.get_type().export_serialized(
             user_source,
             import_export_config=import_export_config,
             files_zip=files_zip,
             storage=storage,
             cache=cache,
         )
+        IntegrationHandler.register_exported_integration(
+            serialized.get("integration_id")
+        )
+        return serialized
 
     def import_user_source(
         self,

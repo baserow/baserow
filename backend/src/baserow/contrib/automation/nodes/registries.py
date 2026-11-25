@@ -252,7 +252,7 @@ class AutomationNodeType(
     ):
         if prop_name == "service":
             service = node.service.specific
-            return service.get_type().export_serialized(
+            return ServiceHandler().export_service(
                 service,
                 import_export_config=import_export_config,
                 files_zip=files_zip,

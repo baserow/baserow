@@ -290,3 +290,71 @@ def test_a_workspace_export_copies_the_workspace_integrations_of_a_dashboard(
     (data_source,) = DashboardDataSource.objects.filter(dashboard=imported)
     assert copy.id != integration.id
     assert data_source.service.integration_id == copy.id
+
+
+@pytest.mark.django_db
+def test_partial_workflow_export_collects_only_typed_references(data_fixture):
+    """Only services in the selected workflow count, never arbitrary JSON keys."""
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    shared = data_fixture.create_shared_application(workspace=workspace)
+    used = data_fixture.create_local_baserow_integration(
+        application=shared, authorized_user=user
+    )
+    unrelated = data_fixture.create_local_baserow_integration(
+        application=shared, authorized_user=user
+    )
+    automation = data_fixture.create_automation_application(workspace=workspace)
+    selected = data_fixture.create_automation_workflow(
+        automation=automation, trigger_type="manual"
+    )
+    other = data_fixture.create_automation_workflow(
+        automation=automation, trigger_type="manual"
+    )
+    for workflow, integration in [
+        (selected, used),
+        (selected, used),
+        (other, unrelated),
+    ]:
+        data_fixture.create_automation_node(
+            workflow=workflow,
+            type="local_baserow_list_rows",
+            reference_node_id=workflow.get_trigger().id,
+            service_kwargs={"integration": integration},
+        )
+    # Notes are JSON too, but they do not declare service dependencies.
+    trigger = selected.get_trigger()
+    trigger.note = {
+        "type": "doc",
+        "attrs": {"integration_id": unrelated.id},
+        "content": [],
+    }
+    trigger.save(update_fields=["note"])
+
+    exported = automation.get_type().export_serialized(
+        automation, FILE, workflows=[selected]
+    )
+
+    assert [item["id"] for item in exported["integrations"]] == [used.id]
+    assert len(exported["workflows"]) == 1
+
+
+@pytest.mark.django_db
+def test_agent_trigger_exports_its_referenced_integration(data_fixture):
+    """An exported service reference is collected regardless of its consumer."""
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    integration = _workspace_integration(data_fixture, workspace, user)
+    agent = data_fixture.create_agent_application(workspace=workspace)
+    data_fixture.create_agent_trigger(
+        agent=agent,
+        service=data_fixture.create_local_baserow_rows_created_service(
+            integration=integration
+        ),
+    )
+
+    exported = agent.get_type().export_serialized(agent, FILE)
+
+    assert [item["id"] for item in exported["integrations"]] == [integration.id]
+    assert exported["triggers"][0]["service"]["integration_id"] == integration.id
+    assert len(exported["triggers"]) == 1

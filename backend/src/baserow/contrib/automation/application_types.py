@@ -80,6 +80,7 @@ class AutomationApplicationType(ApplicationType):
         automation_init.create_workflow(automation_init.workflow_name)
         automation_init.create_local_baserow_integration()
 
+    @IntegrationHandler.with_referenced_integrations
     def export_serialized(
         self,
         automation: Automation,
@@ -124,17 +125,6 @@ class AutomationApplicationType(ApplicationType):
             )
             for w in workflows
         ]
-
-        serialized_integrations += (
-            IntegrationHandler().export_referenced_workspace_integrations(
-                automation,
-                serialized_workflows,
-                import_export_config,
-                files_zip=files_zip,
-                storage=storage,
-                cache=cache,
-            )
-        )
 
         serialized_automation = super().export_serialized(
             automation,

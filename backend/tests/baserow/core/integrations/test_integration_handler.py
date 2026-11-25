@@ -624,7 +624,7 @@ def test_export_referenced_workspace_integrations(data_fixture):
     used = data_fixture.create_local_baserow_integration(
         application=shared_application, name="Used"
     )
-    unused = data_fixture.create_local_baserow_integration(
+    data_fixture.create_local_baserow_integration(
         application=shared_application, name="Unused"
     )
     trashed = data_fixture.create_local_baserow_integration(
@@ -635,22 +635,18 @@ def test_export_referenced_workspace_integrations(data_fixture):
     other_workspace_integration = data_fixture.create_local_baserow_integration(
         application=data_fixture.create_shared_application()
     )
-    serialized_content = [
-        {"service": {"integration_id": used.id}},
-        {"nested": [{"integration_id": used.id}, {"integration_id": trashed.id}]},
-        {"integration_id": own.id},
-        {"integration_id": other_workspace_integration.id},
-        # Sample data is what a test dispatch returned, not a reference.
-        {"sample_data": {"data": {"body": {"integration_id": unused.id}}}},
-        # A boolean would otherwise read as the integration with ID 1.
-        {"integration_id": True},
-        {"integration_id": None},
+    integration_ids = [
+        used.id,
+        used.id,
+        trashed.id,
+        own.id,
+        other_workspace_integration.id,
     ]
     handler = IntegrationHandler()
 
     exported = handler.export_referenced_workspace_integrations(
         builder,
-        serialized_content,
+        integration_ids,
         ImportExportConfig(include_permission_data=False),
     )
 
@@ -662,7 +658,7 @@ def test_export_referenced_workspace_integrations(data_fixture):
     # A duplicate keeps referring to them.
     assert (
         handler.export_referenced_workspace_integrations(
-            builder, serialized_content, DUPLICATE
+            builder, integration_ids, DUPLICATE
         )
         == []
     )
