@@ -65,7 +65,7 @@ export class ChannelsAgentConfigurationSectionType extends LicensedAgentConfigur
   }
 
   get icon() {
-    return 'iconoir-globe'
+    return 'iconoir-multi-bubble'
   }
 
   get component() {

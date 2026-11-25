@@ -15,7 +15,7 @@
           aria-hidden="true"
         />
         <Icon
-          icon="iconoir-globe"
+          icon="iconoir-multi-bubble"
           class="agent-public-chat-card__icon"
           aria-hidden="true"
         />

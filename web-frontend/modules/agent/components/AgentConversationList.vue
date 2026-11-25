@@ -37,7 +37,7 @@
       <DropdownItem
         value="visitors"
         :name="$t('agent.visitors')"
-        icon="iconoir-user"
+        icon="iconoir-multi-bubble"
       />
       <DropdownItem
         value="private"
@@ -351,7 +351,7 @@ const itemButtons = {}
 let renameOriginal = ''
 
 function conversationIcon(item) {
-  if (item.started_by_channel) return 'iconoir-user'
+  if (item.started_by_channel) return 'iconoir-multi-bubble'
   return (
     serviceTypeOf($registry, item.trigger_type)?.icon || 'iconoir-chat-bubble'
   )

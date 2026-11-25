@@ -365,7 +365,7 @@ describe('Agent conversation list', () => {
     })
 
     expect(wrapper.get('.agent-conversations__item .icon').classes()).toContain(
-      'iconoir-user'
+      'iconoir-multi-bubble'
     )
     expect(wrapper.get('.agent-conversations__detail').text()).toBe(
       'agent.startedByVisitor'
