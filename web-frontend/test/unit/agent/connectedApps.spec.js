@@ -351,6 +351,13 @@ describe('Agent connected apps', () => {
     await flushPromises()
 
     await openTools(wrapper)
+
+    // The description shows without opening anything.
+    expect(buttonInBody('agent.toolDescription')).toBeUndefined()
+    expect(
+      inBody('.modal__box .agent-mcp-tools__description')[0].textContent
+    ).toContain('search description')
+    expect(inBody('.modal__box .agent-mcp-tools__parameter')).toHaveLength(0)
     buttonInBody('agent.connectedAppToolParameters').click()
     await flushPromises()
 
@@ -383,11 +390,64 @@ describe('Agent connected apps', () => {
     await flushPromises()
 
     await openTools(wrapper)
+    // The full schema sits inside the parameters.
+    expect(buttonInBody('agent.connectedAppToolSchema')).toBeUndefined()
+    buttonInBody('agent.connectedAppToolParameters').click()
+    await flushPromises()
     buttonInBody('agent.connectedAppToolSchema').click()
     await flushPromises()
 
     const schema = inBody('.modal__box .agent-mcp-tools__schema')
     expect(JSON.parse(schema[0].textContent)).toEqual(update.input_schema)
+  })
+
+  test('a schema without top-level parameters can still be opened', async () => {
+    const raw = tool('raw', {
+      input_schema: { type: 'object', additionalProperties: true },
+    })
+    testApp.mock
+      .onGet(/application\/10\/integrations/)
+      .reply(200, [server({ tools: [raw] })])
+    const wrapper = await mountSection()
+    await flushPromises()
+
+    await openTools(wrapper)
+    expect(buttonInBody('agent.connectedAppToolParameters')).toBeUndefined()
+    buttonInBody('agent.connectedAppToolSchema').click()
+    await flushPromises()
+
+    expect(
+      JSON.parse(inBody('.modal__box .agent-mcp-tools__schema')[0].textContent)
+    ).toEqual(raw.input_schema)
+  })
+
+  test('the footer counts the tools that are on', async () => {
+    testApp.mock.onGet(/application\/10\/integrations/).reply(200, [
+      server({
+        tools: [
+          tool('search', { enabled: true }),
+          tool('delete'),
+          tool('gone', { removed: true }),
+        ],
+      }),
+    ])
+    const wrapper = await mountSection()
+    await flushPromises()
+
+    await openTools(wrapper)
+    const count = () =>
+      [
+        ...document.body.querySelectorAll(
+          '.modal__box .agent-mcp-tools__count strong'
+        ),
+      ]
+        .map((part) => part.textContent)
+        .join(' / ')
+    // A removed tool can't be turned on, so it isn't counted.
+    expect(count()).toBe('1 / 2')
+    inBody('.agent-mcp-tools__tool')[1].querySelector('.checkbox').click()
+    await flushPromises()
+    expect(count()).toBe('2 / 2')
   })
 
   test("another editor's change shows without a reload", async () => {
