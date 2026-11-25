@@ -20,6 +20,23 @@ export async function createAgent(
   return new Agent(response.data.id, response.data.name, workspace);
 }
 
+/** An agent answered by the E2E model stub at `E2E_AGENT_MODEL_HOST`. */
+export async function createSupportAgent(workspace: Workspace): Promise<Agent> {
+  const client = getClient(workspace.user);
+  await client.post(`ai-providers/?workspace_id=${workspace.id}`, {
+    provider_type: "ollama",
+    extra_settings: { host: process.env.E2E_AGENT_MODEL_HOST },
+    models: [{ model_identifier: "kuma-e2e", feature_types: ["ai_agent"] }],
+  });
+  const agent = await createAgent("Customer support", workspace);
+  await client.patch(`agent/${agent.id}/configuration/`, {
+    instructions: "Help customers with support requests.",
+    provider_type: "ollama",
+    model_identifier: "kuma-e2e",
+  });
+  return agent;
+}
+
 export async function listAgentTriggers(agent: Agent): Promise<any[]> {
   const response: any = await getClient(agent.workspace.user).get(
     `agent/${agent.id}/triggers/`

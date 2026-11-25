@@ -6,11 +6,16 @@ export class LocalBaserowSemanticSearchToolPresentationType extends ActionToolPr
     return 'local_baserow_semantic_search'
   }
 
+  get offeredInSetup() {
+    return true
+  }
+
   get fieldLabels() {
     return {
       table: 'localBaserowTableSelector.tableFieldLabel',
       search_query: 'localBaserowSemanticSearchForm.searchQuery',
       max_results: 'localBaserowSemanticSearchForm.maxResults',
+      inputs: 'agent.actionInputs',
       table_id: 'localBaserowTableSelector.tableFieldLabel',
       search_field_ids: 'localBaserowSemanticSearchForm.fields',
       filters: 'agentSemanticSearch.filters',

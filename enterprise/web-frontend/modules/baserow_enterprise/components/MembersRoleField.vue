@@ -23,6 +23,12 @@
       @update-role="roleUpdate($event)"
     ></EditRoleContext>
     <HelpIcon
+      v-if="teamRoleText"
+      class="members-role-field__team-role"
+      icon="iconoir-community"
+      :tooltip="teamRoleText"
+    />
+    <HelpIcon
       v-if="roleUidSelected === 'NO_ACCESS'"
       :tooltip="$t('membersRoleField.noAccessHelpText')"
     />
@@ -85,6 +91,34 @@ export default {
     },
     roleUidSelected() {
       return this.row[this.column.key]
+    },
+    /**
+     * A member with "No role" takes their workspace role from their teams. Tells
+     * which role that is and the teams it comes through, as far as the user may
+     * see them.
+     */
+    teamRoleText() {
+      const teamRole = this.row.team_workspace_role
+      if (this.row.role_uid !== 'NO_ROLE_LOW_PRIORITY' || !teamRole) {
+        return ''
+      }
+      const role =
+        this.workspace?._.roles.find((role) => role.uid === teamRole.role_uid)
+          ?.name || teamRole.role_uid
+      const teams = teamRole.teams.map((team) => team.name)
+      if (teams.length === 0) {
+        return this.$t('membersRoleField.teamRoleHiddenTeams', { role })
+      }
+      return this.$t(
+        'membersRoleField.teamRole',
+        {
+          role,
+          teams: new Intl.ListFormat(this.$i18n.locale, {
+            type: 'conjunction',
+          }).format(teams),
+        },
+        teams.length
+      )
     },
     ...mapGetters({ userId: 'auth/getUserId' }),
   },

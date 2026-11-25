@@ -94,7 +94,7 @@ class BoundActionTool:
         action.service = action.service.specific
         return cls(
             action,
-            agent_action_type_registry.get(action.service.get_type().type),
+            agent_action_type_registry.get(action.get_type_name()),
             get_approval_key(action),
         )
 
@@ -281,7 +281,7 @@ class BoundActionTool:
                         )
                     )
                 result = self.action_type.dispatch(
-                    self.action, resolved_values, self._get_identity(ctx)
+                    self.action, resolved_values, self._get_identity(ctx), arguments
                 )
                 return ToolReturn(
                     return_value=self.action_type.get_tool_result(self.action, result)

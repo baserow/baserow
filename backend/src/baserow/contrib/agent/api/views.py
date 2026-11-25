@@ -38,11 +38,14 @@ from baserow.contrib.agent.actions import (
 )
 from baserow.contrib.agent.exceptions import (
     AgentConversationDoesNotExist,
+    AgentConversationIsExample,
     AgentConversationWaitingForApproval,
     AgentMessageConflict,
     AgentNotReady,
     AgentRunAsSubjectDoesNotExist,
     AgentToolApprovalNotPending,
+    AgentToolDecisionInvalid,
+    AgentToolRequirementsMissing,
 )
 from baserow.contrib.agent.handler import AgentHandler
 from baserow.contrib.agent.models import AgentApplication, AgentConversation
@@ -62,11 +65,14 @@ from baserow.core.service import CoreService
 from .errors import (
     ERROR_AGENT_BUSY,
     ERROR_AGENT_CONVERSATION_DOES_NOT_EXIST,
+    ERROR_AGENT_CONVERSATION_IS_EXAMPLE,
     ERROR_AGENT_CONVERSATION_WAITING_FOR_APPROVAL,
     ERROR_AGENT_MESSAGE_CONFLICT,
     ERROR_AGENT_NOT_READY,
     ERROR_AGENT_RUN_AS_SUBJECT_DOES_NOT_EXIST,
     ERROR_AGENT_TOOL_APPROVAL_NOT_PENDING,
+    ERROR_AGENT_TOOL_DECISION_INVALID,
+    ERROR_AGENT_TOOL_REQUIREMENTS_MISSING,
 )
 from .serializers import (
     AgentConfigurationSerializer,
@@ -104,7 +110,10 @@ AGENT_EXCEPTIONS = {
     AgentMessageConflict: ERROR_AGENT_MESSAGE_CONFLICT,
     AgentRunAsSubjectDoesNotExist: ERROR_AGENT_RUN_AS_SUBJECT_DOES_NOT_EXIST,
     AgentConversationWaitingForApproval: ERROR_AGENT_CONVERSATION_WAITING_FOR_APPROVAL,
+    AgentConversationIsExample: ERROR_AGENT_CONVERSATION_IS_EXAMPLE,
     AgentToolApprovalNotPending: ERROR_AGENT_TOOL_APPROVAL_NOT_PENDING,
+    AgentToolDecisionInvalid: ERROR_AGENT_TOOL_DECISION_INVALID,
+    AgentToolRequirementsMissing: ERROR_AGENT_TOOL_REQUIREMENTS_MISSING,
     ChatRunAlreadyActive: ERROR_CHAT_RUN_IN_PROGRESS,
     ChatRunLimitReached: ERROR_AGENT_BUSY,
 }
@@ -130,12 +139,20 @@ MESSAGE_WRITE_ERRORS = {
         [
             "ERROR_AGENT_MESSAGE_CONFLICT",
             "ERROR_AGENT_CONVERSATION_WAITING_FOR_APPROVAL",
+            "ERROR_AGENT_CONVERSATION_IS_EXAMPLE",
             "ERROR_CHAT_RUN_IN_PROGRESS",
         ]
     ),
 }
 APPROVAL_WRITE_ERRORS = {
     **CONVERSATION_WRITE_ERRORS,
+    400: get_error_schema(
+        [
+            "ERROR_REQUEST_BODY_VALIDATION",
+            "ERROR_AGENT_NOT_READY",
+            "ERROR_AGENT_TOOL_DECISION_INVALID",
+        ]
+    ),
     409: get_error_schema(["ERROR_AGENT_TOOL_APPROVAL_NOT_PENDING"]),
 }
 
@@ -240,14 +257,21 @@ class AgentApplicationView(APIView):
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
-class AgentConfigurationView(RealtimeRecoveryPrimaryReadMixin, APIView):
+class TemplatePreviewReadMixin:
+    """
+    Lets a signed out visitor read, so that a template preview works without an
+    account. The permission check of each view still only allows it on templates.
+    """
+
     def get_permissions(self):
-        # A template preview reads the setup, also for a signed out visitor. The
-        # permission check still only allows it on templates.
-        if self.request.method == "GET":
+        if self.request.method in ("GET", "HEAD"):
             return [AllowAny()]
         return super().get_permissions()
 
+
+class AgentConfigurationView(
+    TemplatePreviewReadMixin, RealtimeRecoveryPrimaryReadMixin, APIView
+):
     @extend_schema(
         parameters=[AGENT_ID_PATH_PARAMETER],
         tags=["Agent applications"],
@@ -282,6 +306,7 @@ class AgentConfigurationView(RealtimeRecoveryPrimaryReadMixin, APIView):
                 [
                     "ERROR_REQUEST_BODY_VALIDATION",
                     "ERROR_AGENT_RUN_AS_SUBJECT_DOES_NOT_EXIST",
+                    "ERROR_AGENT_TOOL_REQUIREMENTS_MISSING",
                 ]
             ),
         },
@@ -363,7 +388,9 @@ class AgentToolsView(APIView):
         return Response(AgentToolSerializer(tools, many=True).data)
 
 
-class AgentConversationsView(RealtimeRecoveryPrimaryReadMixin, APIView):
+class AgentConversationsView(
+    TemplatePreviewReadMixin, RealtimeRecoveryPrimaryReadMixin, APIView
+):
     @extend_schema(
         tags=["Agent applications"],
         operation_id="list_agent_conversations",
@@ -371,7 +398,8 @@ class AgentConversationsView(RealtimeRecoveryPrimaryReadMixin, APIView):
             "Lists the private conversations with the agent the authenticated user "
             "takes part in and the shared ones, pinned first, then most recently "
             "active within each group. Each includes its number of tool calls "
-            "waiting for a decision."
+            "waiting for a decision. In a template only its example conversations "
+            "are listed, also without signing in."
         ),
         parameters=[
             AGENT_ID_PATH_PARAMETER,
@@ -662,13 +690,17 @@ class LeaveAgentConversationView(APIView):
         return Response(LeaveAgentConversationSerializer(conversation).data)
 
 
-class AgentMessagesView(RealtimeRecoveryPrimaryReadMixin, APIView):
+class AgentMessagesView(
+    TemplatePreviewReadMixin, RealtimeRecoveryPrimaryReadMixin, APIView
+):
     @extend_schema(
         tags=["Agent applications"],
         operation_id="list_agent_messages",
         description=(
             "Lists the messages of one of the authenticated user's conversations, "
-            "newest page first, each page in chronological order."
+            "newest page first, each page in chronological order. The messages of "
+            "an example conversation of a template can be listed without signing "
+            "in."
         ),
         parameters=[
             AGENT_ID_PATH_PARAMETER,

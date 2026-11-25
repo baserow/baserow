@@ -2,6 +2,10 @@ import { ERROR_CHAT_RUN_IN_PROGRESS } from '@baserow/modules/core/chatRuns/const
 
 export const AGENT_APPLICATION_TYPE = 'agent'
 
+/** The built-in tool a triggered run calls to ask a person a question. */
+export const ASK_PERSON_TOOL = 'ask_person'
+export const ASK_PERSON_ANSWER_MAX_LENGTH = 10000
+
 export const AGENT_READINESS = Object.freeze({
   INCOMPLETE: 'incomplete',
   UNAVAILABLE: 'unavailable',
@@ -23,6 +27,7 @@ export const CONFIGURATION_FIELD = Object.freeze({
   ALLOWED_TOOLS: 'allowed_tools',
   ASK_FIRST_TOOLS: 'ask_first_tools',
   PENDING_TOOLS: 'pending_tools',
+  PENDING_ASK_FIRST_TOOLS: 'pending_ask_first_tools',
   AVAILABLE_TOOLS: 'available_tools',
   WEB_SEARCH_ENABLED: 'web_search_enabled',
   WEB_SEARCH_AVAILABLE: 'web_search_available',
@@ -144,6 +149,31 @@ export const RUN_AS_STATUS = Object.freeze({
   TRASHED: 'trashed',
   MISSING: 'missing',
 })
+
+export const CONFIGURATION_SECTION_GROUP = Object.freeze({
+  ESSENTIALS: 'essentials',
+  START: 'start',
+  CAPABILITIES: 'capabilities',
+})
+
+/** The groups of the configuration sidebar, in the order they are shown. */
+export const CONFIGURATION_SECTION_GROUPS = Object.freeze([
+  {
+    type: CONFIGURATION_SECTION_GROUP.ESSENTIALS,
+    name: 'agent.groupEssentials',
+    optional: false,
+  },
+  {
+    type: CONFIGURATION_SECTION_GROUP.START,
+    name: 'agent.groupStart',
+    optional: true,
+  },
+  {
+    type: CONFIGURATION_SECTION_GROUP.CAPABILITIES,
+    name: 'agent.groupCapabilities',
+    optional: true,
+  },
+])
 
 /** The configuration section where the Agent's workspace identity is set. */
 export const WORKSPACE_ACCESS_SECTION = 'workspace_access'

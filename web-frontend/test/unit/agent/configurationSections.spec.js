@@ -94,22 +94,31 @@ describe('Agent configuration sections', () => {
       sections.map((section) => section.get('.menu-list__item-label').text())
     ).toEqual([
       'agent.instructions',
-      'Plugin settings',
-      'agent.whenItRuns',
-      'agent.workspaceAccess',
+      'agent.agentSettings',
+      'agent.triggers',
       'agentPermissions.section',
+      'Plugin settings',
+      'agent.workspaceAccess',
       'agent.actions',
       'agent.connectedApps',
-      'agent.agentSettings',
     ])
-    expect(sections[1].get('.icon--error').attributes('aria-label')).toBe(
+    expect(
+      wrapper
+        .findAll('.agent-configuration__group-title')
+        .map((title) => title.text())
+    ).toEqual([
+      'agent.groupEssentials',
+      'agent.groupStart',
+      'agent.groupCapabilities',
+    ])
+    expect(sections[4].get('.icon--error').attributes('aria-label')).toBe(
       'agent.fieldError'
     )
     expect(
       sections.every((section) => section.attributes('type') === 'button')
     ).toBe(true)
 
-    await sections[1].trigger('click')
+    await sections[4].trigger('click')
     expect(wrapper.get('h2').text()).toBe('Plugin settings')
     const input = wrapper.get('input[aria-label="Plugin option"]')
     expect(input.element.value).toBe('Existing value')
@@ -131,6 +140,29 @@ describe('Agent configuration sections', () => {
     expect(wrapper.emitted('close')).toHaveLength(1)
   })
 
+  test('lists a section of an unknown group in the last group', async () => {
+    class UnknownGroupSectionType extends PluginConfigurationSectionType {
+      get group() {
+        return 'unknown'
+      }
+    }
+    testApp
+      .getRegistry()
+      .register(
+        'agentConfigurationSection',
+        new UnknownGroupSectionType({ app: testApp.getApp() })
+      )
+    const wrapper = await mountSidebar()
+
+    expect(
+      wrapper
+        .findAll('.agent-configuration__group')
+        .at(-1)
+        .findAll('.menu-list__item-label')
+        .map((label) => label.text())
+    ).toContain('Plugin settings')
+  })
+
   test('shows the section layout as a skeleton while loading', async () => {
     const wrapper = await mountSidebar({ loading: true })
 
@@ -139,7 +171,8 @@ describe('Agent configuration sections', () => {
     expect(wrapper.findAll('.agent-configuration__skeleton-row')).toHaveLength(
       7
     )
-    expect(wrapper.findAll('.skeleton-block')).toHaveLength(21)
+    expect(wrapper.findAll('.agent-configuration__group')).toHaveLength(3)
+    expect(wrapper.findAll('.skeleton-block')).toHaveLength(24)
     expect(wrapper.find('.menu-list__item-button').exists()).toBe(false)
   })
 })

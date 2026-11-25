@@ -244,7 +244,9 @@ export function setupActionTypes(registry, workspace) {
   return registry
     .getOrderedList('toolPresentation')
     .filter(
-      (presentation) => presentation instanceof ActionToolPresentationType
+      (presentation) =>
+        presentation instanceof ActionToolPresentationType &&
+        presentation.offeredInSetup
     )
     .map((presentation) => serviceTypeOf(registry, presentation.getType()))
     .filter(

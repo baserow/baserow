@@ -204,6 +204,14 @@ def test_tool_names_and_whether_they_change_data_stay_the_same():
     assert list(ToolErrorCode) == PRESENTATION_CONTRACT["step_error_codes"]
 
 
+def test_tools_require_only_registered_read_tools():
+    """The Read only choice allows every read tool, so it must stay complete."""
+
+    for tool_type in agent_tool_type_registry.get_all():
+        for name in tool_type.requires:
+            assert not agent_tool_type_registry.get(name).changes_data
+
+
 @pytest.mark.parametrize("name", PRESENTATIONS)
 def test_tool_presentation_contract_uses_valid_arguments_and_safe_summaries(name):
     case = PRESENTATIONS[name]
@@ -1143,6 +1151,7 @@ def test_workspace_tools_endpoint_lists_the_registered_tools(
             "name": tool.type,
             "group": tool.group,
             "changes_data": tool.changes_data,
+            "requires": list(tool.requires),
             "deactivated": tool.is_deactivated(agent.workspace),
         }
         for tool in agent_tool_type_registry.get_all()
@@ -1151,6 +1160,7 @@ def test_workspace_tools_endpoint_lists_the_registered_tools(
         "name": "list_views",
         "group": "database",
         "changes_data": False,
+        "requires": ["list_tables"],
         "deactivated": True,
     } in response.json()
     configuration = api_client.get(agent_url(agent, "configuration")).json()

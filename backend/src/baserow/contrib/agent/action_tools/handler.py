@@ -11,13 +11,13 @@ from django.db.models import QuerySet
 from pydantic_ai import WebSearchTool
 from rest_framework.exceptions import ValidationError
 
+from baserow.contrib.agent.constants import ASK_PERSON_TOOL_NAME, WEB_FETCH_TOOL_NAME
 from baserow.contrib.agent.models import AgentAction, AgentApplication
 from baserow.contrib.agent.registries import agent_tool_type_registry
 from baserow.core.integrations.handler import IntegrationHandler
 from baserow.core.registries import ImportExportConfig
 from baserow.core.services.handler import ServiceHandler
 from baserow.core.services.models import Service
-from baserow.core.services.registries import ServiceType
 from baserow.core.storage import ExportZipFile
 from baserow.core.trash.handler import TrashHandler
 from baserow.core.types import Subject
@@ -115,6 +115,17 @@ class AgentActionHandler:
             action_type.type for action_type in agent_action_type_registry.get_all()
         ]
 
+    def get_service_type_name(self, type_name: Any) -> Any:
+        """
+        :param type_name: The name a request gives for an action type.
+        :return: The name of the type's service type, or the given name when it
+            isn't an action type, which creating the action then refuses.
+        """
+
+        if type_name in self.available_action_types():
+            return agent_action_type_registry.get(type_name).service_type.type
+        return type_name
+
     def check_type_usable(self, agent: AgentApplication, type_name: str) -> None:
         """
         :param agent: The Agent.
@@ -155,7 +166,7 @@ class AgentActionHandler:
         :return: An error code by field, empty when the action can be called.
         """
 
-        action_type = agent_action_type_registry.get(action.service.get_type().type)
+        action_type = agent_action_type_registry.get(action.get_type_name())
         identity = (
             self.get_run_identity(action.agent)
             if action_type.acts_as_run_identity
@@ -189,7 +200,7 @@ class AgentActionHandler:
 
         actions_by_type = defaultdict(list)
         for action in actions:
-            actions_by_type[action.service.get_type().type].append(action)
+            actions_by_type[action.get_type_name()].append(action)
         action_types = [
             agent_action_type_registry.get(type_name) for type_name in actions_by_type
         ]
@@ -238,7 +249,12 @@ class AgentActionHandler:
         :return: The names of the tools Baserow itself offers to a reply.
         """
 
-        return {*agent_tool_type_registry.get_types(), WebSearchTool.kind}
+        return {
+            *agent_tool_type_registry.get_types(),
+            WebSearchTool.kind,
+            WEB_FETCH_TOOL_NAME,
+            ASK_PERSON_TOOL_NAME,
+        }
 
     def unique_name(
         self, agent: AgentApplication, name: str, excluding_id: int | None = None
@@ -283,13 +299,13 @@ class AgentActionHandler:
     def create_action(
         self,
         agent: AgentApplication,
-        service_type: ServiceType,
+        type_name: str,
         prepared_service_values: dict[str, Any],
         **values: Any,
     ) -> AgentAction:
         """
         :param agent: The Agent, locked.
-        :param service_type: The type of the action's service.
+        :param type_name: The name of the action's type.
         :param prepared_service_values: The service values, prepared by its type.
         :param values: The action's validated editable fields.
         :return: The new action with its service.
@@ -300,9 +316,12 @@ class AgentActionHandler:
         self.check_limit(agent)
         self.check_name_available(agent, values["name"])
         service = ServiceHandler().create_service(
-            service_type, **prepared_service_values
+            agent_action_type_registry.get(type_name).service_type,
+            **prepared_service_values,
         )
-        return AgentAction.objects.create(agent=agent, service=service, **values)
+        return AgentAction.objects.create(
+            agent=agent, service=service, type=type_name, **values
+        )
 
     def update_action(
         self,
@@ -365,6 +384,7 @@ class AgentActionHandler:
         return [
             {
                 "id": action.id,
+                "type": action.get_type_name(),
                 **{field: getattr(action, field) for field in self.editable_fields},
                 "service": ServiceHandler().export_service(
                     action.service,
@@ -406,7 +426,9 @@ class AgentActionHandler:
         copied = []
         for serialized in serialized_actions:
             service_values = serialized["service"]
-            if service_values["type"] not in agent_action_type_registry.get_types():
+            # An export made before a type had a name of its own has none.
+            type_name = serialized.get("type", service_values["type"])
+            if type_name not in agent_action_type_registry.get_types():
                 continue
             values = {
                 field: serialized[field]
@@ -425,9 +447,7 @@ class AgentActionHandler:
             )
             integration = (
                 None
-                if agent_action_type_registry.get(
-                    service_values["type"]
-                ).acts_as_run_identity
+                if agent_action_type_registry.get(type_name).acts_as_run_identity
                 else IntegrationHandler().get_integration_for_import(
                     service_values.get("integration_id"),
                     id_mapping,
@@ -443,7 +463,9 @@ class AgentActionHandler:
                 storage=storage,
                 import_export_config=import_export_config,
             )
-            action = AgentAction.objects.create(agent=agent, service=service, **values)
+            action = AgentAction.objects.create(
+                agent=agent, service=service, type=type_name, **values
+            )
             action_ids[serialized["id"]] = action.id
             copied.append(action)
         return copied

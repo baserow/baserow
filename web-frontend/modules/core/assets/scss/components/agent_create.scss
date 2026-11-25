@@ -1,50 +1,3 @@
-.agent-create {
-  display: flex;
-  flex-direction: column;
-  max-height: calc(100vh - 80px);
-}
-
-.agent-create__head {
-  display: flex;
-  flex-shrink: 0;
-  align-items: center;
-  gap: 8px;
-  padding: 16px 48px 16px 20px;
-  border-bottom: 1px solid $palette-neutral-200;
-}
-
-.agent-create__title {
-  margin: 0;
-  font-size: 14px;
-  line-height: 20px;
-  font-weight: 600;
-  color: $palette-neutral-1200;
-}
-
-.agent-create__body {
-  flex: 1;
-  min-height: 0;
-  padding: 20px;
-  overflow-y: auto;
-}
-
-.agent-create__foot {
-  display: flex;
-  flex-shrink: 0;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 8px;
-  padding: 16px 20px;
-  border-top: 1px solid $palette-neutral-200;
-}
-
-.agent-create__note {
-  flex: 1;
-  font-size: 12px;
-  line-height: 18px;
-  color: $palette-neutral-700;
-}
-
 .agent-create__suggestions {
   display: flex;
   flex-wrap: wrap;
@@ -137,7 +90,6 @@
 
 .agent-create__role {
   flex-shrink: 0;
-  margin-left: auto;
 }
 
 .agent-create__extras {

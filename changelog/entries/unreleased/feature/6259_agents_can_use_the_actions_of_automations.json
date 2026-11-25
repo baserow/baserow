@@ -1,0 +1,9 @@
+{
+    "type": "feature",
+    "message": "Agents can use the row and Slack actions and the email trigger of automations.",
+    "issue_origin": "github",
+    "issue_number": 6259,
+    "domain": "core",
+    "bullet_points": [],
+    "created_at": "2026-11-25"
+}

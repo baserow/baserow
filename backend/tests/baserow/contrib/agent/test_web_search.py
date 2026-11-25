@@ -26,6 +26,7 @@ from baserow.contrib.agent.actions import (
 )
 from baserow.contrib.agent.application_types import AgentApplicationType
 from baserow.contrib.agent.constants import (
+    ASK_PERSON_TOOL_NAME,
     TOOL_RETRIES,
     WEB_FETCH_INSTRUCTIONS,
     WEB_FETCH_MAX_PER_REPLY,
@@ -52,6 +53,7 @@ from baserow.core.handler import CoreHandler
 from baserow.core.identities.handler import IdentityHandler
 from baserow.core.registries import ImportExportConfig
 
+from .test_ask_person import trigger_reply
 from .utils import agent_url, run_reply
 
 CALL = NativeToolCallPart(
@@ -426,6 +428,35 @@ def test_mcp_tools_block_search_like_workspace_tools(
     assert configuration.web_search_blocked_by_tools is True
     assert answer(user, agent).status == "completed"
     assert seen[0] == []
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("may_ask_person", [True, False])
+def test_a_question_blocks_search_like_workspace_tools(
+    mocker, data_fixture, configured_agent, may_ask_person
+):
+    user = data_fixture.create_user()
+    agent = agent_with_tools(configured_agent, user, "google", "gemini-2.5-flash")
+    AgentHandler().update_configuration(agent, allowed_tools=[])
+    seen = []
+
+    async def stream(messages, info):
+        seen.append(
+            (
+                info.model_request_parameters.native_tools,
+                [tool.name for tool in info.function_tools],
+            )
+        )
+        yield "ok"
+
+    use_stream(mocker, stream)
+
+    reply = trigger_reply(data_fixture, agent, may_ask_person=may_ask_person)
+
+    assert reply.status == "completed"
+    native_tools, function_tools = seen[0]
+    assert bool(native_tools) is not may_ask_person
+    assert function_tools == ([ASK_PERSON_TOOL_NAME] if may_ask_person else [])
 
 
 @pytest.mark.django_db

@@ -81,7 +81,7 @@ describe('Agent configuration', () => {
   test('hosts a trigger form without nesting it in another form', async () => {
     testApp.mock.onGet('/agent/10/triggers/').reply(200, [periodicTrigger()])
     const wrapper = await mount()
-    await openSection(wrapper, 'agent.whenItRuns')
+    await openSection(wrapper, 'agent.triggers')
     await flushPromises()
 
     expect(wrapper.find('.agent-trigger-card form').exists()).toBe(true)
@@ -1675,6 +1675,101 @@ describe('Agent configuration', () => {
     ])
   })
 
+  describe('tools that require others', () => {
+    const withRequirements = (allowedTools, askFirstTools = []) =>
+      completeConfiguration({
+        run_as: investor,
+        allowed_tools: allowedTools,
+        ask_first_tools: askFirstTools,
+        available_tools: [
+          ['list_tables', false, []],
+          ['get_table_schema', false, ['list_tables']],
+          ['list_table_rows', false, ['list_tables']],
+          ['create_rows', true, ['get_table_schema']],
+        ].map(([name, changesData, requires]) => ({
+          name,
+          group: 'database',
+          changes_data: changesData,
+          requires,
+        })),
+      })
+    const allowState = (tool) => {
+      const input = toolInput(tool, 'allow')
+      return [input.checked, input.disabled]
+    }
+    const selectAll = (kind) =>
+      inModal('.agent-tool-permissions__list', kind).querySelector(
+        '.agent-tool-permissions__select-all'
+      )
+    const openPermissions = async (configuration) => {
+      mockConfiguration(testApp, configuration)
+      mockSaves(testApp, configuration)
+      const wrapper = await mount()
+      await openSection(wrapper, 'agent.workspaceAccess')
+      await wrapper.get('.agent-workspace-tools__group').trigger('click')
+      await flushPromises()
+    }
+
+    test('allows and locks what a tool requires until nothing requires it', async () => {
+      // Saved before tools required others.
+      await openPermissions(withRequirements(['create_rows'], ['create_rows']))
+
+      expect(allowState('agent.toolListTables')).toEqual([true, true])
+      expect(allowState('agent.toolGetTableSchema')).toEqual([true, true])
+      expect(allowState('agent.toolListTableRows')).toEqual([false, false])
+      expect(
+        toolInput('agent.toolGetTableSchema', 'allow').labels[0].textContent
+      ).toContain('agent.toolRequiredBy')
+
+      toolInput('agent.toolCreateRows', 'allow').click()
+      await flushPromises()
+      expect(allowState('agent.toolGetTableSchema')).toEqual([true, false])
+      expect(allowState('agent.toolListTables')).toEqual([true, true])
+
+      toolInput('agent.toolCreateRows', 'allow').click()
+      clickDone()
+      await flushPromises()
+      expect(savedValues(testApp)).toEqual([
+        {
+          allowed_tools: ['list_tables', 'get_table_schema', 'create_rows'],
+          ask_first_tools: ['create_rows'],
+        },
+      ])
+    })
+
+    test('selects and deselects a whole section, keeping required tools', async () => {
+      await openPermissions(withRequirements(['list_tables']))
+
+      selectAll('agent.toolsChanges').click()
+      await flushPromises()
+      expect(allowState('agent.toolCreateRows')).toEqual([true, false])
+      expect(allowState('agent.toolGetTableSchema')).toEqual([true, true])
+      expect(allowState('agent.toolListTableRows')).toEqual([false, false])
+      expect(selectAll('agent.toolsReads').textContent.trim()).toBe(
+        'agent.selectAllTools'
+      )
+
+      selectAll('agent.toolsReads').click()
+      await flushPromises()
+      expect(allowState('agent.toolListTableRows')).toEqual([true, false])
+      expect(selectAll('agent.toolsReads').textContent.trim()).toBe(
+        'agent.deselectAllTools'
+      )
+
+      selectAll('agent.toolsReads').click()
+      await flushPromises()
+      expect(allowState('agent.toolListTableRows')).toEqual([false, false])
+      clickDone()
+      await flushPromises()
+      expect(savedValues(testApp)).toEqual([
+        {
+          allowed_tools: ['list_tables', 'get_table_schema', 'create_rows'],
+          ask_first_tools: ['create_rows'],
+        },
+      ])
+    })
+  })
+
   test('keeps a pending tool choice whole when another member changes tools', async () => {
     testApp.dontFailOnErrorResponses()
     mockConfiguration(testApp, withTools(['list_tables']))
@@ -1986,12 +2081,12 @@ describe('Agent configuration', () => {
     const inputs = [...modalInputs('allow'), ...modalInputs('ask-first')]
     expect(inputs).toHaveLength(6)
     expect(inputs.every((input) => input.disabled)).toBe(true)
-    const done = inModal(
-      '.agent-tool-permissions__actions button',
-      'agent.toolsDone'
-    )
-    expect(done.disabled).toBe(true)
-    done.click()
+    // Only a way to close it is left.
+    expect(
+      [
+        ...document.querySelectorAll('.agent-tool-permissions__actions button'),
+      ].map((button) => button.textContent.trim())
+    ).toEqual(['agent.toolsClose'])
     expect(savedValues(testApp)).toEqual([])
   })
 

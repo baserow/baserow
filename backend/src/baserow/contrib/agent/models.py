@@ -5,6 +5,7 @@ from django.db.models import Q
 from baserow.contrib.agent.constants import (
     AGENT_TRIGGER_DEFAULT_BATCH_SIZE,
     AGENT_TRIGGER_NAME_MAX_LENGTH,
+    ASK_PERSON_TOOL_NAME,
 )
 from baserow.core.formula.field import FormulaField
 from baserow.core.mixins import (
@@ -79,6 +80,7 @@ class AgentAction(TrashableModelMixin, CreatedAndUpdatedOnMixin, models.Model):
     service = models.OneToOneField(
         Service, on_delete=models.CASCADE, related_name="agent_action"
     )
+    type = models.CharField(max_length=255, null=True)
     name = models.CharField(max_length=64)
     description = models.TextField(blank=True, default="")
     inputs = models.JSONField(default=list, blank=True)
@@ -95,6 +97,14 @@ class AgentAction(TrashableModelMixin, CreatedAndUpdatedOnMixin, models.Model):
                 name="agent_action_unique_live_name",
             )
         ]
+
+    def get_type_name(self) -> str:
+        """
+        :return: The name of the action's type, which is its service's type
+            unless several action types share that service type.
+        """
+
+        return self.type or self.service.get_type().type
 
 
 class AgentTrigger(TrashableModelMixin, CreatedAndUpdatedOnMixin, models.Model):
@@ -140,6 +150,7 @@ class AgentTrigger(TrashableModelMixin, CreatedAndUpdatedOnMixin, models.Model):
         default=AGENT_TRIGGER_DEFAULT_BATCH_SIZE,
         db_default=AGENT_TRIGGER_DEFAULT_BATCH_SIZE,
     )
+    may_ask_person = models.BooleanField(default=True, db_default=True)
     # A skip is shown while it is newer than the last accepted firing.
     last_fired_on = models.DateTimeField(null=True, blank=True)
     last_skipped_on = models.DateTimeField(null=True, blank=True)
@@ -194,6 +205,12 @@ class AgentConversation(
     )
     shared = models.BooleanField(default=False, db_default=False)
     started_by_trigger = models.BooleanField(default=False, db_default=False)
+    is_example = models.BooleanField(
+        default=False,
+        db_default=False,
+        help_text="Whether the conversation came with an import or a template as an "
+        "example. It belongs to nobody of this instance.",
+    )
     # Who sees a private conversation: its owner and whom they asked to approve.
     participants = models.ManyToManyField(
         settings.AUTH_USER_MODEL, related_name="participating_agent_conversations"
@@ -334,6 +351,7 @@ class AgentToolApproval(BigAutoFieldMixin, models.Model):
         db_default=Status.PENDING,
     )
     reason = models.TextField(blank=True, default="", db_default="")
+    answer = models.TextField(blank=True, default="", db_default="")
     decided_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         null=True,
@@ -342,6 +360,12 @@ class AgentToolApproval(BigAutoFieldMixin, models.Model):
     )
     decided_on = models.DateTimeField(null=True)
     created_on = models.DateTimeField(auto_now_add=True)
+
+    @property
+    def is_question(self) -> bool:
+        """Whether the held call is a question to a person."""
+
+        return self.tool_name == ASK_PERSON_TOOL_NAME
 
     class Meta:
         ordering = ("id",)

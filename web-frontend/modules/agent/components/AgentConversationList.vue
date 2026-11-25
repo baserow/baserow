@@ -1,6 +1,8 @@
 <template>
   <aside class="agent-conversations" :aria-busy="loading">
+    <!-- The examples of a template are all shared and never wait or fail. -->
     <Dropdown
+      v-if="!templatePreview"
       class="agent-conversations__filter"
       :model-value="filter"
       :show-search="false"
@@ -35,7 +37,7 @@
       <DropdownItem
         value="private"
         :name="$t('agent.private')"
-        icon="iconoir-lock"
+        icon="iconoir-user"
       />
       <DropdownItem
         value="shared"
@@ -149,7 +151,7 @@
                     role="img"
                     :aria-label="$t('agent.privateConversation')"
                     :title="$t('agent.privateConversation')"
-                    ><i class="iconoir-lock" aria-hidden="true"></i
+                    ><i class="iconoir-user" aria-hidden="true"></i
                   ></span>
                 </span>
                 <span class="agent-conversations__meta">
@@ -284,7 +286,7 @@
 </template>
 
 <script setup>
-import { nextTick, ref, watch } from 'vue'
+import { inject, nextTick, ref, watch } from 'vue'
 import { useStore } from 'vuex'
 import Icon from '@baserow/modules/core/components/Icon'
 import Context from '@baserow/modules/core/components/Context'
@@ -328,6 +330,7 @@ const { $registry } = useNuxtApp()
 const { t } = useI18n()
 const store = useStore()
 const now = injectNow()
+const templatePreview = inject('agentTemplatePreview', false)
 
 const scroll = ref(null)
 const menu = ref(null)
@@ -357,7 +360,11 @@ function startedBy(item) {
       t('agent.startedByTrigger')
     )
   }
-  if (!item.owner) return item.shared ? t('agent.deletedSender') : ''
+  if (!item.owner) {
+    // An example came with an import or a template, so it never had an owner.
+    if (item.is_example) return t('agent.exampleConversation')
+    return item.shared ? t('agent.deletedSender') : ''
+  }
   return item.owner.id === store.getters['auth/getUserId']
     ? t('agent.you')
     : item.owner.name
@@ -459,8 +466,16 @@ async function cancelRename(item) {
 
 function togglePin() {
   const item = menuItem.value
+  // Pinning a shared conversation is what makes it an example of exports.
+  const makesExample = !item.pinned && item.shared && !item.is_example
   menu.value.hide()
   emit('update', item, { pinned: !item.pinned })
+  if (makesExample) {
+    store.dispatch('toast/info', {
+      title: t('agent.pinnedSharedTitle'),
+      message: t('agent.pinnedSharedMessage'),
+    })
+  }
 }
 
 function share() {

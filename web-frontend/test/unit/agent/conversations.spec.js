@@ -813,6 +813,50 @@ describe('Agent conversations', () => {
     })
   })
 
+  test('keeps an example conversation read-only', async () => {
+    mockConversations(
+      testApp,
+      conversationsPage([
+        {
+          ...sharedConversation('example', 'Example chat'),
+          started_by_trigger: false,
+          pinned: true,
+          is_example: true,
+        },
+      ])
+    )
+    mockMessages(testApp, 'example', page([message('m', 'Hello', { id: 1 })]))
+    const wrapper = await mount()
+
+    await selectConversation(wrapper, 'Example chat')
+
+    expect(composerExists(wrapper)).toBe(false)
+    expect(wrapper.get('.agent-chat__shared').text()).toBe(
+      'agent.exampleNoMessages'
+    )
+  })
+
+  test('says that pinning a shared conversation makes it an example', async () => {
+    const own = conversation('a', 'A')
+    const shared = { ...conversation('b', 'B'), shared: true }
+    mockConversations(testApp, conversationsPage([own, shared]))
+    testApp.mock
+      .onPatch('/agent/10/conversations/a/')
+      .reply(200, { ...own, pinned: true })
+    testApp.mock
+      .onPatch('/agent/10/conversations/b/')
+      .reply(200, { ...shared, pinned: true })
+    const wrapper = await mount()
+
+    await chooseFromMenu(wrapper, 'A', 'agent.pin')
+    expect(testApp.store.state.toast.items).toHaveLength(0)
+    await chooseFromMenu(wrapper, 'B', 'agent.pin')
+
+    expect(testApp.store.state.toast.items.map(({ title }) => title)).toEqual([
+      'agent.pinnedSharedTitle',
+    ])
+  })
+
   test('lists a conversation pinned while switching to the Pinned filter', async () => {
     const a = conversation('a', 'A')
     const b = conversation('b', 'B')
@@ -958,6 +1002,10 @@ describe('Agent conversations', () => {
     expect(document.querySelector('.modal__box').textContent).toContain(
       'agent.shareConversationWarning'
     )
+    // Pinning it as well makes it an example of exports and templates.
+    expect(document.querySelector('.modal__box').textContent).toContain(
+      'agent.shareConversationExportNote'
+    )
     expect(testApp.mock.history.post).toHaveLength(0)
     modalButton('agent.share').click()
     await flushPromises()
@@ -1064,7 +1112,7 @@ describe('Agent conversations', () => {
       'agent.sharedNoMessages'
     )
     expect(wrapper.find('.agent-chat__shared .button').exists()).toBe(false)
-    expect(wrapper.find('.agent-chat .iconoir-lock').exists()).toBe(false)
+    expect(wrapper.find('.agent-audience').exists()).toBe(false)
     expect(wrapper.get('.agent-trigger-start__text').text()).toBe(
       'Trigger data'
     )

@@ -121,7 +121,7 @@ def test_a_configured_search_returns_the_best_match_first(data_fixture, search_s
 
 
 @pytest.mark.django_db
-def test_a_filter_can_only_hold_fixed_values(data_fixture, search_setup):
+def test_a_filter_can_read_the_inputs(data_fixture, search_setup):
     user, agent, table, fields, action = search_setup
     action = configure(data_fixture, user, agent, table, action)
     service_filter = data_fixture.create_local_baserow_table_service_filter(
@@ -139,9 +139,19 @@ def test_a_filter_can_only_hold_fixed_values(data_fixture, search_setup):
 
     service_filter.value = f"get('tool_input.{action.inputs[0]['id']}')"
     service_filter.save()
+    action = reload(action)
+    assert action_type.get_configuration_errors(action, identity_of(action)) == {}
+    arguments = {"query": "private"}
+    result = action_type.dispatch(
+        action, action_type.prepare(action, arguments), identity_of(action), arguments
+    )
+    assert [item["row"]["Category"] for item in result.data["results"]] == ["private"]
+
+    service_filter.value = "get('tool_input.removed')"
+    service_filter.save()
     assert action_type.get_configuration_errors(
         reload(action), identity_of(action)
-    ) == {"filters": "fixed_value"}
+    ) == {"filters": "invalid"}
 
 
 @pytest.mark.django_db

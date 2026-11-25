@@ -41,7 +41,7 @@ function isOlderApprovalSnapshot(current, incoming) {
 }
 
 /** Merge pages given oldest first in place, never undoing a reply's end. */
-function mergeMessages(...pages) {
+export function mergeMessages(...pages) {
   const merged = new Map()
   for (const message of pages.flat()) {
     const current = merged.get(message.uuid)
@@ -84,7 +84,7 @@ const CONVERSATION_CHANGED_ERRORS = [
 ]
 
 // Each list filter as conversation list query parameters, and as a local check.
-const CONVERSATION_FILTERS = {
+export const CONVERSATION_FILTERS = {
   all: { params: {}, matches: () => true },
   waiting: {
     params: { has_pending_approvals: true },
@@ -221,6 +221,8 @@ export function useAgentConversations(agent, configuration) {
   const canWriteSelected = computed(() => {
     const conversation = selectedConversation.value
     if (!conversation || !canReadConversations.value) return false
+    // An example stays as it came, so it carries nothing of this workspace out.
+    if (conversation.is_example) return false
     if (conversation.started_by_trigger) return canContinueTriggered.value
     return (
       canCreateMessage.value &&
@@ -1117,6 +1119,7 @@ export function useAgentConversations(agent, configuration) {
     canSend,
     pendingApprovalCount,
     waitingForApproval,
+    canApprove,
     canDecide,
     decidingReplies,
     newConversation,

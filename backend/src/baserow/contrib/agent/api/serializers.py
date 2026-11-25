@@ -6,6 +6,7 @@ from rest_framework import serializers
 from baserow.api.mixins import UnknownFieldRaisesExceptionSerializerMixin
 from baserow.api.pagination import KeysetCursorField, PageNumberPagination
 from baserow.contrib.agent.constants import (
+    ASK_PERSON_ANSWER_MAX_LENGTH,
     RUN_AS_SUBJECT_TYPES,
     AgentConfigurationErrorCode,
     AgentReadinessState,
@@ -99,6 +100,10 @@ class AgentToolSerializer(serializers.Serializer):
     name = serializers.CharField()
     group = serializers.CharField()
     changes_data = serializers.BooleanField()
+    requires = serializers.ListField(
+        child=serializers.CharField(),
+        help_text="The tools an Agent must be allowed to be allowed this one.",
+    )
     deactivated = serializers.BooleanField(
         help_text="Whether the Agent's workspace can't use the tool, for lack of a "
         "licence for example. A deactivated tool can't be allowed."
@@ -143,6 +148,10 @@ class AgentConfigurationSerializer(serializers.Serializer):
         child=serializers.CharField(),
         help_text="The tools an imported agent turns on when an identity is first "
         "selected without choosing tools.",
+    )
+    pending_ask_first_tools = serializers.ListField(
+        child=serializers.CharField(),
+        help_text="The pending tools that will require approval before they run.",
     )
     available_tools = serializers.SerializerMethodField(
         help_text="Every tool an agent can be allowed to call, with its group and "
@@ -365,6 +374,11 @@ class AgentConversationSerializer(serializers.ModelSerializer):
         help_text="Whether a trigger started this shared conversation, so only "
         "those who may continue triggered conversations send messages in it.",
     )
+    is_example = serializers.BooleanField(
+        read_only=True,
+        help_text="Whether the conversation came with an import or a template as an "
+        "example, so nobody of this instance started it or sent its messages.",
+    )
     participants = serializers.SerializerMethodField(
         help_text="Who sees this private conversation: its owner and the people "
         "asked to approve its tool calls. Empty when it's shared."
@@ -405,6 +419,7 @@ class AgentConversationSerializer(serializers.ModelSerializer):
             "is_test",
             "shared",
             "started_by_trigger",
+            "is_example",
             "owner",
             "participants",
             "trigger_id",
@@ -520,7 +535,7 @@ class AgentToolApprovalSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = AgentToolApproval
-        fields = ("id", "step_id", "pause", "tool", "status", "reason")
+        fields = ("id", "step_id", "pause", "tool", "status", "reason", "answer")
 
 
 class AgentPendingReplySerializer(serializers.ModelSerializer):
@@ -642,15 +657,23 @@ class AgentToolDecisionSerializer(
         allow_blank=True,
         max_length=AGENT_REJECTION_REASON_MAX_LENGTH,
         help_text="Why the call is rejected, passed on to the agent. Only accepted "
-        "with a rejection.",
+        "with a rejection, and refused when dismissing a question.",
+    )
+    answer = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        max_length=ASK_PERSON_ANSWER_MAX_LENGTH,
+        help_text="The answer to a held question, passed on to the agent. Needed to "
+        "answer a question; only accepted with `approved` true.",
     )
 
     def validate(self, values: dict) -> dict:
         """
-        Accept a reason only for a rejection.
+        Accept a reason only for a rejection, and an answer only for an approval.
 
         :param values: The validated fields.
-        :raises ValidationError: When an approval has a reason.
+        :raises ValidationError: When an approval has a reason or a rejection has an
+            answer.
         :return: The validated fields.
         """
 
@@ -658,6 +681,10 @@ class AgentToolDecisionSerializer(
         if values["approved"] and "reason" in values:
             raise serializers.ValidationError(
                 {"reason": "Only a rejection has a reason."}
+            )
+        if not values["approved"] and "answer" in values:
+            raise serializers.ValidationError(
+                {"answer": "Only an approval has an answer."}
             )
         return values
 

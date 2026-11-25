@@ -48,7 +48,7 @@ class AgentActionSerializer(serializers.ModelSerializer):
 
     @extend_schema_field(OpenApiTypes.STR)
     def get_type(self, instance: AgentAction) -> str:
-        return instance.service.get_type().type
+        return instance.get_type_name()
 
     @extend_schema_field(OpenApiTypes.OBJECT)
     def get_errors(self, instance: AgentAction) -> dict[str, str]:
@@ -63,7 +63,7 @@ class AgentActionTypeSerializer(serializers.Serializer):
     """An action type, as the agent's run identity sees it."""
 
     type = serializers.CharField(
-        help_text="The service type, one of the configuration's available_action_types."
+        help_text="The action type, one of the configuration's available_action_types."
     )
     form_choices = serializers.JSONField(
         allow_null=True,

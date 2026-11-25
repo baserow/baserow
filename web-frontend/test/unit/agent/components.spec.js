@@ -245,4 +245,17 @@ describe('Agent components', () => {
       'iconoir-flash'
     )
   })
+
+  test('names the sender of an example message', async () => {
+    const message = { uuid: 'm1', role: 'user', sender: null, content: 'Hello' }
+    const labels = []
+    for (const example of [false, true]) {
+      const wrapper = await testApp.mount(AgentMessage, {
+        props: { message, example },
+      })
+      labels.push(wrapper.get('.chat-message__sender').text())
+    }
+
+    expect(labels).toEqual(['agent.deletedSender', 'agent.exampleSender'])
+  })
 })

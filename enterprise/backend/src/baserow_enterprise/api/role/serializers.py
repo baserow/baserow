@@ -441,6 +441,18 @@ class EffectiveAccessTeamSerializer(serializers.ModelSerializer):
         fields = ("id", "name")
 
 
+class TeamWorkspaceRoleSerializer(serializers.Serializer):
+    role_uid = serializers.CharField(
+        help_text="The uid of the role the member effectively holds on the "
+        "workspace through their teams."
+    )
+    teams = EffectiveAccessTeamSerializer(
+        many=True,
+        help_text="The teams the role comes through, limited to the teams whose "
+        "members the requesting user may list.",
+    )
+
+
 class EffectiveAccessSerializer(serializers.Serializer):
     """
     Serializes an `EffectiveAccess`. The teams are limited to the ones whose

@@ -10,12 +10,11 @@ from baserow.core.handler import CoreHandler
 from baserow.core.integrations.operations import ReadIntegrationOperationType
 from baserow.core.operations import UpdateApplicationOperationType
 from baserow.core.services.models import Service
-from baserow.core.services.registries import ServiceType, service_type_registry
 
 from .exceptions import AgentActionTypeNotAvailable
 from .handler import AgentActionHandler, AgentActionTypeOptions, AgentActionUpdated
 from .inputs import validate_action_name, validate_inputs
-from .registries import agent_action_type_registry
+from .registries import AgentActionType, agent_action_type_registry
 from .signals import agent_action_created, agent_action_deleted, agent_action_updated
 
 WRITE_OPERATIONS = (
@@ -106,14 +105,14 @@ class AgentActionService:
         self,
         user: AbstractUser,
         agent: AgentApplication,
-        service_type: ServiceType,
+        action_type: AgentActionType,
         values: dict[str, Any],
         instance: Service | None = None,
     ) -> dict[str, Any]:
         """
         :param user: The user saving the action.
         :param agent: The Agent.
-        :param service_type: The type of the action's service.
+        :param action_type: The type of the action, whose service is saved.
         :param values: The service values to save.
         :param instance: The existing service, when it is updated.
         :return: The values prepared by the service type, whose integration
@@ -122,7 +121,8 @@ class AgentActionService:
         """
 
         values = dict(values)
-        if agent_action_type_registry.get(service_type.type).acts_as_run_identity:
+        service_type = action_type.service_type
+        if action_type.acts_as_run_identity:
             values.pop("integration_id", None)
         prepared = service_type.prepare_values(values, user, instance)
         integration = prepared.get(
@@ -144,7 +144,7 @@ class AgentActionService:
         self,
         user: AbstractUser,
         agent_id: int,
-        service_type_name: str,
+        type_name: str,
         service_values: dict[str, Any] | None = None,
         **values: Any,
     ) -> AgentAction:
@@ -154,7 +154,7 @@ class AgentActionService:
         :param user: The user adding the action, who must be able to edit the
             Agent.
         :param agent_id: The id of the Agent.
-        :param service_type_name: The service type the action is of.
+        :param type_name: The action type the action is of.
         :param service_values: Service values replacing the type's defaults.
         :param values: Editable fields replacing the type's defaults.
         :return: The new action.
@@ -163,8 +163,8 @@ class AgentActionService:
         agent = self.agent_service.get_authorized_agent(
             user, agent_id, *WRITE_OPERATIONS, for_update=True
         )
-        self.handler.check_type_usable(agent, service_type_name)
-        action_type = agent_action_type_registry.get(service_type_name)
+        self.handler.check_type_usable(agent, type_name)
+        action_type = agent_action_type_registry.get(type_name)
         defaults = action_type.get_defaults()
         initial_service = defaults.pop("service")
         defaults.setdefault("ask_first", action_type.changes_data)
@@ -177,11 +177,10 @@ class AgentActionService:
         validate_action_name(defaults["name"])
         defaults["inputs"] = validate_inputs(defaults["inputs"])
         initial_service.update(service_values or {})
-        service_type = service_type_registry.get(service_type_name)
         prepared = self._prepare_service_values(
-            user, agent, service_type, initial_service
+            user, agent, action_type, initial_service
         )
-        action = self.handler.create_action(agent, service_type, prepared, **defaults)
+        action = self.handler.create_action(agent, type_name, prepared, **defaults)
         agent_action_created.send(self, action=action, user=user)
         return action
 
@@ -219,7 +218,11 @@ class AgentActionService:
         if service_values is not None:
             service = action.service.specific
             prepared = self._prepare_service_values(
-                user, action.agent, service.get_type(), service_values, service
+                user,
+                action.agent,
+                agent_action_type_registry.get(action.get_type_name()),
+                service_values,
+                service,
             )
         updated = self.handler.update_action(
             action, prepared_service_values=prepared, **values
@@ -248,7 +251,7 @@ class AgentActionService:
         changes_settings = service_values is not None or bool(
             set(values) - LOCKED_ACTION_EDITABLE_FIELDS
         )
-        type_name = action.service.get_type().type
+        type_name = action.get_type_name()
         action_type = agent_action_type_registry.get(type_name)
         if changes_settings and not action_type.is_usable(action.agent.workspace):
             raise AgentActionTypeNotAvailable(type_name)

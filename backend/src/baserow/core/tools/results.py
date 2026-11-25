@@ -58,3 +58,40 @@ def _cut(value: Any, max_length: int) -> str:
     if isinstance(value, str):
         return shorten_text(value, max_length)
     return CUT_MARK
+
+
+def fit_result(result: Any, max_length: int) -> Any:
+    """
+    Cut a tool's result so that it fits in about ``max_length`` characters as
+    JSON. The items of a list under ``results`` are kept whole from the start
+    while they fit, as the first ones matter most, and the others are left out.
+    When not even the first one fits, its values are cut. Any other object has
+    its values cut, and any other value is cut as text.
+
+    :param result: The result as a JSON value, never modified.
+    :param max_length: The characters the result may take as JSON.
+    :return: The result, with ``truncated`` set on an object that was cut.
+    """
+
+    if json_length(result) <= max_length:
+        return result
+    if not isinstance(result, dict):
+        text = result if isinstance(result, str) else json.dumps(result)
+        return shorten_text(text, max_length)
+    if not isinstance(result.get("results"), list):
+        max_length -= json_length({"truncated": True})
+        return {**(fit_values(result, max_length) or {}), "truncated": True}
+    fitted = {**result, "results": [], "truncated": True}
+    left = max_length - json_length(fitted)
+    for item in result["results"]:
+        # The separator between two items counts too.
+        size = json_length(item) + 2
+        if size > left:
+            if not fitted["results"] and isinstance(item, dict):
+                cut_item = fit_values(item, left)
+                if cut_item is not None:
+                    fitted["results"].append(cut_item)
+            break
+        fitted["results"].append(item)
+        left -= size
+    return fitted

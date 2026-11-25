@@ -61,6 +61,8 @@ class AgentConfiguration:
     deactivated_tools: list[str]
     pending_tools: list[str]
     """The tools an imported Agent turns on when an identity is first picked."""
+    pending_ask_first_tools: list[str]
+    """The pending tools that will require approval before they run."""
     available_trigger_types: list[str]
     available_action_types: list[str]
     max_actions: int | None
@@ -76,6 +78,8 @@ class AgentToolDecision(TypedDict):
     approved: bool
     reason: NotRequired[str]
     """Why a held call is rejected, for the model."""
+    answer: NotRequired[str]
+    """The answer to a held question, for the model."""
 
 
 @dataclass
@@ -227,6 +231,12 @@ class AgentReplyRequest:
     """Whether web search is turned on, even when the model can't use it."""
     started_by_trigger: bool = False
     """Whether a trigger started the conversation, so its prompt is outside data."""
+    unattended: bool = False
+    """Whether nobody reads the reply as it's written: it answers a trigger."""
+    trigger_name: str | None = None
+    """The trigger's own name, or None when it has none."""
+    may_ask_person: bool = False
+    """Whether an unattended reply may hold a question for a person."""
     web_fetch_enabled: bool = False
     """Whether the reply may open web pages, which Baserow fetches for any model."""
 

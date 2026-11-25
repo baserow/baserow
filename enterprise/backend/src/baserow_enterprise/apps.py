@@ -266,6 +266,7 @@ class BaserowEnterpriseConfig(AppConfig):
         from .role.member_data_types import (
             EnterpriseRoleAssignmentCountDataType,
             EnterpriseRolesDataType,
+            EnterpriseTeamWorkspaceRoleDataType,
         )
         from .role.operations import (
             AssignRoleWorkspaceOperationType,
@@ -377,6 +378,7 @@ class BaserowEnterpriseConfig(AppConfig):
         member_data_registry.register(EnterpriseMemberTeamsDataType())
         member_data_registry.register(EnterpriseRolesDataType())
         member_data_registry.register(EnterpriseRoleAssignmentCountDataType())
+        member_data_registry.register(EnterpriseTeamWorkspaceRoleDataType())
 
         invitation_data_registry.register(EnterpriseInvitationScopesDataType())
         invitation_data_registry.register(EnterpriseInvitationTeamsDataType())

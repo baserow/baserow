@@ -10,7 +10,6 @@ from baserow.core.formula.parser.generated.BaserowFormula import BaserowFormula
 from baserow.core.formula.parser.parser import get_parse_tree_for_formula
 from baserow.core.formula.registries import formula_runtime_function_registry
 from baserow.core.formula.types import BASEROW_FORMULA_MODE_RAW, BaserowFormulaObject
-from baserow.core.services.models import Service
 from baserow.core.utils import to_path
 
 from .data_providers import agent_action_data_provider_type_registry
@@ -142,19 +141,19 @@ def _unwrap(expr: BaserowFormula.ExprContext) -> BaserowFormula.ExprContext:
 
 
 def get_formula_errors(
-    service: Service, inputs: list[AgentActionInput]
+    formulas: dict[str, BaserowFormulaObject], inputs: list[AgentActionInput]
 ) -> dict[str, str]:
     """
     Find the service formulas that can't be resolved from the action's inputs,
     without resolving them.
 
-    :param service: The action's specific service.
+    :param formulas: The formulas of the action's service, by service field.
     :param inputs: The action's declared inputs.
     :return: ``invalid`` by service field, for each formula that fails the check.
     """
 
     return {
-        formula.key: "invalid"
-        for formula in service.get_type().formulas_to_resolve(service)
-        if not reads_only_inputs(formula.formula, inputs)
+        field: "invalid"
+        for field, formula in formulas.items()
+        if not reads_only_inputs(formula, inputs)
     }
