@@ -1702,11 +1702,15 @@ describe('Agent triggers', () => {
     }).global
     const type = new InboundEmailAgentTriggerType({ app: { $i18n: { t } } })
 
-    expect(type.getDefaultMessage().formula).toBe(
-      "concat('Email from ', get('trigger.from.address'), " +
+    expect(type.getDefaultMessage()).toEqual({
+      formula:
+        "concat('Email from ', get('trigger.from.address'), " +
         "' with the subject ', get('trigger.subject'), ': ', " +
-        "get('trigger.body_text'))"
-    )
+        "if(is_empty(get('trigger.body_text')), get('trigger.body_html'), " +
+        "get('trigger.body_text')))",
+      mode: 'advanced',
+      version: '0.1',
+    })
     expect(type.hiddenFormFields).toEqual(['test_email_address'])
   })
 

@@ -70,14 +70,27 @@ export class InboundEmailAgentTriggerType extends AgentTriggerType {
     return ['test_email_address']
   }
 
+  /**
+   * An email without a text part only has its HTML, which a formula can fall
+   * back on but a data chip can't, so the message is an advanced formula.
+   */
   getDefaultMessage() {
-    return sentenceWithTriggerData(
+    const message = sentenceWithTriggerData(
       this.app.$i18n.t('agent.emailTriggerDefaultMessage', {
         sender: '{from.address}',
         subject: '{subject}',
         body: '{body_text}',
       })
     )
+    const text = "get('trigger.body_text')"
+    return {
+      ...message,
+      formula: message.formula.replace(
+        text,
+        `if(is_empty(${text}), get('trigger.body_html'), ${text})`
+      ),
+      mode: 'advanced',
+    }
   }
 }
 

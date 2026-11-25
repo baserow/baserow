@@ -58,6 +58,61 @@ def test_an_email_starts_an_agent_run_that_opens_with_what_it_says(
 
 
 @pytest.mark.django_db
+@pytest.mark.parametrize(
+    "message",
+    [
+        "",
+        {
+            "formula": "concat(get('trigger.subject'), ': ', "
+            "if(is_empty(get('trigger.body_text')), get('trigger.body_html'), "
+            "get('trigger.body_text')))",
+            "mode": "advanced",
+        },
+    ],
+)
+@pytest.mark.parametrize(
+    "bodies,expected,unexpected",
+    [
+        ({"body_html": "<p>Only HTML</p>"}, "<p>Only HTML</p>", "Plain"),
+        (
+            {"body_text": "Plain text", "body_html": "<p>And HTML</p>"},
+            "Plain text",
+            "<p>And HTML</p>",
+        ),
+    ],
+)
+def test_an_email_opens_with_its_text_or_else_its_html(
+    api_client,
+    api_user,
+    configured_agent,
+    inbound_email,
+    mocker,
+    django_capture_on_commit_callbacks,
+    message,
+    bodies,
+    expected,
+    unexpected,
+):
+    mocker.patch.object(ChatRunHandler, "_enqueue")
+    agent = configured_agent(user=api_user)
+    response = api_client.post(
+        agent_url(agent, "triggers:list"),
+        {"type": "email_trigger", "message": message},
+    )
+    assert response.status_code == 200, response.json()
+
+    with django_capture_on_commit_callbacks(execute=True):
+        service_type_registry.get("email_trigger").process_inbound_email(
+            response.json()["service"]["token"],
+            InboundEmail(subject="Printer", **bodies),
+        )
+
+    content = AgentConversation.objects.get().messages.get(role="trigger").content
+    assert expected in content
+    assert unexpected not in content
+
+
+@pytest.mark.django_db
 def test_an_email_trigger_needs_an_instance_that_receives_email(
     api_client, api_user, configured_agent, settings
 ):

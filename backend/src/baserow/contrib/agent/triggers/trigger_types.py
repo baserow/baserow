@@ -48,15 +48,17 @@ class InboundEmailAgentTriggerType(AgentTriggerType):
         """
         :param service: The inbound email trigger service that received the email.
         :param event_payload: The email as the receiver normalized it.
-        :return: Who sent the email, its subject and its text. What the mail
-            servers added stays out, as an Agent has no use for it.
+        :return: Who sent the email, its subject and its text, or its HTML when
+            it has no text part. What the mail servers added stays out, as an
+            Agent has no use for it.
         """
 
         return trigger_data_as_text(
             {
                 "from": event_payload.get("from"),
                 "subject": event_payload.get("subject"),
-                "body": event_payload.get("body_text"),
+                "body": event_payload.get("body_text")
+                or event_payload.get("body_html"),
             }
         )
 
