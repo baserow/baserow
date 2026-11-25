@@ -31,8 +31,11 @@ import ElementPreviewHint from '@baserow/modules/builder/components/elements/Ele
 import element from '@baserow/modules/builder/mixins/element'
 import { ensureString } from '@baserow/modules/core/utils/validator'
 import HTMLElementPreview from '@baserow_enterprise/builder/components/elements/HTMLElementPreview'
-import { runInsertedScripts } from '@baserow_enterprise/builder/htmlElementScripts'
-import { previewSharesEditorHostname } from '@baserow_enterprise/utils/builderHeadHtml'
+import {
+  parseWithoutScripts,
+  runInsertedScripts,
+} from '@baserow_enterprise/builder/htmlElementScripts'
+import { previewSharesEditorHostname } from '@baserow/modules/builder/utils/preview'
 
 const RUN = Symbol('htmlElementScriptRun')
 
@@ -40,7 +43,11 @@ function insertHTML(host, { value, oldValue, arg }) {
   if (value === oldValue) {
     return
   }
-  host.innerHTML = value
+  if (arg === 'run') {
+    host.innerHTML = value
+  } else {
+    host.replaceChildren(parseWithoutScripts(value))
+  }
   const run = Symbol('run')
   host[RUN] = run
   if (arg === 'run') {
@@ -65,7 +72,8 @@ export default {
     },
     /**
      * Preview on the editor's hostname shares the editor's cookies, so the
-     * snippet's scripts don't run there, like head HTML isn't added there.
+     * snippet's scripts and event handlers don't run there, like head HTML and
+     * custom JavaScript aren't added there.
      */
     scriptMode() {
       return this.applicationContext.mode === 'preview' &&
@@ -76,8 +84,9 @@ export default {
   },
   directives: {
     // Insert client-side and, with the `run` argument, run the snippet's
-    // scripts, which `innerHTML` alone leaves inert. A newer render cancels a
-    // run still loading scripts.
+    // scripts, which `innerHTML` alone leaves inert. Otherwise anything that
+    // would run JavaScript is removed first. A newer render cancels a run
+    // still loading scripts.
     htmlContent: {
       mounted: insertHTML,
       updated: insertHTML,

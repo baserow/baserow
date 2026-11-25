@@ -1,5 +1,4 @@
 import { fetchBuilderHeadHtml } from '@baserow_enterprise/plugins/builderHeadHtml.server'
-import { previewSharesEditorHostname } from '@baserow_enterprise/utils/builderHeadHtml'
 
 describe('Fetching Custom Code HTML during a Builder render', () => {
   const builder = { id: 42, has_head_html: true }
@@ -84,18 +83,5 @@ describe('Fetching Custom Code HTML during a Builder render', () => {
     const fetch = vi.fn().mockRejectedValue(new Error('HTTP 404'))
 
     expect(await fetchBuilderHeadHtml(previewOptions, fetch)).toBe('')
-  })
-})
-
-describe('previewSharesEditorHostname', () => {
-  test.each([
-    ['http://localhost:3000', 'http://localhost:3000', true],
-    ['http://localhost:3001', 'http://localhost:3000', true],
-    ['https://preview.example.com', 'https://example.com', false],
-    ['', 'https://example.com', true],
-  ])('%s vs %s', (builderPreviewUrl, publicWebFrontendUrl, expected) => {
-    expect(
-      previewSharesEditorHostname({ builderPreviewUrl, publicWebFrontendUrl })
-    ).toBe(expected)
   })
 })

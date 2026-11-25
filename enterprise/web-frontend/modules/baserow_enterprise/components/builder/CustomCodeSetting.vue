@@ -47,7 +47,7 @@ import ApplicationUntrustedContentAlert from '@baserow/modules/core/components/a
 import CodeEditor from '@baserow/modules/core/components/CodeEditor.vue'
 import { clone, isSubObject } from '@baserow/modules/core/utils/object'
 import CustomCodeSettingForm from '@baserow_enterprise/components/builder/CustomCodeSettingForm.vue'
-import { previewSharesEditorHostname } from '@baserow_enterprise/utils/builderHeadHtml'
+import { previewSharesEditorHostname } from '@baserow/modules/builder/utils/preview'
 
 const htmlDrafts = new WeakMap()
 const AUTOSAVE_DELAY = 500

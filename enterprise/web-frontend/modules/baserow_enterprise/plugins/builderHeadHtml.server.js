@@ -4,8 +4,10 @@ import {
   useResponseHeader,
   useRuntimeConfig,
 } from '#imports'
-import { getBuilderPreviewApiPath } from '@baserow/modules/builder/utils/preview'
-import { previewSharesEditorHostname } from '@baserow_enterprise/utils/builderHeadHtml'
+import {
+  getBuilderPreviewApiPath,
+  previewSharesEditorHostname,
+} from '@baserow/modules/builder/utils/preview'
 
 export async function fetchBuilderHeadHtml(
   { builder, mode, requestUrl, config, previewSsrCookieHeader },

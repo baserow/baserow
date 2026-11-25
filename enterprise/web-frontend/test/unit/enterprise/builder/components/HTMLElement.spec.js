@@ -152,20 +152,54 @@ describe('HTML element', () => {
     return { wrapper, created }
   }
 
-  test('shows HTML but keeps scripts inert in Preview on the editor hostname', async () => {
+  test('shows HTML without anything that runs JavaScript in Preview on the editor hostname', async () => {
     setPreviewUrl('https://editor.example.com:3001')
     const html =
-      '<div id="anchor" data-widget="map"></div><script>window.x = 1</script>'
+      '<style>p { color: red }</style>' +
+      '<div id="anchor" data-widget="map" onclick="window.x = 1"></div>' +
+      '<img id="image" src="/a.png" onerror="window.x = 1">' +
+      '<a id="link" href="javascript:window.x = 1">Link</a>' +
+      '<iframe id="embed" src="https://example.com/embed" srcdoc="<script>window.x = 1</script>" allowfullscreen></iframe>' +
+      '<script>window.x = 1</script>'
     const { wrapper, created } = await mountCountingScripts(
       'preview',
       'preview',
       html
     )
-    expect(wrapper.find('iframe').exists()).toBe(false)
-    expect(wrapper.get('#anchor').attributes('data-widget')).toBe('map')
-    expect(wrapper.get('script').text()).toBe('window.x = 1')
     expect(created).toBe(0)
+    expect(wrapper.find('script').exists()).toBe(false)
+    expect(wrapper.get('style').text()).toBe('p { color: red }')
+    expect(wrapper.get('#anchor').attributes()).toEqual({
+      id: 'anchor',
+      'data-widget': 'map',
+    })
+    expect(wrapper.get('#image').attributes()).toEqual({
+      id: 'image',
+      src: '/a.png',
+    })
+    expect(wrapper.get('#link').attributes('href')).toBeUndefined()
+    expect(wrapper.get('#embed').attributes()).toMatchObject({
+      src: 'https://example.com/embed',
+      allowfullscreen: '',
+    })
+    expect(wrapper.get('#embed').attributes('srcdoc')).toBeUndefined()
+    expect(wrapper.get('#embed').attributes('sandbox')).not.toContain(
+      'allow-same-origin'
+    )
   })
+
+  test.each([
+    ['preview', 'https://preview.example.com'],
+    ['public', EDITOR_URL],
+  ])(
+    'keeps event handlers in %s with Preview at %s',
+    async (mode, previewUrl) => {
+      setPreviewUrl(previewUrl)
+      const html = '<img id="image" src="/a.png" onerror="window.x = 1">'
+      const wrapper = await mountElement(mode, mode, html)
+      expect(wrapper.get('#image').attributes('onerror')).toBe('window.x = 1')
+    }
+  )
 
   test('runs scripts on a published site on any hostname', async () => {
     setPreviewUrl(EDITOR_URL)

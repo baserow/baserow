@@ -3,7 +3,13 @@ import AssistantPanel from '@baserow_enterprise/components/assistant/AssistantPa
 
 describe('Test enterprise Baserow plugin', () => {
   const app = {
-    $config: { public: { publicBackendUrl: 'http://localhost:8000' } },
+    $config: {
+      public: {
+        publicBackendUrl: 'http://localhost:8000',
+        publicWebFrontendUrl: 'http://localhost:3000',
+        builderPreviewUrl: 'http://preview.localhost:3000',
+      },
+    },
   }
 
   const makeBuilder = (overrides = {}) => ({
@@ -127,6 +133,51 @@ describe('Test enterprise Baserow plugin', () => {
         'http://localhost:8000/api/builder/preview/42/custom-code/js/'
       )
     })
+
+    test.each([
+      ['preview', 'http://localhost:3001', false],
+      ['preview', 'http://preview.localhost:3000', true],
+      ['public', 'http://localhost:3001', true],
+    ])(
+      'in %s with Preview at %s, JavaScript loads: %s',
+      (mode, builderPreviewUrl, runsJS) => {
+        // Preview on the editor's hostname shares the editor's cookies.
+        const plugin = new EnterprisePlugin({
+          app: {
+            $config: {
+              public: { ...app.$config.public, builderPreviewUrl },
+            },
+          },
+        })
+        const builder = makeBuilder({
+          custom_code: { css: 'body { color: red }', js: 'alert(1)' },
+          scripts: [
+            { type: 'javascript', url: 'https://example.com/a.js' },
+            { type: 'stylesheet', url: 'https://example.com/a.css' },
+          ],
+        })
+
+        const { link, script } = plugin.getBuilderApplicationHeaderAddition({
+          builder,
+          mode,
+        })
+
+        expect(link.map(({ href }) => href)).toEqual([
+          mode === 'preview'
+            ? 'http://localhost:8000/api/builder/preview/42/custom-code/css/'
+            : 'http://localhost:8000/api/custom_code/42/css/public/',
+        ])
+        expect(script.map(({ src, href }) => src ?? href)).toEqual(
+          runsJS
+            ? [
+                'https://example.com/a.js',
+                'https://example.com/a.css',
+                expect.stringMatching(/\/js\/(public\/)?$/),
+              ]
+            : ['https://example.com/a.css']
+        )
+      }
+    )
 
     test('external scripts and stylesheets are injected at body close', () => {
       const plugin = new EnterprisePlugin({ app })

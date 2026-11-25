@@ -21,6 +21,7 @@ import DateDependencyMenuItem from '@baserow_enterprise/components/dateDependenc
 import DateDependencyFieldTypeIcon from '@baserow_enterprise/components/dateDependency/DateDependencyFieldTypeIcon'
 import ExportWorkspaceModalWarning from '@baserow_enterprise/components/ExportWorkspaceModalWarning'
 import { RestrictedViewOwnershipType } from '@baserow_enterprise/viewOwnershipTypes'
+import { previewSharesEditorHostname } from '@baserow/modules/builder/utils/preview'
 
 export class EnterprisePlugin extends BaserowPlugin {
   static getType() {
@@ -191,6 +192,12 @@ export class EnterprisePlugin extends BaserowPlugin {
     const css = `${customCodeBase}/css/${mode === 'preview' ? '' : 'public/'}`
     const js = `${customCodeBase}/js/${mode === 'preview' ? '' : 'public/'}`
 
+    // Preview on the editor's hostname shares the editor's cookies, so no
+    // JavaScript is loaded there, like head HTML isn't added there.
+    const runJS = !(
+      mode === 'preview' && previewSharesEditorHostname(this.app.$config.public)
+    )
+
     const script = []
     const link = []
 
@@ -206,7 +213,7 @@ export class EnterprisePlugin extends BaserowPlugin {
             ? 'anonymous'
             : null
 
-      if (s.type === 'javascript') {
+      if (s.type === 'javascript' && runJS) {
         script.push({
           src: s.url,
           crossorigin,
@@ -234,7 +241,7 @@ export class EnterprisePlugin extends BaserowPlugin {
         tagPosition: 'bodyClose',
       })
     }
-    if (builder.custom_code.js) {
+    if (builder.custom_code.js && runJS) {
       script.push({
         src: js,
         crossorigin: mode === 'preview' ? 'use-credentials' : null,

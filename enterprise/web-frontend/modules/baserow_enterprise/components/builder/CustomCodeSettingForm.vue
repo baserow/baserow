@@ -22,6 +22,11 @@
     <FormGroup
       :label="$t('customCodeSettingForm.customJS')"
       class="margin-bottom-2"
+      :helper-text="
+        jsHiddenInPreview
+          ? $t('customCodeSettingForm.customJsNotInPreview')
+          : ''
+      "
       small-label
       required
     >
@@ -80,6 +85,7 @@ import {
   EXTERNAL_SCRIPT_LOAD_TYPES,
   EXTERNAL_SCRIPT_CROSSORIGIN_TYPES,
 } from '@baserow_enterprise/builder/enums'
+import { previewSharesEditorHostname } from '@baserow/modules/builder/utils/preview'
 
 export default {
   name: 'CustomCodeSettingForm',
@@ -93,6 +99,11 @@ export default {
       values: { custom_code: { css: '', js: '' }, scripts: [] },
       allowedValues: ['custom_code', 'scripts'],
     }
+  },
+  computed: {
+    jsHiddenInPreview() {
+      return previewSharesEditorHostname(this.$config.public)
+    },
   },
   methods: {
     addExternalScript() {

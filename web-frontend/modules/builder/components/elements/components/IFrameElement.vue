@@ -68,6 +68,9 @@ import ElementPreviewHint from '@baserow/modules/builder/components/elements/Ele
 import element from '@baserow/modules/builder/mixins/element'
 import { IFRAME_SOURCE_TYPES } from '@baserow/modules/builder/enums'
 import { ensureString } from '@baserow/modules/core/utils/validator'
+import { previewSharesEditorHostname } from '@baserow/modules/builder/utils/preview'
+
+const RESTRICTED_SANDBOX = 'allow-scripts allow-forms allow-popups'
 
 export default {
   name: 'IFrameElement',
@@ -113,10 +116,12 @@ export default {
           : ''
       }
       if (this.element.source_type !== IFRAME_SOURCE_TYPES.URL) {
-        return null
+        // An unsandboxed embed shares the page's origin, so in Preview on the
+        // editor's hostname its scripts could read the editor's cookies.
+        return this.isPreviewOnEditorHostname ? RESTRICTED_SANDBOX : null
       }
 
-      const permissions = ['allow-scripts', 'allow-forms', 'allow-popups']
+      const permissions = RESTRICTED_SANDBOX.split(' ')
 
       if (
         this.element.allow_same_origin &&
@@ -135,13 +140,23 @@ export default {
 
       try {
         const url = new URL(this.resolvedURL)
-        return (
-          ['http:', 'https:'].includes(url.protocol) &&
-          url.origin !== window.location.origin
-        )
+        if (!['http:', 'https:'].includes(url.protocol)) {
+          return false
+        }
+        // Cookies ignore the port, so in Preview on the editor's hostname a
+        // page on that hostname would read the editor's cookies.
+        return this.isPreviewOnEditorHostname
+          ? url.hostname !== window.location.hostname
+          : url.origin !== window.location.origin
       } catch {
         return false
       }
+    },
+    isPreviewOnEditorHostname() {
+      return (
+        this.applicationContext.mode === 'preview' &&
+        previewSharesEditorHostname(this.$config.public)
+      )
     },
     isPreviewOrPublicMode() {
       return ['preview', 'public'].includes(this.applicationContext.mode)

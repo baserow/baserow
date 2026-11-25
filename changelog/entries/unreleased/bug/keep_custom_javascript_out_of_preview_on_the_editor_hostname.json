@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Keep custom JavaScript, HTML element event handlers and IFrame embed scripts away from the editor's cookies in application Preview when it shares the editor's hostname",
+    "issue_origin": "github",
+    "issue_number": null,
+    "domain": "builder",
+    "bullet_points": [],
+    "created_at": "2026-11-25"
+}

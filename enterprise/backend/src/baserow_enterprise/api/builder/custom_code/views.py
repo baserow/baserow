@@ -44,6 +44,9 @@ class PublicCustomCodeView(APIView):
     def can_render_html(self, builder):
         return builder.is_published
 
+    def can_run_js(self, builder):
+        return True
+
     @extend_schema(
         parameters=[
             OpenApiParameter(
@@ -91,6 +94,9 @@ class PublicCustomCodeView(APIView):
                 headers={"Cache-Control": "no-store"},
             )
 
+        if code_type == "js" and not self.can_run_js(builder):
+            return HttpResponse("Not found", status=404)
+
         # Get the appropriate content and content-type
         if code_type == "css":
             content = builder.custom_code.css
@@ -101,16 +107,26 @@ class PublicCustomCodeView(APIView):
         return HttpResponse(content, content_type=content_type)
 
 
+def preview_has_own_hostname():
+    """
+    Whether Preview runs on another hostname than the editor. Cookies are scoped
+    by hostname, not port, so code running in Preview on the editor's hostname
+    can read the editor's cookies, including the user's token.
+    """
+
+    return (
+        settings.BUILDER_PREVIEW_HOSTNAME is not None
+        and settings.PUBLIC_WEB_FRONTEND_HOSTNAME is not None
+        and settings.BUILDER_PREVIEW_HOSTNAME != settings.PUBLIC_WEB_FRONTEND_HOSTNAME
+    )
+
+
 # This version is for authorized users only while in preview
 class CustomCodeView(PublicCustomCodeView):
     authentication_classes = (BuilderPreviewAuthentication,)
 
     def can_render_html(self, builder):
-        # Editor and preview cookies share a hostname even across different ports.
-        return (
-            not builder.is_published
-            and settings.BUILDER_PREVIEW_HOSTNAME is not None
-            and settings.PUBLIC_WEB_FRONTEND_HOSTNAME is not None
-            and settings.BUILDER_PREVIEW_HOSTNAME
-            != settings.PUBLIC_WEB_FRONTEND_HOSTNAME
-        )
+        return not builder.is_published and preview_has_own_hostname()
+
+    def can_run_js(self, builder):
+        return preview_has_own_hostname()

@@ -49,3 +49,24 @@ export const getBuilderPreviewUserSourceAuthConfig = (
     sameSite: 'Lax',
   },
 })
+
+/**
+ * Cookies are scoped by hostname, not port, so code running in Preview on the
+ * editor's hostname can read the editor's cookies, including the user's
+ * token. Author code such as head HTML, custom JavaScript and embed scripts
+ * only runs in Preview when Preview has its own hostname. An invalid URL
+ * counts as shared.
+ *
+ * @param {object} publicConfig The public runtime config.
+ * @returns {boolean} Whether Preview shares the editor's hostname.
+ */
+export const previewSharesEditorHostname = (publicConfig) => {
+  try {
+    return (
+      new URL(publicConfig.builderPreviewUrl).hostname ===
+      new URL(publicConfig.publicWebFrontendUrl).hostname
+    )
+  } catch {
+    return true
+  }
+}

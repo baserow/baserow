@@ -124,18 +124,39 @@ for (const mode of ["preview", "published"]) {
       const anchor = visitor.locator(
         "#widget.widget[data-widget=map][aria-label=Widget]"
       );
-      await expect(anchor).toHaveAttribute("data-initialized", "1");
-      await visitor.waitForLoadState("networkidle");
-      // Scripts in the HTML run, except in Preview on the editor's hostname,
-      // where they would share the editor's cookies.
+      // Preview on the editor's hostname shares the editor's cookies, so no
+      // JavaScript runs there: no custom JS, no scripts, no event handlers.
       const previewSharesEditorHostname =
         new URL(baserowConfig.BUILDER_PREVIEW_URL).hostname ===
         new URL(baserowConfig.PUBLIC_WEB_FRONTEND_URL).hostname;
+      if (mode === "preview" && previewSharesEditorHostname) {
+        await expect(anchor).toBeVisible();
+        await visitor.waitForLoadState("networkidle");
+        await expect(anchor).not.toHaveAttribute("data-initialized");
+        expect(
+          await visitor.evaluate(() => [
+            Reflect.get(window, "loaderRuns"),
+            Reflect.get(window, "htmlSourceScriptRan"),
+          ])
+        ).toEqual([undefined, undefined]);
+        await expect(anchor.locator("script")).toHaveCount(0);
+        const status = anchor.getByText("Widget status", { exact: true });
+        await expect(status).not.toHaveAttribute("onclick");
+        await status.click();
+        await expect(status).toBeVisible();
+        expect(probeRequests).toBeGreaterThan(0);
+        await visitor.screenshot({ path: testInfo.outputPath(mode + ".png") });
+        await testInfo.attach(mode, {
+          path: testInfo.outputPath(mode + ".png"),
+          contentType: "image/png",
+        });
+        return;
+      }
+      await expect(anchor).toHaveAttribute("data-initialized", "1");
+      await visitor.waitForLoadState("networkidle");
       expect(
         await visitor.evaluate(() => Reflect.get(window, "htmlSourceScriptRan"))
-      ).toBe(
-        mode === "preview" && previewSharesEditorHostname ? undefined : true
-      );
+      ).toBe(true);
       await anchor.getByText("Widget status", { exact: true }).click();
       await expect(anchor.getByText("Clicked", { exact: true })).toBeVisible();
       const initial = await anchor.elementHandle();

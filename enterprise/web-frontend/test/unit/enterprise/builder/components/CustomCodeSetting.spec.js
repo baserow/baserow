@@ -161,7 +161,10 @@ test('persists a revert to the original HTML while a different value is saving',
 
 describe('Preview notice', () => {
   // Test locales are empty, so $t renders the key.
-  const notice = 'customCodeSettingForm.customHtmlNotInPreview'
+  const notices = [
+    'customCodeSettingForm.customHtmlNotInPreview',
+    'customCodeSettingForm.customJsNotInPreview',
+  ]
   let publicConfig
   let original
 
@@ -187,6 +190,8 @@ describe('Preview notice', () => {
     })
     const { wrapper } = await mountSetting()
 
-    expect(wrapper.text().includes(notice)).toBe(shown)
+    for (const notice of notices) {
+      expect(wrapper.text().includes(notice)).toBe(shown)
+    }
   })
 })

@@ -4,7 +4,18 @@ import IFrameElement from '@baserow/modules/builder/components/elements/componen
 
 enableAutoUnmount(afterEach)
 
+const EDITOR_URL = 'https://editor.example.com'
+
+// Preview gets its own hostname unless a test shares the editor's.
+function setPreviewUrl(url) {
+  const config = useRuntimeConfig().public
+  config.publicWebFrontendUrl = EDITOR_URL
+  config.builderPreviewUrl = url
+}
+
 describe('IFrameElement', () => {
+  beforeEach(() => setPreviewUrl('https://preview.example.com'))
+
   const mountComponent = (
     mode,
     elementValues = {},
@@ -226,6 +237,60 @@ describe('IFrameElement', () => {
     })
 
     expect(wrapper.find('iframe').attributes('sandbox')).toBeUndefined()
+  })
+
+  describe('in Preview on the editor hostname', () => {
+    beforeEach(() => setPreviewUrl(`${EDITOR_URL}:3001`))
+
+    test('sandboxes embedded HTML away from the editor origin', async () => {
+      const wrapper = await mountComponent('preview')
+
+      expect(wrapper.find('iframe').attributes('sandbox')).toBe(
+        'allow-scripts allow-forms allow-popups'
+      )
+    })
+
+    test('leaves embedded HTML unsandboxed on a published site', async () => {
+      const wrapper = await mountComponent('public')
+
+      expect(wrapper.find('iframe').attributes('sandbox')).toBeUndefined()
+    })
+
+    test.each([
+      [`http://${window.location.hostname}:65000/page.html`, false],
+      ['https://example.com', true],
+    ])(
+      'lets a trusted URL %s use its own origin: %s',
+      async (url, ownOrigin) => {
+        const wrapper = await mountComponent('preview', {
+          source_type: 'url',
+          url: { formula: JSON.stringify(url) },
+          allow_same_origin: true,
+        })
+
+        expect(wrapper.find('iframe').attributes('sandbox')).toBe(
+          ownOrigin
+            ? 'allow-scripts allow-forms allow-popups allow-same-origin'
+            : 'allow-scripts allow-forms allow-popups'
+        )
+      }
+    )
+  })
+
+  test('lets a trusted URL on another port use its own origin in Preview with its own hostname', async () => {
+    const wrapper = await mountComponent('preview', {
+      source_type: 'url',
+      url: {
+        formula: JSON.stringify(
+          `http://${window.location.hostname}:65000/page.html`
+        ),
+      },
+      allow_same_origin: true,
+    })
+
+    expect(wrapper.find('iframe').attributes('sandbox')).toBe(
+      'allow-scripts allow-forms allow-popups allow-same-origin'
+    )
   })
 
   test('allows restricted capabilities for external URLs in public mode', async () => {

@@ -982,6 +982,7 @@
     "customHtml": "Custom HTML in head",
     "customHtmlSaveError": "Could not save the HTML. Edit the field to try again.",
     "customHtmlNotInPreview": "Head HTML isn’t shown in Preview on this instance. It’s added to published sites.",
+    "customJsNotInPreview": "Custom JavaScript and external scripts don’t run in Preview on this instance. They run on published sites.",
     "customCSSPlaceholder": "Enter some custom CSS code...",
     "customJSPlaceholder": "Enter some custom JS code...",
     "customHtmlPlaceholder": "Enter some custom HTML code...",
@@ -1009,7 +1010,7 @@
   },
   "htmlElement": {
     "source": "HTML source",
-    "sourceHelp": "Add HTML for custom content, layouts or widgets. Scripts in the HTML run on published sites, and in Preview when it has its own hostname, each time the element is shown. For JavaScript shared by every page, use application settings → Custom CSS/JS.",
+    "sourceHelp": "Add HTML for custom content, layouts or widgets. Scripts and event handlers in the HTML run on published sites, and in Preview when it has its own hostname, each time the element is shown. For JavaScript shared by every page, use application settings → Custom CSS/JS.",
     "placeholder": "Empty HTML source...",
     "previewTitle": "HTML preview"
   },

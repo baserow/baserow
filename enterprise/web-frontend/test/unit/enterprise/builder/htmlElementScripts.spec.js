@@ -1,4 +1,7 @@
-import { runInsertedScripts } from '@baserow_enterprise/builder/htmlElementScripts'
+import {
+  parseWithoutScripts,
+  runInsertedScripts,
+} from '@baserow_enterprise/builder/htmlElementScripts'
 
 // The test DOM doesn't evaluate JavaScript, so these tests check that each
 // script is swapped for a fresh element, which the browser runs on insertion.
@@ -117,5 +120,57 @@ describe('runInsertedScripts', () => {
     await run
 
     expect(host.querySelectorAll('script')[1]).toBe(inline)
+  })
+})
+
+describe('parseWithoutScripts', () => {
+  const clean = (html) => {
+    const host = document.createElement('div')
+    host.append(parseWithoutScripts(html))
+    return host.innerHTML
+  }
+
+  test.each([
+    ['<script>window.x = 1</script><p>Text</p>', '<p>Text</p>'],
+    ['<img src="/a.png" onerror="window.x = 1">', '<img src="/a.png">'],
+    ['<div ONCLICK="window.x = 1"></div>', '<div></div>'],
+    [
+      '<svg><a href="/a"><set attributeName="href" to="javascript:window.x = 1"></set></a></svg>',
+      '<svg><a href="/a"></a></svg>',
+    ],
+    ['<svg><script>window.x = 1</script></svg>', '<svg></svg>'],
+    ['<a href=" java\tscript:window.x = 1">Link</a>', '<a>Link</a>'],
+    ['<a href="&#106;avascript:window.x = 1">Link</a>', '<a>Link</a>'],
+    [
+      '<form action="vbscript:x"><button formaction="javascript:x"></button></form>',
+      '<form><button></button></form>',
+    ],
+    [
+      '<iframe srcdoc="<script>window.x = 1</script>"></iframe>',
+      '<iframe sandbox="allow-forms allow-popups allow-popups-to-escape-sandbox allow-presentation allow-scripts"></iframe>',
+    ],
+    [
+      '<iframe src="javascript:window.x = 1" sandbox="allow-scripts allow-same-origin"></iframe>',
+      '<iframe sandbox="allow-scripts"></iframe>',
+    ],
+    ['<object data="/a.swf"></object><embed src="/a.swf">', ''],
+    ['<base href="/"><meta http-equiv="refresh" content="0">', ''],
+    [
+      '<template><img src="/a.png" onerror="window.x = 1"></template>',
+      '<template><img src="/a.png"></template>',
+    ],
+  ])('removes JavaScript from %s', (html, expected) => {
+    expect(clean(html)).toBe(expected)
+  })
+
+  test('keeps markup, styles, forms, relative links and embeds', () => {
+    const html =
+      '<style>.widget { color: red }</style>' +
+      '<section class="widget" data-widget="map" aria-label="Map" style="height: 48px">' +
+      '<a href="/docs" target="_blank">Docs</a><a href="java script:docs">Spaced</a>' +
+      '<form><input name="q"></form>' +
+      '<iframe src="https://example.com/embed" allow="fullscreen" allowfullscreen="" sandbox="allow-scripts"></iframe>' +
+      '</section>'
+    expect(clean(html)).toBe(html)
   })
 })
