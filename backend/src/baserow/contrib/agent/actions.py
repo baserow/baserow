@@ -163,14 +163,14 @@ class DecideAgentToolApprovalsActionType(ActionType):
     ) -> AgentToolDecisionsResult:
         """
         Approve or reject held calls, auditing the tools decided and those that
-        stopped asking first, but never the rejection reasons, which can quote the
-        conversation.
+        stopped asking first, but never the rejection reasons or the answers, which
+        can quote the conversation.
 
         :param user: The user deciding.
         :param agent_id: The id of the agent.
         :param conversation_uuid: The uuid of the conversation.
         :param decisions: Whether each held call may run, by approval id, with the
-            reason for a rejection.
+            reason for a rejection or the answer to a question.
         :param always_allow: Whether the tools of the approved calls stop asking
             first.
         :return: The saved decisions, the tools that stopped asking first and the

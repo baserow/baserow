@@ -11,6 +11,7 @@ from django.db.models import QuerySet
 from pydantic_ai import WebSearchTool
 from rest_framework.exceptions import ValidationError
 
+from baserow.contrib.agent.constants import ASK_PERSON_TOOL_NAME, WEB_FETCH_TOOL_NAME
 from baserow.contrib.agent.models import AgentAction, AgentApplication
 from baserow.contrib.agent.registries import agent_tool_type_registry
 from baserow.core.integrations.handler import IntegrationHandler
@@ -238,7 +239,12 @@ class AgentActionHandler:
         :return: The names of the tools Baserow itself offers to a reply.
         """
 
-        return {*agent_tool_type_registry.get_types(), WebSearchTool.kind}
+        return {
+            *agent_tool_type_registry.get_types(),
+            WebSearchTool.kind,
+            WEB_FETCH_TOOL_NAME,
+            ASK_PERSON_TOOL_NAME,
+        }
 
     def unique_name(
         self, agent: AgentApplication, name: str, excluding_id: int | None = None

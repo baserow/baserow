@@ -43,8 +43,10 @@ def webhook_url(trigger):
 
 @pytest.mark.django_db
 def test_an_http_request_starts_a_shared_agent_run_with_its_payload(
-    api_client, http_trigger, django_capture_on_commit_callbacks
+    api_client, http_trigger, django_capture_on_commit_callbacks, reply_model
 ):
+    # The test model calls every tool it's offered, a question to a person included.
+    reply_model.call_tools = []
     trigger = http_trigger
     message = (
         "concat(get('trigger.body.ticket'), ': ', get('trigger.query_params.source'), "

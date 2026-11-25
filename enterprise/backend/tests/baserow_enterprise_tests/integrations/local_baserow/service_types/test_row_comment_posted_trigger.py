@@ -312,6 +312,7 @@ def test_an_unlicensed_agent_trigger_can_only_be_renamed_restored_or_replaced(
         {"message": "Changed"},
         {"service_values": {"only_when_mentioned": True}},
         {"on_overlap": "skip"},
+        {"may_ask_person": False},
     ):
         with pytest.raises(AgentTriggerTypeNotAvailable):
             host.update_trigger(scenario.ctx.user, agent.id, trigger.id, **change)

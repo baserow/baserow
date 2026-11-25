@@ -21,9 +21,16 @@ const TRIGGER_FIELDS = [
   'enabled',
   'message',
   'on_overlap',
+  'may_ask_person',
   'batch_size',
 ]
-const PICKED_FIELDS = ['type', 'name', 'enabled', 'on_overlap']
+const PICKED_FIELDS = [
+  'type',
+  'name',
+  'enabled',
+  'on_overlap',
+  'may_ask_person',
+]
 const SAVED_FIELDS = [...TRIGGER_FIELDS, 'service']
 const TYPE_CHANGE_FIELDS = ['type', 'service', 'message']
 
