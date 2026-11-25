@@ -1,8 +1,27 @@
 <template>
-  <div class="agent-connected-apps">
+  <section class="agent-connected-apps" :aria-busy="loading">
+    <div class="agent-actions__header">
+      <h3>{{ $t('agent.connectedApps') }}</h3>
+      <ButtonText
+        v-if="editable"
+        class="agent-connected-apps__add"
+        type="primary"
+        size="small"
+        button-type="button"
+        icon="iconoir-plus"
+        :disabled="loading || Boolean(loadError)"
+        @click="addDraft"
+        >{{ $t('agent.connectedAppAdd') }}</ButtonText
+      >
+    </div>
     <p class="agent-connected-apps__description">
       {{ $t('agent.connectedAppsHelper') }}
     </p>
+    <AgentCardListHeader
+      v-if="cards.length"
+      :all-expanded="allExpanded"
+      @toggle-all="toggleAll"
+    />
     <div v-if="loading && !servers.length" class="skeleton" aria-hidden="true">
       <SkeletonBlock height="56px" />
     </div>
@@ -14,68 +33,26 @@
         </Button>
       </template>
     </Alert>
-    <template v-else>
-      <div
-        v-for="server in servers"
-        :key="server.id"
-        class="agent-connected-apps__server"
-      >
-        <i class="iconoir-server agent-connected-apps__server-icon"></i>
-        <div class="agent-connected-apps__server-content">
-          <div class="agent-connected-apps__server-name">{{ server.name }}</div>
-          <div class="agent-connected-apps__server-meta">
-            <Icon
-              v-if="changedCount(server) || needsAccount(server)"
-              icon="iconoir-warning-triangle"
-              type="warning"
-              size="small"
-            />
-            {{ summary(server) }}
-          </div>
-        </div>
-        <ButtonText
-          v-if="needsAccount(server) && editable"
-          size="small"
-          :loading="connecting === server.id"
-          @click="connectServer(server)"
-        >
-          {{ $t('agent.connectedAppSignIn') }}
-        </ButtonText>
-        <ButtonText
-          v-else
-          type="secondary"
-          size="small"
-          @click="toolsModal.show(server)"
-        >
-          {{ $t('agent.connectedAppTools') }}
-        </ButtonText>
-        <ButtonIcon
-          v-if="editable"
-          icon="iconoir-edit-pencil"
-          size="small"
-          :aria-label="$t('agent.connectedAppEdit', { name: server.name })"
-          @click="serverModal.show(server)"
-        />
-      </div>
-      <Button
-        v-if="editable"
-        class="agent-connected-apps__add"
-        type="secondary"
-        icon="iconoir-plus"
-        @click="serverModal.show()"
-      >
-        {{ $t('agent.connectedAppAdd') }}
-      </Button>
-    </template>
-    <AgentMCPServerModal
-      ref="serverModal"
-      :save="saveServer"
-      :remove="remove"
-      :connect="connect"
-      :disconnect="disconnect"
-      :refresh="refreshTools"
-      @created="(server, options) => toolsModal.show(server, options)"
-    />
+    <div v-else ref="list" class="agent-actions__list">
+      <AgentMCPServerCard
+        v-for="card in cards"
+        :key="card.id"
+        :data-card-id="card.id"
+        :server="card.server"
+        :expanded="expandedIds.has(card.id)"
+        :editable="editable"
+        :save="(server, values) => saveServer(card, server, values)"
+        :remove="remove"
+        :connect="connect"
+        :disconnect="disconnect"
+        :refresh="refreshTools"
+        @toggle="toggle(card.id)"
+        @switch="switchServer(card.server, $event)"
+        @open-tools="(server) => toolsModal.show(server)"
+        @saved="saved"
+        @discard="discard(card.id)"
+      />
+    </div>
     <AgentMCPToolsModal
       ref="toolsModal"
       :agent-name="agent.name"
@@ -83,29 +60,26 @@
       :refresh="refreshTools"
       :save="updateTools"
     />
-  </div>
+  </section>
 </template>
 
 <script setup>
-import { inject, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, inject, nextTick, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useStore } from 'vuex'
 import ButtonText from '@baserow/modules/core/components/ButtonText'
-import ButtonIcon from '@baserow/modules/core/components/ButtonIcon'
-import Icon from '@baserow/modules/core/components/Icon'
-import {
-  openSignInPopup,
-  useAgentMCPServers,
-} from '@baserow/modules/agent/composables/useAgentMCPServers'
-import {
-  MCPSignInCancelled,
-  mcpErrorMessage,
-} from '@baserow/modules/agent/utils/mcp'
-import { MCP_AUTH_TYPE } from '@baserow/modules/agent/constants'
-import AgentMCPServerModal from '@baserow/modules/agent/components/configuration/AgentMCPServerModal'
+import { useAgentMCPServers } from '@baserow/modules/agent/composables/useAgentMCPServers'
+import { useExpandedItems } from '@baserow/modules/agent/composables/useExpandedItems'
+import { mcpErrorMessage } from '@baserow/modules/agent/utils/mcp'
+import AgentCardListHeader from '@baserow/modules/agent/components/configuration/AgentCardListHeader'
+import AgentMCPServerCard from '@baserow/modules/agent/components/configuration/AgentMCPServerCard'
 import AgentMCPToolsModal from '@baserow/modules/agent/components/configuration/AgentMCPToolsModal'
 
-/** Lists the MCP servers an Agent may use, and adds, edits and reviews them. */
+/**
+ * The MCP servers an Agent may use, one card each, added, edited and removed
+ * in place. A new card is a draft only this editor sees until it's saved; it
+ * keeps its card once saved, so an error from its first sign-in stays shown.
+ */
 defineOptions({ inheritAttrs: false })
 defineProps({ editable: Boolean })
 // The web search setting depends on whether a reply offers any tools.
@@ -113,9 +87,8 @@ const emit = defineEmits(['reload'])
 const { t } = useI18n()
 const store = useStore()
 const agent = inject('agentApplication')
-const connecting = ref(null)
-const serverModal = ref(null)
 const toolsModal = ref(null)
+const list = ref(null)
 const {
   servers,
   loading,
@@ -132,61 +105,61 @@ const {
 
 onMounted(load)
 
-const changedCount = (server) =>
-  server.tools.filter((tool) => tool.changed_since_review).length
+// Each draft has its own card id; `serverId` is set once it's saved.
+const drafts = ref([])
+let nextDraft = 0
 
-const needsAccount = (server) =>
-  server.auth_type === MCP_AUTH_TYPE.OAUTH && !server.oauth_connected
+const cards = computed(() => {
+  const byId = new Map(servers.value.map((server) => [server.id, server]))
+  const claimed = new Set(drafts.value.map((draft) => draft.serverId))
+  return [
+    ...servers.value
+      .filter((server) => !claimed.has(server.id))
+      .map((server) => ({ id: server.id, server })),
+    ...drafts.value
+      // A saved draft whose server was removed goes with it.
+      .filter((draft) => draft.serverId === null || byId.has(draft.serverId))
+      .map((draft) => ({
+        id: draft.id,
+        server: byId.get(draft.serverId) ?? null,
+      })),
+  ]
+})
+const { expandedIds, allExpanded, toggle, toggleAll } = useExpandedItems(cards)
 
-function summary(server) {
-  if (needsAccount(server)) return t('agent.connectedAppNotConnected')
-  const changed = changedCount(server)
-  if (changed)
-    return t('agent.connectedAppChanged', { count: changed }, changed)
-  const tools = server.tools.filter((tool) => !tool.removed)
-  if (!tools.length) return t('agent.connectedAppNoTools')
-  return t('agent.toolsOn', {
-    count: tools.filter((tool) => tool.enabled).length,
-    total: tools.length,
-  })
+async function addDraft() {
+  const draft = { id: `draft-${++nextDraft}`, serverId: null }
+  drafts.value = [...drafts.value, draft]
+  expandedIds.add(draft.id)
+  await nextTick()
+  list.value
+    ?.querySelector(`[data-card-id="${draft.id}"]`)
+    ?.scrollIntoView?.({ block: 'start' })
 }
 
-async function saveServer(server, values) {
-  return server ? await update(server, values) : await create(values)
+function discard(id) {
+  drafts.value = drafts.value.filter((draft) => draft.id !== id)
 }
 
-// The sign-in waiting per server. Signing in again replaces it, so a popup
-// the editor closed doesn't keep the server waiting.
-const signIns = new Map()
-onBeforeUnmount(() => signIns.forEach((controller) => controller.abort()))
+async function saveServer(card, server, values) {
+  if (server) return await update(server, values)
+  const created = await create(values)
+  // The draft's card shows the new server, so it isn't listed twice.
+  drafts.value = drafts.value.map((draft) =>
+    draft.id === card.id ? { ...draft, serverId: created.id } : draft
+  )
+  return created
+}
 
-async function connectServer(server) {
-  const popup = openSignInPopup()
-  if (!popup) {
-    store.dispatch('toast/error', {
-      title: t('agent.connectedAppSignInFailedTitle'),
-      message: t('agent.connectedAppPopupBlocked'),
-    })
-    return
-  }
-  signIns.get(server.id)?.abort()
-  const controller = new AbortController()
-  signIns.set(server.id, controller)
-  connecting.value = server.id
-  const started = () => {
-    if (connecting.value === server.id) connecting.value = null
-  }
+function saved(server, { listTools, firstConnection = false }) {
+  if (listTools) toolsModal.value.show(server, { firstConnection })
+}
+
+async function switchServer(server, enabled) {
   try {
-    const connected = await connect(server, popup, controller.signal, started)
-    toolsModal.value.show(connected)
+    await update(server, { enabled })
   } catch (error) {
-    popup.close()
-    if (!(error instanceof MCPSignInCancelled)) {
-      store.dispatch('toast/error', mcpErrorMessage(t, error))
-    }
-  } finally {
-    started()
-    if (signIns.get(server.id) === controller) signIns.delete(server.id)
+    store.dispatch('toast/error', mcpErrorMessage(t, error))
   }
 }
 </script>

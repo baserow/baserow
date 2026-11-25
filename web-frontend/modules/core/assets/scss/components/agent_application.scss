@@ -1137,56 +1137,84 @@
   color: $palette-neutral-900;
 }
 
-.agent-connected-apps__server {
+.agent-mcp-server-card__status {
+  flex-shrink: 0;
+}
+
+.agent-mcp-server-card__body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+
+  > .control {
+    margin-bottom: 0;
+  }
+}
+
+.agent-mcp-server-card__auth-group {
+  padding-top: 12px;
+  border-top: 1px solid $palette-neutral-200;
+}
+
+.agent-mcp-server-card__account {
   display: flex;
   align-items: center;
   gap: 8px;
-  margin-bottom: 8px;
-  padding: 10px 12px;
-  border: 1px solid $palette-neutral-200;
-  border-radius: 6px;
+  font-size: 13px;
+  color: $palette-neutral-1200;
 }
 
-.agent-connected-apps__server-icon {
-  color: $palette-neutral-900;
-}
-
-.agent-connected-apps__server-content {
+.agent-mcp-server-card__account-text {
   flex: 1;
   min-width: 0;
 }
 
-.agent-connected-apps__server-name {
-  overflow: hidden;
+.agent-mcp-server-card__tools {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding-top: 12px;
+  border-top: 1px solid $palette-neutral-200;
+}
+
+.agent-mcp-server-card__tools-label {
+  flex: 0 0 30%;
   font-size: 13px;
   font-weight: 500;
   color: $palette-neutral-1200;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
-.agent-connected-apps__server-meta {
+.agent-mcp-server-card__tools-button {
   display: flex;
-  align-items: center;
-  gap: 4px;
-  margin-top: 2px;
-  font-size: 12px;
-  color: $palette-neutral-900;
-}
-
-.agent-connected-apps__add {
-  margin-top: 4px;
-}
-
-.agent-connected-apps__modal-actions {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-top: 20px;
-}
-
-.agent-connected-apps__modal-spacer {
   flex: 1;
+  align-items: center;
+  justify-content: space-between;
+  min-width: 0;
+  height: 36px;
+  padding: 0 12px;
+  border: 1px solid $palette-neutral-400;
+  background: $palette-neutral-0;
+  color: $palette-neutral-1200;
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+
+  @include rounded($rounded-md);
+
+  &:hover {
+    background: $palette-neutral-25;
+  }
+
+  &:focus-visible {
+    outline: 2px solid $palette-blue-500;
+    outline-offset: 2px;
+  }
+}
+
+.agent-mcp-server-card__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
 }
 
 .agent-mcp-tools__select-all,
@@ -1305,7 +1333,7 @@
 }
 
 .agent-connected-apps__auth-help {
-  margin-top: 8px;
+  margin: 0;
   font-size: 12px;
   line-height: 18px;
   color: $palette-neutral-900;

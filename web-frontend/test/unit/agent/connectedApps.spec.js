@@ -38,10 +38,31 @@ const buttonInBody = (text) =>
   inBody('.modal__box button').find((button) =>
     button.textContent.includes(text)
   )
-const inputInModal = (label) =>
-  inBody('.modal__box .control')
+const cards = (wrapper) => wrapper.findAll('.agent-mcp-server-card')
+const card = (wrapper, index = 0) => cards(wrapper)[index].element
+const expand = async (wrapper, index = 0) => {
+  card(wrapper, index).querySelector('.agent-action-card__toggle').click()
+  await flushPromises()
+}
+const inputIn = (element, label) =>
+  [...element.querySelectorAll('.control')]
     .find((group) => group.textContent.includes(label))
     .querySelector('input')
+const buttonIn = (element, text) =>
+  [...element.querySelectorAll('button')].find((button) =>
+    button.textContent.includes(text)
+  )
+const openTools = async (wrapper, index = 0) => {
+  card(wrapper, index)
+    .querySelector('.agent-mcp-server-card__tools-button')
+    .click()
+  await flushPromises()
+}
+const addApp = async (wrapper) => {
+  await wrapper.get('.agent-connected-apps__add').trigger('click')
+  await flushPromises()
+  return cards(wrapper).at(-1).element
+}
 const type = (input, value) => {
   input.value = value
   input.dispatchEvent(new Event('input'))
@@ -80,12 +101,13 @@ describe('Agent connected apps', () => {
     const wrapper = await mountSection()
     await flushPromises()
 
-    const servers = wrapper.findAll('.agent-connected-apps__server')
+    const servers = cards(wrapper)
     expect(servers.map((item) => item.text())).toEqual([
       expect.stringContaining('Docs'),
       expect.stringContaining('Tracker'),
     ])
     expect(servers[0].text()).toContain('agent.toolsOn')
+    expect(servers[0].text()).toContain('agent.connectedAppConnected')
     expect(servers[1].text()).toContain('agent.connectedAppChanged')
   })
 
@@ -104,14 +126,13 @@ describe('Agent connected apps', () => {
     const wrapper = await mountSection()
     await flushPromises()
 
-    await wrapper.get('.agent-connected-apps__add').trigger('click')
+    const draft = await addApp(wrapper)
+    buttonIn(draft, 'agent.connectedAppAuthHeader').click()
     await flushPromises()
-    buttonInBody('agent.connectedAppAuthHeader').click()
-    await flushPromises()
-    type(inputInModal('agent.connectedAppName'), 'Docs')
-    type(inputInModal('agent.connectedAppUrl'), 'https://mcp.example.com/mcp')
-    type(inputInModal('agent.connectedAppHeaderValue'), 'Bearer secret')
-    buttonInBody('agent.connectedAppConnect').click()
+    type(inputIn(draft, 'agent.connectedAppName'), 'Docs')
+    type(inputIn(draft, 'agent.connectedAppUrl'), 'https://mcp.example.com/mcp')
+    type(inputIn(draft, 'agent.connectedAppHeaderValue'), 'Bearer secret')
+    buttonIn(draft, 'agent.connectedAppConnect').click()
     await flushPromises()
 
     expect(body(testApp.mock.history.post[0])).toEqual({
@@ -126,11 +147,12 @@ describe('Agent connected apps', () => {
       '/integrations/mcp/5/refresh-tools/'
     )
 
-    expect(inBody('.modal__box h2')[0].textContent).toContain(
-      'agent.connectedAppAdd'
+    expect(cards(wrapper)).toHaveLength(1)
+    const submitButton = card(wrapper).querySelector(
+      '.agent-mcp-server-card__actions button:last-child'
     )
-    expect(buttonInBody('agent.connectedAppConnect').disabled).toBe(true)
-    expect(buttonInBody('agent.connectedAppRemove')).toBeUndefined()
+    expect(submitButton.textContent).toContain('agent.connectedAppConnect')
+    expect(submitButton.disabled).toBe(true)
     discovery.resolve(200, server({ tools: [tool('search'), tool('delete')] }))
     await flushPromises()
 
@@ -172,6 +194,11 @@ describe('Agent connected apps', () => {
       ],
     })
     expect(wrapper.text()).toContain('agent.toolsOn')
+    // Saved: the card shows the server and nothing is left to save.
+    expect(cards(wrapper)).toHaveLength(1)
+    expect(card(wrapper).querySelector('.agent-mcp-server-card__actions')).toBe(
+      null
+    )
   })
 
   test('changing the URL asks for the credential again', async () => {
@@ -179,20 +206,19 @@ describe('Agent connected apps', () => {
     const wrapper = await mountSection()
     await flushPromises()
 
-    await wrapper
-      .get('button[aria-label="agent.connectedAppEdit"]')
-      .trigger('click')
+    await expand(wrapper)
+    type(
+      inputIn(card(wrapper), 'agent.connectedAppUrl'),
+      'https://other.example.com/mcp'
+    )
     await flushPromises()
-    type(inputInModal('agent.connectedAppUrl'), 'https://other.example.com/mcp')
-    buttonInBody('action.save').click()
+    buttonIn(card(wrapper), 'action.save').click()
     await flushPromises()
 
     expect(testApp.mock.history.patch).toHaveLength(0)
-    expect(
-      inBody('.modal__box .control').find((group) =>
-        group.textContent.includes('agent.connectedAppHeaderValueRequired')
-      )
-    ).toBeTruthy()
+    expect(card(wrapper).textContent).toContain(
+      'agent.connectedAppHeaderValueRequired'
+    )
   })
 
   test('a key the server no longer uses is cleared, so the URL can change', async () => {
@@ -206,14 +232,15 @@ describe('Agent connected apps', () => {
     const wrapper = await mountSection()
     await flushPromises()
 
-    await wrapper
-      .get('button[aria-label="agent.connectedAppEdit"]')
-      .trigger('click')
+    await expand(wrapper)
+    buttonIn(card(wrapper), 'agent.connectedAppAuthNone').click()
     await flushPromises()
-    buttonInBody('agent.connectedAppAuthNone').click()
+    type(
+      inputIn(card(wrapper), 'agent.connectedAppUrl'),
+      'https://other.example.com/mcp'
+    )
     await flushPromises()
-    type(inputInModal('agent.connectedAppUrl'), 'https://other.example.com/mcp')
-    buttonInBody('action.save').click()
+    buttonIn(card(wrapper), 'action.save').click()
     await flushPromises()
 
     expect(body(testApp.mock.history.patch[0])).toEqual({
@@ -235,13 +262,15 @@ describe('Agent connected apps', () => {
     const wrapper = await mountSection()
     await flushPromises()
 
-    await wrapper
-      .get('button[aria-label="agent.connectedAppEdit"]')
-      .trigger('click')
+    await expand(wrapper)
+    type(
+      inputIn(card(wrapper), 'agent.connectedAppUrl'),
+      'https://other.example.com/mcp'
+    )
     await flushPromises()
-    type(inputInModal('agent.connectedAppUrl'), 'https://other.example.com/mcp')
-    type(inputInModal('agent.connectedAppHeaderValue'), 'Bearer new')
-    buttonInBody('action.save').click()
+    type(inputIn(card(wrapper), 'agent.connectedAppHeaderValue'), 'Bearer new')
+    await flushPromises()
+    buttonIn(card(wrapper), 'action.save').click()
     await flushPromises()
 
     expect(inBody('.modal__box .agent-tool-permissions__tool')).toHaveLength(1)
@@ -261,10 +290,7 @@ describe('Agent connected apps', () => {
     const wrapper = await mountSection()
     await flushPromises()
 
-    await wrapper
-      .findAll('.agent-connected-apps__server button')[0]
-      .trigger('click')
-    await flushPromises()
+    await openTools(wrapper)
     buttonInBody('agent.connectedAppRefresh').click()
     await flushPromises()
 
@@ -290,20 +316,13 @@ describe('Agent connected apps', () => {
     )
     const wrapper = await mountSection()
     await flushPromises()
-    const toolsButtons = () =>
-      wrapper
-        .findAll('.agent-connected-apps__server')
-        .map((card) => card.findAll('button')[0])
-
-    await toolsButtons()[0].trigger('click')
-    await flushPromises()
+    await openTools(wrapper, 0)
     buttonInBody('agent.connectedAppRefresh').click()
     await flushPromises()
     buttonInBody('action.cancel').click()
     // The modal finishes hiding on the next tick.
     await new Promise((resolve) => setTimeout(resolve))
-    await toolsButtons()[1].trigger('click')
-    await flushPromises()
+    await openTools(wrapper, 1)
     answer()
     await flushPromises()
 
@@ -331,10 +350,7 @@ describe('Agent connected apps', () => {
     const wrapper = await mountSection()
     await flushPromises()
 
-    await wrapper
-      .findAll('.agent-connected-apps__server button')[0]
-      .trigger('click')
-    await flushPromises()
+    await openTools(wrapper)
     buttonInBody('agent.connectedAppToolParameters').click()
     await flushPromises()
 
@@ -366,10 +382,7 @@ describe('Agent connected apps', () => {
     const wrapper = await mountSection()
     await flushPromises()
 
-    await wrapper
-      .findAll('.agent-connected-apps__server button')[0]
-      .trigger('click')
-    await flushPromises()
+    await openTools(wrapper)
     buttonInBody('agent.connectedAppToolSchema').click()
     await flushPromises()
 
@@ -406,9 +419,7 @@ describe('Agent connected apps', () => {
     await flushPromises()
 
     expect(agent).toBeDefined()
-    expect(wrapper.find('.agent-connected-apps__server-name').text()).toBe(
-      'Renamed'
-    )
+    expect(wrapper.find('.agent-mcp-server-card__name').text()).toBe('Renamed')
   })
 
   const mountWithStore = async (servers) => {
@@ -440,10 +451,7 @@ describe('Agent connected apps', () => {
       server({ tools: [tool('search')] }),
     ])
     testApp.mock.onPatch('/integrations/mcp/5/tools/').reply(200, server())
-    await wrapper
-      .findAll('.agent-connected-apps__server button')[0]
-      .trigger('click')
-    await flushPromises()
+    await openTools(wrapper)
     inBody('.agent-mcp-tools__columns')[1].querySelector('.checkbox').click()
     await flushPromises()
 
@@ -484,10 +492,7 @@ describe('Agent connected apps', () => {
     testApp.mock
       .onPost('/integrations/mcp/5/refresh-tools/')
       .reply(200, server({ tools: [tool('search'), tool('fetch')] }))
-    await wrapper
-      .findAll('.agent-connected-apps__server button')[0]
-      .trigger('click')
-    await flushPromises()
+    await openTools(wrapper)
 
     buttonInBody('agent.connectedAppRefresh').click()
     await flushPromises()
@@ -503,9 +508,152 @@ describe('Agent connected apps', () => {
     await flushPromises()
 
     expect(wrapper.find('.agent-connected-apps__add').exists()).toBe(false)
+    expect(wrapper.find('.switch').exists()).toBe(false)
+    expect(wrapper.find('.agent-action-card__footer').exists()).toBe(false)
+    await expand(wrapper)
+    expect(inputIn(card(wrapper), 'agent.connectedAppUrl').disabled).toBe(true)
+    type(inputIn(card(wrapper), 'agent.connectedAppName'), 'Changed')
+    await flushPromises()
+    expect(card(wrapper).querySelector('.agent-mcp-server-card__actions')).toBe(
+      null
+    )
+    await openTools(wrapper)
+    expect(inBody('.modal__box .agent-tool-permissions__tool')).toHaveLength(0)
+    expect(inBody('.modal__box').length).toBeGreaterThan(0)
+  })
+
+  test('connect an app adds an expanded draft card without a request', async () => {
+    testApp.mock.onGet(/application\/10\/integrations/).reply(200, [server()])
+    const wrapper = await mountSection()
+    await flushPromises()
+
+    const draft = await addApp(wrapper)
+
+    expect(cards(wrapper)).toHaveLength(2)
+    expect(draft.textContent).toContain('agent.connectedAppNew')
     expect(
-      wrapper.find('button[aria-label="agent.connectedAppEdit"]').exists()
-    ).toBe(false)
+      draft.querySelector('.agent-mcp-server-card__body').style.display
+    ).toBe('')
+    // A draft has nothing to switch and no tools yet.
+    expect(draft.querySelector('.switch')).toBe(null)
+    expect(draft.querySelector('.agent-mcp-server-card__tools')).toBe(null)
+    expect(testApp.mock.history.post).toHaveLength(0)
+  })
+
+  test('removing a draft sends nothing', async () => {
+    testApp.mock.onGet(/application\/10\/integrations/).reply(200, [])
+    const wrapper = await mountSection()
+    await flushPromises()
+
+    const draft = await addApp(wrapper)
+    type(inputIn(draft, 'agent.connectedAppName'), 'Docs')
+    buttonIn(draft, 'agent.connectedAppRemove').click()
+    await flushPromises()
+
+    expect(cards(wrapper)).toHaveLength(0)
+    expect(testApp.mock.history.post).toHaveLength(0)
+    expect(testApp.mock.history.delete).toHaveLength(0)
+  })
+
+  test('the footer appears only after a change, and Cancel restores the values', async () => {
+    testApp.mock.onGet(/application\/10\/integrations/).reply(200, [server()])
+    const wrapper = await mountSection()
+    await flushPromises()
+    await expand(wrapper)
+    const actions = () =>
+      card(wrapper).querySelector('.agent-mcp-server-card__actions')
+
+    expect(actions()).toBe(null)
+    type(inputIn(card(wrapper), 'agent.connectedAppName'), 'Renamed')
+    await flushPromises()
+    expect(actions()).not.toBe(null)
+
+    buttonIn(actions(), 'action.cancel').click()
+    await flushPromises()
+
+    expect(inputIn(card(wrapper), 'agent.connectedAppName').value).toBe('Docs')
+    expect(actions()).toBe(null)
+    expect(testApp.mock.history.patch).toHaveLength(0)
+  })
+
+  test('collapsing keeps unsaved edits', async () => {
+    testApp.mock.onGet(/application\/10\/integrations/).reply(200, [server()])
+    const wrapper = await mountSection()
+    await flushPromises()
+
+    await expand(wrapper)
+    type(
+      inputIn(card(wrapper), 'agent.connectedAppUrl'),
+      'https://other.example.com/mcp'
+    )
+    await flushPromises()
+    await wrapper.get('.agent-card-list-header__toggle-all').trigger('click')
+    await flushPromises()
+    expect(
+      card(wrapper).querySelector('.agent-mcp-server-card__body').style.display
+    ).toBe('none')
+    await expand(wrapper)
+    buttonIn(card(wrapper), 'action.save').click()
+    await flushPromises()
+
+    expect(inputIn(card(wrapper), 'agent.connectedAppUrl').value).toBe(
+      'https://other.example.com/mcp'
+    )
+    expect(card(wrapper).textContent).toContain(
+      'agent.connectedAppHeaderValueRequired'
+    )
+    expect(testApp.mock.history.patch).toHaveLength(0)
+  })
+
+  test('the switch saves only enabled', async () => {
+    testApp.mock
+      .onGet(/application\/10\/integrations/)
+      .reply(200, [server({ enabled: true })])
+    testApp.mock
+      .onPatch('integration/5/')
+      .reply(200, server({ enabled: false }))
+    const wrapper = await mountSection()
+    await flushPromises()
+
+    await expand(wrapper)
+    type(inputIn(card(wrapper), 'agent.connectedAppName'), 'Renamed')
+    await flushPromises()
+    card(wrapper).querySelector('.switch').click()
+    await flushPromises()
+
+    expect(body(testApp.mock.history.patch[0])).toEqual({ enabled: false })
+    expect(card(wrapper).querySelector('.switch').classList).not.toContain(
+      'switch--active'
+    )
+    // The pending edit is still there to save or cancel.
+    expect(inputIn(card(wrapper), 'agent.connectedAppName').value).toBe(
+      'Renamed'
+    )
+    expect(
+      card(wrapper).querySelector('.agent-mcp-server-card__actions')
+    ).not.toBe(null)
+  })
+
+  test('collapse all collapses every card', async () => {
+    testApp.mock
+      .onGet(/application\/10\/integrations/)
+      .reply(200, [server(), server({ id: 6, name: 'Tracker' })])
+    const wrapper = await mountSection()
+    await flushPromises()
+    const shown = () =>
+      cards(wrapper).map(
+        (item) =>
+          item.element.querySelector('.agent-mcp-server-card__body').style
+            .display !== 'none'
+      )
+
+    expect(shown()).toEqual([false, false])
+    await wrapper.get('.agent-card-list-header__toggle-all').trigger('click')
+    await flushPromises()
+    expect(shown()).toEqual([true, true])
+    await wrapper.get('.agent-card-list-header__toggle-all').trigger('click')
+    await flushPromises()
+    expect(shown()).toEqual([false, false])
   })
 
   describe('signing in with OAuth', () => {
@@ -529,11 +677,13 @@ describe('Agent connected apps', () => {
       })
 
     const createWithOAuth = async (wrapper) => {
-      await wrapper.get('.agent-connected-apps__add').trigger('click')
-      await flushPromises()
-      type(inputInModal('agent.connectedAppName'), 'Linear')
-      type(inputInModal('agent.connectedAppUrl'), 'https://mcp.example.com/mcp')
-      buttonInBody('agent.connectedAppSignIn').click()
+      const draft = await addApp(wrapper)
+      type(inputIn(draft, 'agent.connectedAppName'), 'Linear')
+      type(
+        inputIn(draft, 'agent.connectedAppUrl'),
+        'https://mcp.example.com/mcp'
+      )
+      buttonIn(draft, 'agent.connectedAppSignIn').click()
       await flushPromises()
     }
 
@@ -624,13 +774,13 @@ describe('Agent connected apps', () => {
       report({ state: 'abc', error: 'The sign-in was cancelled or refused.' })
 
       await vi.waitFor(() =>
-        expect(
-          document.body.querySelector('.modal__box .alert')?.textContent
-        ).toContain('The sign-in was cancelled or refused.')
+        expect(card(wrapper).querySelector('.alert')?.textContent).toContain(
+          'The sign-in was cancelled or refused.'
+        )
       )
-      expect(inBody('.modal__box h2')[0].textContent).toContain(
-        'agent.connectedAppEditTitle'
-      )
+      // The saved server keeps its card, so signing in again edits it.
+      expect(cards(wrapper)).toHaveLength(1)
+      expect(card(wrapper).querySelector('.switch')).not.toBe(null)
     })
 
     test('a new URL replaces a client Baserow registered without asking for its secret', async () => {
@@ -654,17 +804,16 @@ describe('Agent connected apps', () => {
       await flushPromises()
 
       await wrapper
-        .get('button[aria-label="agent.connectedAppEdit"]')
+        .find('.agent-mcp-server-card .agent-action-card__toggle')
         .trigger('click')
       await flushPromises()
       type(
-        inputInModal('agent.connectedAppUrl'),
+        inputIn(card(wrapper), 'agent.connectedAppUrl'),
         'https://other.example.com/mcp'
       )
-      document.body
-        .querySelector(
-          '.agent-connected-apps__modal-actions .button--primary, .agent-connected-apps__modal-actions button:last-child'
-        )
+      await flushPromises()
+      card(wrapper)
+        .querySelector('.agent-mcp-server-card__actions button:last-child')
         .click()
       await flushPromises()
 
@@ -685,9 +834,9 @@ describe('Agent connected apps', () => {
       await createWithOAuth(wrapper)
       await flushPromises()
 
-      expect(
-        document.body.querySelector('.modal__box .alert')?.textContent
-      ).toContain('agent.connectedAppPopupBlocked')
+      expect(card(wrapper).querySelector('.alert')?.textContent).toContain(
+        'agent.connectedAppPopupBlocked'
+      )
       expect(testApp.mock.history.post.map(({ url }) => url)).not.toContain(
         '/integrations/mcp/5/refresh-tools/'
       )
@@ -711,12 +860,12 @@ describe('Agent connected apps', () => {
       await flushPromises()
 
       await wrapper
-        .get('button[aria-label="agent.connectedAppEdit"]')
+        .find('.agent-mcp-server-card .agent-action-card__toggle')
         .trigger('click')
       await flushPromises()
-      type(inputInModal('agent.connectedAppClientId'), '')
+      type(inputIn(card(wrapper), 'agent.connectedAppClientId'), '')
       await flushPromises()
-      buttonInBody('agent.connectedAppSignIn').click()
+      buttonIn(card(wrapper), 'agent.connectedAppSignIn').click()
       await flushPromises()
 
       expect(body(testApp.mock.history.patch[0])).toEqual({
@@ -739,9 +888,9 @@ describe('Agent connected apps', () => {
       await createWithOAuth(wrapper)
 
       expect(popup.close).toHaveBeenCalled()
-      expect(
-        document.body.querySelector('.modal__box .alert').textContent
-      ).toContain("doesn't support OAuth sign-in")
+      expect(card(wrapper).querySelector('.alert').textContent).toContain(
+        "doesn't support OAuth sign-in"
+      )
     })
 
     test('a server without an account asks to sign in instead of listing tools', async () => {
@@ -751,10 +900,10 @@ describe('Agent connected apps', () => {
       const wrapper = await mountSection()
       await flushPromises()
 
-      const card = wrapper.get('.agent-connected-apps__server')
-      expect(card.text()).toContain('agent.connectedAppNotConnected')
-      expect(card.text()).toContain('agent.connectedAppSignIn')
-      expect(card.text()).not.toContain('agent.connectedAppTools')
+      const server = wrapper.get('.agent-mcp-server-card')
+      expect(server.text()).toContain('agent.connectedAppNotConnected')
+      expect(server.text()).toContain('agent.connectedAppSignIn')
+      expect(server.find('.agent-mcp-server-card__tools').exists()).toBe(false)
     })
   })
 })
