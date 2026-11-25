@@ -14,7 +14,6 @@ export const ACTION_ERROR_LABELS = {
   unavailable: 'agent.actionErrorUnavailable',
   forbidden: 'agent.actionErrorForbidden',
   fixed_host: 'agent.actionErrorFixedHost',
-  fixed_value: 'agent.actionErrorFixedValue',
 }
 
 export const ACTION_INPUT_TYPE_LABELS = {

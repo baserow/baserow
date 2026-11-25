@@ -598,7 +598,6 @@ class LocalBaserowAgentActionType(AgentActionType):
     """
 
     acts_as_run_identity = True
-    filters_read_inputs = True
 
     change_operations: tuple[str, ...] = ()
     """

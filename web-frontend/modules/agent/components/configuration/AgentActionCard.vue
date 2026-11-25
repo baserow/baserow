@@ -249,11 +249,6 @@ const serviceType = computed(() => serviceTypeOf($registry, props.action.type))
 provide('formulaComponent', AgentFormulaInput)
 provideWorkspaceAccessLink()
 provide('dataProvidersAllowed', ['tool_input'])
-// Only some types resolve their filters with the call's inputs.
-provide(
-  'filterDataProvidersAllowed',
-  computed(() => (props.typeOptions?.filters_read_inputs ? null : []))
-)
 provide('workspace', toRef(props, 'workspace'))
 provide(
   'applicationContext',

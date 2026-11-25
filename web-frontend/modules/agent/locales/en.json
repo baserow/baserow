@@ -491,7 +491,6 @@
     "actionErrorUnavailable": "Unavailable",
     "actionErrorForbidden": "The agent's identity isn't allowed to make this change",
     "actionErrorFixedHost": "Start with a fixed address up to the host, as the request sends values you set",
-    "actionErrorFixedValue": "Use fixed values, as input variables can't be used here",
     "actionFieldType": "Action type",
     "actionFieldIntegration": "Integration",
     "actionFieldFilters": "Filters",

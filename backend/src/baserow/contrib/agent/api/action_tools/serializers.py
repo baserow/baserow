@@ -71,10 +71,6 @@ class AgentActionTypeSerializer(serializers.Serializer):
         "identity, such as `databases` with the tables it can read, or null when "
         "the type doesn't act as the run identity.",
     )
-    filters_read_inputs = serializers.BooleanField(
-        help_text="Whether the filter values of the type's service may read the "
-        "action's inputs."
-    )
 
 
 class AgentActionWriteSerializer(

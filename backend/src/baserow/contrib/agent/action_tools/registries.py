@@ -43,12 +43,6 @@ class AgentActionType(Instance, ABC):
     changes_data: bool = True
     """Whether a call acts on anything; a type that only reads sets it to False."""
 
-    filters_read_inputs: bool = False
-    """
-    Whether the filter values of the type's service may read the call's inputs,
-    which the editor then offers there.
-    """
-
     acts_as_run_identity: bool = False
     """
     Whether a call acts as the Agent's run identity, like its triggers and

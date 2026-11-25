@@ -341,11 +341,6 @@ def test_row_action_forms_choose_from_the_tables_the_identity_reads(
         (database,) = by_type[type_name]["databases"]
         assert [item["id"] for item in database["tables"]] == [table.id]
     assert by_type["slack_write_message"] is None
-    reads_inputs = {
-        item["type"]: item["filters_read_inputs"] for item in response.json()
-    }
-    assert reads_inputs["local_baserow_list_rows"] is True
-    assert reads_inputs["slack_write_message"] is False
     view = data_fixture.create_grid_view(table=table)
     response = api_client.get(agent_url(agent, "actions:types"))
     by_type = {item["type"]: item["form_choices"] for item in response.json()}

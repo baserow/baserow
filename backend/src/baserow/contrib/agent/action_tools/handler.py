@@ -36,7 +36,6 @@ class AgentActionTypeOptions:
     type: str
     form_choices: dict[str, Any] | None
     """What the type's form may choose from for the Agent's run identity."""
-    filters_read_inputs: bool
 
 
 @dataclass
@@ -240,7 +239,6 @@ class AgentActionHandler:
                     if action_type.acts_as_run_identity
                     else None
                 ),
-                filters_read_inputs=action_type.filters_read_inputs,
             )
             for action_type in agent_action_type_registry.get_all()
         ]

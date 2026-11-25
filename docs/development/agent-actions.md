@@ -44,9 +44,9 @@ An action that calls another service keeps its integration, like Send email with
 its SMTP integration and Slack message with its bot: it needs that connection,
 not an identity, and works with or without workspace access.
 
-In code, the type of an action on Baserow data sets `acts_as_run_identity = True`.
-The row actions extend `LocalBaserowAgentActionType`, which also checks the table
-for all of an agent's actions in one permission check.
+In code, the type of an action on Baserow data extends
+`LocalBaserowAgentActionType`, which sets `acts_as_run_identity = True` and checks
+the table for all of an agent's actions in one permission check.
 Create, update and import then drop any `integration_id`, the agent doesn't accept
 an integration for it, and a call dispatches with the identity as its actor,
 refreshed for each call. A call
@@ -80,9 +80,7 @@ Types are Text, Email, Number and Boolean.
 - A Local Baserow service resolves its filter values and its search query only
   while a call is sent. A call is sent with its arguments, so these can read the
   inputs too. They aren't part of the resolved values, so the request people read
-  lists the call's inputs instead (`LocalBaserowAgentActionType.get_preview`). A
-  type says so with `filters_read_inputs`, and the editor then offers the inputs
-  in filter values. Semantic search doesn't: it only accepts fixed filter values.
+  lists the call's inputs instead (`LocalBaserowAgentActionType.get_preview`).
 
 ## Names
 
