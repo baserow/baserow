@@ -86,6 +86,7 @@ class TableReadAgentToolType(DatabaseAgentToolType):
     """A read of one table, titled with the table's name."""
 
     needs = AgentToolNeeds.READ
+    requires = ("list_tables",)
 
     def get_step_preview(
         self, ctx: ToolContext, arguments: dict[str, Any]
@@ -120,6 +121,7 @@ class UpdateDatabaseAgentToolType(DatabaseAgentToolType):
     type = "update_database"
     needs = AgentToolNeeds.BUILD
     function = databases.update_database
+    requires = ("list_databases",)
     changes_data = True
 
     def get_step_preview(
@@ -151,6 +153,7 @@ class GetTableSchemaAgentToolType(DatabaseAgentToolType):
     type = "get_table_schema"
     needs = AgentToolNeeds.READ
     function = tables.get_table_schema
+    requires = ("list_tables",)
     step_count_argument = "table_ids"
 
     def get_step_facts(
@@ -179,6 +182,7 @@ class CreateTablesAgentToolType(DatabaseAgentToolType):
     type = "create_tables"
     needs = AgentToolNeeds.BUILD
     function = tables.create_tables
+    requires = ("list_databases",)
     changes_data = True
     step_count_argument = "tables"
 
@@ -211,6 +215,7 @@ class CreateFieldsAgentToolType(DatabaseAgentToolType):
     type = "create_fields"
     needs = AgentToolNeeds.BUILD
     function = fields.create_fields
+    requires = ("get_table_schema",)
     changes_data = True
     step_count_argument = "fields"
 
@@ -239,6 +244,7 @@ class UpdateFieldsAgentToolType(DatabaseAgentToolType):
     type = "update_fields"
     needs = AgentToolNeeds.BUILD
     function = fields.update_fields
+    requires = ("get_table_schema",)
     changes_data = True
     step_count_argument = "fields"
 
@@ -267,6 +273,7 @@ class DeleteFieldsAgentToolType(DatabaseAgentToolType):
     type = "delete_fields"
     needs = AgentToolNeeds.BUILD
     function = fields.delete_fields
+    requires = ("get_table_schema",)
     changes_data = True
     step_count_argument = "field_ids"
 
@@ -289,6 +296,7 @@ class CreateViewsAgentToolType(DatabaseAgentToolType):
     type = "create_views"
     needs = AgentToolNeeds.BUILD
     function = views.create_views
+    requires = ("get_table_schema",)
     changes_data = True
     step_count_argument = "views"
 
@@ -311,6 +319,7 @@ class CreateViewFiltersAgentToolType(DatabaseAgentToolType):
     type = "create_view_filters"
     needs = AgentToolNeeds.BUILD
     function = views.create_view_filters
+    requires = ("list_views", "get_table_schema")
     changes_data = True
 
     def get_step_input(self, arguments: dict[str, Any]) -> dict[str, Any]:
@@ -360,6 +369,7 @@ class CreateRowsAgentToolType(DatabaseAgentToolType):
     type = "create_rows"
     needs = AgentToolNeeds.CHANGE_ROWS
     function = rows.create_rows
+    requires = ("get_table_schema",)
     changes_data = True
     step_count_argument = "rows"
 
@@ -382,6 +392,7 @@ class UpdateRowsAgentToolType(DatabaseAgentToolType):
     type = "update_rows"
     needs = AgentToolNeeds.CHANGE_ROWS
     function = rows.update_rows
+    requires = ("get_table_schema", "list_table_rows")
     changes_data = True
     step_count_argument = "rows"
 
@@ -414,6 +425,7 @@ class DeleteRowsAgentToolType(DatabaseAgentToolType):
     type = "delete_rows"
     needs = AgentToolNeeds.CHANGE_ROWS
     function = rows.delete_rows
+    requires = ("list_table_rows",)
     changes_data = True
     step_count_argument = "row_ids"
 

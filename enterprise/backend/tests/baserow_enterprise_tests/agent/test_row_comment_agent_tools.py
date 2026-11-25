@@ -20,6 +20,7 @@ from baserow_premium.license.features import PREMIUM
 from baserow_premium.license.handler import LicenseHandler
 from baserow_premium.row_comments.tools import MAX_PAGE
 
+ROW_READS = ["list_tables", "list_table_rows"]
 ROW_COMMENT_TOOLS = {
     "list_row_comments": False,
     "search_row_comments": False,
@@ -205,7 +206,7 @@ def test_tool_grants_can_be_copied_and_revoked_during_a_licence_lapse(
     identity = enterprise_data_fixture.create_identity(workspace=agent.workspace)
     service = AgentService()
     grants = {
-        "allowed_tools": ["list_row_comments", "create_row_comments"],
+        "allowed_tools": [*ROW_READS, "list_row_comments", "create_row_comments"],
         "ask_first_tools": ["list_row_comments"],
     }
     service.update_configuration(
@@ -221,11 +222,11 @@ def test_tool_grants_can_be_copied_and_revoked_during_a_licence_lapse(
     edited = service.update_configuration(
         user, agent.id, instructions="New instructions"
     )
-    assert edited.configuration.allowed_tools == []
+    assert edited.configuration.allowed_tools == ROW_READS
     for field, expected in grants.items():
         assert edited.original_values[field] == edited.new_values[field] == expected
     duplicate = CoreHandler().duplicate_application(user, edited.agent).specific
-    assert service.get_configuration(user, duplicate.id).allowed_tools == []
+    assert service.get_configuration(user, duplicate.id).allowed_tools == ROW_READS
 
     cleared = service.update_configuration(user, agent.id, allowed_tools=[])
     assert cleared.original_values["allowed_tools"] == grants["allowed_tools"]

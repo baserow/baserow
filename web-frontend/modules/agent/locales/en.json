@@ -64,6 +64,7 @@
     "toolAllow": "Allow",
     "toolAskFirst": "Ask first",
     "toolAskFirstLabel": "Ask first: {name}",
+    "toolRequiredBy": "Required by {names}",
     "toolDescription": "Description",
     "selectAllTools": "Select all",
     "deselectAllTools": "Deselect all",

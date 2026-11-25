@@ -20,6 +20,7 @@ from baserow_enterprise.assistant.types import AgentNavigationType
 
 from .utils import make_test_ctx
 
+ROW_READS = ["list_tables", "get_table_schema", "list_table_rows"]
 ENABLED_MODELS_PATH = (
     "baserow.core.generative_ai.registries.GenerativeAIModelTypeRegistry"
     ".get_enabled_models_per_type"
@@ -102,7 +103,7 @@ def test_kuma_opens_the_agent_it_changed(data_fixture):
             ]
         },
         {"update_triggers": [{"trigger_id": 1, "enabled": True}]},
-        {"grant_tools": ["create_tables"], "ask_first_tools": []},
+        {"grant_tools": ["list_databases", "create_tables"], "ask_first_tools": []},
     ],
 )
 def test_kuma_has_no_way_to_turn_a_trigger_on_or_ask_first_off(data_fixture, setup):
@@ -134,18 +135,20 @@ def test_a_newly_allowed_tool_asks_first_and_the_users_choice_is_kept(data_fixtu
         agent,
         run_as_subject_type="auth.User",
         run_as_subject_id=identity.id,
-        allowed_tools=["create_tables"],
+        allowed_tools=["list_databases", "create_tables"],
         ask_first_tools=[],
     )
 
     result = _apply(
         _ctx(user, workspace),
-        {"grant_tools": ["list_tables", "create_fields"]},
+        {"grant_tools": ["list_tables", "get_table_schema", "create_fields"]},
         agent.id,
     )["setup"]
 
     assert set(result["allowed_tools"]) == {
+        "list_databases",
         "list_tables",
+        "get_table_schema",
         "create_tables",
         "create_fields",
     }
@@ -664,29 +667,34 @@ def test_tools_are_granted_and_revoked_one_by_one(data_fixture):
         agent,
         run_as_subject_type="auth.User",
         run_as_subject_id=identity.id,
-        allowed_tools=["list_tables", "create_tables", "update_rows"],
+        allowed_tools=[*ROW_READS, "list_databases", "create_tables", "update_rows"],
         ask_first_tools=["update_rows"],
     )
     ctx = _ctx(user, workspace)
 
     result = _apply(
-        ctx, {"grant_tools": ["delete_rows"], "revoke_tools": ["list_tables"]}, agent.id
+        ctx,
+        {"grant_tools": ["delete_rows"], "revoke_tools": ["create_tables"]},
+        agent.id,
     )
 
     # Tools the change doesn't name keep what the user set.
     assert set(result["setup"]["allowed_tools"]) == {
-        "create_tables",
+        *ROW_READS,
+        "list_databases",
         "update_rows",
         "delete_rows",
     }
     assert set(result["setup"]["ask_first_tools"]) == {"update_rows", "delete_rows"}
     assert result["revert"]["setup"] == {
         "revoke_tools": ["delete_rows"],
-        "grant_tools": ["list_tables"],
+        "grant_tools": ["create_tables"],
     }
 
     with pytest.raises(ToolInputError, match="list_rows"):
         _apply(ctx, {"grant_tools": ["list_rows"]}, agent.id)
+    with pytest.raises(ToolInputError, match="delete_rows requires list_table_rows"):
+        _apply(ctx, {"revoke_tools": ["list_table_rows"]}, agent.id)
 
 
 @pytest.mark.django_db
@@ -694,11 +702,11 @@ def test_tools_are_granted_and_revoked_one_by_one(data_fixture):
     "tools,needed",
     [
         (["list_tables"], "VIEWER"),
-        (["list_tables", "update_rows"], "EDITOR"),
-        (["update_rows", "create_fields"], "BUILDER"),
+        ([*ROW_READS, "update_rows"], "EDITOR"),
+        ([*ROW_READS, "update_rows", "create_fields"], "BUILDER"),
         # Reading comments needs the same role as writing them.
-        (["list_tables", "list_row_comments"], "COMMENTER"),
-        (["create_row_comments"], "COMMENTER"),
+        ([*ROW_READS, "list_row_comments"], "COMMENTER"),
+        ([*ROW_READS, "create_row_comments"], "COMMENTER"),
     ],
 )
 def test_a_new_identity_gets_the_lowest_role_that_covers_the_tools(
@@ -748,7 +756,7 @@ def test_kuma_says_when_the_identitys_role_is_below_the_tools(
         },
     )["setup"]["agent_id"]
 
-    result = _apply(ctx, {"grant_tools": ["update_rows"]}, agent_id)
+    result = _apply(ctx, {"grant_tools": [*ROW_READS, "update_rows"]}, agent_id)
 
     assert "has the VIEWER role" in result["next_steps"]
     assert "need EDITOR" in result["next_steps"]
@@ -846,7 +854,7 @@ def test_an_identity_turns_on_the_tools_an_imported_agent_waits_with(data_fixtur
     identity = data_fixture.create_identity(workspace=workspace)
     agent = data_fixture.create_agent_application(workspace=workspace)
     agent.pending_tool_choices = {
-        "allowed_tools": ["list_tables", "list_databases", "update_rows"],
+        "allowed_tools": [*ROW_READS, "list_databases", "update_rows"],
         "ask_first_tools": ["list_tables"],
     }
     agent.save()
@@ -860,6 +868,8 @@ def test_an_identity_turns_on_the_tools_an_imported_agent_waits_with(data_fixtur
     assert result["tools_turned_on"] == [
         {"name": "list_databases", "asks_first": False},
         {"name": "list_tables", "asks_first": True},
+        {"name": "get_table_schema", "asks_first": False},
+        {"name": "list_table_rows", "asks_first": False},
         {"name": "update_rows", "asks_first": True},
     ]
     assert "tools_turned_on" in result["next_steps"]
@@ -1002,7 +1012,7 @@ def test_a_new_identity_covers_the_tools_the_agent_already_has(
         {
             "name": "Bot",
             "new_identity": {"name": "Bot"},
-            "grant_tools": ["update_rows"],
+            "grant_tools": [*ROW_READS, "update_rows"],
         },
     )["setup"]
 
