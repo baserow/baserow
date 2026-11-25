@@ -1050,6 +1050,11 @@ describe('Agent connected apps', () => {
         integration: oauthServer({ oauth_connected: true }),
       })
       await flushPromises()
+      await new Promise((resolve) => setTimeout(resolve, 50))
+      await flushPromises()
+      expect(testApp.mock.history.post.map(({ url }) => url)).not.toContain(
+        '/integrations/mcp/5/refresh-tools/'
+      )
       expect(inBody('.modal__box .agent-tool-permissions__tool')).toHaveLength(
         0
       )

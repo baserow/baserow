@@ -279,8 +279,9 @@ def test_a_switched_off_app_offers_no_tools_and_is_not_contacted(
 
 
 @pytest.mark.django_db
+@pytest.mark.parametrize("change", ["switched_off", "trashed"])
 def test_a_tool_call_after_the_app_is_switched_off_is_refused(
-    data_fixture, configured_agent, mocker
+    data_fixture, configured_agent, mocker, change
 ):
     from asgiref.sync import async_to_sync
 
@@ -292,11 +293,41 @@ def test_a_tool_call_after_the_app_is_switched_off_is_refused(
     (snapshot,) = AgentHandler().get_mcp_servers(agent)
     toolset = MCPServerToolset(snapshot)
     (model_name,) = toolset._tools
-    integration.enabled = False
+    if change == "switched_off":
+        integration.enabled = False
+    else:
+        integration.trashed = True
     integration.save()
     opened.clear()
 
     result = async_to_sync(toolset.call_tool)(model_name, {"a": 1, "b": 2}, None, None)
 
-    assert "switched off" in result.return_value["error"]
+    assert "switched this app off or removed it" in result.return_value["error"]
+    assert result.metadata["error_code"] == "not_run"
+    assert opened == []
+
+
+@pytest.mark.django_db
+def test_a_failed_switch_check_is_a_tool_error_not_a_failed_reply(
+    data_fixture, configured_agent, mocker
+):
+    from django.db import OperationalError
+
+    from asgiref.sync import async_to_sync
+
+    from baserow.contrib.integrations.mcp.toolset import MCPServerToolset
+
+    opened = serve(mocker, make_server())
+    _, agent, _ = agent_with_server(data_fixture, configured_agent, ["add"])
+    (snapshot,) = AgentHandler().get_mcp_servers(agent)
+    toolset = MCPServerToolset(snapshot)
+    (model_name,) = toolset._tools
+    mocker.patch.object(
+        MCPServerToolset, "_still_switched_on", side_effect=OperationalError("gone")
+    )
+    opened.clear()
+
+    result = async_to_sync(toolset.call_tool)(model_name, {"a": 1, "b": 2}, None, None)
+
+    assert result.metadata["error_code"] == "failed"
     assert opened == []
