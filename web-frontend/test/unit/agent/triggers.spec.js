@@ -1225,6 +1225,23 @@ describe('Agent triggers', () => {
     expect(patches(testApp)).toEqual([])
   })
 
+  test('leaves asking a person alone on a trigger the license locks', async () => {
+    vi.spyOn(
+      testApp.getRegistry().get('service', 'periodic'),
+      'isDeactivatedReason'
+    ).mockReturnValue('Locked')
+    const wrapper = await mountSection([periodicTrigger()])
+    const section = wrapper.get('.agent-trigger-card__ask-person')
+    const toggle = section.get('.agent-trigger-card__ask-person-switch')
+
+    expect(section.attributes('inert')).toBeDefined()
+    expect(toggle.attributes('aria-disabled')).toBe('true')
+    await toggle.trigger('click')
+    await flushPromises()
+
+    expect(patches(testApp)).toEqual([])
+  })
+
   test('tells how many runs can wait, as the server allows', async () => {
     const wrapper = await mountSection(
       [periodicTrigger()],

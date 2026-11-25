@@ -250,7 +250,10 @@
           {{ skippedText }}
         </p>
       </div>
-      <div class="agent-trigger-card__section agent-trigger-card__ask-person">
+      <div
+        class="agent-trigger-card__section agent-trigger-card__ask-person"
+        :inert="locked || null"
+      >
         <div class="agent-trigger-card__ask-person-header">
           <div
             :id="`${askPersonId}-title`"
@@ -262,13 +265,13 @@
             class="agent-trigger-card__ask-person-switch"
             small
             role="switch"
-            :tabindex="editable ? 0 : -1"
+            :tabindex="canEdit ? 0 : -1"
             :aria-labelledby="`${askPersonId}-title`"
             :aria-describedby="`${askPersonId}-description`"
             :aria-checked="trigger.may_ask_person"
-            :aria-disabled="!editable"
+            :aria-disabled="!canEdit"
             :model-value="trigger.may_ask_person"
-            :disabled="!editable"
+            :disabled="!canEdit"
             @update:model-value="$emit('update', { may_ask_person: $event })"
             @keydown.enter.prevent="toggleMayAskPerson"
             @keydown.space.prevent="toggleMayAskPerson"
@@ -589,7 +592,7 @@ function toggleEnabled() {
 }
 
 function toggleMayAskPerson() {
-  if (props.editable) {
+  if (canEdit.value) {
     emit('update', { may_ask_person: !props.trigger.may_ask_person })
   }
 }

@@ -252,7 +252,13 @@ class AgentTriggerService:
         changes_type = service_type_name not in (None, service_type.type)
         locked_change = enabled or any(
             value is not None
-            for value in (message, service_values, on_overlap, batch_size)
+            for value in (
+                message,
+                service_values,
+                on_overlap,
+                batch_size,
+                may_ask_person,
+            )
         )
         if (
             not changes_type
