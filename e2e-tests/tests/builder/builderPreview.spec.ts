@@ -60,14 +60,28 @@ test.describe("Builder preview test suite", () => {
         `builder/preview/${builderPagePage.builder.id}/grant/`,
         { path: builderPagePage.builderPage.path }
       );
+      // Preview on the editor's hostname shares the editor's cookies, so it
+      // gets neither head HTML nor custom JavaScript there.
+      const sharesEditorHostname =
+        new URL(baserowConfig.BUILDER_PREVIEW_URL).hostname ===
+        new URL(baserowConfig.PUBLIC_WEB_FRONTEND_URL).hostname;
       const previewPage = await context.newPage();
+      const jsRequests: string[] = [];
+      previewPage.on("request", (request) => {
+        if (request.url().endsWith("/custom-code/js/"))
+          jsRequests.push(request.url());
+      });
       const customCodeResponses = Promise.all([
         previewPage.waitForResponse((response) =>
           response.url().endsWith("/custom-code/css/")
         ),
-        previewPage.waitForResponse((response) =>
-          response.url().endsWith("/custom-code/js/")
-        ),
+        ...(sharesEditorHostname
+          ? []
+          : [
+              previewPage.waitForResponse((response) =>
+                response.url().endsWith("/custom-code/js/")
+              ),
+            ]),
       ]);
 
       const documentResponse = await previewPage.goto(grantResponse.data.url, {
@@ -77,10 +91,7 @@ test.describe("Builder preview test suite", () => {
       const head = (await documentResponse!.text()).match(
         /<head>[\s\S]*?<\/head>/
       )?.[0];
-      if (
-        new URL(baserowConfig.BUILDER_PREVIEW_URL).hostname !==
-        new URL(baserowConfig.PUBLIC_WEB_FRONTEND_URL).hostname
-      ) {
+      if (!sharesEditorHostname) {
         expect(head).toContain(headHtml);
         expect(documentResponse!.headers()["cache-control"]).toContain(
           "no-store"
@@ -101,7 +112,11 @@ test.describe("Builder preview test suite", () => {
             js: document.documentElement.dataset.previewCustomCode,
           }))
         )
-        .toEqual({ css: cssMarker, js: jsMarker });
+        .toEqual({
+          css: cssMarker,
+          js: sharesEditorHostname ? undefined : jsMarker,
+        });
+      expect(jsRequests).toHaveLength(sharesEditorHostname ? 0 : 1);
     } finally {
       await deleteLicense(license);
     }
