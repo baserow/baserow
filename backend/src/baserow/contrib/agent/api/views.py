@@ -38,6 +38,7 @@ from baserow.contrib.agent.actions import (
 )
 from baserow.contrib.agent.exceptions import (
     AgentConversationDoesNotExist,
+    AgentConversationIsExample,
     AgentConversationWaitingForApproval,
     AgentMessageConflict,
     AgentNotReady,
@@ -62,6 +63,7 @@ from baserow.core.service import CoreService
 from .errors import (
     ERROR_AGENT_BUSY,
     ERROR_AGENT_CONVERSATION_DOES_NOT_EXIST,
+    ERROR_AGENT_CONVERSATION_IS_EXAMPLE,
     ERROR_AGENT_CONVERSATION_WAITING_FOR_APPROVAL,
     ERROR_AGENT_MESSAGE_CONFLICT,
     ERROR_AGENT_NOT_READY,
@@ -104,6 +106,7 @@ AGENT_EXCEPTIONS = {
     AgentMessageConflict: ERROR_AGENT_MESSAGE_CONFLICT,
     AgentRunAsSubjectDoesNotExist: ERROR_AGENT_RUN_AS_SUBJECT_DOES_NOT_EXIST,
     AgentConversationWaitingForApproval: ERROR_AGENT_CONVERSATION_WAITING_FOR_APPROVAL,
+    AgentConversationIsExample: ERROR_AGENT_CONVERSATION_IS_EXAMPLE,
     AgentToolApprovalNotPending: ERROR_AGENT_TOOL_APPROVAL_NOT_PENDING,
     ChatRunAlreadyActive: ERROR_CHAT_RUN_IN_PROGRESS,
     ChatRunLimitReached: ERROR_AGENT_BUSY,
@@ -130,6 +133,7 @@ MESSAGE_WRITE_ERRORS = {
         [
             "ERROR_AGENT_MESSAGE_CONFLICT",
             "ERROR_AGENT_CONVERSATION_WAITING_FOR_APPROVAL",
+            "ERROR_AGENT_CONVERSATION_IS_EXAMPLE",
             "ERROR_CHAT_RUN_IN_PROGRESS",
         ]
     ),

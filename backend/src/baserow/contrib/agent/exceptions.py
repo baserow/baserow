@@ -24,3 +24,7 @@ class AgentToolApprovalNotPending(Exception):
 
 class AgentTriggerOff(Exception):
     """The trigger of a shared conversation is off or gone, so its reply stops."""
+
+
+class AgentConversationIsExample(Exception):
+    """Raised when a message is sent to an example conversation, which is read-only."""

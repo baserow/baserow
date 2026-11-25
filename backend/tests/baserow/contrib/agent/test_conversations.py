@@ -1053,3 +1053,27 @@ def test_a_trashed_shared_conversation_has_no_owner_and_counts_no_approvals(
     assert entry.trash_item_owner is None
     pending_count_updated.assert_not_called()
     assert AgentConversation.objects.filter(id=conversation.id).exists()
+
+
+@pytest.mark.django_db
+def test_an_example_conversation_takes_no_new_messages(
+    configured_agent, api_client, api_user, data_fixture
+):
+    agent = configured_agent(user=api_user)
+    example = data_fixture.create_agent_conversation(
+        agent=agent,
+        owner_user=None,
+        shared=True,
+        pinned=True,
+        started_by_trigger=False,
+        is_example=True,
+    )
+    url = agent_url(agent, "messages", conversation_uuid=example.uuid)
+
+    response = api_client.post(url, {"uuid": str(uuid4()), "content": "My data"})
+
+    assert (response.status_code, response.json()["error"]) == (
+        409,
+        "ERROR_AGENT_CONVERSATION_IS_EXAMPLE",
+    )
+    assert not example.messages.exists()

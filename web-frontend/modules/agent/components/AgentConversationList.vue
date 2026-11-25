@@ -466,8 +466,16 @@ async function cancelRename(item) {
 
 function togglePin() {
   const item = menuItem.value
+  // Pinning a shared conversation is what makes it an example of exports.
+  const makesExample = !item.pinned && item.shared && !item.is_example
   menu.value.hide()
   emit('update', item, { pinned: !item.pinned })
+  if (makesExample) {
+    store.dispatch('toast/info', {
+      title: t('agent.pinnedSharedTitle'),
+      message: t('agent.pinnedSharedMessage'),
+    })
+  }
 }
 
 function share() {

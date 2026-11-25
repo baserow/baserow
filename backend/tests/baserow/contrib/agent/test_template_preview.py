@@ -254,3 +254,17 @@ def test_a_template_shows_only_its_examples(
         assert [item["uuid"] for item in listed.json()["results"]] == [str(shared.uuid)]
         hidden = api_client.get(messages_url(template_agent, other), **headers)
         assert hidden.status_code == 404
+
+
+@pytest.mark.django_db
+def test_an_unpinned_example_leaves_the_template_preview(
+    api_client, template_agent, example_conversations
+):
+    shared, _ = example_conversations
+    shared.pinned = False
+    shared.save()
+
+    listed = api_client.get(agent_url(template_agent, "conversations"))
+
+    assert listed.json()["results"] == []
+    assert api_client.get(messages_url(template_agent, shared)).status_code == 404

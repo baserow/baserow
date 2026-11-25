@@ -1555,12 +1555,21 @@ def test_importing_examples_keeps_only_what_the_export_picks(
             {**base, "title": "Unpinned", "pinned": False},
             {**base, "title": "Triggered", "started_by_trigger": True},
             {**base, "title": "Test", "is_test": True},
+            # Written by hand and broken: skipped, not failing the import.
+            {**base, "title": None},
+            {**base, "title": "No content", "messages": [{"role": "user"}]},
+            {**base, "title": "Bad role", "messages": [{"role": "x", "content": ""}]},
+            {**base, "title": "Bad time", "created_on": "2026-13-45T00:00:00"},
         ],
         {},
         as_examples=True,
     )
 
-    (example,) = agent.conversations.all()
+    assert sorted(agent.conversations.values_list("title", flat=True)) == [
+        "Bad time",
+        ("Example " + "x" * 300)[:250],
+    ]
+    example = agent.conversations.get(title__startswith="Example")
     assert example.title == ("Example " + "x" * 300)[:250]
     assert (example.is_example, example.shared, example.owner_user_id) == (
         True,

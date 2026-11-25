@@ -1,6 +1,7 @@
 import dataclasses
 from collections import defaultdict
 from collections.abc import Iterable
+from datetime import datetime
 from typing import Any
 from uuid import UUID, uuid4
 
@@ -761,7 +762,7 @@ class AgentHandler:
         """
 
         if agent is not None and agent.workspace.has_template():
-            return Q(shared=True, is_example=True)
+            return Q(shared=True, pinned=True, is_example=True)
         membership = AgentConversation.participants.through.objects.filter(
             agentconversation_id=OuterRef("pk"), user_id=user.id
         )
@@ -2398,19 +2399,41 @@ class AgentHandler:
             user_id = data[key]
             return user_id if user_id in existing_user_ids else None
 
+        def parsed_time(value) -> datetime | None:
+            try:
+                return parse_datetime(value) if isinstance(value, str) else None
+            except ValueError:
+                return None
+
         def restore_timestamps(instance, data: dict) -> None:
             # An example without them keeps the time it was imported.
             for key in ("created_on", "updated_on"):
-                if not as_examples or data.get(key):
+                if not as_examples:
                     setattr(instance, key, parse_datetime(data[key]))
+                elif value := parsed_time(data.get(key)):
+                    setattr(instance, key, value)
+
+        def is_well_formed_message(message) -> bool:
+            return (
+                isinstance(message, dict)
+                and message.get("role") in AgentMessage.Role.values
+                and isinstance(message.get("content"), str)
+                and message.get("status") in (None, *AgentReplyStatus.values)
+                and isinstance(message.get("error_code") or "", str)
+            )
 
         def is_example(data: dict) -> bool:
-            # The same rule as the export, also for a file written by hand.
+            # The same rule as the export, also for a file written by hand, which
+            # skips an example it can't read instead of failing the whole import.
             return (
-                data.get("shared", False)
-                and data.get("pinned", False)
+                isinstance(data, dict)
+                and data.get("shared", False) is True
+                and data.get("pinned", False) is True
                 and not data.get("started_by_trigger", False)
                 and not data.get("is_test", False)
+                and isinstance(data.get("title"), str)
+                and isinstance(data.get("messages"), list)
+                and all(is_well_formed_message(m) for m in data["messages"])
             )
 
         def is_retained(data: dict) -> bool:
@@ -2453,8 +2476,8 @@ class AgentHandler:
         for conversation, data in zip(conversations, retained_data):
             restore_timestamps(conversation, data)
             for serialized_message in data["messages"]:
-                status = serialized_message["status"]
-                error_code = serialized_message["error_code"]
+                status = serialized_message.get("status")
+                error_code = serialized_message.get("error_code") or ""
                 # Approvals are not copied, so a waiting reply could never resume.
                 if (
                     status in ACTIVE_CHAT_RUN_STATUSES

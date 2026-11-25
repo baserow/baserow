@@ -221,6 +221,8 @@ export function useAgentConversations(agent, configuration) {
   const canWriteSelected = computed(() => {
     const conversation = selectedConversation.value
     if (!conversation || !canReadConversations.value) return false
+    // An example stays as it came, so it carries nothing of this workspace out.
+    if (conversation.is_example) return false
     if (conversation.started_by_trigger) return canContinueTriggered.value
     return (
       canCreateMessage.value &&
