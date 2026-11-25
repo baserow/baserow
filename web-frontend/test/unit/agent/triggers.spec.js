@@ -11,6 +11,7 @@ import AgentTriggerPicker from '@baserow/modules/agent/components/configuration/
 import { defaultTriggerMessage } from '@baserow/modules/agent/utils/triggers'
 import { CorePeriodicTriggerServiceType } from '@baserow/modules/integrations/core/serviceTypes'
 import {
+  InboundEmailAgentTriggerType,
   RowsCreatedAgentTriggerType,
   RowsDeletedAgentTriggerType,
   RowsUpdatedAgentTriggerType,
@@ -53,6 +54,7 @@ const rowsTrigger = (extra = {}) => ({
     schema: rowsSchema,
   },
   on_overlap: 'wait',
+  may_ask_person: true,
   batch_size: 20,
   last_fired_on: null,
   last_skipped_on: null,
@@ -256,6 +258,60 @@ describe('Agent triggers', () => {
         { service: { type: 'periodic', interval: 'WEEK' } },
       ],
     ])
+  })
+
+  test('hosts the email trigger with its real address only and settles a new address', async () => {
+    useFakeTimers()
+    const emailTrigger = (address) =>
+      periodicTrigger({
+        type: 'email_trigger',
+        service: {
+          id: 8,
+          type: 'email_trigger',
+          schema: null,
+          is_public: true,
+          email_address: address,
+          test_email_address: `test-${address}`,
+          max_message_size_mb: 25,
+        },
+      })
+    testApp.mock
+      .onPatch('/agent/10/triggers/1/')
+      .reply(200, emailTrigger('new@inbound.test'))
+    const wrapper = await mountSection(
+      [emailTrigger('old@inbound.test')],
+      ['email_trigger']
+    )
+    const card = wrapper.get('.agent-trigger-card')
+    const address = () =>
+      card.get('.inbound-email-trigger-service-form__email-address').text()
+    const regenerate = () =>
+      card
+        .findAll('.agent-trigger-card__body button')
+        .find((button) =>
+          button.text().includes('inboundEmailTriggerServiceForm.regenerate')
+        )
+
+    expect(address()).toBe('old@inbound.test')
+    expect(card.text()).not.toContain(
+      'inboundEmailTriggerServiceForm.addressVersionTest'
+    )
+
+    await regenerate().trigger('click')
+    await flushPromises()
+    expect(regenerate().classes()).toContain('button--loading')
+
+    await vi.advanceTimersByTimeAsync(500)
+    await flushPromises()
+
+    expect(patches(testApp)).toEqual([
+      [
+        '/agent/10/triggers/1/',
+        { service: { type: 'email_trigger', regenerate_token: true } },
+      ],
+    ])
+    expect(address()).toBe('new@inbound.test')
+    expect(regenerate().classes()).not.toContain('button--loading')
   })
 
   test('shows why the service settings were rejected on the card', async () => {
@@ -1184,6 +1240,63 @@ describe('Agent triggers', () => {
     expect(checked()).toEqual([false, true, false])
   })
 
+  test('offers asking a person as a described switch and saves it alone', async () => {
+    testApp.mock
+      .onPatch('/agent/10/triggers/1/')
+      .reply(200, periodicTrigger({ may_ask_person: false }))
+    const wrapper = await mountSection([periodicTrigger()])
+    const section = wrapper.get('.agent-trigger-card__ask-person')
+    const toggle = section.get('.agent-trigger-card__ask-person-switch')
+    const textOf = (id) => section.get(`[id="${id}"]`).text()
+
+    expect(toggle.attributes('role')).toBe('switch')
+    expect(toggle.attributes('aria-checked')).toBe('true')
+    expect(textOf(toggle.attributes('aria-labelledby'))).toBe(
+      'agent.triggerMayAskPerson'
+    )
+    const description = section.get(
+      `[id="${toggle.attributes('aria-describedby')}"]`
+    )
+    expect(description.element.tagName).toBe('P')
+    expect(description.text()).toBe('agent.triggerMayAskPersonDescription')
+
+    await toggle.trigger('click')
+    await flushPromises()
+
+    expect(patches(testApp)).toEqual([
+      ['/agent/10/triggers/1/', { may_ask_person: false }],
+    ])
+    expect(toggle.attributes('aria-checked')).toBe('false')
+  })
+
+  test('leaves asking a person alone when the card is read-only', async () => {
+    const wrapper = await mountSection([periodicTrigger()], ['periodic'], false)
+    const toggle = wrapper.get('.agent-trigger-card__ask-person-switch')
+
+    expect(toggle.attributes('aria-disabled')).toBe('true')
+    await toggle.trigger('click')
+    await flushPromises()
+
+    expect(patches(testApp)).toEqual([])
+  })
+
+  test('leaves asking a person alone on a trigger the license locks', async () => {
+    vi.spyOn(
+      testApp.getRegistry().get('service', 'periodic'),
+      'isDeactivatedReason'
+    ).mockReturnValue('Locked')
+    const wrapper = await mountSection([periodicTrigger()])
+    const section = wrapper.get('.agent-trigger-card__ask-person')
+    const toggle = section.get('.agent-trigger-card__ask-person-switch')
+
+    expect(section.attributes('inert')).toBeDefined()
+    expect(toggle.attributes('aria-disabled')).toBe('true')
+    await toggle.trigger('click')
+    await flushPromises()
+
+    expect(patches(testApp)).toEqual([])
+  })
+
   test('tells how many runs can wait, as the server allows', async () => {
     const wrapper = await mountSection(
       [periodicTrigger()],
@@ -1578,6 +1691,27 @@ describe('Agent triggers', () => {
       DEFAULT_ROWS_MESSAGE.formula.replace('created in', 'updated in'),
       DEFAULT_ROWS_MESSAGE.formula.replace('created in', 'deleted from'),
     ])
+  })
+
+  test('opens a new email trigger with who sent the email, its subject and its text', async () => {
+    const { createI18n } = await vi.importActual('vue-i18n')
+    const { t } = createI18n({
+      legacy: false,
+      locale: 'en',
+      messages: { en: agentLocale },
+    }).global
+    const type = new InboundEmailAgentTriggerType({ app: { $i18n: { t } } })
+
+    expect(type.getDefaultMessage()).toEqual({
+      formula:
+        "concat('Email from ', get('trigger.from.address'), " +
+        "' with the subject ', get('trigger.subject'), ': ', " +
+        "if(is_empty(get('trigger.body_text')), get('trigger.body_html'), " +
+        "get('trigger.body_text')))",
+      mode: 'advanced',
+      version: '0.1',
+    })
+    expect(type.hiddenFormFields).toEqual(['test_email_address'])
   })
 
   test('shows the default row message as Count, Table and Rows chips', async () => {

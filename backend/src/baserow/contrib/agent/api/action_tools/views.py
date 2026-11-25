@@ -172,13 +172,15 @@ class AgentActionsView(RealtimeRecoveryPrimaryReadMixin, APIView):
             return_validated=True,
             context={
                 "application_type": ActionFormulaContextType,
-                "service_type_name": request.data.get("type"),
+                "service_type_name": AgentActionHandler().get_service_type_name(
+                    request.data.get("type")
+                ),
             },
         )
-        service_type_name = data.pop("type")
+        type_name = data.pop("type")
         service_values = pop_service_values(data)
         action = action_type_registry.get_by_type(CreateAgentActionActionType).do(
-            request.user, agent_id, service_type_name, service=service_values, **data
+            request.user, agent_id, type_name, service=service_values, **data
         )
         return Response(AgentActionSerializer(action).data)
 

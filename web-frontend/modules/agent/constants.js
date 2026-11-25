@@ -2,6 +2,10 @@ import { ERROR_CHAT_RUN_IN_PROGRESS } from '@baserow/modules/core/chatRuns/const
 
 export const AGENT_APPLICATION_TYPE = 'agent'
 
+/** The built-in tool a triggered run calls to ask a person a question. */
+export const ASK_PERSON_TOOL = 'ask_person'
+export const ASK_PERSON_ANSWER_MAX_LENGTH = 10000
+
 export const AGENT_READINESS = Object.freeze({
   INCOMPLETE: 'incomplete',
   UNAVAILABLE: 'unavailable',

@@ -21,8 +21,16 @@
     :class="{ 'chat-message--steps': entries.length }"
   >
     <template v-for="entry in entries" :key="entry.key">
+      <AgentQuestionCard
+        v-if="entry.questionItem"
+        :item="entry.questionItem"
+        :read-only="!canApprove"
+        :disabled="!canDecide"
+        :deciding="deciding"
+        @decide="(decisions) => $emit('decide', decisions)"
+      />
       <AgentApprovalCard
-        v-if="entry.items"
+        v-else-if="entry.items"
         :items="entry.items"
         :disabled="!canDecide"
         :can-always-allow="canAlwaysAllow"
@@ -106,9 +114,11 @@ import {
   STEP_STATUS,
 } from '@baserow/modules/core/chatRuns/constants'
 import AgentApprovalCard from '@baserow/modules/agent/components/AgentApprovalCard'
+import AgentQuestionCard from '@baserow/modules/agent/components/AgentQuestionCard'
 import AgentTriggerStartCard from '@baserow/modules/agent/components/AgentTriggerStartCard'
 import {
   approvalItem,
+  isQuestionStep,
   replyOutcome,
 } from '@baserow/modules/agent/utils/replies'
 
@@ -117,6 +127,8 @@ const NO_APPROVALS = []
 
 const props = defineProps({
   message: { type: Object, required: true },
+  /** Whether the viewer has the permission to approve held steps. */
+  canApprove: { type: Boolean, default: false },
   /** Whether the viewer may approve or reject the reply's held steps. */
   canDecide: { type: Boolean, default: false },
   /** Whether the viewer may also turn off Ask first for the held tools. */
@@ -166,7 +178,16 @@ const shown = computed(() => {
   }
 })
 
-/** One card per pause at its first held step; other steps keep core groups. */
+function questionItem(step, approval) {
+  return {
+    id: approval.id,
+    status: approval.status,
+    question: step.input?.question ?? '',
+    answer: approval.answer ?? '',
+  }
+}
+
+/** Questions get their own card so a pause's batch decisions never include one. */
 function stepEntries(steps, approvals) {
   const approvalOfStep = new Map(
     approvals.map((approval) => [approval.step_id, approval])
@@ -187,6 +208,14 @@ function stepEntries(steps, approvals) {
     const approval = approvalOfStep.get(step?.id)
     if (!approval) {
       others.push(step)
+      continue
+    }
+    if (isQuestionStep(step)) {
+      addOthers()
+      entries.push({
+        key: `question-${approval.id}`,
+        questionItem: questionItem(step, approval),
+      })
       continue
     }
     if (!cardOfPause.has(approval.pause)) {

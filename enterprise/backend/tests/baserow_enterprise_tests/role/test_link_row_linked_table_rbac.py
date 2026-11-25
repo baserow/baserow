@@ -193,7 +193,7 @@ def test_upsert_service_refuses_existing_and_missing_names_the_same_way(
     with pytest.raises(ServiceImproperlyConfiguredDispatchException) as exc_info:
         LocalBaserowUpsertRowServiceType().dispatch_data(
             service,
-            {mapping.id: [name]},
+            {f"field_{mapping.field_id}": [name]},
             FakeDispatchContext(actor=restricted_setup["user"]),
         )
 

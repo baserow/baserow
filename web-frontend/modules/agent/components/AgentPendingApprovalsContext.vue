@@ -23,7 +23,27 @@
       :key="reply.uuid"
       class="agent-pending-approvals__reply"
     >
+      <div
+        v-if="hasPendingQuestion(reply)"
+        class="agent-pending-approvals__question"
+      >
+        <button
+          type="button"
+          class="agent-pending-approvals__conversation"
+          :title="reply.conversation.title || $t('agent.newConversation')"
+          @click="openConversation(reply.conversation)"
+        >
+          <i class="iconoir-chat-bubble-empty" aria-hidden="true" />
+          <span class="agent-pending-approvals__conversation-name">{{
+            reply.conversation.title || $t('agent.newConversation')
+          }}</span>
+        </button>
+        <span class="agent-pending-approvals__question-note">{{
+          $t('agent.questionNeedsAnswer')
+        }}</span>
+      </div>
       <AgentApprovalCard
+        v-if="items(reply).length"
         :items="items(reply)"
         :disabled="!canDecide"
         :can-always-allow="canAlwaysAllow"
@@ -31,7 +51,7 @@
         compact
         @decide="(decisions, options) => review(reply, decisions, options)"
       >
-        <template #title>
+        <template v-if="!hasPendingQuestion(reply)" #title>
           <button
             type="button"
             class="agent-pending-approvals__conversation"
@@ -72,6 +92,7 @@ import AgentApprovalCard from '@baserow/modules/agent/components/AgentApprovalCa
 import AgentApplicationService from '@baserow/modules/agent/services/agentApplication'
 import {
   approvalItem,
+  isQuestionStep,
   pendingApprovals,
 } from '@baserow/modules/agent/utils/replies'
 
@@ -95,16 +116,23 @@ const failedPage = ref(1)
 let request = 0
 let opened = false
 
-function items(reply) {
+function heldSteps(reply) {
   const steps = new Map(reply.steps.map((step) => [step.id, step]))
-  return reply.approvals.map((approval) =>
-    approvalItem(
-      steps.get(approval.step_id) || { tool: approval.tool, status: 'waiting' },
-      approval,
-      $registry,
-      t
-    )
-  )
+  return reply.approvals.map((approval) => [
+    approval,
+    steps.get(approval.step_id) || { tool: approval.tool, status: 'waiting' },
+  ])
+}
+
+function hasPendingQuestion(reply) {
+  return heldSteps(reply).some(([, step]) => isQuestionStep(step))
+}
+
+/** A question is answered in its conversation, so the card holds the rest. */
+function items(reply) {
+  return heldSteps(reply)
+    .filter(([, step]) => !isQuestionStep(step))
+    .map(([approval, step]) => approvalItem(step, approval, $registry, t))
 }
 
 async function load(number = 1) {

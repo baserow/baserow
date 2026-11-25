@@ -50,7 +50,7 @@ class CreateAgentActionActionType(ActionType):
         cls,
         user: AbstractUser,
         agent_id: int,
-        service_type_name: str,
+        type_name: str,
         service: dict[str, Any] | None = None,
         **values: Any,
     ) -> AgentAction:
@@ -59,18 +59,18 @@ class CreateAgentActionActionType(ActionType):
 
         :param user: The user adding the action.
         :param agent_id: The id of the Agent.
-        :param service_type_name: The service type of the action.
+        :param type_name: The action type of the action.
         :param service: Service values replacing the type's defaults, or None.
         :param values: Editable fields replacing the type's defaults.
         :return: The created action.
         """
 
         action = AgentActionService().create_action(
-            user, agent_id, service_type_name, service_values=service, **values
+            user, agent_id, type_name, service_values=service, **values
         )
         cls.register_action(
             user,
-            cls.Params(agent_id, action.id, service_type_name),
+            cls.Params(agent_id, action.id, type_name),
             cls.scope(agent_id),
             action.agent.workspace,
         )
@@ -135,7 +135,7 @@ class UpdateAgentActionActionType(ActionType):
                 cls.Params(
                     agent_id,
                     action.id,
-                    action.service.get_type().type,
+                    action.get_type_name(),
                     updated.changed_fields,
                 ),
                 cls.scope(agent_id),
@@ -181,7 +181,7 @@ class DeleteAgentActionActionType(ActionType):
         action = AgentActionService().delete_action(user, agent_id, action_id)
         cls.register_action(
             user,
-            cls.Params(agent_id, action.id, action.service.get_type().type),
+            cls.Params(agent_id, action.id, action.get_type_name()),
             cls.scope(agent_id),
             action.agent.workspace,
         )

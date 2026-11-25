@@ -1,8 +1,6 @@
 import json
 from uuid import uuid4
 
-from django.core.mail.backends.locmem import EmailBackend
-
 import pytest
 
 from baserow.contrib.agent.action_tools.registries import (
@@ -25,29 +23,6 @@ from baserow.core.trash.handler import TrashHandler
 
 from .test_replies import decide, pause, respond, tool_call
 from .utils import run_reply
-
-
-@pytest.fixture
-def email_action(data_fixture, configured_agent, mocker, mailoutbox):
-    """A real configured service using an in-memory transport, never SMTP."""
-
-    user = data_fixture.create_user()
-    agent = configured_agent(user=user)
-    action = data_fixture.create_agent_action(agent=agent)
-    integration = data_fixture.create_smtp_integration(
-        application=agent, username="sender", password="SMTP_SECRET_CANARY"
-    )
-    service = action.service.specific
-    service.integration = integration
-    service.use_instance_smtp_settings = False
-    service.from_email = {"formula": "'sender@example.com'"}
-    service.save()
-    action.service = service
-    connection = mocker.patch(
-        "baserow.contrib.integrations.core.service_types.get_connection",
-        return_value=EmailBackend(),
-    )
-    return user, agent, action, integration, connection
 
 
 def email_call(name, call_id="email_call", **changes):
@@ -527,7 +502,7 @@ def test_runtime_shows_the_adapter_preview_and_dispatches_the_arguments(
         def get_preview(self, action, resolved_values, arguments):
             return preview
 
-        def dispatch(self, action, resolved_values, identity=None):
+        def dispatch(self, action, resolved_values, identity=None, arguments=None):
             dispatched.append(resolved_values)
             return DispatchResult(data={"queued": True})
 
@@ -590,7 +565,7 @@ def test_an_action_acting_as_the_identity_runs_only_for_a_run_held_as_it(
         def prepare(self, action, arguments):
             return {"payload": arguments["payload"]}
 
-        def dispatch(self, action, resolved_values, identity=None):
+        def dispatch(self, action, resolved_values, identity=None, arguments=None):
             dispatched_as.append(identity.pk)
             return DispatchResult(data={"done": True})
 

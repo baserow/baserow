@@ -76,6 +76,8 @@ from .action_tools.tools import BoundActionTool
 from .constants import (
     AGENT_RUN_LIMIT_REACHED,
     AGENT_RUN_TYPE,
+    ASK_PERSON_DISMISSED_NOTE,
+    ASK_PERSON_TOOL_NAME,
     DEACTIVATED_TOOLS_INSTRUCTIONS,
     DISALLOWED_TOOL_CALL_NOTE,
     HISTORY_MESSAGE_LIMIT,
@@ -92,6 +94,7 @@ from .exceptions import (
     AgentMessageConflict,
     AgentRunAsSubjectDoesNotExist,
     AgentToolApprovalNotPending,
+    AgentToolDecisionInvalid,
 )
 from .models import (
     AgentAllowedTool,
@@ -1473,9 +1476,12 @@ class AgentHandler:
         :param conversation: The conversation, locked so its reply can't change.
         :param user: The user deciding.
         :param decisions: Whether each held call may run, by approval id, with the
-            reason for a rejection.
+            reason for a rejection or the answer to a question.
         :raises AgentToolApprovalNotPending: When an approval is decided already or
             isn't held by the reply waiting in the conversation.
+        :raises AgentToolDecisionInvalid: When a question is answered without an
+            answer or dismissed with a reason, or another call is decided with an
+            answer.
         :return: The reply with its approvals, the approvals just decided, and
             whether all of them are decided.
         """
@@ -1495,6 +1501,7 @@ class AgentHandler:
         decided = []
         for decision in decisions:
             approval = pending.pop(decision["id"])
+            approval.answer = self._validate_approval_answer(approval, decision)
             approval.status = (
                 AgentToolApproval.Status.APPROVED
                 if decision["approved"]
@@ -1505,10 +1512,31 @@ class AgentHandler:
             approval.decided_on = decided_on
             decided.append(approval)
         AgentToolApproval.objects.bulk_update(
-            decided, ["status", "reason", "decided_by", "decided_on"]
+            decided, ["status", "reason", "answer", "decided_by", "decided_on"]
         )
         prefetch_related_objects([reply], "approvals")
         return reply, decided, not pending
+
+    def _validate_approval_answer(
+        self, approval: AgentToolApproval, decision: AgentToolDecision
+    ) -> str:
+        """
+        :param approval: The pending approval the decision decides.
+        :param decision: The decision.
+        :raises AgentToolDecisionInvalid: When the answer doesn't fit the held call.
+        :return: The trimmed answer, or an empty string when no answer applies.
+        """
+
+        answer = decision.get("answer", "").strip()
+        if "answer" in decision and (
+            not approval.is_question or not decision["approved"]
+        ):
+            raise AgentToolDecisionInvalid
+        if approval.is_question and (
+            "reason" in decision or (decision["approved"] and not answer)
+        ):
+            raise AgentToolDecisionInvalid
+        return answer
 
     def resume_reply(self, reply: AgentMessage, approver: AbstractUser) -> ChatRun:
         """
@@ -1654,6 +1682,7 @@ class AgentHandler:
 
         conversation = reply.conversation
         agent = conversation.agent
+        trigger = conversation.trigger if reply.unattended else None
         run_as = self.resolve_run_as_subject(
             agent.run_as_subject_type, agent.run_as_subject_id, agent.workspace
         )
@@ -1691,6 +1720,7 @@ class AgentHandler:
             for tool in all_action_tools
             if acting_subject is not None or tool.type not in identity_action_names
         ]
+        may_ask_person = trigger is not None and trigger.may_ask_person
         if conversation.is_test:
             # A test Kuma started can't change anything without the owner's say-so.
             tools = {
@@ -1751,7 +1781,8 @@ class AgentHandler:
                 bool(tools["allowed_tools"])
                 or bool(mcp_servers)
                 or bool(action_tools)
-                or web_fetch_enabled,
+                or web_fetch_enabled
+                or may_ask_person,
             )
             if agent.web_search_enabled
             and (transcript is None or transcript.paused_web_search)
@@ -1784,6 +1815,9 @@ class AgentHandler:
             web_search_tool=web_search_tool,
             web_search_enabled=agent.web_search_enabled,
             started_by_trigger=conversation.started_by_trigger,
+            unattended=reply.unattended,
+            trigger_name=None if trigger is None else trigger.name or None,
+            may_ask_person=may_ask_person,
             web_fetch_enabled=web_fetch_enabled,
         )
 
@@ -1945,13 +1979,22 @@ class AgentHandler:
 
         :param reply: The reply.
         :return: The prompt and the recent messages before it, oldest first, each
-            with its sender.
+            with its sender and the decided questions that are replayed.
         """
 
+        questions = (
+            AgentToolApproval.objects.filter(tool_name=ASK_PERSON_TOOL_NAME)
+            .exclude(status=AgentToolApproval.Status.PENDING)
+            .select_related("decided_by")
+            .order_by("pause", "id")
+        )
         prompt, *history = (
             reply.conversation.messages.filter(id__lt=reply.id)
             .select_related("sender")
-            .order_by("-id")[: HISTORY_MESSAGE_LIMIT + 1]
+            .order_by("-id")
+            .prefetch_related(
+                Prefetch("approvals", queryset=questions, to_attr="decided_questions")
+            )[: HISTORY_MESSAGE_LIMIT + 1]
         )
         return prompt, history[::-1]
 
@@ -1974,11 +2017,12 @@ class AgentHandler:
         :param disallowed_note: Tells the model why an approved call can't run.
         :param identity_action_names: The actions that act as the Agent's
             identity, like the workspace tools.
-        :return: The paused run with the decisions and the saved steps.
+        :return: The paused run with the decisions, the answers to its questions
+            and the saved steps.
         """
 
         held = paused_conversation.deferred_tool_requests
-        held_ids = {call.tool_call_id for call in held.approvals}
+        held_ids = {call.tool_call_id for call in [*held.approvals, *held.calls]}
         # Providers may reuse a call id in a later response, so the newest row holds it.
         approvals = {
             approval.tool_call_id: approval
@@ -1986,18 +2030,30 @@ class AgentHandler:
             if approval.tool_call_id in held_ids
         }
         # An undecided call gets no result, so the run fails instead of guessing.
-        results = {
-            tool_call_id: self._get_approval_result(
-                approval, callable_tools, disallowed_note, identity_action_names
-            )
+        decided = {
+            tool_call_id: approval
             for tool_call_id, approval in approvals.items()
             if approval.status != AgentToolApproval.Status.PENDING
         }
         return AgentReplyResume(
             paused_conversation=paused_conversation,
-            # A held action call sends the values kept when it was held.
             deferred_tool_results=held.build_results(
-                approvals=results, metadata=held.metadata
+                approvals={
+                    tool_call_id: self._get_approval_result(
+                        approval, callable_tools, disallowed_note, identity_action_names
+                    )
+                    for tool_call_id, approval in decided.items()
+                    if not approval.is_question
+                },
+                calls={
+                    tool_call_id: approval.answer
+                    if approval.status == AgentToolApproval.Status.APPROVED
+                    else ASK_PERSON_DISMISSED_NOTE
+                    for tool_call_id, approval in decided.items()
+                    if approval.is_question
+                },
+                # A held action call sends the values kept when it was held.
+                metadata=held.metadata,
             ),
             saved_steps=reply.steps or [],
             held_step_ids={

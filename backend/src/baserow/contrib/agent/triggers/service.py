@@ -137,6 +137,7 @@ class AgentTriggerService:
         on_overlap: str | None = None,
         batch_size: int = AGENT_TRIGGER_DEFAULT_BATCH_SIZE,
         name: str = "",
+        may_ask_person: bool = True,
     ) -> AgentTrigger:
         """
         Add a trigger of an available type to the Agent, for a user who may update
@@ -154,6 +155,7 @@ class AgentTriggerService:
         :param batch_size: How many records of a list payload one conversation
             receives.
         :param name: The trigger's name, or blank for the type's default.
+        :param may_ask_person: Whether a run may pause to ask a person a question.
         :raises FeatureDisabledException: When Agents are disabled.
         :raises ApplicationDoesNotExist: When the Agent doesn't exist or is trashed.
         :raises PermissionException: When the user may not update the Agent or read
@@ -183,6 +185,7 @@ class AgentTriggerService:
             on_overlap=on_overlap,
             batch_size=batch_size,
             name=name,
+            may_ask_person=may_ask_person,
         )
         self.handler.check_identity_can_read(
             trigger, AgentHandler().get_run_identity(agent)
@@ -202,13 +205,14 @@ class AgentTriggerService:
         batch_size: int | None = None,
         name: str | None = None,
         service_type_name: str | None = None,
+        may_ask_person: bool | None = None,
     ) -> AgentTriggerUpdated:
         """
-        Change a trigger's name, switch, message, overlap rule, batch size, type or
-        service values, for a user who may update and read its Agent's
-        configuration. Switching it off cancels its queued replies. Another type
-        replaces the service with a new one, as on create. A new service or a
-        switch-on must be readable by the Agent's run identity.
+        Change a trigger's name, switch, message, overlap rule, batch size, whether
+        it may ask a person, type or service values, for a user who may update and
+        read its Agent's configuration. Switching it off cancels its queued replies.
+        Another type replaces the service with a new one, as on create. A new
+        service or a switch-on must be readable by the Agent's run identity.
 
         :param user: The user updating the trigger.
         :param agent_id: The id of the Agent the trigger belongs to.
@@ -222,6 +226,8 @@ class AgentTriggerService:
             it.
         :param service_type_name: The service type the trigger should have, whose
             service then starts from `service_values`, or None to keep its own.
+        :param may_ask_person: Whether a run may ask a person a question, or None to
+            keep it.
         :raises FeatureDisabledException: When Agents are disabled.
         :raises ApplicationDoesNotExist: When the Agent doesn't exist or is trashed.
         :raises AgentTriggerDoesNotExist: When the Agent has no such trigger or it
@@ -246,7 +252,13 @@ class AgentTriggerService:
         changes_type = service_type_name not in (None, service_type.type)
         locked_change = enabled or any(
             value is not None
-            for value in (message, service_values, on_overlap, batch_size)
+            for value in (
+                message,
+                service_values,
+                on_overlap,
+                batch_size,
+                may_ask_person,
+            )
         )
         if (
             not changes_type
@@ -274,6 +286,7 @@ class AgentTriggerService:
             batch_size=batch_size,
             name=name,
             service_type=service_type if changes_type else None,
+            may_ask_person=may_ask_person,
         )
         changed = updated.changed_fields
         if "service" in changed or ("enabled" in changed and trigger.enabled):

@@ -28,7 +28,7 @@ export function textThenTriggerData(text, path) {
  */
 export function sentenceWithTriggerData(sentence) {
   const args = sentence
-    .split(/\{(\w+)\}/)
+    .split(/\{([\w.]+)\}/)
     .map((part, index) =>
       index % 2
         ? `get('trigger.${part}')`

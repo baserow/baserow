@@ -12,6 +12,10 @@ const ROWS_HOLD = /rows-hold=(\S+)/;
 // Also the chat's title, which Kuma asks for without tools.
 const UNSCRIPTED_ANSWER = "E2E chat";
 const MODEL_CHECK_TOOL = "baserow_model_compatibility_test";
+// Asks "Which customer is this about?", then answers "Done for <answer>.".
+const ASK_PERSON_SCRIPT = "E2E ask a person";
+const ASK_PERSON_TOOL = "ask_person";
+const NOBODY_TO_ASK_ANSWER = "Nobody to ask.";
 const BUILDERS_RESULT = /"(created|reused)_builders"/;
 const TABLES_RESULT = /"(created|reused)_tables"/;
 const USAGE = { prompt_tokens: 1, completion_tokens: 1, total_tokens: 2 };
@@ -43,6 +47,18 @@ function toolCall(name, args) {
   };
 }
 
+/** Says when `ask_person` isn't offered, so a test can tell it was left out. */
+function askPersonAnswer(messages, tools) {
+  if (!tools.includes(ASK_PERSON_TOOL)) return { text: NOBODY_TO_ASK_ANSWER };
+  const result = messages.at(-1);
+  if (result?.role === "tool") return { text: `Done for ${textOf(result)}.` };
+  return {
+    toolCall: toolCall(ASK_PERSON_TOOL, {
+      question: "Which customer is this about?",
+    }),
+  };
+}
+
 /** The next answer: `{ toolCall }`, `{ text }`, or `{ words }` streamed one by one. */
 function nextAnswer(body) {
   const messages = body.messages ?? [];
@@ -54,6 +70,9 @@ function nextAnswer(body) {
   }
   const lastUser = messages.findLast((message) => message.role === "user");
   const prompt = lastUser ? promptOf(lastUser) : "";
+  if (prompt.includes(ASK_PERSON_SCRIPT)) {
+    return askPersonAnswer(messages, tools);
+  }
   if (
     prompt === "Create a support database." &&
     tools.includes("create_database")

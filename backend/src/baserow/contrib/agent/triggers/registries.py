@@ -26,6 +26,14 @@ class AgentTriggerType(Instance):
             self.type = service_type_name
         super().__init__()
 
+    def is_offered(self) -> bool:
+        """
+        :return: Whether this instance can run the type at all. One it can't run
+            is left out of what an Agent's trigger can be.
+        """
+
+        return True
+
     def get_event_text(
         self, service: Service, event_payload: dict[str, Any]
     ) -> str | None:

@@ -60,6 +60,40 @@ export class HTTPAgentTriggerType extends AgentTriggerType {
   }
 }
 
+export class InboundEmailAgentTriggerType extends AgentTriggerType {
+  static getType() {
+    return 'email_trigger'
+  }
+
+  // An Agent has no draft that a test address could start a test run of.
+  get hiddenFormFields() {
+    return ['test_email_address']
+  }
+
+  /**
+   * An email without a text part only has its HTML, which a formula can fall
+   * back on but a data chip can't, so the message is an advanced formula.
+   */
+  getDefaultMessage() {
+    const message = sentenceWithTriggerData(
+      this.app.$i18n.t('agent.emailTriggerDefaultMessage', {
+        sender: '{from.address}',
+        subject: '{subject}',
+        body: '{body_text}',
+      })
+    )
+    const text = "get('trigger.body_text')"
+    return {
+      ...message,
+      formula: message.formula.replace(
+        text,
+        `if(is_empty(${text}), get('trigger.body_html'), ${text})`
+      ),
+      mode: 'advanced',
+    }
+  }
+}
+
 /**
  * Opens a new row trigger with how many rows changed in which table, then the
  * rows.

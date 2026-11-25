@@ -19,6 +19,13 @@ class AgentConfig(AppConfig):
 
         from .action_tools.action_types import (
             HTTPRequestAgentActionType,
+            LocalBaserowAggregateRowsAgentActionType,
+            LocalBaserowCreateRowAgentActionType,
+            LocalBaserowDeleteRowAgentActionType,
+            LocalBaserowGetRowAgentActionType,
+            LocalBaserowListRowsAgentActionType,
+            LocalBaserowUpdateRowAgentActionType,
+            SlackWriteMessageAgentActionType,
             SMTPEmailAgentActionType,
         )
         from .action_tools.actions import (
@@ -96,6 +103,7 @@ class AgentConfig(AppConfig):
         from .triggers.trigger_types import (
             ROWS_TRIGGER_TYPES,
             HTTPAgentTriggerType,
+            InboundEmailAgentTriggerType,
             RowsAgentTriggerType,
         )
 
@@ -140,7 +148,15 @@ class AgentConfig(AppConfig):
         trash_item_type_registry.register(AgentActionTrashableItemType())
         agent_action_type_registry.register(SMTPEmailAgentActionType())
         agent_action_type_registry.register(HTTPRequestAgentActionType())
+        agent_action_type_registry.register(LocalBaserowCreateRowAgentActionType())
+        agent_action_type_registry.register(LocalBaserowUpdateRowAgentActionType())
+        agent_action_type_registry.register(LocalBaserowDeleteRowAgentActionType())
+        agent_action_type_registry.register(LocalBaserowGetRowAgentActionType())
+        agent_action_type_registry.register(LocalBaserowListRowsAgentActionType())
+        agent_action_type_registry.register(LocalBaserowAggregateRowsAgentActionType())
+        agent_action_type_registry.register(SlackWriteMessageAgentActionType())
         agent_trigger_type_registry.register(HTTPAgentTriggerType())
+        agent_trigger_type_registry.register(InboundEmailAgentTriggerType())
         for type_name in ROWS_TRIGGER_TYPES:
             agent_trigger_type_registry.register(RowsAgentTriggerType(type_name))
         agent_action_data_provider_type_registry.register(ToolInputDataProviderType())

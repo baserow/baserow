@@ -2,21 +2,25 @@
 
 An agent's **Actions** section holds tools its builder configures: a named tool,
 the inputs the model fills in, and an existing service whose fields use those
-inputs. Send email, HTTP request and, in the enterprise edition, semantic
-search are the action types so far. This page is the contract the shared code
-keeps, and what the next action type has to add.
+inputs. The action types are the actions an automation offers: send email, HTTP
+request, Slack message, the Local Baserow row actions (create, update and delete
+a row, get a row, list rows, aggregate rows) and, in the enterprise edition,
+semantic search. This page is the contract the shared code keeps, and what the
+next action type has to add.
 
 ## What owns what
 
 One `AgentAction` per configured action. It belongs to the agent and owns one
-`Service`. The action's type is its service's type, so there is no polymorphic
-action model, and readiness is derived, never stored.
+`Service`. The action's type is named after its service's type, unless types
+share a service type: Create a row and Update a row both use the upsert service,
+like the automation nodes of the same names, so `AgentAction.type` keeps the name.
+There is no polymorphic action model, and readiness is derived, never stored.
 
 | Owner                               | Responsibility                                                                                                          |
 | ----------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
 | `AgentAction`                       | Name the model calls, instructions, declared inputs, enabled and Ask first.                                             |
 | Service and integration             | Configuration, formulas, validation, credentials and delivery.                                                          |
-| `AgentActionType` (`action_tools/`) | Opts a service type in. Supplies the starter of a new action, the request people read, and whether a call changes data. |
+| `AgentActionType` (`action_tools/`) | Opts a service type in. Supplies the starter of a new action and whether a call changes data. Changes the request people read and what the model reads back only where the defaults don't suit. |
 | `BoundActionTool`                   | The tool of one reply: schema, argument validation, preview, approval and dispatch.                                     |
 | Presenter (`toolPresentationTypes`) | Labels and order of the service's fields, for the step card and the configuration errors.                               |
 
@@ -24,8 +28,8 @@ action model, and readiness is derived, never stored.
 
 **An action on Baserow data acts as the agent's Run as identity, never through
 an integration.** This applies to every action whose service reads or changes
-Baserow data, the ones built on a Local Baserow service: semantic search today,
-the row actions later. Its editor offers no integration to pick, and the service
+Baserow data, the ones built on a Local Baserow service: the row actions and
+semantic search. Its editor offers no integration to pick, and the service
 never keeps one. Permissions then live on one subject, the identity, instead of
 being spread over integrations that different people authorized, and the agent's
 workspace tools, triggers and actions all read and write as the same identity.
@@ -37,10 +41,12 @@ workspace tools, triggers and actions all read and write as the same identity.
 - Everyone who chats with the agent reaches what the identity can read.
 
 An action that calls another service keeps its integration, like Send email with
-its SMTP integration: it needs that connection, not an identity, and works with or
-without workspace access.
+its SMTP integration and Slack message with its bot: it needs that connection,
+not an identity, and works with or without workspace access.
 
-In code, the type of an action on Baserow data sets `acts_as_run_identity = True`.
+In code, the type of an action on Baserow data extends
+`LocalBaserowAgentActionType`, which sets `acts_as_run_identity = True` and checks
+the table for all of an agent's actions in one permission check.
 Create, update and import then drop any `integration_id`, the agent doesn't accept
 an integration for it, and a call dispatches with the identity as its actor,
 refreshed for each call. A call
@@ -71,6 +77,10 @@ Types are Text, Email, Number and Boolean.
   scalars, finite numbers, no unknown argument. A whole number stays an integer.
 - Formulas may only read the action's own inputs. Every runtime function is
   allowed.
+- A Local Baserow service resolves its filter values and its search query only
+  while a call is sent. A call is sent with its arguments, so these can read the
+  inputs too. They aren't part of the resolved values, so the request people read
+  lists the call's inputs instead (`LocalBaserowAgentActionType.get_preview`).
 
 ## Names
 
@@ -107,6 +117,8 @@ identity resolved once (`get_configuration_errors_by_action`).
    them (`DispatchContext.resolved_values`), so the
    service doesn't resolve its formulas again: what people read is what is sent,
    random values and dates included.
+6. The model reads the service's result, cut to `ACTION_MAX_RESULT_CHARACTERS`
+   (`fit_result`): the first items of a list whole, the others left out.
 
 An approved call is denied instead of sent when:
 
@@ -175,46 +187,49 @@ duplicated agent keeps the actions it had.
 
 ## Adding the next action type
 
-1. Subclass `AgentActionType` with the service type's name as `type`, next to
-   the service type (core: `contrib/agent/action_tools/action_types.py`;
-   enterprise semantic search: `integrations/local_baserow/agent_action_types.py`),
-   and register it in `agent_action_type_registry` where the service type is
-   registered. Set `changes_data = False` when a call only reads, and
-   `acts_as_run_identity = True` when its service reads or changes Baserow data
-   (see [Whose permissions an action uses](#whose-permissions-an-action-uses)).
-   Implement:
-    - `get_defaults()`: the starter name, instructions, inputs and service values.
-    - `get_preview_values(service, resolved_values)`: an explicit allowlist of what
-      people read, fixed settings included. Never credentials.
+1. Subclass `AgentActionType` with the service type's name as `type`, in the
+   agent module (`contrib/agent/action_tools/action_types.py`), and register it in
+   `agent_action_type_registry`. Set `service_type_name` when the type shares its
+   service type with another one. Set `changes_data = False` when a call only
+   reads. Extend `LocalBaserowAgentActionType` when the service reads or changes
+   Baserow data (see [Whose permissions an action uses](#whose-permissions-an-action-uses)).
+   Implement `get_defaults()`: the starter name, instructions, inputs and service
+   values. `bound_input` gives an input and the formula that reads it.
 
-    Decide there how to limit what a call may send and what its preview shows:
-    nothing shared limits either. Override `get_configuration_errors` for what the
-    shared checks miss. A Local Baserow service's filters are resolved when the
-    call is sent, without the call's inputs, so semantic search only accepts fixed
-    filter values, and the editor offers no inputs there. Override
-    `get_configuration_errors_by_action` when a check costs less for all of an
-    agent's actions together, like the identity's permission on each table.
-
-    Bound what the model reads in `get_tool_result` to
-    `ACTION_MAX_RESULT_CHARACTERS`, as the result is resent in every later turn.
-    `fit_values` cuts an object, like a row, to the space left.
+    Everything else has a default. Override it only where it doesn't suit:
+    - `get_preview_values(service, resolved_values)` shows every resolved value.
+      Select the values when a formula can hold a credential, like HTTP request
+      does, or to add a fixed setting people should read.
+    - `get_configuration_errors` for what the shared checks miss and only an
+      agent requires. A setting every host needs, like the channel of a Slack
+      message, is checked by the service type's own `get_configuration_errors`.
+    - `get_formulas` when the service type queries its formulas for each service,
+      which checking all of an agent's actions would repeat.
+    - `get_tool_result` when cutting the result to `ACTION_MAX_RESULT_CHARACTERS`
+      from the end loses what matters most.
 
 2. Make sure the service's resolved values survive JSON, as they wait in the paused
-   run. Convert them in the type if they don't.
-3. Register an `ActionToolPresentationType` under the same type name, with the
-   label of each field in reading order, and the activity texts.
-4. Reuse the service's form as it is. An action on Baserow data gets the tables
+   run, and that their keys are the same after a save: the upsert service names a
+   mapped value after its field, not after the mapping's id.
+3. Reuse the service's form as it is. An action on Baserow data gets the tables
    its identity can read from `GET /api/agent/{id}/action-types/`, which the
-   service type lists with `get_form_choices`, like a trigger. Add a host
+   service type lists with `get_form_choices`
+   (`LocalBaserowSubjectReadableTablesMixin`), like a trigger. Add a host
    capability to the form only where the agent editor needs one.
-5. Check that the exported service is stable: a list of child rows without an
+4. Check that the exported service is stable: a list of child rows without an
    order changes the approval key between two reads.
+5. Register an `ActionToolPresentationType` under the same type name, with the
+   label of each field in reading order, and the activity texts. Without one the
+   step has a generic title and shows no request.
 
 The CRUD API, permissions, audit, realtime events, typed input editor, argument
 validation, approvals and the cap on an agent's actions are shared and need nothing.
 
-## Planned order
+## Not hosted
 
-Send email, HTTP request, Slack message, configured Baserow create/update row,
-start workflow. The Baserow row actions act as the Run as identity, like semantic
-search.
+`test_every_automation_node_type_is_hosted_or_left_out_on_purpose` fails when an
+automation node type is neither an action or trigger type of agents nor listed
+there as left out. Router, goto, iterator, wait, response and the manual trigger
+only mean something inside a workflow. Create rows and update rows, start
+workflow, AI prompt, the CSV and XLS readers, run code and the fields updated
+trigger aren't hosted yet.
