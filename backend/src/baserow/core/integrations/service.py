@@ -470,12 +470,12 @@ class IntegrationService:
         if target_application is not None:
             original_values["application_id"] = integration.application_id
             new_values["application_id"] = target_application.id
-            integration_type.before_application_change(
-                integration, target_application, user
-            )
 
         prepared_values = integration_type.prepare_values(
-            kwargs, user, application=integration.application, instance=integration
+            kwargs,
+            user,
+            application=target_application or integration.application,
+            instance=integration,
         )
 
         previous_application = (

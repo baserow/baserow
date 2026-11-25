@@ -138,29 +138,13 @@ class IntegrationType(
 
         :param values: The provided values.
         :param user: The user on whose behalf the change is made.
+        :param application: The destination application, including when moving an
+            existing integration to another application.
         :param instance: The current instance if it exists.
         :return: The updated values.
         """
 
         return values
-
-    def before_application_change(
-        self,
-        integration: IntegrationSubClass,
-        application: Any,
-        user: AbstractUser,
-    ):
-        """
-        Called before the integration moves to another application of its
-        workspace: when it's promoted to the shared application, or when undoing
-        that moves it back. Promoting it lets every application of the workspace
-        use it, so a type whose integration acts as someone can change who here.
-        What it sets on the integration is saved with the move.
-
-        :param integration: The integration, still in its current application.
-        :param application: The application it moves to.
-        :param user: The user moving it.
-        """
 
     def get_action_log_excluded_fields(self) -> List[str]:
         """

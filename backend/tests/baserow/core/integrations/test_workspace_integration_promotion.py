@@ -459,3 +459,47 @@ def test_a_promotion_cannot_be_undone_once_something_else_uses_the_integration(
     # application a service belongs to.
     assert "IntegrationUsedSincePromotion" in undone.error
     assert _application_id(integration) == shared_application.id
+
+
+@pytest.mark.django_db
+def test_preparing_a_move_returns_authorization_without_mutating_the_integration(
+    data_fixture,
+):
+    """Preparing a new owner adjusts authorization only in the returned values."""
+    admin = data_fixture.create_user()
+    member = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=admin, members=[member])
+    builder = data_fixture.create_builder_application(workspace=workspace)
+    shared = data_fixture.create_shared_application(workspace=workspace)
+    integration = data_fixture.create_local_baserow_integration(
+        application=builder, authorized_user=member
+    )
+
+    prepared = integration.get_type().prepare_values(
+        {}, admin, application=shared, instance=integration
+    )
+
+    assert prepared["authorized_subject_type"] == "auth.User"
+    assert prepared["authorized_subject_id"] == admin.id
+    assert integration.authorized_subject_id == member.id
+    assert integration.application_id == builder.id
+    integration.refresh_from_db()
+    assert integration.authorized_subject_id == member.id
+
+
+@pytest.mark.django_db
+def test_renaming_an_integration_keeps_its_authorized_user(data_fixture):
+    """An ordinary edit must not transfer the existing user's authorization."""
+    admin = data_fixture.create_user()
+    member = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=admin, members=[member])
+    builder = data_fixture.create_builder_application(workspace=workspace)
+    integration = data_fixture.create_local_baserow_integration(
+        application=builder, authorized_user=member
+    )
+
+    IntegrationService().update_integration(admin, integration, name="Renamed")
+    integration.refresh_from_db()
+
+    assert integration.name == "Renamed"
+    assert integration.authorized_subject_id == member.id
