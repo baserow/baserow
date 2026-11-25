@@ -220,11 +220,9 @@ duplicated agent keeps the actions it had.
    capability to the form only where the agent editor needs one.
 4. Check that the exported service is stable: a list of child rows without an
    order changes the approval key between two reads.
-5. Optionally register an `ActionToolPresentationType` under the same type name,
-   with the label of each field in reading order, and the activity texts. Without
-   one the step is titled with the service type's name, and a field
-   `GenericActionToolPresentationType` has no label for shows as the service names
-   it.
+5. Register an `ActionToolPresentationType` under the same type name, with the
+   label of each field in reading order, and the activity texts. Without one the
+   step has a generic title and shows no request.
 
 The CRUD API, permissions, audit, realtime events, typed input editor, argument
 validation, approvals and the cap on an agent's actions are shared and need nothing.
