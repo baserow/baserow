@@ -240,14 +240,21 @@ class AgentApplicationView(APIView):
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
-class AgentConfigurationView(RealtimeRecoveryPrimaryReadMixin, APIView):
+class TemplatePreviewReadMixin:
+    """
+    Lets a signed out visitor read, so that a template preview works without an
+    account. The permission check of each view still only allows it on templates.
+    """
+
     def get_permissions(self):
-        # A template preview reads the setup, also for a signed out visitor. The
-        # permission check still only allows it on templates.
-        if self.request.method == "GET":
+        if self.request.method in ("GET", "HEAD"):
             return [AllowAny()]
         return super().get_permissions()
 
+
+class AgentConfigurationView(
+    TemplatePreviewReadMixin, RealtimeRecoveryPrimaryReadMixin, APIView
+):
     @extend_schema(
         parameters=[AGENT_ID_PATH_PARAMETER],
         tags=["Agent applications"],
@@ -363,14 +370,9 @@ class AgentToolsView(APIView):
         return Response(AgentToolSerializer(tools, many=True).data)
 
 
-class AgentConversationsView(RealtimeRecoveryPrimaryReadMixin, APIView):
-    def get_permissions(self):
-        # A template preview shows its example conversations, also to a signed
-        # out visitor. The permission check still only allows it on templates.
-        if self.request.method == "GET":
-            return [AllowAny()]
-        return super().get_permissions()
-
+class AgentConversationsView(
+    TemplatePreviewReadMixin, RealtimeRecoveryPrimaryReadMixin, APIView
+):
     @extend_schema(
         tags=["Agent applications"],
         operation_id="list_agent_conversations",
@@ -670,14 +672,9 @@ class LeaveAgentConversationView(APIView):
         return Response(LeaveAgentConversationSerializer(conversation).data)
 
 
-class AgentMessagesView(RealtimeRecoveryPrimaryReadMixin, APIView):
-    def get_permissions(self):
-        # A template preview shows its example conversations, also to a signed
-        # out visitor. The permission check still only allows it on templates.
-        if self.request.method == "GET":
-            return [AllowAny()]
-        return super().get_permissions()
-
+class AgentMessagesView(
+    TemplatePreviewReadMixin, RealtimeRecoveryPrimaryReadMixin, APIView
+):
     @extend_schema(
         tags=["Agent applications"],
         operation_id="list_agent_messages",

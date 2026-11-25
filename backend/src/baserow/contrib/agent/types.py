@@ -61,6 +61,8 @@ class AgentConfiguration:
     deactivated_tools: list[str]
     pending_tools: list[str]
     """The tools an imported Agent turns on when an identity is first picked."""
+    pending_ask_first_tools: list[str]
+    """The pending tools that will require approval before they run."""
     available_trigger_types: list[str]
     available_action_types: list[str]
     max_actions: int | None

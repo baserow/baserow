@@ -23,6 +23,7 @@ export const CONFIGURATION_FIELD = Object.freeze({
   ALLOWED_TOOLS: 'allowed_tools',
   ASK_FIRST_TOOLS: 'ask_first_tools',
   PENDING_TOOLS: 'pending_tools',
+  PENDING_ASK_FIRST_TOOLS: 'pending_ask_first_tools',
   AVAILABLE_TOOLS: 'available_tools',
   WEB_SEARCH_ENABLED: 'web_search_enabled',
   WEB_SEARCH_AVAILABLE: 'web_search_available',

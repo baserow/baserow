@@ -5,6 +5,12 @@ from django.urls import reverse
 import pytest
 
 from baserow.core.handler import CoreHandler
+from baserow.core.models import Workspace
+from baserow.core.permission_manager import (
+    AllowIfTemplatePermissionManagerType as CoreAllowIfTemplatePermissionManagerType,
+)
+from baserow.core.registries import permission_manager_type_registry
+from baserow.core.types import PermissionCheck
 
 from .utils import agent_url, new_conversation
 
@@ -171,6 +177,9 @@ def test_signed_out_visitor_reads_the_example_conversations_of_a_template_agent(
     messages = api_client.get(messages_url(template_agent, shared))
 
     assert listed.status_code == 200
+    assert (
+        api_client.head(agent_url(template_agent, "conversations")).status_code == 200
+    )
     assert [item["uuid"] for item in listed.json()["results"]] == [str(shared.uuid)]
     assert [item["content"] for item in messages.json()["results"]] == ["An example"]
     for hidden in (private, ownerless):
@@ -219,3 +228,45 @@ def test_the_conversations_of_a_user_template_stay_private(
     for url in (agent_url(agent, "conversations"), messages_url(agent, shared)):
         assert api_client.get(url).status_code in (401, 403)
         assert get(api_client, token, url).status_code == 401
+
+
+@pytest.mark.django_db
+def test_a_later_template_manager_keeps_user_template_conversations_private(
+    data_fixture, configured_agent
+):
+    class LaterAllowIfTemplatePermissionManagerType(
+        CoreAllowIfTemplatePermissionManagerType
+    ):
+        # Wraps the registered manager the way each app does, without forwarding
+        # anything but the allowed operations.
+        def __init__(self, prev_manager_type):
+            self.prev_manager_type = prev_manager_type
+
+        @property
+        def OPERATION_ALLOWED_ON_TEMPLATES(self):
+            return self.prev_manager_type.OPERATION_ALLOWED_ON_TEMPLATES
+
+    owner = data_fixture.create_user()
+    agent = configured_agent(user=owner)
+    template = data_fixture.create_user_template(user=owner, workspace=agent.workspace)
+    data_fixture.set_user_template_state(template, "public")
+    visitor = data_fixture.create_user()
+    manager = LaterAllowIfTemplatePermissionManagerType(
+        permission_manager_type_registry.get("allow_if_template")
+    )
+    workspace = Workspace.objects.get(id=agent.workspace_id)
+    check = PermissionCheck(visitor, "agent_application.read_conversations", agent)
+
+    assert manager.check_multiple_permissions([check], workspace) == {}
+    assert (
+        manager.filter_queryset(
+            visitor, check.operation_name, Workspace.objects.none(), workspace
+        )
+        is None
+    )
+    # Lists only official, owned or linked templates, so the owner's is.
+    permissions = manager.get_permissions_object(owner)
+    assert permissions["official_template_only_operations"] == [
+        "agent_application.read_conversations"
+    ]
+    assert permissions["user_template_workspace_ids"] == [agent.workspace_id]

@@ -1052,6 +1052,7 @@ def test_configuration_is_served_only_by_the_agent_endpoints(
         "allowed_tools": [],
         "ask_first_tools": [],
         "pending_tools": [],
+        "pending_ask_first_tools": [],
         "available_tools": ANY,
         "web_search_enabled": False,
         "web_search_available": True,
@@ -1202,6 +1203,7 @@ def test_picking_an_identity_applies_pending_tools(
     assert response.json()["allowed_tools"] == ["list_tables", "create_rows"]
     assert response.json()["ask_first_tools"] == ["create_rows"]
     assert response.json()["pending_tools"] == []
+    assert response.json()["pending_ask_first_tools"] == []
     agent.refresh_from_db()
     assert agent.pending_tool_choices is None
 
@@ -1250,6 +1252,7 @@ def test_configuration_exposes_pending_tools(configured_agent, api_client, api_u
     response = api_client.get(agent_url(agent, "configuration"))
 
     assert response.json()["pending_tools"] == ["list_tables", "create_rows"]
+    assert response.json()["pending_ask_first_tools"] == ["create_rows"]
     assert response.json()["allowed_tools"] == []
 
 

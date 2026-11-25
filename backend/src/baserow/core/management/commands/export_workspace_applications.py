@@ -49,9 +49,9 @@ class Command(BaseCommand):
             "--include-conversations",
             action="store_true",
             help="Also exports the shared conversations of the Agents, without the "
-            "people who took part, as the examples the preview of an official "
-            "template shows. Share the conversations to show, and check that they "
-            "hold nothing private.",
+            "people who took part or the tool steps of the replies, as the examples "
+            "the preview of an official template shows. Share the conversations to "
+            "show, and check that their messages hold nothing private.",
         )
 
     def handle(self, *args, **options):

@@ -35,9 +35,10 @@
         :selected="selectedConversation?.uuid"
         :loading="conversationsLoading"
         :has-more="Boolean(conversationsCursor)"
-        @filter="setConversationFilter"
+        :error="conversationsError"
         @select="selectConversation"
         @load-more="loadConversations(conversationsCursor)"
+        @retry="loadConversations(conversationsCursor)"
       />
       <main
         class="agent-chat"
@@ -45,6 +46,18 @@
       >
         <div ref="historyElement" class="agent-chat__history chat-thread">
           <div class="chat-thread__column">
+            <Alert v-if="history.error" type="error">
+              {{ $t('agent.messagesLoadError') }}
+              <template #actions
+                ><Button
+                  type="secondary"
+                  size="small"
+                  button-type="button"
+                  @click="loadMessages(history.page + 1)"
+                  >{{ $t('action.retry') }}</Button
+                ></template
+              >
+            </Alert>
             <template v-if="history.items.length">
               <Button
                 v-if="history.next"
@@ -64,7 +77,7 @@
                 :trigger-name="selectedConversation.trigger_name"
               />
             </template>
-            <AgentChatIntro v-else-if="!history.loading" :name="agent.name" />
+            <AgentChatIntro v-else-if="showsIntro" :name="agent.name" />
           </div>
         </div>
         <div class="agent-chat__footer">
@@ -145,11 +158,29 @@ const conversationsToggleLabel = computed(() =>
 )
 const hasConversations = ref(false)
 const conversations = ref([])
-const conversationFilter = ref('all')
+// The examples are all shared and never wait or fail, so they aren't filtered.
+const conversationFilter = 'all'
 const conversationsCursor = ref(null)
 const conversationsLoading = ref(false)
+const conversationsError = ref(false)
+// Whether the first page answered, so the intro doesn't show before an example.
+const conversationsSettled = ref(false)
 const selectedConversation = ref(null)
-const history = reactive({ items: [], page: 0, next: false, loading: false })
+const emptyHistory = () => ({
+  items: [],
+  page: 0,
+  next: false,
+  loading: false,
+  error: false,
+})
+const history = reactive(emptyHistory())
+const showsIntro = computed(
+  () =>
+    conversationsSettled.value &&
+    !conversationsError.value &&
+    !selectedConversation.value &&
+    !history.items.length
+)
 const historyElement = ref(null)
 // Bumped for every Agent shown, so a late answer for another one is dropped.
 let scope = 0
@@ -172,7 +203,7 @@ async function loadConfiguration() {
 /**
  * Loads a page of the example conversations. They are optional: an Agent
  * without any, or one whose conversations the visitor may not read, shows the
- * chat intro instead of a list.
+ * chat intro instead of a list. Any other failure shows the list with a retry.
  *
  * @param {string|null} cursor The cursor of the page, or null for the first.
  */
@@ -181,40 +212,44 @@ async function loadConversations(cursor = null) {
   const request = ++conversationsRequest
   const isCurrent = () => current === scope && request === conversationsRequest
   conversationsLoading.value = true
+  conversationsError.value = false
   try {
     const { data } = await service.getConversations(
       agent.value.id,
       cursor,
-      CONVERSATION_FILTERS[conversationFilter.value].params
+      CONVERSATION_FILTERS[conversationFilter].params
     )
     if (!isCurrent()) return
     conversations.value = cursor
       ? [...conversations.value, ...data.results]
       : data.results
     conversationsCursor.value = data.next_cursor
-    if (!cursor && conversationFilter.value === 'all') {
+    if (!cursor) {
       hasConversations.value = data.results.length > 0
       if (!selectedConversation.value && data.results.length) {
         selectConversation(data.results[0])
       }
     }
-  } catch {
-    if (isCurrent()) conversationsCursor.value = null
+  } catch (error) {
+    if (!isCurrent()) return
+    // Kept, so that a retry asks for the same page.
+    conversationsCursor.value = cursor
+    if (![401, 403].includes(error.response?.status)) {
+      conversationsError.value = true
+      hasConversations.value = true
+    }
   } finally {
-    if (isCurrent()) conversationsLoading.value = false
+    if (isCurrent()) {
+      conversationsLoading.value = false
+      conversationsSettled.value = true
+    }
   }
-}
-
-function setConversationFilter(filter) {
-  conversationFilter.value = filter
-  conversations.value = []
-  loadConversations()
 }
 
 function selectConversation(conversation) {
   if (conversation.uuid === selectedConversation.value?.uuid) return
   selectedConversation.value = conversation
-  Object.assign(history, { items: [], page: 0, next: false })
+  Object.assign(history, emptyHistory())
   loadMessages()
 }
 
@@ -229,6 +264,7 @@ async function loadMessages(page = 1) {
   const isCurrent = () =>
     current === scope && conversation === selectedConversation.value
   history.loading = true
+  history.error = false
   try {
     const { data } = await service.getMessages(
       agent.value.id,
@@ -246,7 +282,7 @@ async function loadMessages(page = 1) {
       }
     }
   } catch {
-    // The history stays as it is; the note below still says how to chat.
+    if (isCurrent()) history.error = true
   } finally {
     if (isCurrent()) history.loading = false
   }
@@ -259,10 +295,11 @@ watch(
     configuration.value = {}
     hasConversations.value = false
     conversations.value = []
-    conversationFilter.value = 'all'
     conversationsCursor.value = null
+    conversationsError.value = false
+    conversationsSettled.value = false
     selectedConversation.value = null
-    Object.assign(history, { items: [], page: 0, next: false, loading: false })
+    Object.assign(history, emptyHistory())
     loadConfiguration()
     loadConversations()
   },

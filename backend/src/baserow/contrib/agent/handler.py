@@ -187,6 +187,11 @@ class AgentHandler:
             or agent.web_fetch_enabled
         )
         web_search_tool = self._get_web_search_tool(agent, with_tools)
+        pending = (
+            {"allowed_tools": [], "ask_first_tools": []}
+            if agent.run_as_subject_type and agent.run_as_subject_id
+            else self.get_pending_tool_configuration(agent)
+        )
         return AgentConfiguration(
             readiness=readiness,
             instructions=agent.instructions,
@@ -198,11 +203,8 @@ class AgentHandler:
             ),
             run_as=run_as,
             **tools,
-            pending_tools=(
-                []
-                if agent.run_as_subject_type and agent.run_as_subject_id
-                else self.get_pending_tool_configuration(agent)["allowed_tools"]
-            ),
+            pending_tools=pending["allowed_tools"],
+            pending_ask_first_tools=pending["ask_first_tools"],
             deactivated_tools=deactivated,
             web_search_enabled=agent.web_search_enabled,
             web_search_available=web_search_tool is not None,
@@ -2271,7 +2273,9 @@ class AgentHandler:
         :param agent: The agent whose conversations are exported.
         :param as_examples: Export them for the preview of a template: only the
             shared ones, so that sharing a conversation is what picks it as an
-            example, and without the people who own them or sent their messages.
+            example, without the people who own them or sent their messages, and
+            without the tool steps of the replies, which hold the inputs and
+            results of the calls and the ids of the author's tables.
         :return: The conversations, oldest first, each with its messages in the order
             they were sent.
         """
@@ -2282,11 +2286,12 @@ class AgentHandler:
             # see, nor one that only tested the Agent.
             conversations = conversations.filter(shared=True, is_test=False)
         conversations = conversations.order_by("id").prefetch_related(
-            "participants",
+            *([] if as_examples else ["participants"]),
             Prefetch(
                 "messages",
                 queryset=AgentMessage.objects.order_by("id").prefetch_related(
-                    "approvals"
+                    # Only read to end the held steps, which examples leave out.
+                    *([] if as_examples else ["approvals"])
                 ),
             ),
         )
@@ -2313,7 +2318,9 @@ class AgentHandler:
                         "status": message.status,
                         "error_code": message.error_code,
                         # Approvals aren't copied, so the copy gets held calls ended.
-                        "steps": self._end_held_steps(
+                        "steps": None
+                        if as_examples
+                        else self._end_held_steps(
                             message,
                             message.steps or [],
                             resumed=message.status != AgentReplyStatus.WAITING,
@@ -2348,33 +2355,44 @@ class AgentHandler:
         :param id_mapping: The export-to-import id map, with the ``agent_triggers``
             the agent's triggers were imported under.
         :param as_examples: Import them for the preview of a template: all shared,
-            and never attributed to a user of this instance, whatever the file says.
+            never attributed to a user of this instance and without tool steps,
+            whatever the file says. The users, steps and timestamps can be left out
+            of the file.
         """
 
         def participant_ids(data: dict) -> list[int]:
             # The examples of a template take part in nothing here.
             return [] if as_examples else data["participant_ids"]
 
-        referenced_user_ids = {
-            user_id
-            for data in serialized_conversations
-            for user_id in (
-                data["owner_user_id"],
-                *participant_ids(data),
-                *(message["sender_id"] for message in data["messages"]),
+        existing_user_ids = set()
+        if not as_examples:
+            referenced_user_ids = {
+                user_id
+                for data in serialized_conversations
+                for user_id in (
+                    data["owner_user_id"],
+                    *participant_ids(data),
+                    *(message["sender_id"] for message in data["messages"]),
+                )
+                if user_id is not None
+            }
+            existing_user_ids = set(
+                get_user_model()
+                .objects.filter(id__in=referenced_user_ids)
+                .values_list("id", flat=True)
             )
-            if user_id is not None
-        }
-        existing_user_ids = set(
-            get_user_model()
-            .objects.filter(id__in=referenced_user_ids)
-            .values_list("id", flat=True)
-        )
 
-        def existing(user_id: int | None) -> int | None:
+        def existing(data: dict, key: str) -> int | None:
             if as_examples:
                 return None
+            user_id = data[key]
             return user_id if user_id in existing_user_ids else None
+
+        def restore_timestamps(instance, data: dict) -> None:
+            # An example without them keeps the time it was imported.
+            for key in ("created_on", "updated_on"):
+                if not as_examples or data.get(key):
+                    setattr(instance, key, parse_datetime(data[key]))
 
         retained_data = [
             data
@@ -2390,10 +2408,11 @@ class AgentHandler:
                 uuid=uuid4(),
                 title=data["title"],
                 pinned=data.get("pinned", False),
-                is_test=data.get("is_test", False),
-                owner_user_id=existing(data["owner_user_id"]),
+                # An example is shown to every visitor, never a test chat.
+                is_test=not as_examples and data.get("is_test", False),
+                owner_user_id=existing(data, "owner_user_id"),
                 shared=as_examples or data["shared"],
-                started_by_trigger=data["started_by_trigger"],
+                started_by_trigger=data.get("started_by_trigger", False),
                 trigger_id=trigger_ids.get(data.get("trigger_id")),
             )
             for data in retained_data
@@ -2412,8 +2431,7 @@ class AgentHandler:
             batch_size=1000,
         )
         for conversation, data in zip(conversations, retained_data):
-            conversation.created_on = parse_datetime(data["created_on"])
-            conversation.updated_on = parse_datetime(data["updated_on"])
+            restore_timestamps(conversation, data)
             for serialized_message in data["messages"]:
                 status = serialized_message["status"]
                 error_code = serialized_message["error_code"]
@@ -2429,12 +2447,14 @@ class AgentHandler:
                         conversation=conversation,
                         uuid=uuid4(),
                         role=serialized_message["role"],
-                        sender_id=existing(serialized_message["sender_id"]),
+                        sender_id=existing(serialized_message, "sender_id"),
                         unattended=serialized_message.get("unattended", False),
                         content=serialized_message["content"],
                         status=status,
                         error_code=error_code,
-                        steps=stop_running_steps(serialized_message.get("steps") or [])
+                        steps=None
+                        if as_examples
+                        else stop_running_steps(serialized_message.get("steps") or [])
                         or None,
                     )
                 )
@@ -2446,8 +2466,7 @@ class AgentHandler:
         )
         AgentMessage.objects.bulk_create(messages, batch_size=1000)
         for message, data in zip(messages, message_data):
-            message.created_on = parse_datetime(data["created_on"])
-            message.updated_on = parse_datetime(data["updated_on"])
+            restore_timestamps(message, data)
         AgentMessage.objects.bulk_update(
             messages, ["created_on", "updated_on"], batch_size=1000
         )

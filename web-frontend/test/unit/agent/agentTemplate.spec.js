@@ -70,7 +70,8 @@ describe('Agent template preview', () => {
       run_as: null,
       allowed_tools: [],
       ask_first_tools: [],
-      pending_tools: ['list_tables'],
+      pending_tools: ['list_tables', 'create_rows'],
+      pending_ask_first_tools: ['create_rows'],
       available_tools: [
         { name: 'list_tables', group: 'database', changes_data: false },
         { name: 'create_rows', group: 'database', changes_data: true },
@@ -184,9 +185,10 @@ describe('Agent template preview', () => {
     const tools = section.get('.agent-workspace-tools__switch')
     expect(tools.attributes('aria-checked')).toBe('true')
     expect(tools.attributes('aria-disabled')).toBe('true')
-    expect(section.get('.agent-workspace-tools__group').text()).toContain(
-      'agent.toolsSummary'
-    )
+    const group = section.get('.agent-workspace-tools__group').text()
+    expect(group).toContain('agent.toolsSummary')
+    // Pending tools that change data ask first once installed.
+    expect(group).toContain('agent.toolsAskCount')
   })
 
   test('reads only what a template preview may read', async () => {
@@ -293,6 +295,70 @@ describe('Agent template preview', () => {
     expect(messages(wrapper)).toEqual(['ViewerCan I get a refund?'])
     expect(requests('post')).toEqual([])
     expect(requests('patch')).toEqual([])
+  })
+
+  const mountPreview = async () => {
+    const wrapper = await testApp.mount(AgentTemplate, {
+      props: { pageValue: { agent: { ...agentData, integrations: [] } } },
+    })
+    await flushPromises()
+    return wrapper
+  }
+
+  test('offers to load the conversations again when that failed', async () => {
+    mockConfiguration(testApp, templateConfiguration())
+    mockConversations(
+      testApp,
+      [500, {}],
+      conversationsPage([
+        { ...conversation('first', 'Order status'), shared: true },
+      ])
+    )
+    mockMessages(
+      testApp,
+      'first',
+      page([message('user', 'Where is my order?', { id: 1 })])
+    )
+    const wrapper = await mountPreview()
+
+    expect(wrapper.find('.agent-chat__intro').exists()).toBe(false)
+    await wrapper.get('.agent-conversations .alert .button').trigger('click')
+    await flushPromises()
+
+    expect(
+      wrapper
+        .findAll('.agent-conversations__item-name')
+        .map((item) => item.text())
+    ).toEqual(['Order status'])
+    expect(messages(wrapper)).toEqual(['ViewerWhere is my order?'])
+  })
+
+  test('offers to load the messages again when that failed', async () => {
+    mockConfiguration(testApp, templateConfiguration())
+    mockConversations(
+      testApp,
+      conversationsPage([
+        { ...conversation('first', 'Order status'), shared: true },
+      ])
+    )
+    mockMessages(
+      testApp,
+      'first',
+      [500, {}],
+      page([message('user', 'Where is my order?', { id: 1 })])
+    )
+    const wrapper = await mountPreview()
+
+    // Not shown as if the example were an empty chat.
+    expect(wrapper.find('.agent-chat__intro').exists()).toBe(false)
+    expect(wrapper.get('.agent-chat .alert').text()).toContain(
+      'agent.messagesLoadError'
+    )
+    await wrapper.get('.agent-chat .alert .button').trigger('click')
+    await flushPromises()
+
+    expect(wrapper.find('.agent-chat .alert').exists()).toBe(false)
+    expect(messages(wrapper)).toEqual(['ViewerWhere is my order?'])
   })
 
   test('offers to load the configuration again when that failed', async () => {

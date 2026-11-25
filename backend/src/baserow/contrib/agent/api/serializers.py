@@ -144,6 +144,10 @@ class AgentConfigurationSerializer(serializers.Serializer):
         help_text="The tools an imported agent turns on when an identity is first "
         "selected without choosing tools.",
     )
+    pending_ask_first_tools = serializers.ListField(
+        child=serializers.CharField(),
+        help_text="The pending tools that will require approval before they run.",
+    )
     available_tools = serializers.SerializerMethodField(
         help_text="Every tool an agent can be allowed to call, with its group and "
         "whether it changes data."

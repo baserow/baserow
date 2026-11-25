@@ -1,6 +1,8 @@
 <template>
   <aside class="agent-conversations" :aria-busy="loading">
+    <!-- The examples of a template are all shared and never wait or fail. -->
     <Dropdown
+      v-if="!templatePreview"
       class="agent-conversations__filter"
       :model-value="filter"
       :show-search="false"

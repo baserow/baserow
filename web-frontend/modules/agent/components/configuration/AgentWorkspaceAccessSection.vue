@@ -142,11 +142,13 @@ const configuredTools = computed(() => {
     ? []
     : props.configuration.allowed_tools
 })
-const configuredAskFirstTools = computed(() =>
-  status.value === RUN_AS_STATUS.UNSET
+const configuredAskFirstTools = computed(() => {
+  if (showsPendingTools.value)
+    return props.configuration.pending_ask_first_tools ?? []
+  return status.value === RUN_AS_STATUS.UNSET
     ? []
     : props.configuration.ask_first_tools
-)
+})
 const unavailable = computed(() =>
   [RUN_AS_STATUS.TRASHED, RUN_AS_STATUS.MISSING].includes(status.value)
 )

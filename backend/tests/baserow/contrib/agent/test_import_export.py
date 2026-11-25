@@ -975,7 +975,20 @@ def write_template_with_examples(data_fixture, configured_agent, tmp_path):
     shared = data_fixture.create_agent_conversation(
         user=author, agent=agent, shared=True
     )
-    data_fixture.create_agent_message(conversation=shared, content="An example")
+    data_fixture.create_agent_message(
+        conversation=shared,
+        content="An example",
+        steps=[
+            {
+                "id": "call_1",
+                "tool": "list_rows",
+                "status": "done",
+                "changes_data": False,
+                "input": {"table_id": 1, "search": "PRIVATE"},
+                "facts": {"count": 1},
+            }
+        ],
+    )
     data_fixture.create_agent_message(user=author, agent=agent, content="PRIVATE")
     config = ImportExportConfig(
         include_permission_data=False, include_conversations=True
@@ -1011,7 +1024,8 @@ def test_conversations_are_exported_as_examples_without_their_people(
         (message["content"], message["sender_id"])
         for message in conversation["messages"]
     ] == [("An example", None)]
-    # The private conversation stays behind.
+    # The private conversation and the tool steps stay behind.
+    assert conversation["messages"][0]["steps"] is None
     assert "PRIVATE" not in json.dumps(exported)
 
 
@@ -1086,6 +1100,42 @@ def test_example_conversations_are_never_given_to_a_user_of_the_instance(
     (example,) = AgentConversation.objects.filter(agent__workspace=template.workspace)
     assert (example.shared, example.owner_user_id) == (True, None)
     assert [message.sender_id for message in example.messages.all()] == [None]
+
+
+@pytest.mark.django_db
+def test_a_trimmed_example_file_still_syncs_without_steps(
+    data_fixture, configured_agent, settings, tmp_path
+):
+    _, exported = write_template_with_examples(data_fixture, configured_agent, tmp_path)
+    # Examples ignore the users and can do without timestamps, so a file can drop
+    # them. A step a hand-written file adds is left out.
+    conversation = exported[0]["conversations"][0]
+    for key in ("owner_user_id", "started_by_trigger", "created_on", "updated_on"):
+        del conversation[key]
+    message = conversation["messages"][0]
+    for key in ("sender_id", "created_on", "updated_on"):
+        del message[key]
+    message["steps"] = [{"id": "call_1", "status": "done", "input": {"id": 1}}]
+    conversation["is_test"] = True
+    path = tmp_path / "agent-examples.json"
+    content = json.loads(path.read_text())
+    content["export"] = exported
+    path.write_text(json.dumps(content))
+    settings.APPLICATION_TEMPLATES_DIR = str(tmp_path)
+
+    CoreHandler().sync_templates(pattern="agent-examples")
+
+    template = Template.objects.get(slug="agent-examples")
+    (example,) = AgentConversation.objects.filter(agent__workspace=template.workspace)
+    assert (example.shared, example.is_test, example.started_by_trigger) == (
+        True,
+        False,
+        False,
+    )
+    assert [
+        (message.content, message.sender_id, message.steps)
+        for message in example.messages.all()
+    ] == [("An example", None, None)]
 
 
 @pytest.mark.import_export_workspace

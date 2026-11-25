@@ -6,7 +6,7 @@ from baserow.contrib.agent.operations import (
     ReadAgentConversationsOperationType,
 )
 from baserow.core.exceptions import PermissionDenied
-from baserow.core.models import Template, Workspace
+from baserow.core.models import Workspace
 from baserow.core.permission_manager import (
     AllowIfTemplatePermissionManagerType as CoreAllowIfTemplatePermissionManagerType,
 )
@@ -29,6 +29,8 @@ class AllowIfTemplatePermissionManagerType(CoreAllowIfTemplatePermissionManagerT
         ReadAgentConversationsOperationType.type,
     ]
 
+    OFFICIAL_TEMPLATE_ONLY_OPERATIONS = [ReadAgentConversationsOperationType.type]
+
     @property
     def OPERATION_ALLOWED_ON_TEMPLATES(self):
         return (
@@ -42,21 +44,6 @@ class AllowIfTemplatePermissionManagerType(CoreAllowIfTemplatePermissionManagerT
 
     def __init__(self, prev_manager_type: PermissionManagerType):
         self.prev_manager_type = prev_manager_type
-
-    def check_multiple_permissions(self, checks, workspace=None, include_trash=False):
-        result = super().check_multiple_permissions(
-            checks, workspace=workspace, include_trash=include_trash
-        )
-        conversation_checks = [
-            check
-            for check in result
-            if check.operation_name == ReadAgentConversationsOperationType.type
-        ]
-        if conversation_checks and Template.Type.USER in workspace.get_template_types():
-            # Left to the next managers, which allow the members of the workspace.
-            for check in conversation_checks:
-                del result[check]
-        return result
 
 
 class AgentParticipationPermissionManagerType(PermissionManagerType):

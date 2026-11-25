@@ -341,6 +341,8 @@ describe('Agent conversation list', () => {
     expect(wrapper.get('.agent-conversations__detail').text()).toBe(
       'agent.templatePreviewExample'
     )
+    // The examples are all shared and never wait or fail, so there is no filter.
+    expect(wrapper.find('.agent-conversations__filter').exists()).toBe(false)
   })
 
   test('lets only members who may update the agent change a shared conversation', async () => {

@@ -665,7 +665,11 @@ def test_get_permissions(data_fixture):
                     "agent_application.read_configuration",
                     "agent_application.read_conversations",
                 ],
+                "official_template_only_operations": [
+                    "agent_application.read_conversations"
+                ],
                 "workspace_template_ids": [],
+                "user_template_workspace_ids": [],
             },
         },
         {"name": "member", "permissions": False},
@@ -726,7 +730,11 @@ def test_get_permissions(data_fixture):
                     "agent_application.read_configuration",
                     "agent_application.read_conversations",
                 ],
+                "official_template_only_operations": [
+                    "agent_application.read_conversations"
+                ],
                 "workspace_template_ids": [],
+                "user_template_workspace_ids": [],
             },
         },
         {
@@ -828,7 +836,11 @@ def test_get_permissions(data_fixture):
                     "agent_application.read_configuration",
                     "agent_application.read_conversations",
                 ],
+                "official_template_only_operations": [
+                    "agent_application.read_conversations"
+                ],
                 "workspace_template_ids": [],
+                "user_template_workspace_ids": [],
             },
         },
         {"name": "member", "permissions": False},
@@ -889,7 +901,11 @@ def test_get_permissions(data_fixture):
                     "agent_application.read_configuration",
                     "agent_application.read_conversations",
                 ],
+                "official_template_only_operations": [
+                    "agent_application.read_conversations"
+                ],
                 "workspace_template_ids": [],
+                "user_template_workspace_ids": [],
             },
         },
         {
@@ -991,7 +1007,11 @@ def test_get_permissions(data_fixture):
                     "agent_application.read_configuration",
                     "agent_application.read_conversations",
                 ],
+                "official_template_only_operations": [
+                    "agent_application.read_conversations"
+                ],
                 "workspace_template_ids": [],
+                "user_template_workspace_ids": [],
             },
         },
         {"name": "member", "permissions": False},
@@ -1052,7 +1072,11 @@ def test_get_permissions(data_fixture):
                     "agent_application.read_configuration",
                     "agent_application.read_conversations",
                 ],
+                "official_template_only_operations": [
+                    "agent_application.read_conversations"
+                ],
                 "workspace_template_ids": [],
+                "user_template_workspace_ids": [],
             },
         },
         {
@@ -1154,7 +1178,11 @@ def test_get_permissions(data_fixture):
                     "agent_application.read_configuration",
                     "agent_application.read_conversations",
                 ],
+                "official_template_only_operations": [
+                    "agent_application.read_conversations"
+                ],
                 "workspace_template_ids": [],
+                "user_template_workspace_ids": [],
             },
         },
         {"name": "member", "permissions": False},
@@ -1859,6 +1887,7 @@ def test_allow_if_template_permissions_object_lists_a_shared_workspace_once(
     permissions = AllowIfTemplatePermissionManagerType().get_permissions_object(owner)
 
     assert permissions["workspace_template_ids"] == [user_template.workspace_id]
+    assert permissions["user_template_workspace_ids"] == [user_template.workspace_id]
 
 
 @pytest.mark.django_db
