@@ -1,6 +1,9 @@
 <template>
   <div v-if="modelValue">
-    <div v-if="modelValue.length === 0" class="sortings__none">
+    <div
+      v-if="showEmptyState && modelValue.length === 0"
+      class="sortings__none"
+    >
       <div class="sortings__none-title">
         {{ $t('localBaserowTableServiceSortForm.noSortTitle') }}
       </div>
@@ -116,7 +119,7 @@
       </div>
     </div>
     <template v-if="modelValue.length < availableFieldsLength && !disableSort">
-      <div ref="addContextToggle">
+      <div ref="addContextToggle" class="sortings__footer">
         <ButtonText
           type="secondary"
           size="small"
@@ -170,6 +173,7 @@ export default {
       type: Array,
       required: true,
     },
+    showEmptyState: { type: Boolean, default: true },
     disableSort: {
       type: Boolean,
       required: false,

@@ -89,6 +89,8 @@
         </InjectedFormulaInput>
       </template>
     </ViewFieldConditionsForm>
+    <!-- Shown under the conditions, above the add buttons. -->
+    <slot name="before-footer" />
     <div v-if="!readOnly" class="filters_footer">
       <slot name="actions" v-bind="{ addFilter, addFilterGroup }">
         <ButtonText

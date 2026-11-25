@@ -281,9 +281,10 @@ describe.each(['chart', 'pie_chart'])('%s filter settings', (type) => {
     }
     testApp.store.commit('dashboardApplication/SET_WIDGETS', [widget, owner])
     const wrapper = await openFilters()
+    const filterChip = wrapper.find('.iconoir-filter').element.parentElement
     expect(
-      wrapper.find('.iconoir-filter').element.parentElement.textContent
-    ).toContain('serviceRefinementForms.filterTabTitle - 2')
+      filterChip.querySelector('.service-form__refinement-count').textContent
+    ).toContain('2')
     const inherited = wrapper.find('.dashboard-widget-filters__source')
     expect(inherited.text()).toContain('Country')
     expect(inherited.find('input[disabled]').element.value).toBe('France')
