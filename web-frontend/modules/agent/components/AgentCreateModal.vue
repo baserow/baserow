@@ -6,8 +6,8 @@
     :can-close="!loading"
     @show="reset"
   >
-    <form class="agent-create" @submit.self.prevent="next">
-      <div class="agent-create__head">
+    <form class="modal-layout" @submit.self.prevent="next">
+      <div class="modal-layout__header">
         <ButtonText
           v-if="step > STEP.DESCRIBE"
           type="secondary"
@@ -17,9 +17,9 @@
           :disabled="loading"
           @click="step--"
         />
-        <h2 class="agent-create__title">{{ $t(TITLES[step]) }}</h2>
+        <h2 class="modal-layout__title">{{ $t(TITLES[step]) }}</h2>
       </div>
-      <div class="agent-create__body">
+      <div class="modal-layout__body">
         <Error :error="error" />
         <AgentCreateDescribeStep
           v-if="step === STEP.DESCRIBE"
@@ -42,8 +42,8 @@
           :available-tools="availableTools"
         />
       </div>
-      <div class="agent-create__foot">
-        <span v-if="step > STEP.DESCRIBE" class="agent-create__note">
+      <div class="modal-layout__footer">
+        <span v-if="step > STEP.DESCRIBE" class="modal-layout__footer-note">
           {{ $t('agent.setupLaterNote') }}
         </span>
         <Button

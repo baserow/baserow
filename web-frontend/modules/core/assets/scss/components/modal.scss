@@ -142,3 +142,51 @@
   margin-bottom: 24px;
   border-bottom: solid 1px $color-neutral-200;
 }
+
+// Set :box-padding="false" on Modal so each section controls its own padding.
+.modal-layout {
+  display: flex;
+  flex-direction: column;
+  max-height: calc(100vh - 80px);
+}
+
+.modal-layout__header {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 8px;
+  padding: 16px 48px 16px 20px;
+  border-bottom: 1px solid $palette-neutral-200;
+}
+
+.modal-layout__title {
+  margin: 0;
+  font-size: 14px;
+  line-height: 20px;
+  font-weight: 600;
+  color: $palette-neutral-1200;
+}
+
+.modal-layout__body {
+  flex: 1;
+  min-height: 0;
+  padding: 20px;
+  overflow-y: auto;
+}
+
+.modal-layout__footer {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 16px 20px;
+  border-top: 1px solid $palette-neutral-200;
+}
+
+.modal-layout__footer-note {
+  flex: 1;
+  font-size: 12px;
+  line-height: 18px;
+  color: $palette-neutral-700;
+}
