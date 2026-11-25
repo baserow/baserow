@@ -3,6 +3,7 @@ import { ref } from 'vue'
 import { TestApp } from '@baserow/test/helpers/testApp'
 import EnterpriseFeatures from '@baserow_enterprise/features'
 import AgentChannelsSection from '@baserow_enterprise/components/agent/AgentChannelsSection'
+import RichTextEditor from '@baserow/modules/core/components/editor/RichTextEditor'
 
 const mocks = vi.hoisted(() => ({ service: {} }))
 
@@ -227,9 +228,7 @@ describe('agent channels', () => {
 
     expect(wrapper.find('.agent-channels__add').exists()).toBe(false)
     expect(titleInput(wrapper).element.disabled).toBe(true)
-    expect(
-      wrapper.get('.agent-public-chat-card__welcome-text').element.disabled
-    ).toBe(true)
+    expect(wrapper.findComponent(RichTextEditor).props('editable')).toBe(false)
     expect(wrapper.findAll('.switch--disabled')).toHaveLength(2)
     expect(wrapper.find('.agent-public-chat-card__delete').exists()).toBe(false)
   })

@@ -134,13 +134,15 @@
           :label="$t('agentChannels.welcomeText')"
           small-label
         >
-          <FormTextarea
-            v-model="welcomeText"
-            class="agent-public-chat-card__welcome-text"
-            :rows="4"
-            :maxlength="WELCOME_TEXT_MAX_LENGTH"
-            :disabled="!editable"
-            @blur="saveDraft('welcome_text', welcomeText)"
+          <RichTextEditor
+            ref="welcomeEditor"
+            class="form-input field-rich-text agent-public-chat-card__welcome-text"
+            :model-value="channel.welcome_text"
+            :editable="editable"
+            :enable-rich-text-formatting="true"
+            :allow-identity-suggestions="false"
+            @update:model-value="welcomeTextChanged = true"
+            @blur="saveWelcomeText"
           />
         </FormGroup>
       </div>
@@ -170,12 +172,12 @@ import { useNuxtApp } from '#app'
 import { useI18n } from 'vue-i18n'
 import Icon from '@baserow/modules/core/components/Icon'
 import ButtonText from '@baserow/modules/core/components/ButtonText'
+import RichTextEditor from '@baserow/modules/core/components/editor/RichTextEditor'
 import { copyToClipboard } from '@baserow/modules/core/utils/clipboard'
 import AgentPublicChatPasswordModal from '@baserow_enterprise/components/agent/AgentPublicChatPasswordModal'
 import AgentPublicChatDisablePasswordModal from '@baserow_enterprise/components/agent/AgentPublicChatDisablePasswordModal'
 
 const TITLE_MAX_LENGTH = 160
-const WELCOME_TEXT_MAX_LENGTH = 2000
 
 const props = defineProps({
   /** The public chat as the card shows it, edits included. */
@@ -224,12 +226,19 @@ function draftOf(field) {
 }
 
 const title = draftOf('title')
-const welcomeText = draftOf('welcome_text')
+const welcomeEditor = ref(null)
+let welcomeTextChanged = false
 
 function saveDraft(field, value) {
   if (props.editable && value !== props.channel[field]) {
     emit('update', { [field]: value })
   }
+}
+
+function saveWelcomeText() {
+  if (!welcomeTextChanged) return
+  welcomeTextChanged = false
+  saveDraft('welcome_text', welcomeEditor.value.serializeToMarkdown())
 }
 
 function copyLink() {

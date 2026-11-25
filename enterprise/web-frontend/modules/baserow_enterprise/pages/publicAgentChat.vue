@@ -56,10 +56,12 @@
         </Button>
       </header>
       <div ref="messagesElement" class="public-agent-chat__messages">
-        <ChatMarkdown
+        <RichTextEditor
           v-if="!messages.length && info.welcome_text"
           class="public-agent-chat__welcome"
-          :content="info.welcome_text"
+          :model-value="info.welcome_text"
+          :editable="false"
+          :enable-rich-text-formatting="true"
         />
         <template v-for="message in messages" :key="message.id">
           <ChatMessage v-if="message.role !== MESSAGE_ROLE.ASSISTANT" own>
@@ -122,6 +124,7 @@ import ChatComposer from '@baserow/modules/core/components/chat/ChatComposer'
 import ChatMarkdown from '@baserow/modules/core/components/chat/ChatMarkdown'
 import ChatMessage from '@baserow/modules/core/components/chat/ChatMessage'
 import ChatTyping from '@baserow/modules/core/components/chat/ChatTyping'
+import RichTextEditor from '@baserow/modules/core/components/editor/RichTextEditor'
 import { MESSAGE_ROLE } from '@baserow/modules/agent/constants'
 import { AGENT_REPLY_STATUS } from '@baserow/modules/agent/utils/replies'
 import PublicAgentChatService from '@baserow_enterprise/services/publicAgentChat'
