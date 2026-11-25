@@ -227,6 +227,7 @@ describe('builder realtime integration events', () => {
     getters: {
       'application/get': (id) =>
         id === application.id ? application : undefined,
+      'workspace/getAll': [],
       'application/getAllOfWorkspace': () => [application],
       'application/getSharedApplication': () => undefined,
       'integration/getIntegrations': (app) =>
@@ -263,6 +264,13 @@ describe('builder realtime integration events', () => {
 
     expect(dispatchedWith(store, 'integration/forceUpdate')).toEqual([
       { application, integration: existing, values },
+    ])
+    expect(
+      dispatchedWith(store, 'dataSource/redispatchForIntegration')
+    ).toEqual([{ builder: application, integrationId: 5 }])
+    expect(store.dispatch.mock.calls.map(([name]) => name)).toEqual([
+      'integration/forceUpdate',
+      'dataSource/redispatchForIntegration',
     ])
     // It's in the event's application already.
     expect(dispatchedWith(store, 'integration/forceMoveToApplication')).toEqual(
@@ -422,10 +430,32 @@ describe('builder realtime workspace integration events', () => {
     getters: {
       'application/get': (id) => applications.find((app) => app.id === id),
       'page/getSelected': selectedPage,
+      'workspace/getAll': [sharedApplication.workspace],
+      'application/getSharedApplication': () => sharedApplication,
+      'application/getAllOfWorkspace': () => [builder],
+      'integration/getIntegrations': (app) =>
+        app?.id === sharedApplication.id
+          ? [{ id: 5, application_id: sharedApplication.id }]
+          : [],
+      'integration/getIntegrationById': () => ({
+        id: 5,
+        application_id: sharedApplication.id,
+      }),
     },
     dispatch: vi.fn(),
   })
 
+  const update = (handlers, store) =>
+    handlers.integration_updated(
+      { store },
+      {
+        integration: {
+          id: 5,
+          application_id: sharedApplication.id,
+          name: 'Updated',
+        },
+      }
+    )
   const restore = (handlers, store) =>
     handlers.integration_created(
       { store },
@@ -438,6 +468,7 @@ describe('builder realtime workspace integration events', () => {
     )
 
   test.each([
+    ['updated', update],
     ['restored', restore],
     ['trashed', trash],
   ])(
@@ -457,6 +488,7 @@ describe('builder realtime workspace integration events', () => {
   )
 
   test.each([
+    ['updated', update],
     ['restored', restore],
     ['trashed', trash],
   ])(

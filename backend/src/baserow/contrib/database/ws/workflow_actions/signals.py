@@ -225,25 +225,11 @@ def _usable_by_a_button(application: Application) -> bool:
     )
 
 
-@receiver(integration_signals.integration_deleted)
-def button_integration_deleted(sender, integration_id, application, **kwargs):
+@receiver(integration_signals.integration_changed)
+def button_integration_changed(sender, integration_id, application, **kwargs):
+    """Refresh dependent buttons after an integration changes or is restored."""
     if _usable_by_a_button(application):
         _broadcast_dependent_buttons(integration_ids=[integration_id])
-
-
-# Also sent when an integration is restored from the trash.
-@receiver(integration_signals.integration_created)
-def button_integration_created(sender, integration, **kwargs):
-    if _usable_by_a_button(integration.application):
-        _broadcast_dependent_buttons(integration_ids=[integration.id])
-
-
-# A renamed or reconfigured integration changes what a button's editor shows
-# for it, so the buttons using it are sent again.
-@receiver(integration_signals.integration_updated)
-def button_integration_updated(sender, integration, **kwargs):
-    if _usable_by_a_button(integration.application):
-        _broadcast_dependent_buttons(integration_ids=[integration.id])
 
 
 # The `button_fields_depending_on` argument for each trash item type whose

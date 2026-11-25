@@ -8,11 +8,7 @@ from baserow.contrib.automation.workflows.last_viewed_types import (
 )
 from baserow.contrib.automation.workflows.signals import automation_workflow_loaded
 from baserow.core.cache import global_cache
-from baserow.core.integrations.signals import (
-    integration_created,
-    integration_deleted,
-    integration_updated,
-)
+from baserow.core.integrations.signals import integration_changed
 from baserow.core.last_viewed.handler import LastViewedHandler
 from baserow.core.signals import workspace_deleted
 
@@ -34,7 +30,8 @@ def delete_published_automations_of_deleted_workspace(sender, workspace_id, **kw
     ).delete()
 
 
-def _mark_workflows_using_integration_changed(integration_id: int):
+@receiver(integration_changed)
+def integration_changed_mark_workflows_changed(sender, integration_id: int, **kwargs):
     """
     Marks every workflow with a node that uses the integration as changed, so that
     its next test run makes a new copy instead of reusing one that still has the
@@ -53,19 +50,3 @@ def _mark_workflows_using_integration_changed(integration_id: int):
         global_cache.update(
             WORKFLOW_DIRTY_CACHE_KEY.format(workflow_id), lambda _: True
         )
-
-
-@receiver(integration_updated)
-def integration_updated_mark_workflows_changed(sender, integration, **kwargs):
-    _mark_workflows_using_integration_changed(integration.id)
-
-
-@receiver(integration_deleted)
-def integration_deleted_mark_workflows_changed(sender, integration_id, **kwargs):
-    _mark_workflows_using_integration_changed(integration_id)
-
-
-# Also sent when an integration is restored from the trash.
-@receiver(integration_created)
-def integration_created_mark_workflows_changed(sender, integration, **kwargs):
-    _mark_workflows_using_integration_changed(integration.id)

@@ -80,7 +80,6 @@ def _broadcast_on_commit(
     transaction.on_commit(broadcast)
 
 
-@receiver(integration_signals.integration_created)
 def integration_created(
     sender, integration: Integration, user: AbstractUser, before_id=None, **kwargs
 ):
@@ -102,7 +101,6 @@ def integration_created(
     )
 
 
-@receiver(integration_signals.integration_updated)
 def integration_updated(
     sender,
     integration: Integration,
@@ -128,7 +126,6 @@ def integration_updated(
     )
 
 
-@receiver(integration_signals.integration_deleted)
 def integration_deleted(
     sender,
     integration_id: int,
@@ -150,3 +147,14 @@ def integration_deleted(
         application.id,
         integration_type,
     )
+
+
+@receiver(integration_signals.integration_changed)
+def broadcast_integration_changed(sender, change_type: str, **kwargs):
+    """Keep existing websocket payloads while sharing the lifecycle notification."""
+    handlers = {
+        "created": integration_created,
+        "updated": integration_updated,
+        "deleted": integration_deleted,
+    }
+    handlers[change_type](sender, **kwargs)

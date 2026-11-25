@@ -1,5 +1,7 @@
 import { vi } from 'vitest'
-import { reactive } from 'vue'
+import { reactive, nextTick } from 'vue'
+import { TestApp } from '@baserow/test/helpers/testApp'
+import { registerRealtimeEvents } from '@baserow/modules/builder/realtime'
 import { mountSuspended } from '@nuxt/test-utils/runtime'
 import WorkflowAction from '@baserow/modules/builder/components/event/WorkflowAction.vue'
 
@@ -188,4 +190,143 @@ describe('WorkflowAction', () => {
 
     expect(resetSpy).not.toHaveBeenCalled()
   })
+})
+
+describe('WorkflowAction integration lifecycle', () => {
+  let testApp
+  beforeEach(() => {
+    testApp = new TestApp()
+  })
+  afterEach(async () => {
+    await testApp.afterEach()
+  })
+
+  test.each([false, true])(
+    'refreshes the warning for a shared=%s integration without reopening the action',
+    async (shared) => {
+      const store = testApp.store
+      const workspace = { id: 1 }
+      await store.dispatch('workspace/forceCreate', {
+        ...workspace,
+        name: 'Acme',
+      })
+      await store.dispatch('application/forceCreate', {
+        id: 1,
+        type: 'builder',
+        name: 'App',
+        pages: [],
+        workspace,
+        order: 0,
+      })
+      await store.dispatch('application/forceCreate', {
+        id: 99,
+        type: 'shared',
+        name: '__shared__',
+        workspace,
+        order: 0,
+      })
+      const builder = store.getters['application/get'](1)
+      const owner = store.getters['application/get'](shared ? 99 : 1)
+      const integration = {
+        id: 5,
+        type: 'local_baserow',
+        application_id: owner.id,
+        name: 'Tables',
+        authorized_subject: { id: 1, type: 'auth.User' },
+      }
+      await store.dispatch('integration/forceCreate', {
+        application: owner,
+        integration,
+      })
+      const workflowActionType = testApp
+        .getRegistry()
+        .get('workflowAction', 'create_row')
+      const wrapper = await testApp.mount(WorkflowAction, {
+        props: {
+          availableWorkflowActionTypes: [workflowActionType],
+          workflowAction: {
+            id: 1,
+            type: 'create_row',
+            service: { integration_id: 5, table_id: 99 },
+          },
+          element: { id: 1 },
+        },
+        provide: {
+          builder,
+          workspace,
+          elementPage: { id: 1 },
+          mode: 'editing',
+          applicationContext: { builder, workspace, mode: 'editing' },
+        },
+        global: {
+          stubs: {
+            SidebarExpandable: {
+              template: '<section><slot name="title" /></section>',
+            },
+            Icon: { props: ['icon'], template: '<i :data-icon="icon" />' },
+          },
+        },
+      })
+      const warning = () =>
+        wrapper.find('[data-icon="iconoir-warning-circle"]').exists()
+      const handlers = {}
+      registerRealtimeEvents({
+        registerEvent: (name, callback) => {
+          handlers[name] = callback
+        },
+      })
+      expect(warning()).toBe(false)
+
+      handlers.integration_deleted(
+        { store },
+        { integration_id: 5, application_id: owner.id }
+      )
+      await nextTick()
+      expect(warning()).toBe(true)
+
+      handlers.integration_created({ store }, { integration })
+      await nextTick()
+      expect(warning()).toBe(false)
+
+      handlers.integration_updated(
+        { store },
+        { integration: { ...integration, authorized_subject: null } }
+      )
+      await nextTick()
+      expect(warning()).toBe(true)
+
+      handlers.integration_updated(
+        { store },
+        {
+          integration: {
+            ...integration,
+            authorized_subject: { id: 1, type: 'auth.User' },
+          },
+        }
+      )
+      await nextTick()
+      expect(warning()).toBe(false)
+
+      if (shared) {
+        // It now belongs to another app, so this builder must stop using it.
+        handlers.integration_updated(
+          { store },
+          {
+            integration: { ...integration, application_id: 300 },
+          }
+        )
+        await nextTick()
+        expect(warning()).toBe(true)
+
+        handlers.integration_updated(
+          { store },
+          {
+            integration: { ...integration, application_id: owner.id },
+          }
+        )
+        await nextTick()
+        expect(warning()).toBe(false)
+      }
+    }
+  )
 })
