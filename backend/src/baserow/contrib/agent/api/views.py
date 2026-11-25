@@ -380,8 +380,8 @@ class AgentConversationsView(
             "Lists the private conversations with the agent the authenticated user "
             "takes part in and the shared ones, pinned first, then most recently "
             "active within each group. Each includes its number of tool calls "
-            "waiting for a decision. The example conversations of an official "
-            "template can be listed without signing in."
+            "waiting for a decision. In a template only its example conversations "
+            "are listed, also without signing in."
         ),
         parameters=[
             AGENT_ID_PATH_PARAMETER,
@@ -681,8 +681,8 @@ class AgentMessagesView(
         description=(
             "Lists the messages of one of the authenticated user's conversations, "
             "newest page first, each page in chronological order. The messages of "
-            "an example conversation of an official template can be listed without "
-            "signing in."
+            "an example conversation of a template can be listed without signing "
+            "in."
         ),
         parameters=[
             AGENT_ID_PATH_PARAMETER,

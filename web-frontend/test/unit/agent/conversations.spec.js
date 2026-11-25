@@ -958,6 +958,10 @@ describe('Agent conversations', () => {
     expect(document.querySelector('.modal__box').textContent).toContain(
       'agent.shareConversationWarning'
     )
+    // Pinning it as well makes it an example of exports and templates.
+    expect(document.querySelector('.modal__box').textContent).toContain(
+      'agent.shareConversationExportNote'
+    )
     expect(testApp.mock.history.post).toHaveLength(0)
     modalButton('agent.share').click()
     await flushPromises()

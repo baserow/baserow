@@ -712,7 +712,7 @@ class AgentHandler:
         """
 
         conversations = (
-            AgentConversation.objects.filter(self._visible_to(user), agent=agent)
+            AgentConversation.objects.filter(self._visible_to(user, agent), agent=agent)
             .select_related("trigger__service", "owner_user")
             .prefetch_related("participants")
         )
@@ -751,13 +751,17 @@ class AgentHandler:
         return [UpdateApplicationOperationType.type] if conversation.shared else []
 
     @staticmethod
-    def _visible_to(user: AbstractUser) -> Q:
+    def _visible_to(user: AbstractUser, agent: AgentApplication | None = None) -> Q:
         """
         :param user: The user reading conversations.
+        :param agent: The agent read, when it's one. A template shows only its
+            examples, whoever reads it.
         :return: The filter keeping the private conversations the user takes part
             in and the shared ones.
         """
 
+        if agent is not None and agent.workspace.has_template():
+            return Q(shared=True, is_example=True)
         membership = AgentConversation.participants.through.objects.filter(
             agentconversation_id=OuterRef("pk"), user_id=user.id
         )
@@ -782,7 +786,7 @@ class AgentHandler:
         :return: The conversation, with the agent it was found in.
         """
 
-        queryset = AgentConversation.objects.filter(self._visible_to(user))
+        queryset = AgentConversation.objects.filter(self._visible_to(user, agent))
         if for_update:
             queryset = queryset.select_for_update(of=("self",))
         try:
@@ -2267,15 +2271,17 @@ class AgentHandler:
         self, agent: AgentApplication, as_examples: bool = False
     ) -> list[dict]:
         """
-        Serialize the agent's conversations and messages for an internal copy. Reply
-        transcripts stay behind: they hold every tool result, and nothing reads them.
+        Serialize the agent's conversations and messages: all of them for an internal
+        copy, or only the examples for any other export. Reply transcripts stay
+        behind: they hold every tool result, and nothing reads them.
 
         :param agent: The agent whose conversations are exported.
-        :param as_examples: Export them for the preview of a template: only the
-            shared ones, so that sharing a conversation is what picks it as an
-            example, without the people who own them or sent their messages, and
-            without the tool steps of the replies, which hold the inputs and
-            results of the calls and the ids of the author's tables.
+        :param as_examples: Export them as the examples an export or a template
+            carries: only the shared, pinned ones a person started, so that
+            sharing and pinning a conversation is what picks it, without the people
+            who own them or sent their messages, and without the tool steps of the
+            replies, which hold the inputs and results of the calls and the ids of
+            the author's tables.
         :return: The conversations, oldest first, each with its messages in the order
             they were sent.
         """
@@ -2283,17 +2289,20 @@ class AgentHandler:
         conversations = AgentConversation.objects.filter(agent=agent)
         if as_examples:
             # Never a private conversation, which whoever exports may not even
-            # see, nor one that only tested the Agent.
-            conversations = conversations.filter(shared=True, is_test=False)
+            # see, one a trigger started, nor one that only tested the Agent.
+            conversations = conversations.filter(
+                shared=True, pinned=True, started_by_trigger=False, is_test=False
+            )
+        messages = AgentMessage.objects.order_by("id")
+        # Examples leave out the steps, and the approvals are only read to end them.
+        messages = (
+            messages.defer("steps")
+            if as_examples
+            else messages.prefetch_related("approvals")
+        )
         conversations = conversations.order_by("id").prefetch_related(
             *([] if as_examples else ["participants"]),
-            Prefetch(
-                "messages",
-                queryset=AgentMessage.objects.order_by("id").prefetch_related(
-                    # Only read to end the held steps, which examples leave out.
-                    *([] if as_examples else ["approvals"])
-                ),
-            ),
+            Prefetch("messages", queryset=messages),
         )
         return [
             {
@@ -2303,6 +2312,7 @@ class AgentHandler:
                 "owner_user_id": None if as_examples else conversation.owner_user_id,
                 "shared": conversation.shared,
                 "started_by_trigger": conversation.started_by_trigger,
+                "is_example": as_examples or conversation.is_example,
                 "participant_ids": []
                 if as_examples
                 else [user.id for user in conversation.participants.all()],
@@ -2354,10 +2364,10 @@ class AgentHandler:
         :param serialized_conversations: The conversations from export_conversations.
         :param id_mapping: The export-to-import id map, with the ``agent_triggers``
             the agent's triggers were imported under.
-        :param as_examples: Import them for the preview of a template: all shared,
-            never attributed to a user of this instance and without tool steps,
-            whatever the file says. The users, steps and timestamps can be left out
-            of the file.
+        :param as_examples: Import them as examples: only those the export picks
+            as such, never attributed to a user of this instance and without tool
+            steps, whatever the file says. The users, steps and timestamps can be
+            left out of the file.
         """
 
         def participant_ids(data: dict) -> list[int]:
@@ -2394,25 +2404,35 @@ class AgentHandler:
                 if not as_examples or data.get(key):
                     setattr(instance, key, parse_datetime(data[key]))
 
-        retained_data = [
-            data
-            for data in serialized_conversations
-            if as_examples
-            or data["shared"]
-            or existing_user_ids.intersection(participant_ids(data))
-        ]
+        def is_example(data: dict) -> bool:
+            # The same rule as the export, also for a file written by hand.
+            return (
+                data.get("shared", False)
+                and data.get("pinned", False)
+                and not data.get("started_by_trigger", False)
+                and not data.get("is_test", False)
+            )
+
+        def is_retained(data: dict) -> bool:
+            if as_examples:
+                return is_example(data)
+            return data["shared"] or bool(
+                existing_user_ids.intersection(participant_ids(data))
+            )
+
+        retained_data = [data for data in serialized_conversations if is_retained(data)]
         trigger_ids = id_mapping.get("agent_triggers", {})
         conversations = [
             AgentConversation(
                 agent=agent,
                 uuid=uuid4(),
-                title=data["title"],
+                title=data["title"][:250],
                 pinned=data.get("pinned", False),
-                # An example is shown to every visitor, never a test chat.
-                is_test=not as_examples and data.get("is_test", False),
+                is_test=data.get("is_test", False),
                 owner_user_id=existing(data, "owner_user_id"),
-                shared=as_examples or data["shared"],
+                shared=data["shared"],
                 started_by_trigger=data.get("started_by_trigger", False),
+                is_example=as_examples or data.get("is_example", False),
                 trigger_id=trigger_ids.get(data.get("trigger_id")),
             )
             for data in retained_data

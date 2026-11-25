@@ -246,20 +246,16 @@ describe('Agent components', () => {
     )
   })
 
-  test('names the sender of an example message in a template preview', async () => {
+  test('names the sender of an example message', async () => {
     const message = { uuid: 'm1', role: 'user', sender: null, content: 'Hello' }
     const labels = []
-    for (const provide of [{}, { agentTemplatePreview: true }]) {
+    for (const example of [false, true]) {
       const wrapper = await testApp.mount(AgentMessage, {
-        props: { message },
-        global: { provide },
+        props: { message, example },
       })
       labels.push(wrapper.get('.chat-message__sender').text())
     }
 
-    expect(labels).toEqual([
-      'agent.deletedSender',
-      'agent.templatePreviewSender',
-    ])
+    expect(labels).toEqual(['agent.deletedSender', 'agent.exampleSender'])
   })
 })

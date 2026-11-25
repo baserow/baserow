@@ -971,10 +971,18 @@ def write_template_with_examples(data_fixture, configured_agent, tmp_path):
 
     author = data_fixture.create_user()
     agent = configured_agent(user=author)
-    # Sharing a conversation is what makes it an example.
+    # Sharing and pinning a conversation is what makes it an example.
     shared = data_fixture.create_agent_conversation(
+        user=author, agent=agent, shared=True, pinned=True
+    )
+    unpinned = data_fixture.create_agent_conversation(
         user=author, agent=agent, shared=True
     )
+    data_fixture.create_agent_message(conversation=unpinned, content="UNPINNED")
+    triggered = data_fixture.create_agent_conversation(
+        agent=agent, owner_user=None, shared=True, pinned=True, started_by_trigger=True
+    )
+    data_fixture.create_agent_message(conversation=triggered, content="TRIGGERED")
     data_fixture.create_agent_message(
         conversation=shared,
         content="An example",
@@ -990,9 +998,7 @@ def write_template_with_examples(data_fixture, configured_agent, tmp_path):
         ],
     )
     data_fixture.create_agent_message(user=author, agent=agent, content="PRIVATE")
-    config = ImportExportConfig(
-        include_permission_data=False, include_conversations=True
-    )
+    config = ImportExportConfig(include_permission_data=False)
     exported = json.loads(
         json.dumps([agent.get_type().export_serialized(agent, config)])
     )
@@ -1024,13 +1030,14 @@ def test_conversations_are_exported_as_examples_without_their_people(
         (message["content"], message["sender_id"])
         for message in conversation["messages"]
     ] == [("An example", None)]
-    # The private conversation and the tool steps stay behind.
+    # The private, unpinned and triggered ones and the tool steps stay behind.
     assert conversation["messages"][0]["steps"] is None
-    assert "PRIVATE" not in json.dumps(exported)
+    for left_out in ("PRIVATE", "UNPINNED", "TRIGGERED"):
+        assert left_out not in json.dumps(exported)
 
 
 @pytest.mark.django_db
-def test_an_official_template_shows_its_example_conversations_but_installs_none(
+def test_an_official_template_shows_and_installs_its_example_conversations(
     data_fixture, configured_agent, settings, tmp_path
 ):
     write_template_with_examples(data_fixture, configured_agent, tmp_path)
@@ -1041,7 +1048,11 @@ def test_an_official_template_shows_its_example_conversations_but_installs_none(
     template = Template.objects.get(slug="agent-examples")
     synced = AgentApplication.objects.get(workspace=template.workspace)
     (example,) = synced.conversations.all()
-    assert (example.shared, example.owner_user_id) == (True, None)
+    assert (example.shared, example.owner_user_id, example.is_example) == (
+        True,
+        None,
+        True,
+    )
     assert [message.content for message in example.messages.all()] == ["An example"]
 
     installer = data_fixture.create_user()
@@ -1049,7 +1060,13 @@ def test_an_official_template_shows_its_example_conversations_but_installs_none(
     CoreHandler().install_template(installer, workspace, template)
 
     installed = AgentApplication.objects.get(workspace=workspace)
-    assert not installed.conversations.exists()
+    (copied,) = installed.conversations.all()
+    assert (copied.owner_user_id, copied.is_example, copied.pinned) == (
+        None,
+        True,
+        True,
+    )
+    assert [message.content for message in copied.messages.all()] == ["An example"]
 
 
 @pytest.mark.django_db(transaction=True)
@@ -1075,7 +1092,10 @@ def test_the_lead_reporting_template_comes_with_example_conversations(
 
     installed = AgentApplication.objects.get(workspace=workspace)
     assert installed.instructions == preview.instructions
-    assert not installed.conversations.exists()
+    assert installed.conversations.count() == 2
+    assert not installed.conversations.exclude(
+        is_example=True, owner_user=None
+    ).exists()
 
 
 @pytest.mark.django_db
@@ -1084,9 +1104,9 @@ def test_example_conversations_are_never_given_to_a_user_of_the_instance(
 ):
     _, exported = write_template_with_examples(data_fixture, configured_agent, tmp_path)
     local_user = data_fixture.create_user()
-    # A file that names users of this instance, and keeps a conversation private.
+    # A file that names users of this instance.
     conversation = exported[0]["conversations"][0]
-    conversation.update(owner_user_id=local_user.id, shared=False)
+    conversation.update(owner_user_id=local_user.id)
     conversation["messages"][0]["sender_id"] = local_user.id
     path = tmp_path / "agent-examples.json"
     content = json.loads(path.read_text())
@@ -1116,7 +1136,6 @@ def test_a_trimmed_example_file_still_syncs_without_steps(
     for key in ("sender_id", "created_on", "updated_on"):
         del message[key]
     message["steps"] = [{"id": "call_1", "status": "done", "input": {"id": 1}}]
-    conversation["is_test"] = True
     path = tmp_path / "agent-examples.json"
     content = json.loads(path.read_text())
     content["export"] = exported
@@ -1140,17 +1159,58 @@ def test_a_trimmed_example_file_still_syncs_without_steps(
 
 @pytest.mark.import_export_workspace
 @pytest.mark.django_db(transaction=True)
-def test_a_user_template_never_takes_conversations_from_its_content(
+def test_a_user_template_takes_only_the_examples_of_its_content(
     data_fixture, configured_agent
 ):
     user = data_fixture.create_user()
     agent = configured_agent(user=user)
     data_fixture.create_agent_message(user=user, agent=agent, content="PRIVATE")
+    example = data_fixture.create_agent_conversation(
+        user=user, agent=agent, shared=True, pinned=True
+    )
+    data_fixture.create_agent_message(conversation=example, content="An example")
 
     copy = UserTemplateHandler().copy_applications(user, [agent], name="Copy")
 
     stored = AgentApplication.objects.get(workspace=copy)
-    assert not stored.conversations.exists()
+    (copied,) = stored.conversations.all()
+    assert (copied.owner_user_id, copied.is_example) == (None, True)
+    assert [message.content for message in copied.messages.all()] == ["An example"]
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "only_structure,expected", [(False, ["An example"]), (True, [])]
+)
+def test_a_workspace_export_carries_the_examples_unless_structure_only(
+    data_fixture, configured_agent, only_structure, expected
+):
+    user = data_fixture.create_user()
+    agent = configured_agent(user=user)
+    data_fixture.create_agent_message(user=user, agent=agent, content="PRIVATE")
+    example = data_fixture.create_agent_conversation(
+        user=user, agent=agent, shared=True, pinned=True
+    )
+    data_fixture.create_agent_message(conversation=example, content="An example")
+    config = ImportExportConfig(
+        include_permission_data=False, only_structure=only_structure
+    )
+    application_type = AgentApplicationType()
+
+    serialized = json.loads(
+        json.dumps(application_type.export_serialized(agent, config))
+    )
+    imported = application_type.import_serialized(
+        data_fixture.create_workspace(user=user), serialized, config, {}
+    )
+
+    assert "PRIVATE" not in json.dumps(serialized)
+    assert [
+        message.content
+        for conversation in imported.conversations.all()
+        for message in conversation.messages.all()
+    ] == expected
+    assert not imported.conversations.exclude(is_example=True, owner_user=None).exists()
 
 
 TEMPLATE_INSTALL_CONFIG = ImportExportConfig(
@@ -1502,3 +1562,40 @@ def test_duplicate_without_its_identity_keeps_tools_pending(
         "allowed_tools": ["list_tables", "create_rows"],
         "ask_first_tools": ["create_rows"],
     }
+
+
+@pytest.mark.django_db
+def test_importing_examples_keeps_only_what_the_export_picks(
+    data_fixture, configured_agent
+):
+    agent = configured_agent(user=data_fixture.create_user())
+    base = {
+        "pinned": True,
+        "shared": True,
+        "started_by_trigger": False,
+        "is_test": False,
+        "owner_user_id": None,
+        "participant_ids": [],
+        "messages": [],
+    }
+    # A file written by hand or by a full copy, imported as examples.
+    AgentHandler().import_conversations(
+        agent,
+        [
+            {**base, "title": "Example " + "x" * 300},
+            {**base, "title": "Private", "shared": False},
+            {**base, "title": "Unpinned", "pinned": False},
+            {**base, "title": "Triggered", "started_by_trigger": True},
+            {**base, "title": "Test", "is_test": True},
+        ],
+        {},
+        as_examples=True,
+    )
+
+    (example,) = agent.conversations.all()
+    assert example.title == ("Example " + "x" * 300)[:250]
+    assert (example.is_example, example.shared, example.owner_user_id) == (
+        True,
+        True,
+        None,
+    )

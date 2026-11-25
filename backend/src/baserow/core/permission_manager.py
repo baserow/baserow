@@ -176,10 +176,6 @@ class AllowIfTemplatePermissionManagerType(PermissionManagerType):
     Live operations, which run data sources or sign in as an app user, are only
     allowed to signed-in users on official templates, and refused on every other
     template, so that a later manager can't allow them.
-
-    Operations in `OFFICIAL_TEMPLATE_ONLY_OPERATIONS` are allowed on official
-    templates only. On a user template they are left to the next managers, which
-    allow the members of the workspace.
     """
 
     type = "allow_if_template"
@@ -201,36 +197,6 @@ class AllowIfTemplatePermissionManagerType(PermissionManagerType):
 
     LIVE_OPERATIONS_ON_TEMPLATES = [LoginUserSourceOperationType.type]
 
-    OFFICIAL_TEMPLATE_ONLY_OPERATIONS: list[str] = []
-    """
-    Extended by the managers that wrap this one. Read through
-    `official_template_only_operations`, which collects those of every wrapped
-    manager, so that a wrapper doesn't need to forward them.
-    """
-
-    @property
-    def official_template_only_operations(self) -> list[str]:
-        prev_manager_type = getattr(self, "prev_manager_type", None)
-        inherited = (
-            prev_manager_type.official_template_only_operations
-            if prev_manager_type
-            else []
-        )
-        return inherited + type(self).OFFICIAL_TEMPLATE_ONLY_OPERATIONS
-
-    def _is_allowed_on(self, operation_name: str, workspace) -> bool:
-        """
-        :param operation_name: The operation to check.
-        :param workspace: The workspace of a template.
-        :return: Whether the operation is allowed on the templates of the workspace.
-        """
-
-        if operation_name not in self.OPERATION_ALLOWED_ON_TEMPLATES:
-            return False
-        if operation_name not in self.official_template_only_operations:
-            return True
-        return Template.Type.USER not in workspace.get_template_types()
-
     def check_multiple_permissions(self, checks, workspace=None, include_trash=False):
         if not workspace:
             return {}
@@ -240,7 +206,7 @@ class AllowIfTemplatePermissionManagerType(PermissionManagerType):
         allowed_checks = [
             check
             for check in checks
-            if self._is_allowed_on(check.operation_name, workspace)
+            if check.operation_name in self.OPERATION_ALLOWED_ON_TEMPLATES
         ]
         # Checked once per actor, because it can need a query for a user template.
         openable_by = {}
@@ -283,28 +249,16 @@ class AllowIfTemplatePermissionManagerType(PermissionManagerType):
         # it's listed once. The ordering is cleared, because it would otherwise be
         # part of the distinct.
         token = get_private_link_token()
-        templates = list(
+        workspace_template_ids = (
             Template.objects.official_owned_or_linked(actor, private_link_token=token)
             .openable(actor, private_link_token=token)
             .order_by()
-            .values_list("workspace_id", "type")
+            .values_list("workspace_id", flat=True)
             .distinct()
-        )
-        workspace_template_ids = list(dict.fromkeys(ws_id for ws_id, _ in templates))
-        user_template_workspace_ids = list(
-            dict.fromkeys(
-                ws_id
-                for ws_id, template_type in templates
-                if template_type == Template.Type.USER
-            )
         )
         return {
             "allowed_operations_on_templates": self.OPERATION_ALLOWED_ON_TEMPLATES,
-            "official_template_only_operations": (
-                self.official_template_only_operations
-            ),
-            "workspace_template_ids": workspace_template_ids,
-            "user_template_workspace_ids": user_template_workspace_ids,
+            "workspace_template_ids": list(workspace_template_ids),
         }
 
     def filter_queryset(
@@ -322,8 +276,7 @@ class AllowIfTemplatePermissionManagerType(PermissionManagerType):
             )
 
         if (
-            workspace
-            and self._is_allowed_on(operation_name, workspace)
+            operation_name in self.OPERATION_ALLOWED_ON_TEMPLATES
             and has_openable_template()
         ):
             return queryset, True
@@ -337,8 +290,7 @@ class AllowIfTemplatePermissionManagerType(PermissionManagerType):
         return {
             workspace.id: WORKSPACE_FILTER_ALLOW_ALL
             for workspace in workspaces
-            if self._is_allowed_on(operation_name, workspace)
-            and workspace.has_openable_template(
+            if workspace.has_openable_template(
                 actor,
                 private_link_token=get_private_link_token(),
                 allow_instance_admin=True,

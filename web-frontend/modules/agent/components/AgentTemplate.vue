@@ -75,6 +75,7 @@
                 :message="message"
                 :trigger-type="selectedConversation.trigger_type"
                 :trigger-name="selectedConversation.trigger_name"
+                :example="selectedConversation.is_example"
               />
             </template>
             <AgentChatIntro v-else-if="showsIntro" :name="agent.name" />

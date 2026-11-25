@@ -260,8 +260,12 @@ describe('Agent template preview', () => {
     )
     const wrapper = await mountTemplate({
       conversations: [
-        { ...conversation('first', 'Order status'), shared: true },
-        { ...conversation('second', 'Refund'), shared: true },
+        {
+          ...conversation('first', 'Order status'),
+          shared: true,
+          is_example: true,
+        },
+        { ...conversation('second', 'Refund'), shared: true, is_example: true },
       ],
     })
 
@@ -311,7 +315,11 @@ describe('Agent template preview', () => {
       testApp,
       [500, {}],
       conversationsPage([
-        { ...conversation('first', 'Order status'), shared: true },
+        {
+          ...conversation('first', 'Order status'),
+          shared: true,
+          is_example: true,
+        },
       ])
     )
     mockMessages(
@@ -338,7 +346,11 @@ describe('Agent template preview', () => {
     mockConversations(
       testApp,
       conversationsPage([
-        { ...conversation('first', 'Order status'), shared: true },
+        {
+          ...conversation('first', 'Order status'),
+          shared: true,
+          is_example: true,
+        },
       ])
     )
     mockMessages(

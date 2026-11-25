@@ -332,14 +332,18 @@ describe('Agent conversation list', () => {
     expect(wrapper.findAll('.agent-conversations__private')).toHaveLength(1)
   })
 
-  test('labels the ownerless conversations of a template preview as examples', async () => {
+  test('labels example conversations as examples', async () => {
     const wrapper = await testApp.mount(AgentConversationList, {
-      props: { items: [{ uuid: 'example', title: 'Example', shared: true }] },
+      props: {
+        items: [
+          { uuid: 'example', title: 'Example', shared: true, is_example: true },
+        ],
+      },
       global: { provide: { agentTemplatePreview: true } },
     })
 
     expect(wrapper.get('.agent-conversations__detail').text()).toBe(
-      'agent.templatePreviewExample'
+      'agent.exampleConversation'
     )
     // The examples are all shared and never wait or fail, so there is no filter.
     expect(wrapper.find('.agent-conversations__filter').exists()).toBe(false)

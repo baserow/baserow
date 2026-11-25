@@ -80,6 +80,7 @@ def test_first_message_creates_a_private_conversation(
             "is_test": False,
             "shared": False,
             "started_by_trigger": False,
+            "is_example": False,
             "owner": {"id": api_user.id, "name": api_user.first_name},
             "participants": [{"id": api_user.id, "name": api_user.first_name}],
             "trigger_id": None,

@@ -369,6 +369,11 @@ class AgentConversationSerializer(serializers.ModelSerializer):
         help_text="Whether a trigger started this shared conversation, so only "
         "those who may continue triggered conversations send messages in it.",
     )
+    is_example = serializers.BooleanField(
+        read_only=True,
+        help_text="Whether the conversation came with an import or a template as an "
+        "example, so nobody of this instance started it or sent its messages.",
+    )
     participants = serializers.SerializerMethodField(
         help_text="Who sees this private conversation: its owner and the people "
         "asked to approve its tool calls. Empty when it's shared."
@@ -409,6 +414,7 @@ class AgentConversationSerializer(serializers.ModelSerializer):
             "is_test",
             "shared",
             "started_by_trigger",
+            "is_example",
             "owner",
             "participants",
             "trigger_id",

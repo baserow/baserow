@@ -361,11 +361,9 @@ function startedBy(item) {
     )
   }
   if (!item.owner) {
-    if (!item.shared) return ''
-    // The examples of a template never had an owner here.
-    return t(
-      templatePreview ? 'agent.templatePreviewExample' : 'agent.deletedSender'
-    )
+    // An example came with an import or a template, so it never had an owner.
+    if (item.is_example) return t('agent.exampleConversation')
+    return item.shared ? t('agent.deletedSender') : ''
   }
   return item.owner.id === store.getters['auth/getUserId']
     ? t('agent.you')

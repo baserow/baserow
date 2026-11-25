@@ -153,6 +153,7 @@
                 :message="message"
                 :trigger-type="state.selectedConversation?.trigger_type"
                 :trigger-name="state.selectedConversation?.trigger_name"
+                :example="state.selectedConversation?.is_example"
                 :can-decide="state.canDecide"
                 :can-always-allow="state.canUpdateConfiguration"
                 :deciding="state.decidingReplies.has(message.uuid)"

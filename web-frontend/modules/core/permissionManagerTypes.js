@@ -138,14 +138,7 @@ export class AllowIfTemplateOperationPermissionManagerType extends PermissionMan
 
   hasPermission(permissions, operation, context, workspaceId) {
     if (permissions.workspace_template_ids.includes(workspaceId)) {
-      // Left to the next managers on a user template, like the backend does.
-      const officialOnly =
-        permissions.official_template_only_operations?.includes(operation) &&
-        permissions.user_template_workspace_ids?.includes(workspaceId)
-      if (
-        permissions.allowed_operations_on_templates.includes(operation) &&
-        !officialOnly
-      ) {
+      if (permissions.allowed_operations_on_templates.includes(operation)) {
         return true
       }
     }

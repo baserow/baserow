@@ -237,7 +237,7 @@
             "conversations": [
                 {
                     "title": "Which leads are new this week?",
-                    "pinned": false,
+                    "pinned": true,
                     "owner_user_id": null,
                     "shared": true,
                     "started_by_trigger": false,
@@ -289,7 +289,7 @@
                 },
                 {
                     "title": "Write a summary of the pipeline",
-                    "pinned": false,
+                    "pinned": true,
                     "owner_user_id": null,
                     "shared": true,
                     "started_by_trigger": false,
