@@ -34,7 +34,7 @@
   },
   "agentPermissions": {
     "section": "Permissions",
-    "sectionDescription": "Choose who can chat, approve steps and continue triggered chats.",
+    "sectionDescription": "Choose who can chat with the agent, approve tool calls and continue conversations.",
     "chat": "Who can chat",
     "approve": "Who can approve tool calls",
     "continue": "Who can continue triggered conversations",

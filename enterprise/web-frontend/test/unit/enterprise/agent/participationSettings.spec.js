@@ -106,7 +106,7 @@ describe('agent participation settings', () => {
   const selectedRoles = (wrapper) =>
     wrapper.findAll('.dropdown__selected-text').map((item) => item.text())
 
-  test('lists Permissions after Workspace access with three settings and their defaults', async () => {
+  test('lists Permissions after Triggers with three settings and their defaults', async () => {
     mockRules()
     const wrapper = await mountSidebar()
     const labels = wrapper
@@ -114,7 +114,7 @@ describe('agent participation settings', () => {
       .map((label) => label.text())
 
     expect(labels.indexOf('agentPermissions.section')).toBe(
-      labels.indexOf('agent.workspaceAccess') + 1
+      labels.indexOf('agent.triggers') + 1
     )
     expect(
       sectionItem(wrapper, 'agentPermissions.section')
