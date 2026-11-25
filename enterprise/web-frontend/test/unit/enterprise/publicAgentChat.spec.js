@@ -274,6 +274,30 @@ describe('usePublicAgentChat', () => {
     wrapper.unmount()
   })
 
+  test('a stored access token shows neither the password nor the chat until its check ends', async () => {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ accessToken: 'access' }))
+    let answerInfo
+    mocks.service.getInfo
+      .mockResolvedValueOnce({ data: PROTECTED })
+      .mockReturnValueOnce(new Promise((resolve) => (answerInfo = resolve)))
+    const wrapper = await mountSuspended(PublicAgentChatPage, {
+      route: `/public/agent-chat/${SLUG}`,
+    })
+    await flushPromises()
+    const shown = () =>
+      ['.public-agent-chat__password', '.public-agent-chat__composer'].filter(
+        (selector) => wrapper.find(selector).exists()
+      )
+
+    expect(shown()).toEqual([])
+    answerInfo({ data: { ...OPEN, password_protected: true } })
+    await flushPromises()
+
+    expect(shown()).toEqual(['.public-agent-chat__composer'])
+    wrapper.unmount()
+  })
+
+
   test('the page shows a stopped reply without text as stopped', async () => {
     localStorage.setItem(
       STORAGE_KEY,

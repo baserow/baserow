@@ -60,6 +60,8 @@ export function usePublicAgentChat(slug, initialInfo) {
   const sendError = ref(false)
   const unavailable = ref(false)
   const restoreFailed = ref(false)
+  // A stored token may open a protected chat, which only the browser can tell.
+  const accessChecked = ref(Boolean(initialInfo.has_access))
 
   let cursor = null
   let streamController = null
@@ -73,7 +75,9 @@ export function usePublicAgentChat(slug, initialInfo) {
   let unmounted = false
 
   const token = () => tokens.conversationToken || tokens.accessToken
-  const needsPassword = computed(() => !info.value.has_access)
+  const needsPassword = computed(
+    () => accessChecked.value && !info.value.has_access
+  )
   const messages = computed(() => {
     const last = savedMessages.value.at(-1)
     if (!runId.value || last?.role !== MESSAGE_ROLE.ASSISTANT) {
@@ -350,6 +354,7 @@ export function usePublicAgentChat(slug, initialInfo) {
   onMounted(async () => {
     readTokens()
     if (!info.value.has_access && token()) await reloadInfo()
+    accessChecked.value = true
     if (tokens.conversationToken) await sync()
   })
 
@@ -361,6 +366,7 @@ export function usePublicAgentChat(slug, initialInfo) {
 
   return {
     info,
+    accessChecked,
     needsPassword,
     passwordError,
     messages,

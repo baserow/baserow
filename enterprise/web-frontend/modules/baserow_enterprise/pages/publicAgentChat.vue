@@ -41,7 +41,7 @@
         {{ $t('publicAgentChat.enter') }}
       </Button>
     </form>
-    <template v-else>
+    <template v-else-if="accessChecked">
       <header class="public-agent-chat__header">
         <h1 class="public-agent-chat__title">{{ info.title }}</h1>
         <Button
@@ -194,6 +194,7 @@ if (error.value) {
 
 const {
   info,
+  accessChecked,
   needsPassword,
   passwordError,
   messages,
