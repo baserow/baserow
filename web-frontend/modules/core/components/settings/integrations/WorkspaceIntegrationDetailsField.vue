@@ -1,6 +1,6 @@
 <template>
   <div
-    class="workspace-integration-details-field data-table__text-field"
+    class="workspace-integration-details-field"
     :class="{ 'workspace-integration-details-field--error': errorMessage }"
     :title="details"
   >
@@ -15,7 +15,6 @@ import { showIntegrationErrors } from '@baserow/modules/core/utils/integration'
 
 const props = defineProps({
   row: { type: Object, required: true },
-  column: { type: Object, required: true },
 })
 
 const nuxtApp = useNuxtApp()

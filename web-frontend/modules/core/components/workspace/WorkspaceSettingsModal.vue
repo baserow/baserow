@@ -48,7 +48,15 @@ export default {
   },
   computed: {
     registeredSettings() {
-      return getEnabledWorkspaceSettings(this.$registry, this.workspace)
+      return getEnabledWorkspaceSettings(
+        this.$registry,
+        this.workspace,
+        this.$hasPermission(
+          'workspace.update',
+          this.workspace,
+          this.workspace.id
+        )
+      )
     },
     settingPageComponent() {
       return this.registeredSettings

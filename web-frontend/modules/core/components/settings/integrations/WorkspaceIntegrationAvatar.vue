@@ -12,7 +12,6 @@ import { computed } from 'vue'
 import { useNuxtApp } from '#app'
 import Avatar from '@baserow/modules/core/components/Avatar'
 
-// `ManagementNameField` renders its avatar component with the row as `subject`.
 const props = defineProps({
   subject: { type: Object, required: true },
   size: { type: String, default: 'large' },

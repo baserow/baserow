@@ -2156,7 +2156,11 @@
   },
   "workspaceIntegrations": {
     "tabTitle": "Integrations",
-    "title": "{count} integrations in {workspace}",
+    "title": "Workspace Integrations",
+    "loading": "Loading integrations",
+    "loadError": "Could not load workspace integrations.",
+    "retry": "Try again",
+    "actions": "Integration actions",
     "subtitle": "Every application in this workspace can use these integrations. Changes reach published applications and workflows when they're published again.",
     "search": "Search integrations",
     "create": "Create integration",
@@ -2167,6 +2171,7 @@
     "delete": "Delete integration",
     "emptyTitle": "No integrations yet",
     "emptyDescription": "Create an integration here to set it up once and use it in every application in this workspace.",
+    "emptyReadOnlyDescription": "Workspace admins can add integrations here for applications in this workspace to use.",
     "deleteTitle": "Delete integration",
     "deleteMessage": "Every application in this workspace that uses {name} loses this integration until it's restored from the trash. Published applications and workflows keep their own copy until they're published again."
   },

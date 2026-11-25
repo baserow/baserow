@@ -259,7 +259,6 @@ export default {
         'settings-teams',
         'settings-identities',
         'workspace-audit-log',
-        'settings-integrations',
       ].includes(this.$route.name)
     },
     sidebarWorkspaceComponents() {

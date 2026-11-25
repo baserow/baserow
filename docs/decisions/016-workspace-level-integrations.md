@@ -62,7 +62,7 @@ The background task does the one-off backfill in batches after the rollout, inst
 
 ### 2. Managed in Workspace settings, through the existing integration API
 
-Workspace integrations are created, edited and deleted on an Integrations page in Workspace settings. Everyone who may list them can open the page; the management actions follow the Admin-only permissions of decision 6, and a Local Baserow integration shows there the identity it runs as, as in decision 7.
+Workspace integrations are created, edited and deleted in an Integrations tab in the Workspace settings modal, alongside AI Providers and Snapshots. Everyone who may list them can open the page; the management actions follow the Admin-only permissions of decision 6, and a Local Baserow integration shows there the identity it runs as, as in decision 7.
 
 Inside an app, a workspace integration is picked through the integration selector of decision 3. Promotion is triggered from the app's own integration settings by an Admin, after which the integration appears in Workspace settings and in the workspace group of the selector in every app.
 

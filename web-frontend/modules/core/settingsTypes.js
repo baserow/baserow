@@ -11,6 +11,9 @@ import TwoFactorAuthSettings from '@baserow/modules/core/components/settings/Two
  * All settings types will be added to the settings modal.
  */
 export class SettingsType extends Registerable {
+  // Workspace settings require admin access unless a type allows read-only access.
+  requiresWorkspaceUpdatePermission = true
+
   /**
    * The icon class name that is used as convenience for the user to
    * recognize setting types. The icon will for example be displayed in the modal

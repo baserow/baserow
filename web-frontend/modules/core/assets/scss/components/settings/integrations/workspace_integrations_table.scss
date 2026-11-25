@@ -1,0 +1,124 @@
+.workspace-integration-settings__title {
+  margin: 0 0 8px;
+  font-size: 18px;
+  line-height: 24px;
+}
+
+.workspace-integration-settings__description {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  margin-bottom: 24px;
+  color: $palette-neutral-900;
+  font-size: 13px;
+  line-height: 20px;
+
+  p {
+    flex: 1;
+    margin: 0;
+  }
+
+  > .button {
+    flex-shrink: 0;
+  }
+}
+
+.workspace-integrations-table__scroll {
+  overflow-x: auto;
+  border: 1px solid $palette-neutral-200;
+  border-radius: 6px;
+}
+
+.workspace-integrations-table {
+  width: 100%;
+  min-width: 560px;
+  table-layout: fixed;
+  border-collapse: collapse;
+  font-size: 13px;
+  line-height: 20px;
+
+  th,
+  td {
+    padding: 12px 16px;
+    text-align: left;
+    vertical-align: middle;
+    border-bottom: 1px solid $palette-neutral-200;
+    overflow-wrap: anywhere;
+  }
+
+  th {
+    background-color: $palette-neutral-25;
+    color: $palette-neutral-900;
+    font-weight: 500;
+  }
+
+  tbody tr:last-child td {
+    border-bottom: 0;
+  }
+}
+
+.workspace-integrations-table__name-column {
+  width: 36%;
+}
+
+.workspace-integrations-table__type-column {
+  width: 140px;
+}
+
+.workspace-integrations-table__actions-column {
+  width: 48px;
+}
+
+.workspace-integrations-table__identity {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+
+  .avatar {
+    flex-shrink: 0;
+  }
+}
+
+.workspace-integrations-table__name {
+  @extend %ellipsis;
+
+  min-width: 0;
+  font-weight: 500;
+}
+
+.workspace-integrations-table__sort,
+.workspace-integrations-table__more {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.workspace-integrations-table__more {
+  min-height: 32px;
+}
+
+.workspace-integrations-table__empty {
+  padding: 32px 24px;
+  border: 1px dashed $palette-neutral-400;
+  border-radius: 6px;
+  text-align: center;
+
+  p {
+    max-width: 360px;
+    margin: 16px auto 24px;
+    color: $palette-neutral-900;
+  }
+}
+
+.workspace-integrations-table__status {
+  position: relative;
+  min-height: 160px;
+  padding: 32px 24px;
+  text-align: center;
+}

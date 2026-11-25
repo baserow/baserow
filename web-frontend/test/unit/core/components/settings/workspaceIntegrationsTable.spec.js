@@ -1,7 +1,6 @@
 import flushPromises from 'flush-promises'
 
 import WorkspaceIntegrationsTable from '@baserow/modules/core/components/settings/integrations/WorkspaceIntegrationsTable'
-import CrudTableSearch from '@baserow/modules/core/components/crudTable/CrudTableSearch'
 import { TestApp } from '@baserow/test/helpers/testApp'
 
 const WORKSPACE = { id: 1, name: 'Workspace' }
@@ -84,7 +83,80 @@ describe('WorkspaceIntegrationsTable', () => {
   }
 
   const rowNames = (wrapper) =>
-    wrapper.findAll('.management-name-field__name').map((name) => name.text())
+    wrapper
+      .findAll('.workspace-integrations-table__name')
+      .map((name) => name.text())
+
+  test.each([true, false])(
+    'shows an empty state when no integrations exist (admin: %s)',
+    async (canCreate) => {
+      testApp.mock
+        .onGet(`application/${SHARED_ID}/integrations/`)
+        .replyOnce(200, [])
+      const wrapper = await mountTable({
+        global: { mocks: { $hasPermission: () => canCreate } },
+      })
+      expect(
+        wrapper.get('.workspace-integrations-table__empty').text()
+      ).toContain('workspaceIntegrations.emptyTitle')
+      expect(
+        wrapper.get('.workspace-integrations-table__empty').text()
+      ).toContain(
+        canCreate
+          ? 'workspaceIntegrations.emptyDescription'
+          : 'workspaceIntegrations.emptyReadOnlyDescription'
+      )
+      expect(rowNames(wrapper)).toEqual([])
+      expect(
+        wrapper
+          .findAll('button')
+          .some((button) => button.text() === 'workspaceIntegrations.create')
+      ).toBe(canCreate)
+    }
+  )
+
+  test('waits for loading to finish before showing an empty state', async () => {
+    let respond
+    testApp.mock.onGet(`application/${SHARED_ID}/integrations/`).replyOnce(
+      () =>
+        new Promise((resolve) => {
+          respond = resolve
+        })
+    )
+    const wrapper = await mountTable()
+    expect(wrapper.find('[role="status"]').exists()).toBe(true)
+    expect(wrapper.find('.workspace-integrations-table__empty').exists()).toBe(
+      false
+    )
+
+    respond([200, []])
+    await flushPromises()
+    expect(wrapper.find('[role="status"]').exists()).toBe(false)
+    expect(wrapper.find('.workspace-integrations-table__empty').exists()).toBe(
+      true
+    )
+  })
+
+  test('shows a failed load and lets the user retry', async () => {
+    testApp.dontFailOnErrorResponses()
+    testApp.mock
+      .onGet(`application/${SHARED_ID}/integrations/`)
+      .replyOnce(500, {})
+      .onGet(`application/${SHARED_ID}/integrations/`)
+      .replyOnce(200, [smtpIntegration()])
+    const wrapper = await mountTable()
+    expect(wrapper.get('[role="alert"]').text()).toContain(
+      'workspaceIntegrations.loadError'
+    )
+    expect(wrapper.find('.workspace-integrations-table__empty').exists()).toBe(
+      false
+    )
+
+    await wrapper.get('[role="alert"] button').trigger('click')
+    await flushPromises()
+    expect(wrapper.find('[role="alert"]').exists()).toBe(false)
+    expect(rowNames(wrapper)).toEqual(['Mail server'])
+  })
 
   test('lists the integrations of the shared application only', async () => {
     testApp.mock
@@ -144,24 +216,12 @@ describe('WorkspaceIntegrationsTable', () => {
     expect(testApp.mock.history.get).toHaveLength(1)
   })
 
-  test('searches the integrations by name and by type', async () => {
+  test('shows all integrations without a search field', async () => {
     testApp.mock
       .onGet(`application/${SHARED_ID}/integrations/`)
       .replyOnce(200, [localBaserowIntegration(), smtpIntegration()])
     const wrapper = await mountTable()
-    const search = async (term) => {
-      wrapper.findComponent(CrudTableSearch).vm.$emit('search-changed', term)
-      await flushPromises()
-    }
-
-    await search('shared')
-    expect(rowNames(wrapper)).toEqual(['Shared data'])
-
-    // The type name, a translation key in tests, has `smtp` in it.
-    await search('smtp')
-    expect(rowNames(wrapper)).toEqual(['Mail server'])
-
-    await search('')
+    expect(wrapper.find('input').exists()).toBe(false)
     expect(rowNames(wrapper)).toEqual(['Shared data', 'Mail server'])
   })
 
@@ -174,15 +234,21 @@ describe('WorkspaceIntegrationsTable', () => {
       ])
     const wrapper = await mountTable()
     const sortByName = async () => {
-      await wrapper.find('.data-table__table-cell-head-link').trigger('click')
+      await wrapper.find('.workspace-integrations-table__sort').trigger('click')
       await flushPromises()
     }
     expect(rowNames(wrapper)).toEqual(['Zeta', 'Alpha'])
 
     await sortByName()
     expect(rowNames(wrapper)).toEqual(['Alpha', 'Zeta'])
+    expect(wrapper.get('th').attributes('aria-sort')).toBe('ascending')
 
     await sortByName()
+    expect(rowNames(wrapper)).toEqual(['Zeta', 'Alpha'])
+    expect(wrapper.get('th').attributes('aria-sort')).toBe('descending')
+
+    await sortByName()
+    expect(wrapper.get('th').attributes('aria-sort')).toBe('none')
     expect(rowNames(wrapper)).toEqual(['Zeta', 'Alpha'])
   })
 
@@ -217,11 +283,11 @@ describe('WorkspaceIntegrationsTable', () => {
           .findAll('button')
           .filter((button) => button.text() === 'workspaceIntegrations.create')
       ).toHaveLength(createButtonCount)
-      expect(wrapper.findAll('th.data-table__table-cell--header')).toHaveLength(
+      expect(wrapper.findAll('.workspace-integrations-table th')).toHaveLength(
         columnCount
       )
 
-      const more = wrapper.find('.data-table__more')
+      const more = wrapper.find('.workspace-integrations-table__more')
       expect(more.exists()).toBe(showsEdit || showsDelete)
       if (more.exists()) {
         await more.trigger('click')
@@ -305,7 +371,7 @@ describe('WorkspaceIntegrationsTable', () => {
         },
       },
     })
-    await wrapper.find('.data-table__more').trigger('click')
+    await wrapper.find('.workspace-integrations-table__more').trigger('click')
     await flushPromises()
     await wrapper
       .findAll('.context__menu-item-link')

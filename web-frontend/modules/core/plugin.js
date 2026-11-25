@@ -26,6 +26,7 @@ import {
 import {
   GenerativeAIWorkspaceSettingsType,
   SnapshotsWorkspaceSettingsType,
+  IntegrationsWorkspaceSettingsType,
 } from '@baserow/modules/core/workspaceSettingsTypes'
 import { SharedApplicationType } from '@baserow/modules/core/applicationTypes'
 import {
@@ -66,7 +67,6 @@ import {
 import {
   MembersWorkspaceSettingsPageType,
   IdentitiesWorkspaceSettingsPageType,
-  IntegrationsWorkspaceSettingsPageType,
 } from '@baserow/modules/core/workspaceSettingsPageTypes'
 import {
   WorkspaceInvitationCreatedNotificationType,
@@ -250,6 +250,10 @@ export default defineNuxtPlugin({
       'workspaceSettings',
       new SnapshotsWorkspaceSettingsType(context)
     )
+    registry.register(
+      'workspaceSettings',
+      new IntegrationsWorkspaceSettingsType(context)
+    )
 
     registry.register('generativeAIModel', new OpenAIModelType(context))
     registry.register('generativeAIModel', new AnthropicModelType(context))
@@ -322,10 +326,6 @@ export default defineNuxtPlugin({
     registry.register(
       'workspaceSettingsPage',
       new IdentitiesWorkspaceSettingsPageType(context)
-    )
-    registry.register(
-      'workspaceSettingsPage',
-      new IntegrationsWorkspaceSettingsPageType(context)
     )
 
     registry.register('runtimeFormulaFunction', new RuntimeConcat(context))

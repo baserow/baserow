@@ -3,6 +3,7 @@ import { describe, expect, test, vi } from 'vitest'
 import AIProviderWorkspaceSettings from '@baserow/modules/core/components/workspace/AIProviderWorkspaceSettings'
 import {
   GenerativeAIWorkspaceSettingsType,
+  IntegrationsWorkspaceSettingsType,
   SnapshotsWorkspaceSettingsType,
 } from '@baserow/modules/core/workspaceSettingsTypes'
 
@@ -35,5 +36,23 @@ describe('SnapshotsWorkspaceSettingsType', () => {
 
     hasPermission.mockReturnValue(true)
     expect(settingsType.isEnabled(workspace)).toBe(true)
+  })
+})
+
+describe('IntegrationsWorkspaceSettingsType', () => {
+  test('is available to members who can list workspace integrations', () => {
+    const hasPermission = vi.fn().mockReturnValue(true)
+    const settingsType = new IntegrationsWorkspaceSettingsType({
+      app: { $i18n: { t: (key) => key }, $hasPermission: hasPermission },
+    })
+    const workspace = { id: 42 }
+    expect(settingsType.isEnabled(workspace)).toBe(true)
+    expect(hasPermission).toHaveBeenCalledWith(
+      'workspace.list_integrations',
+      workspace,
+      42
+    )
+    hasPermission.mockReturnValue(false)
+    expect(settingsType.isEnabled(workspace)).toBe(false)
   })
 })

@@ -145,36 +145,3 @@ export class IdentitiesWorkspaceSettingsPageType extends WorkspaceSettingsPageTy
     }
   }
 }
-
-/**
- * The workspace integrations, which every application in the workspace can use.
- * Every member who may list them can open the page, only Admins manage them.
- */
-export class IntegrationsWorkspaceSettingsPageType extends WorkspaceSettingsPageType {
-  getOrder() {
-    return 50
-  }
-
-  static getType() {
-    return 'integrations'
-  }
-
-  getName() {
-    return this.app.$i18n.t('workspaceIntegrations.tabTitle')
-  }
-
-  hasPermission(workspace) {
-    return this.app.$hasPermission(
-      'workspace.list_integrations',
-      workspace,
-      workspace.id
-    )
-  }
-
-  getRoute(workspace) {
-    return {
-      name: 'settings-integrations',
-      params: { workspaceId: workspace.id },
-    }
-  }
-}

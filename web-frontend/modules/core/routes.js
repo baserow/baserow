@@ -149,11 +149,6 @@ export const routes = [
             path: 'identities',
             file: path.resolve(__dirname, 'pages/settings/identities.vue'),
           },
-          {
-            name: 'settings-integrations',
-            path: 'integrations',
-            file: path.resolve(__dirname, 'pages/settings/integrations.vue'),
-          },
         ],
       },
     ],

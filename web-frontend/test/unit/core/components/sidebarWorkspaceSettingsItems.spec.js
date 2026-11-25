@@ -120,9 +120,17 @@ describe('Sidebar workspace settings tabs', () => {
     expect(menu.text()).not.toContain(integration.getName())
   })
 
-  test('hides workspace settings tabs without workspace update permission', async () => {
+  test('keeps admin settings hidden from members while offering integrations', async () => {
+    const enabled = vi
+      .spyOn(
+        app.$registry.get('workspaceSettings', 'integrations'),
+        'isEnabled'
+      )
+      .mockReturnValue(true)
     const menu = await openSettings(false)
     expect(menu.text()).not.toContain('workspaceSettingType.aiProviders')
     expect(menu.text()).not.toContain(integration.getName())
+    expect(menu.text()).toContain('workspaceIntegrations.tabTitle')
+    enabled.mockRestore()
   })
 })

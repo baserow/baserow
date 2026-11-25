@@ -1,6 +1,7 @@
 import flushPromises from 'flush-promises'
 
 import IntegrationSettings from '@baserow/modules/builder/components/settings/IntegrationSettings'
+import Modal from '@baserow/modules/core/components/Modal'
 import { TestApp } from '@baserow/test/helpers/testApp'
 
 const WORKSPACE = { id: 1, name: 'Acme' }
@@ -55,6 +56,7 @@ describe('Builder IntegrationSettings', () => {
   })
 
   afterEach(async () => {
+    vi.useRealTimers()
     await testApp.afterEach()
   })
 
@@ -64,6 +66,7 @@ describe('Builder IntegrationSettings', () => {
     permissions,
     show = () => {},
     workspaceIntegrations = [],
+    inModal = false,
   }) => {
     testApp.mock
       .onGet(`application/${BUILDER_ID}/integrations/`)
@@ -75,7 +78,20 @@ describe('Builder IntegrationSettings', () => {
         integration_types: ['local_baserow', 'smtp'],
         integrations: workspaceIntegrations,
       })
-    const wrapper = await testApp.mount(IntegrationSettings, {
+    const component = inModal
+      ? {
+          components: { IntegrationSettings, Modal },
+          props: ['builder'],
+          template: `<div>
+            <button @click="$refs.modal.show()">Open settings</button>
+            <Modal ref="modal"><IntegrationSettings :builder="builder" /></Modal>
+          </div>`,
+        }
+      : IntegrationSettings
+    testApp.mock
+      .onGet(`application/${SHARED_ID}/integrations/`)
+      .reply(200, workspaceIntegrations)
+    const wrapper = await testApp.mount(component, {
       props: { builder: store.getters['application/get'](BUILDER_ID) },
       global: {
         mocks: {
@@ -96,6 +112,9 @@ describe('Builder IntegrationSettings', () => {
         },
       },
     })
+    if (inModal) {
+      await wrapper.get('button').trigger('click')
+    }
     await flushPromises()
     return wrapper
   }
@@ -181,16 +200,40 @@ describe('Builder IntegrationSettings', () => {
         workspaceIntegrations: [workspaceSmtpIntegration],
       })
 
-      const link = wrapper.findComponent({ name: 'NuxtLink' })
-      expect(link.exists()).toBe(linked)
-      if (linked) {
-        expect(link.props('to')).toEqual({
-          name: 'settings-integrations',
-          params: { workspaceId: WORKSPACE.id },
-        })
-      }
+      const link = wrapper
+        .findAll('button')
+        .find(
+          (button) =>
+            button.text() ===
+            'applicationIntegrationSettings.openWorkspaceSettings'
+        )
+      expect(!!link).toBe(linked)
     }
   )
+
+  test('opens the workspace integrations tab from the application settings modal', async () => {
+    const wrapper = await mountSettings({
+      permissions: ['workspace.list_integrations'],
+      workspaceIntegrations: [workspaceSmtpIntegration],
+      inModal: true,
+    })
+    const button = wrapper
+      .findAll('button')
+      .find(
+        (button) =>
+          button.text() ===
+          'applicationIntegrationSettings.openWorkspaceSettings'
+      )
+    await button.trigger('click')
+    await flushPromises()
+
+    const modal = document.body.querySelector('.modal__box--with-sidebar')
+    expect(
+      modal.querySelector('.modal-sidebar__nav-link.active').textContent.trim()
+    ).toBe('workspaceIntegrations.tabTitle')
+    expect(modal.textContent).toContain('Team mail')
+    expect(modal.textContent).not.toContain('workspaceSettingType.aiProviders')
+  })
 
   test('fetches the workspace integrations again every time it opens', async () => {
     // What a workspace integration can reach, like the tables of a Local

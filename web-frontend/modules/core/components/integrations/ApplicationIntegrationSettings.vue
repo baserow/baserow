@@ -7,15 +7,13 @@
       </h3>
       <p class="integration-settings__section-description">
         {{ $t('applicationIntegrationSettings.workspaceDescription') }}
-        <nuxt-link
+        <ButtonText
           v-if="canOpenWorkspaceSettings"
-          :to="{
-            name: 'settings-integrations',
-            params: { workspaceId: application.workspace.id },
-          }"
+          button-type="button"
+          @click="$refs.workspaceSettings.show('integrations')"
         >
           {{ $t('applicationIntegrationSettings.openWorkspaceSettings') }}
-        </nuxt-link>
+        </ButtonText>
       </p>
       <div
         v-for="integration in workspaceIntegrations"
@@ -85,6 +83,11 @@
     <p v-else class="margin-top-3">
       {{ $t('integrationSettings.noIntegrationMessage') }}
     </p>
+    <WorkspaceSettingsModal
+      v-if="canOpenWorkspaceSettings"
+      ref="workspaceSettings"
+      :workspace="workspace"
+    />
     <PromoteIntegrationModal
       v-if="canPromote"
       ref="promoteModal"
@@ -95,6 +98,7 @@
 </template>
 
 <script>
+import WorkspaceSettingsModal from '@baserow/modules/core/components/workspace/WorkspaceSettingsModal'
 import IntegrationCreateEditModal from '@baserow/modules/core/components/integrations/IntegrationCreateEditModal'
 import PromoteIntegrationModal from '@baserow/modules/core/components/integrations/PromoteIntegrationModal'
 import { notifyIf } from '@baserow/modules/core/utils/error'
@@ -112,7 +116,11 @@ import {
  */
 export default {
   name: 'ApplicationIntegrationSettings',
-  components: { IntegrationCreateEditModal, PromoteIntegrationModal },
+  components: {
+    IntegrationCreateEditModal,
+    PromoteIntegrationModal,
+    WorkspaceSettingsModal,
+  },
   props: {
     application: {
       type: Object,
