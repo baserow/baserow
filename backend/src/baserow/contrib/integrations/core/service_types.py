@@ -786,6 +786,7 @@ class CoreHTTPRequestServiceType(CoreServiceType):
                 deadline=deadline,
                 operation_timeout=service.timeout,
                 redirects_stay_on_host=dispatch_context.redirects_stay_on_host,
+                refuse_private_addresses=dispatch_context.refuse_private_addresses,
                 **body_kwargs,
             )
         except (
