@@ -51,6 +51,12 @@ class AgentConfig(AppConfig):
             UpdateAgentConversationActionType,
         )
         from .application_types import AgentApplicationType
+        from .channels.actions import (
+            CreateAgentChannelActionType,
+            DeleteAgentChannelActionType,
+            UpdateAgentChannelActionType,
+        )
+        from .channels.trash_types import AgentChannelTrashableItemType
         from .chat_run_type import AgentChatRunType
         from .last_viewed_types import AgentLastViewedItemType
         from .operations import (
@@ -141,11 +147,15 @@ class AgentConfig(AppConfig):
             CreateAgentActionActionType,
             UpdateAgentActionActionType,
             DeleteAgentActionActionType,
+            CreateAgentChannelActionType,
+            UpdateAgentChannelActionType,
+            DeleteAgentChannelActionType,
         ):
             action_type_registry.register(action())
         trash_item_type_registry.register(AgentConversationTrashableItemType())
         trash_item_type_registry.register(AgentTriggerTrashableItemType())
         trash_item_type_registry.register(AgentActionTrashableItemType())
+        trash_item_type_registry.register(AgentChannelTrashableItemType())
         agent_action_type_registry.register(SMTPEmailAgentActionType())
         agent_action_type_registry.register(HTTPRequestAgentActionType())
         agent_action_type_registry.register(LocalBaserowCreateRowAgentActionType())

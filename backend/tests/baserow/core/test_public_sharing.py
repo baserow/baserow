@@ -22,6 +22,19 @@ def test_public_access_token_is_bound_to_the_slug_and_the_password_hash():
     assert not is_public_access_token_valid("slug", "", token)
 
 
+def test_public_access_token_carries_claims_and_stays_bound():
+    token = encode_public_access_token(
+        "slug", "password-hash", {"conversation": "abc", "slug_id": "other"}
+    )
+
+    assert decode_public_access_token("slug", "password-hash", token) == {
+        "slug_id": "slug",
+        "conversation": "abc",
+    }
+    assert not is_public_access_token_valid("other-slug", "password-hash", token)
+    assert not is_public_access_token_valid("slug", "other-password-hash", token)
+
+
 def test_public_access_token_rejects_garbage():
     assert not is_public_access_token_valid("slug", "password-hash", "not-a-token")
     assert not is_public_access_token_valid("slug", "password-hash", "")

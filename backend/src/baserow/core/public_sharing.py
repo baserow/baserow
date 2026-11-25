@@ -21,18 +21,21 @@ def _get_public_access_token_secret(slug: str, password_hash: str) -> str:
     return f"{slug}-{password_hash}-{settings.SECRET_KEY}"
 
 
-def encode_public_access_token(slug: str, password_hash: str) -> str:
+def encode_public_access_token(
+    slug: str, password_hash: str, claims: Dict[str, Any] | None = None
+) -> str:
     """
     Creates a non-expiring JWT token that authorizes public requests for the
     resource with the given slug.
 
     :param slug: The slug of the publicly shared resource.
     :param password_hash: The hash of the password that protects the resource.
+    :param claims: More values the token carries, next to the slug.
     :return: The encoded token.
     """
 
     return jwt.encode(
-        {"slug_id": slug},
+        {**(claims or {}), "slug_id": slug},
         key=_get_public_access_token_secret(slug, password_hash),
         algorithm=PUBLIC_ACCESS_TOKEN_ALGORITHM,
     )
