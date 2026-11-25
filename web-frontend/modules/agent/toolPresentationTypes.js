@@ -398,6 +398,11 @@ export class ActionToolPresentationType extends ToolPresentationType {
     return {}
   }
 
+  /** Whether the create agent wizard offers the action as an extra. */
+  get offeredInSetup() {
+    return false
+  }
+
   /** The resolved values in reading order, without the ones left empty. */
   getInput({ input }, t) {
     const values = input.values || {}
@@ -420,6 +425,10 @@ export class ActionToolPresentationType extends ToolPresentationType {
 export class SMTPEmailToolPresentationType extends ActionToolPresentationType {
   static getType() {
     return 'smtp_email'
+  }
+
+  get offeredInSetup() {
+    return true
   }
 
   get fieldLabels() {

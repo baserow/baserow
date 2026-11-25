@@ -35,7 +35,7 @@
       <DropdownItem
         value="private"
         :name="$t('agent.private')"
-        icon="iconoir-lock"
+        icon="iconoir-user"
       />
       <DropdownItem
         value="shared"
@@ -149,7 +149,7 @@
                     role="img"
                     :aria-label="$t('agent.privateConversation')"
                     :title="$t('agent.privateConversation')"
-                    ><i class="iconoir-lock" aria-hidden="true"></i
+                    ><i class="iconoir-user" aria-hidden="true"></i
                   ></span>
                 </span>
                 <span class="agent-conversations__meta">
