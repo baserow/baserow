@@ -2655,7 +2655,6 @@ class CoreHandler:
         *,
         atomic_per_application: bool = False,
         workspace_objects: Optional[Dict[str, Any]] = None,
-        imported_by: Optional[AbstractUser] = None,
     ) -> Tuple[List[Application], Dict[str, Any]]:
         """
         Imports multiple exported applications into the given workspace. It is
@@ -2681,11 +2680,9 @@ class CoreHandler:
             own atomic block, so that a failure leaves no half-imported application
             behind when the caller has no transaction of its own.
         :param workspace_objects: What the export holds beside its applications,
-            like the identities they act as. See `IdentityImport`.
-        :param imported_by: The user who imports, who the identities are created
-            on behalf of. Without one, the applications wait for their identity.
-            Must be given inside a transaction, which is what removes the
-            identities when the import fails.
+            like the identities they act as. See `IdentityImport`. When the
+            config has an `imported_by`, the call must be inside a transaction,
+            which is what removes the identities when the import fails.
         :raises TemplateImportWithoutFilesZip: If the files must belong to the
             workspace but none are provided, so the copy would share them.
         :return: The newly created applications based on the import and a dict
@@ -2711,7 +2708,7 @@ class CoreHandler:
         from baserow.core.identities.import_export import IdentityImport
 
         identity_import = IdentityImport(
-            workspace, workspace_objects, imported_by, import_export_config
+            workspace, workspace_objects, import_export_config
         )
 
         storage = storage or get_default_storage()
@@ -3215,11 +3212,11 @@ class CoreHandler:
                 reduce_disk_space_usage=False,
                 is_duplicate=True,
                 is_template=True,
+                imported_by=user,
             ),
             storage=storage,
             progress_builder=progress_builder,
             workspace_objects=parsed_json.get("workspace_objects"),
-            imported_by=user,
         )
 
         if files_buffer:

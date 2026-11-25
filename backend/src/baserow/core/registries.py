@@ -172,6 +172,15 @@ class ImportExportConfig:
     System and CLI exports leave this unset; copying retains its existing context.
     """
 
+    imported_by: Optional["AbstractUser"] = None
+    """
+    Who imports a file or installs a template, on the paths where a person does.
+    The identities the applications refer to are created on their behalf, and an
+    application that acts as one is bound as them. Without one, the applications
+    wait for their identities. Only the import of identities and the application
+    types that refer to one read it.
+    """
+
     restored_by: Optional["AbstractUser"] = None
     """
     Who restores a snapshot. Kept apart from `copied_by` so a restore carries
@@ -468,7 +477,9 @@ class ApplicationType(
     data_provider_type_registry = None
 
     def get_imported_identity_keys(
-        self, serialized_values: Dict[str, Any], imported_by: Optional["AbstractUser"]
+        self,
+        serialized_values: Dict[str, Any],
+        import_export_config: ImportExportConfig,
     ) -> Set[str]:
         """
         The keys of the identities an exported application of this type refers
@@ -478,7 +489,7 @@ class ApplicationType(
         gets no role on an application that refers to one.
 
         :param serialized_values: The exported application. Untrusted.
-        :param imported_by: The user who imports, if any.
+        :param import_export_config: How the application is imported.
         :return: The keys, or an empty set to have no identity created.
         """
 
