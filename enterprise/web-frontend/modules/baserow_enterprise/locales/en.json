@@ -1266,5 +1266,32 @@
     "waiting": "Waiting for the team to approve a step.",
     "failed": "Something went wrong. Send your message again.",
     "unavailable": "This chat is no longer available."
+  },
+  "agentChannels": {
+    "section": "Channels",
+    "sectionDescription": "Let people outside your workspace talk to the agent.",
+    "addPublicChat": "Add public chat",
+    "loadError": "The channels could not be loaded.",
+    "empty": "Nobody outside your workspace can talk to this agent yet.",
+    "publicChat": "Public chat",
+    "settings": "{name} settings",
+    "publicChatEnabled": "Public chat enabled",
+    "publicLink": "Public link",
+    "publicLinkNote": "Anyone with the link can ask the agent for whatever it can read, and it can use every tool that doesn't ask first.",
+    "copyURL": "Copy URL",
+    "restrictWithPassword": "Restrict access with a password",
+    "passwordProtected": "Access is password-protected",
+    "changePassword": "Change password",
+    "password": "Password",
+    "passwordTitle": "Enter a password",
+    "passwordDescription": "The public link will only be accessible after entering the password. This password must be 8 or more characters and will be saved encrypted.",
+    "changePasswordDescription": "By changing the password, the previous one will no longer work. This password must be 8 or more characters and will be saved encrypted.",
+    "setPassword": "Set password",
+    "disablePasswordTitle": "Disable password protection for this public link?",
+    "disablePasswordDescription": "By disabling, the password will be deleted and it will not be possible to recover it.",
+    "disablePassword": "Disable",
+    "title": "Title",
+    "welcomeText": "Welcome text",
+    "deletePublicChat": "Delete public chat"
   }
 }

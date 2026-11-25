@@ -14,7 +14,10 @@ import {
 } from '@baserow_enterprise/adminTypes'
 import authProviderAdminStore from '@baserow_enterprise/store/authProviderAdmin'
 import assistantStore from '@baserow_enterprise/store/assistant'
-import { PermissionsAgentConfigurationSectionType } from '@baserow_enterprise/agentConfigurationSectionTypes'
+import {
+  ChannelsAgentConfigurationSectionType,
+  PermissionsAgentConfigurationSectionType,
+} from '@baserow_enterprise/agentConfigurationSectionTypes'
 import { AssistantChatRunType } from '@baserow_enterprise/chatRunTypes'
 import {
   storeChatUuid,
@@ -180,6 +183,10 @@ export default defineNuxtPlugin({
     $registry.register(
       'agentConfigurationSection',
       new PermissionsAgentConfigurationSectionType(context)
+    )
+    $registry.register(
+      'agentConfigurationSection',
+      new ChannelsAgentConfigurationSectionType(context)
     )
     $registry.register(
       'aiProviderModelFeature',
