@@ -50,7 +50,8 @@ mixed-version compatibility is needed for these changes.
 In scope: how events reach consumers, how a service goes live, who owns and sees
 trigger-started conversations, and what an unattended run may do. Out of scope: which
 trigger types the picker offers (a constant, widened per release), rate limits and
-auto-disable, the agent-level pause and "Run once".
+auto-disable, the agent-level pause and "Run once". A person outside Baserow talking to
+an agent is not a trigger but a channel: see [ADR 016](016-agent-channels.md).
 
 ## Decision
 
