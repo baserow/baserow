@@ -86,6 +86,7 @@
 </template>
 
 <script>
+import { getDefaultIntegration } from '@baserow/modules/core/utils/integration'
 import IntegrationCreateEditModal from '@baserow/modules/core/components/integrations/IntegrationCreateEditModal'
 import DropdownSection from '@baserow/modules/core/components/DropdownSection'
 
@@ -153,8 +154,8 @@ export default {
       default: false,
     },
     /**
-     * If there is only one integration available, it will be
-     * automatically selected if this property is true.
+     * Select an unambiguous default, preferring the application's own
+     * integrations. Callers opt in for creation forms.
      */
     autoSelectFirst: {
       type: Boolean,
@@ -206,14 +207,15 @@ export default {
   watch: {
     integrations: {
       handler(newValue) {
-        if (
-          this.autoSelectFirst &&
-          newValue.length === 1 &&
-          this.currentValue === null
-        ) {
-          this.$nextTick(() => {
-            this.select(newValue[0].id)
-          })
+        if (this.autoSelectFirst && this.currentValue === null) {
+          const integration = getDefaultIntegration(newValue, this.application)
+          if (integration) {
+            this.$nextTick(() => {
+              if (this.currentValue === null) {
+                this.select(integration.id)
+              }
+            })
+          }
         }
       },
       immediate: true,

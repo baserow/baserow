@@ -435,7 +435,7 @@ class DataSourceHandler:
 
                 service = self.service_handler.create_service(
                     service_type=new_service_type,
-                    integration=integration,
+                    integration=kwargs.pop("integration", integration),
                     **kwargs,
                 )
                 data_source.service = service

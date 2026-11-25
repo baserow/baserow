@@ -24,6 +24,7 @@ from baserow.core.integrations.operations import (
 from baserow.core.integrations.registries import (
     IntegrationType,
     check_secret_targets_unchanged,
+    integration_type_registry,
 )
 from baserow.core.integrations.signals import (
     integration_created,
@@ -33,6 +34,7 @@ from baserow.core.integrations.signals import (
 )
 from baserow.core.integrations.types import IntegrationForUpdate, UpdatedIntegration
 from baserow.core.models import Application, SharedApplication, Workspace
+from baserow.core.registries import application_type_registry
 from baserow.core.trash.handler import TrashHandler
 from baserow.core.utils import extract_undo_redo_values
 
@@ -40,6 +42,59 @@ from baserow.core.utils import extract_undo_redo_values
 class IntegrationService:
     def __init__(self):
         self.handler = IntegrationHandler()
+
+    def get_default_integration(
+        self, user: AbstractUser, application: Application, integration_type: str | None
+    ) -> Integration | None:
+        """Pick one readable integration, preferring the application's own.
+
+        Workspace integrations are considered only when the application supports
+        their type and the user may use them. An ambiguous choice stays empty.
+        """
+        if integration_type is None:
+            return None
+        application_type = application_type_registry.get_by_model(
+            application.specific_class
+        )
+        if not application_type.supports_integration_type(
+            integration_type_registry.get(integration_type)
+        ):
+            return None
+
+        integrations = [
+            integration
+            for integration in self.handler.get_usable_integrations(application)
+            if integration.get_type().type == integration_type
+        ]
+        if not integrations:
+            return None
+        own = [
+            integration
+            for integration in integrations
+            if integration.application_id == application.id
+            and CoreHandler().check_permissions(
+                user,
+                ReadIntegrationOperationType.type,
+                workspace=application.workspace,
+                context=integration,
+                raise_permission_exceptions=False,
+            )
+        ]
+        if own:
+            return own[0] if len(own) == 1 else None
+
+        if integration_type not in self.handler.get_workspace_integration_types(
+            application
+        ) or not self.check_can_use_workspace_integrations(
+            user, application, raise_permission_exceptions=False
+        ):
+            return None
+        shared = [
+            integration
+            for integration in integrations
+            if integration.application_id != application.id
+        ]
+        return shared[0] if len(shared) == 1 else None
 
     def _get_operation_and_context(
         self,

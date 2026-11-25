@@ -174,7 +174,9 @@ class AgentTriggerService:
         self.handler.check_type_usable(agent, service_type_name)
         service_type = service_type_registry.get(service_type_name)
         prepared_service_values = self.handler.prepare_service_values(
-            service_type, service_values or {}, user
+            service_type,
+            service_type.with_default_integration(service_values or {}, user, agent),
+            user,
         )
         trigger = self.handler.create_trigger(
             agent,
@@ -271,7 +273,11 @@ class AgentTriggerService:
             self.handler.check_type_usable(trigger.agent, service_type_name)
             service_type = service_type_registry.get(service_type_name)
             prepared_service_values = self.handler.prepare_service_values(
-                service_type, service_values or {}, user
+                service_type,
+                service_type.with_default_integration(
+                    service_values or {}, user, trigger.agent
+                ),
+                user,
             )
         elif service_values is not None:
             prepared_service_values = self.handler.prepare_service_values(

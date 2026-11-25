@@ -183,6 +183,7 @@ class UserSourceService:
             context=application,
         )
 
+        kwargs = user_source_type.with_default_integration(kwargs, user, application)
         kwargs = user_source_type.resolve_integration(application, kwargs)
         prepared_values = user_source_type.prepare_values(kwargs, user)
 

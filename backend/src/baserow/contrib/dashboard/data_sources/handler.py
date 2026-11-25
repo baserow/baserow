@@ -15,7 +15,6 @@ from baserow.contrib.dashboard.data_sources.models import DashboardDataSource
 from baserow.contrib.dashboard.models import Dashboard
 from baserow.core.deferred_callbacks import deferred_callback_context
 from baserow.core.integrations.handler import IntegrationHandler
-from baserow.core.integrations.models import Integration
 from baserow.core.integrations.registries import integration_type_registry
 from baserow.core.registries import ImportExportConfig
 from baserow.core.services.handler import ServiceHandler
@@ -190,11 +189,8 @@ class DashboardDataSourceHandler:
 
         order = DashboardDataSource.get_last_order(dashboard)
 
-        # Currently all Dashboard data sources will be of
-        # local baserow integration type
-        integration = Integration.objects.filter(application=dashboard).first()
         service = self.service_handler.create_service(
-            service_type=service_type, integration=integration, **kwargs
+            service_type=service_type, **kwargs
         )
         data_source = DashboardDataSource.objects.create(
             dashboard=dashboard, order=order, name=name, service=service

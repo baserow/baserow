@@ -37,6 +37,7 @@
         :application="builder"
         :integrations="integrations"
         :integration-type="currentUserSourceType?.integrationType"
+        auto-select-first
         size="large"
       />
     </FormGroup>
@@ -87,6 +88,10 @@ export default {
     integrations() {
       return this.$store.getters['integration/getUsableIntegrations'](
         this.builder
+      ).filter(
+        (integration) =>
+          integration.type ===
+          this.currentUserSourceType?.integrationType?.getType()
       )
     },
     userSources() {
@@ -107,6 +112,11 @@ export default {
   },
   watch: {
     currentUserSourceType(newValue) {
+      if (
+        !this.integrations.some(({ id }) => id === this.values.integration_id)
+      ) {
+        this.v$.values.integration_id.$model = null
+      }
       this.v$.values.name.$model = getNextAvailableNameInSequence(
         newValue.name,
         this.userSourceNames

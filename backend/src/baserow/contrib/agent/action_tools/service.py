@@ -173,6 +173,11 @@ class AgentActionService:
         validate_action_name(defaults["name"])
         defaults["inputs"] = validate_inputs(defaults["inputs"])
         initial_service.update(service_values or {})
+        service_type = action_type.service_type
+        if not action_type.acts_as_run_identity:
+            initial_service = service_type.with_default_integration(
+                initial_service, user, agent
+            )
         prepared = self._prepare_service_values(
             user, agent, action_type, initial_service
         )

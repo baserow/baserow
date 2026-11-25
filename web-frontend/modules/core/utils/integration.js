@@ -53,3 +53,15 @@ export function integrationSubtitle(app, integration) {
     integrationType.getSummary(integration)
   )
 }
+
+/**
+ * Pick one available integration, preferring the application's own. Callers
+ * supply integrations already filtered by type and permissions.
+ */
+export function getDefaultIntegration(integrations, application) {
+  const own = integrations.filter(
+    (integration) => integration.application_id === application.id
+  )
+  const candidates = own.length > 0 ? own : integrations
+  return candidates.length === 1 ? candidates[0] : null
+}

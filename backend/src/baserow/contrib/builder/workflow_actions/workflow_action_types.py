@@ -441,6 +441,10 @@ class BuilderWorkflowServiceActionType(
         # If we received any service values, prepare them.
         service_values = values.pop("service", None) or {}
         page = values.get("page") or instance.page
+        if instance is None:
+            service_values = service_type.with_default_integration(
+                service_values, user, page.builder
+            )
         service_values = service_type.resolve_integration(page.builder, service_values)
         prepared_service_values = service_type.prepare_values(
             service_values, user, service if instance else None

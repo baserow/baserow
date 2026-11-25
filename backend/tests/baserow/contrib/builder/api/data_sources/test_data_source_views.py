@@ -836,6 +836,9 @@ def test_update_data_source_change_type(api_client, data_fixture):
     )
     service = data_fixture.create_local_baserow_aggregate_rows_service(
         table_id=table.id,
+        integration=data_fixture.create_local_baserow_integration(
+            application=page.builder, authorized_user=user
+        ),
     )
     data_source1 = data_fixture.create_builder_data_source(service=service, page=page)
 

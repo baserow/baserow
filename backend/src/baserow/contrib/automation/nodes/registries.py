@@ -418,6 +418,10 @@ class AutomationNodeType(
         service_values = values.pop("service", None) or {}
         workflow = instance.workflow if instance else values.get("workflow", None)
         if workflow:
+            if instance is None:
+                service_values = service_type.with_default_integration(
+                    service_values, user, workflow.automation
+                )
             service_values = service_type.resolve_integration(
                 workflow.automation, service_values
             )

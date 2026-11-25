@@ -295,6 +295,61 @@ describe('DataSourceForm', () => {
     application_id: SHARED_APPLICATION_ID,
   })
 
+  test.each([
+    ['own integration', [ofWorkspace(3), own(1)], 1],
+    ['only workspace integration', [ofWorkspace(3)], 3],
+    [
+      'ambiguous workspace integrations',
+      [ofWorkspace(3), ofWorkspace(4)],
+      null,
+    ],
+  ])(
+    'handles a late integration response: %s',
+    async (_, integrations, expected) => {
+      const wrapper = await mountComponent({ integrations: [] })
+      expect(await selectServiceType(wrapper)).toBe(null)
+
+      await wrapper.setProps({ integrations })
+
+      expect(
+        wrapper.findComponent(IntegrationDropdownStub).props('modelValue')
+      ).toBe(expected)
+    }
+  )
+
+  test('keeps a manual choice when the integration list refreshes', async () => {
+    const wrapper = await mountComponent({
+      integrations: [ofWorkspace(3), ofWorkspace(4)],
+    })
+    await selectServiceType(wrapper)
+    wrapper
+      .findComponent(IntegrationDropdownStub)
+      .vm.$emit('update:modelValue', 4)
+    await nextTick()
+
+    await wrapper.setProps({
+      integrations: [own(1), ofWorkspace(3), ofWorkspace(4)],
+    })
+
+    expect(
+      wrapper.findComponent(IntegrationDropdownStub).props('modelValue')
+    ).toBe(4)
+  })
+
+  test('does not silently repair an existing source when integrations finish loading', async () => {
+    const wrapper = await mountComponent({
+      create: false,
+      integrations: [],
+      defaultValues: { type: serviceType.getType(), integration_id: null },
+    })
+
+    await wrapper.setProps({ integrations: [own(1)] })
+
+    expect(
+      wrapper.findComponent(IntegrationDropdownStub).props('modelValue')
+    ).toBe(null)
+  })
+
   test('auto-selects the builder connection before a workspace one', async () => {
     const wrapper = await mountComponent({
       integrations: [ofWorkspace(3), own(1)],

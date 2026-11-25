@@ -82,6 +82,7 @@
 </template>
 
 <script>
+import { getDefaultIntegration } from '@baserow/modules/core/utils/integration'
 import _ from 'lodash'
 import { computed, getCurrentInstance } from 'vue'
 import { useVuelidate } from '@vuelidate/core'
@@ -173,19 +174,8 @@ export default {
         }
       },
     },
-    /**
-     * The integration picked when the service type changes and the selected one
-     * doesn't fit it. The builder's own come first: when it has exactly one of the
-     * type, that one, even if the workspace has some too. When it has none, the
-     * workspace's if there's exactly one. Several are left for the user to choose
-     * from. A new automation node is given its integration the same way.
-     */
     preselectedIntegration() {
-      const own = this.availableIntegrations.filter(
-        (integration) => integration.application_id === this.builder.id
-      )
-      const candidates = own.length > 0 ? own : this.availableIntegrations
-      return candidates.length === 1 ? candidates[0] : null
+      return getDefaultIntegration(this.availableIntegrations, this.builder)
     },
     integration() {
       return this.integrations.find(
@@ -291,6 +281,16 @@ export default {
       return [...integrationGroups, ...otherGroups]
         .filter(({ children }) => children.length > 0)
         .map((group, index) => ({ ...group, order: index }))
+    },
+  },
+  watch: {
+    availableIntegrations(integrations) {
+      // The integration request can finish after the user chooses a service.
+      // Only fill a new source's empty choice; leave existing sources untouched.
+      if (this.create && this.values.integration_id === null) {
+        this.v$.values.integration_id.$model =
+          getDefaultIntegration(integrations, this.builder)?.id ?? null
+      }
     },
   },
   methods: {

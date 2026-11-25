@@ -141,6 +141,7 @@ class DashboardDataSourceService:
         if not service_type.can_be_dispatched_as(DispatchTypes.DATA):
             raise InvalidServiceTypeDispatchSource()
 
+        kwargs = service_type.with_default_integration(kwargs, user, dashboard)
         prepared_values = service_type.prepare_values(kwargs, user)
 
         if name is None:

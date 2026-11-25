@@ -260,3 +260,40 @@ describe('IntegrationDropdown', () => {
     expect(modals[0].props('application')).toMatchObject({ id: APPLICATION.id })
   })
 })
+
+describe('IntegrationDropdown default priority', () => {
+  let testApp
+  beforeEach(() => {
+    testApp = new TestApp()
+  })
+  afterEach(async () => {
+    await testApp.afterEach()
+  })
+
+  test.each([
+    [[own({ id: 1 }), ofWorkspace({ id: 2 })], null, 1],
+    [[ofWorkspace({ id: 2 })], null, 2],
+    [[own({ id: 1 }), own({ id: 3 }), ofWorkspace({ id: 2 })], null, null],
+    [[ofWorkspace({ id: 2 }), ofWorkspace({ id: 3 })], null, null],
+    [[own({ id: 1 }), ofWorkspace({ id: 2 })], 2, null],
+  ])(
+    'selects only an unambiguous default (%j, selected %s)',
+    async (integrations, modelValue, expected) => {
+      const wrapper = await testApp.mount(IntegrationDropdown, {
+        props: {
+          application: { ...APPLICATION, type: 'builder' },
+          integrationType: testApp.store.$registry.get(
+            'integration',
+            SlackBotIntegrationType.getType()
+          ),
+          integrations,
+          modelValue,
+          autoSelectFirst: true,
+        },
+      })
+      expect(wrapper.emitted('update:modelValue')).toEqual(
+        expected === null ? undefined : [[expected]]
+      )
+    }
+  )
+})
