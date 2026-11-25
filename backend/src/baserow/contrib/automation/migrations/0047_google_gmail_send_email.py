@@ -7,7 +7,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('automation', '0045_automationworkflowhistory_triggered_by_user_type'),
+        ('automation', '0046_node_history_read_table_ids'),
     ]
 
     operations = [
