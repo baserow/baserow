@@ -5,6 +5,7 @@ import re
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Iterable
 
+from asgiref.sync import sync_to_async
 from loguru import logger
 from pydantic_ai import RunContext, ToolReturn
 from pydantic_ai.tools import ToolDefinition
@@ -48,6 +49,9 @@ REFUSED_MESSAGE = (
     "update it."
 )
 MAX_ERROR_CHARACTERS = 2_000
+SWITCHED_OFF_MESSAGE = (
+    "This app was switched off by an editor of the Agent, so its tools can't be used."
+)
 CHANGED_MESSAGE = (
     "The MCP server changed this tool since it was turned on. An editor of the "
     "Agent has to review it before it can be used."
@@ -249,6 +253,17 @@ class MCPServerToolset(AbstractToolset[Any]):
             )
         return tools
 
+    def _still_switched_on(self) -> bool:
+        """
+        :return: Whether the server is still on and not trashed.
+        """
+
+        from .models import MCPServerIntegration
+
+        return MCPServerIntegration.objects.filter(
+            id=self._server.integration_id, enabled=True, trashed=False
+        ).exists()
+
     async def _verify(self, session) -> dict[str, bool]:
         """
         Compare the server's current definitions with the reviewed ones, once
@@ -278,6 +293,10 @@ class MCPServerToolset(AbstractToolset[Any]):
         tool: ToolsetTool[Any],
     ) -> ToolReturn:
         snapshot = self._tools[name]
+        # The reply's snapshot was taken when it started; an editor may have
+        # switched the app off or removed it since.
+        if not await sync_to_async(self._still_switched_on)():
+            return _error(SWITCHED_OFF_MESSAGE, ToolErrorCode.PERMISSION_DENIED)
         try:
             async with asyncio.timeout(MCP_REQUEST_DEADLINE):
                 async with open_session(self._server.connection) as session:

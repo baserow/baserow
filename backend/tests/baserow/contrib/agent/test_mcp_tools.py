@@ -276,3 +276,27 @@ def test_a_switched_off_app_offers_no_tools_and_is_not_contacted(
     assert [server.integration_id for server in handler.get_mcp_servers(agent)] == [
         integration.id
     ]
+
+
+@pytest.mark.django_db
+def test_a_tool_call_after_the_app_is_switched_off_is_refused(
+    data_fixture, configured_agent, mocker
+):
+    from asgiref.sync import async_to_sync
+
+    from baserow.contrib.integrations.mcp.toolset import MCPServerToolset
+
+    opened = serve(mocker, make_server())
+    _, agent, integration = agent_with_server(data_fixture, configured_agent, ["add"])
+    # The reply took its snapshot while the app was on.
+    (snapshot,) = AgentHandler().get_mcp_servers(agent)
+    toolset = MCPServerToolset(snapshot)
+    (model_name,) = toolset._tools
+    integration.enabled = False
+    integration.save()
+    opened.clear()
+
+    result = async_to_sync(toolset.call_tool)(model_name, {"a": 1, "b": 2}, None, None)
+
+    assert "switched off" in result.return_value["error"]
+    assert opened == []

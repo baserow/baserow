@@ -1011,6 +1011,50 @@ describe('Agent connected apps', () => {
       )
     })
 
+    test('a sign-in left waiting can be cancelled from the card', async () => {
+      testApp.mock
+        .onGet(/application\/10\/integrations/)
+        .reply(200, [oauthServer({ tools: [tool('search')] })])
+      testApp.mock.onPost('/integrations/mcp/5/oauth/start/').reply(200, {
+        authorization_url: 'https://auth.example.com/authorize?state=abc',
+      })
+      const wrapper = await mountSection()
+      await flushPromises()
+      await expand(wrapper)
+
+      card(wrapper)
+        .querySelector('.agent-mcp-server-card__account button')
+        .click()
+      await flushPromises()
+      // The editor closed the provider's popup without signing in.
+      const cancel = buttonIn(
+        card(wrapper).querySelector('.agent-mcp-server-card__actions'),
+        'action.cancel'
+      )
+      expect(cancel.disabled).toBe(false)
+      cancel.click()
+      await flushPromises()
+
+      expect(popup.close).toHaveBeenCalled()
+      expect(
+        card(wrapper).querySelector('.agent-mcp-server-card__actions')
+      ).toBe(null)
+      expect(
+        card(wrapper).querySelector(
+          '.agent-mcp-server-card__account .button-text__spinner'
+        )
+      ).toBe(null)
+      // A sign-in finishing later no longer lists tools here.
+      report({
+        state: 'abc',
+        integration: oauthServer({ oauth_connected: true }),
+      })
+      await flushPromises()
+      expect(inBody('.modal__box .agent-tool-permissions__tool')).toHaveLength(
+        0
+      )
+    })
+
     test('a server without an account asks to sign in instead of listing tools', async () => {
       testApp.mock
         .onGet(/application\/10\/integrations/)

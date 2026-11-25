@@ -237,11 +237,14 @@
         {{ error.message }}
       </Alert>
 
-      <div v-if="editable && dirty" class="agent-mcp-server-card__actions">
+      <div
+        v-if="editable && (dirty || waitingForSignIn)"
+        class="agent-mcp-server-card__actions"
+      >
         <Button
           type="secondary"
           button-type="button"
-          :disabled="saving"
+          :disabled="saving && !waitingForSignIn"
           @click="cancel"
         >
           {{ $t('action.cancel') }}
@@ -326,6 +329,9 @@ const removing = ref(false)
 const disconnecting = ref(false)
 const confirmingRemove = ref(false)
 const showOwnClient = ref(false)
+// The provider's popup is open. Closing it can't be noticed, so Cancel stays
+// usable to stop waiting.
+const waitingForSignIn = ref(false)
 const error = ref(null)
 // Bumped when the edits are dropped or the card goes away, so a request that
 // finishes after that is ignored.
@@ -503,6 +509,7 @@ function reset() {
   fill()
   error.value = null
   saving.value = false
+  waitingForSignIn.value = false
   confirmingRemove.value = false
 }
 
@@ -593,6 +600,7 @@ async function submit() {
     if (signingIn && !popup) {
       throw new MCPSignInError(t('agent.connectedAppPopupBlocked'))
     } else if (signingIn) {
+      waitingForSignIn.value = true
       saved = await props.connect(saved, popup, controller.signal)
     }
     if (stale()) return
@@ -617,7 +625,10 @@ async function submit() {
     error.value = mcpErrorMessage(t, e)
   } finally {
     if (signIn === controller) signIn = null
-    if (!stale()) saving.value = false
+    if (!stale()) {
+      saving.value = false
+      waitingForSignIn.value = false
+    }
   }
 }
 
