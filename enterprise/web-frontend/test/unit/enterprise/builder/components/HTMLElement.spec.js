@@ -105,6 +105,31 @@ describe('HTML element', () => {
     expect(wrapper.get('script').attributes('src')).toBe('/widget.js')
   })
 
+  test.each(['preview', 'public'])(
+    'activates inline scripts in %s',
+    async (mode) => {
+      const html = '<div id="anchor"></div><script>window.render = 1</script>'
+      const createElement = vi.spyOn(document, 'createElement')
+      const wrapper = await mountElement(mode, mode, html)
+      // innerHTML leaves a script inert; the element swaps in a fresh copy.
+      const fresh = createElement.mock.results.find(
+        ({ value }) => value?.tagName === 'SCRIPT'
+      )?.value
+      createElement.mockRestore()
+      expect(wrapper.get('script').element).toBe(fresh)
+      expect(wrapper.element.innerHTML).toBe(html)
+    }
+  )
+
+  test('does not run scripts in the editor', async () => {
+    const html = '<script>window.render = 1</script>'
+    const wrapper = await mountElement('editing', 'editing', html)
+    expect(wrapper.find('script').exists()).toBe(false)
+    expect(wrapper.get('iframe').attributes('sandbox')).toBe(
+      'allow-same-origin'
+    )
+  })
+
   test('waits for an explicit visitor context before inserting markup', async () => {
     const wrapper = await mountElement('public', '')
     expect(wrapper.find('#anchor').exists()).toBe(false)

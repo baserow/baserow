@@ -38,6 +38,19 @@ import ElementPreviewHint from '@baserow/modules/builder/components/elements/Ele
 import element from '@baserow/modules/builder/mixins/element'
 import { ensureString } from '@baserow/modules/core/utils/validator'
 import HTMLElementPreview from '@baserow_enterprise/builder/components/elements/HTMLElementPreview'
+import { runInsertedScripts } from '@baserow_enterprise/builder/htmlElementScripts'
+
+const RUN = Symbol('htmlElementScriptRun')
+
+function insertHTML(host, { value, oldValue }) {
+  if (value === oldValue) {
+    return
+  }
+  host.innerHTML = value
+  const run = Symbol('run')
+  host[RUN] = run
+  runInsertedScripts(host, () => host[RUN] === run)
+}
 
 export default {
   name: 'BuilderHTMLElement',
@@ -49,11 +62,14 @@ export default {
     },
   },
   directives: {
-    // Insert client-side; script loading remains in application settings.
-    htmlContent(host, { value, oldValue }) {
-      if (value !== oldValue) {
-        host.innerHTML = value
-      }
+    // Insert client-side and run the snippet's scripts, which `innerHTML`
+    // alone leaves inert. A newer render cancels a run still loading scripts.
+    htmlContent: {
+      mounted: insertHTML,
+      updated: insertHTML,
+      beforeUnmount(host) {
+        host[RUN] = null
+      },
     },
   },
 }
