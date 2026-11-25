@@ -614,6 +614,27 @@ def test_new_instructions_are_refused_while_the_agent_changes_data_alone(
 
 
 @pytest.mark.django_db
+def test_a_switched_off_app_still_counts_as_changing_data_alone(data_fixture):
+    """
+    Switching an app off pauses it: turning it back on later must not give an
+    Agent instructions Kuma changed while it was off.
+    """
+
+    from baserow.contrib.integrations.mcp.models import MCPServerIntegration
+
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    agent = _agent_that_may_run_alone(data_fixture, workspace, True, "mcp")
+    MCPServerIntegration.objects.filter(application=agent).update(enabled=False)
+
+    with pytest.raises(ToolInputError, match="change its instructions"):
+        _apply(_ctx(user, workspace), {"instructions": "New"}, agent.id)
+
+    agent.refresh_from_db()
+    assert agent.instructions == "Old"
+
+
+@pytest.mark.django_db
 @pytest.mark.parametrize("trigger_on,changes_with", [(False, "tool"), (True, None)])
 def test_new_instructions_apply_when_the_agent_cant_change_data_alone(
     data_fixture, trigger_on, changes_with
