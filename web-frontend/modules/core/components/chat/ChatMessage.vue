@@ -9,7 +9,7 @@
 
 <script setup>
 defineProps({
-  /** The viewer's own message, shown on the right. */
+  /** Shown on the right: the viewer's own message, or a visitor's. */
   own: { type: Boolean, default: false },
 })
 </script>

@@ -135,6 +135,7 @@
     "private": "Private",
     "shared": "Shared",
     "triggered": "Triggered",
+    "visitors": "Visitors",
     "pin": "Pin",
     "unpin": "Unpin",
     "privateConversation": "Private conversation, only visible to the people in it",
@@ -162,6 +163,7 @@
     "conversationOptions": "Conversation options",
     "conversationTitle": "Conversation title",
     "sharedNoMessages": "Started by a trigger. You can't send messages in this conversation.",
+    "visitorNoMessages": "Started by someone outside the workspace. You can't send messages in this conversation.",
     "deletedSender": "Deleted user",
     "exampleConversation": "Example",
     "exampleSender": "User",
@@ -171,10 +173,13 @@
     "cannotSendMessages": "Your role lets you read this conversation, but not send messages.",
     "startedBy": "Started by {name}",
     "startedByTrigger": "Started by a trigger",
+    "startedByVisitor": "Started by a visitor",
+    "visitor": "Visitor",
     "you": "You",
     "replyRunLimitReached": "Agents in this workspace were busy, so this run didn’t start.",
     "replyTriggerMessageFailed": "The trigger’s opening message couldn’t be built, so this run didn’t start. Check the message in Triggers.",
     "replyTriggerOff": "The trigger that started this conversation is off or deleted, so this run stopped.",
+    "replyChannelOff": "The channel this conversation came through is off or deleted, so this run stopped.",
     "replyWaitingForPreviousRun": "Waiting for the previous run to finish.",
     "olderMessages": "Load older messages",
     "talkTo": "Talk to {name}",
@@ -574,6 +579,7 @@
   "trashType": {
     "agent_conversation": "conversation",
     "agent_trigger": "trigger",
-    "agent_action": "action"
+    "agent_action": "action",
+    "agent_channel": "channel"
   }
 }

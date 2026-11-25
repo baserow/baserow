@@ -496,6 +496,7 @@ const readOnlyNote = computed(() => {
   const conversation = state.selectedConversation
   if (!conversation || conversation.local || state.canWriteSelected) return ''
   if (conversation.is_example) return 'agent.exampleNoMessages'
+  if (conversation.started_by_channel) return 'agent.visitorNoMessages'
   return conversation.started_by_trigger
     ? 'agent.sharedNoMessages'
     : 'agent.cannotSendMessages'

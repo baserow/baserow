@@ -31,6 +31,7 @@ const FAILED_REPLY_NOTICES = {
   [AGENT_REPLY_ERROR_CODE.TRIGGER_MESSAGE_FAILED]:
     'agent.replyTriggerMessageFailed',
   [AGENT_REPLY_ERROR_CODE.TRIGGER_OFF]: 'agent.replyTriggerOff',
+  [AGENT_REPLY_ERROR_CODE.CHANNEL_OFF]: 'agent.replyChannelOff',
   [AGENT_REPLY_ERROR_CODE.PROVIDER_AUTH_FAILED]:
     'agent.replyProviderAuthFailed',
   [AGENT_REPLY_ERROR_CODE.PROVIDER_RATE_LIMITED]:

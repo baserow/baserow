@@ -101,6 +101,10 @@ export const CONVERSATION_FILTERS = {
     params: { started_by_trigger: true },
     matches: ({ started_by_trigger: startedByTrigger }) => startedByTrigger,
   },
+  visitors: {
+    params: { started_by_channel: true },
+    matches: ({ started_by_channel: startedByChannel }) => startedByChannel,
+  },
 }
 
 /** Page-local conversations, private or shared, gated by the Agent configuration. */
@@ -223,6 +227,7 @@ export function useAgentConversations(agent, configuration) {
     if (!conversation || !canReadConversations.value) return false
     // An example stays as it came, so it carries nothing of this workspace out.
     if (conversation.is_example) return false
+    if (conversation.started_by_channel) return false
     if (conversation.started_by_trigger) return canContinueTriggered.value
     return (
       canCreateMessage.value &&
