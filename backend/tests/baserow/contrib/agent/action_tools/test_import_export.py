@@ -42,6 +42,9 @@ def test_internal_duplicate_remaps_integration_and_preserves_action_inputs(
     data_fixture, action_with_connection
 ):
     user, agent, action = action_with_connection
+    # A duplicate keeps the author's choice, even to stop asking.
+    action.ask_first = False
+    action.save()
     conversation = data_fixture.create_agent_conversation(agent=agent, user=user)
     data_fixture.create_agent_tool_approval(
         conversation=conversation, tool_name=action.name
@@ -54,7 +57,7 @@ def test_internal_duplicate_remaps_integration_and_preserves_action_inputs(
         action.name,
         action.description,
         True,
-        True,
+        False,
     )
     assert clone.service.specific.subject == action.service.specific.subject
     assert clone.service.integration_id != action.service.integration_id
@@ -84,6 +87,9 @@ def test_external_copy_disabled_and_redacted_without_reseeding(
     action_with_connection, config
 ):
     _, agent, action = action_with_connection
+    # The author switched Ask first off: a copy from outside asks again.
+    action.ask_first = False
+    action.save()
     app_type = AgentApplicationType()
     serialized = app_type.export_serialized(agent, config)
     exported_action = serialized["actions"][0]

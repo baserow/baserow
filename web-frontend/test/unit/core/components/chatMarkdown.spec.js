@@ -38,6 +38,14 @@ describe('ChatMarkdown', () => {
     expect(table.attributes('href')).toBe('/database/1/table/2')
   })
 
+  test('a signed download link is left exactly as written', () => {
+    const signed =
+      'https://bucket.s3.amazonaws.com/f.pdf?X-Amz-Date=20261125T000000Z&flag&q=a%20b&X-Amz-Signature=abc'
+    const { link } = render(`[File](${signed})`, { agentLinks: true })
+    expect(link.attributes('href')).toBe(signed)
+    expect(link.attributes('rel')).toBe('noopener noreferrer')
+  })
+
   test('renders markdown without raw HTML or images', () => {
     const { wrapper } = render(
       '- **First**\n- ![leak](https://evil.test/?q=1)\n\n<img src="https://evil.test/?q=2" onerror="alert(1)">'

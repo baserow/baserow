@@ -61,6 +61,12 @@ else:
 # SECURITY WARNING: keep the secret key used in production secret!
 if "SECRET_KEY" in os.environ:
     SECRET_KEY = os.environ.get("SECRET_KEY")
+# Old values of SECRET_KEY, comma separated, still accepted while rotating it.
+SECRET_KEY_FALLBACKS = [
+    key.strip()
+    for key in (os.getenv("SECRET_KEY_FALLBACKS") or "").split(",")
+    if key.strip()
+]
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.getenv("BASEROW_BACKEND_DEBUG", "off") == "on"

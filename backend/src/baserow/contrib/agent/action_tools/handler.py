@@ -406,8 +406,9 @@ class AgentActionHandler:
         storage: Storage | None = None,
     ) -> list[AgentAction]:
         """
-        Copy actions into the Agent. Only a duplicate keeps them switched on: an
-        imported or template action would otherwise act without anyone asking.
+        Copy actions into the Agent. Only a duplicate keeps them switched on and
+        keeps their Ask first choice: an imported or template action would
+        otherwise act without anyone asking.
         The Agent's action limit doesn't apply, as its source had them already.
 
         :param agent: The Agent the actions are copied into.
@@ -440,11 +441,15 @@ class AgentActionHandler:
                 validate_action_name(values.get("name", service_values["type"])),
             )
             values["inputs"] = validate_inputs(values.get("inputs", []))
-            values["enabled"] = bool(
+            internal = (
                 import_export_config.is_duplicate
                 and not import_export_config.is_template
-                and values.get("enabled", False)
             )
+            values["enabled"] = bool(internal and values.get("enabled", False))
+            # A copy from outside asks first when it changes data, as a new
+            # action does, whatever its author chose.
+            if not internal and agent_action_type_registry.get(type_name).changes_data:
+                values["ask_first"] = True
             integration = (
                 None
                 if agent_action_type_registry.get(type_name).acts_as_run_identity

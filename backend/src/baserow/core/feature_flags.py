@@ -61,7 +61,11 @@ def feature_flag_is_enabled(
     if FF_ENABLE_ALL in settings.FEATURE_FLAGS:
         return True
     flag = feature_flag.lower()
-    is_enabled = flag in settings.FEATURE_FLAGS or flag in get_user_feature_flags(user)
+    instance_flags = set(settings.FEATURE_FLAGS)
+    # Agents run as identities, so turning the agent builder on turns both on.
+    if FF_AGENT_BUILDER in instance_flags:
+        instance_flags.add(FF_IDENTITIES)
+    is_enabled = flag in instance_flags or flag in get_user_feature_flags(user)
 
     if not is_enabled and raise_if_disabled:
         raise FeatureDisabledException(
