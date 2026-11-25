@@ -21,10 +21,19 @@ export default (client) => {
     authorize(slug, password) {
       return client.post(`/agent/public-chat/${slug}/auth/`, { password })
     },
-    startConversation(slug, content, token = null) {
+    /**
+     * Repeating a start with the same key and content answers like the first
+     * time, so a retry never starts a second conversation.
+     *
+     * @param {string} slug The slug of the public chat.
+     * @param {object} values `{ key, content }`; the key is a secret the page
+     *   generates, 32 to 128 lowercase hexadecimal digits or hyphens.
+     * @param {string|null} token The access token of a protected chat.
+     */
+    startConversation(slug, values, token = null) {
       return client.post(
         `/agent/public-chat/${slug}/conversations/`,
-        { content },
+        values,
         withToken(token)
       )
     },
@@ -34,10 +43,15 @@ export default (client) => {
         withToken(token)
       )
     },
-    sendMessage(slug, content, token) {
+    /**
+     * @param {string} slug The slug of the public chat.
+     * @param {object} values `{ uuid, content }`; a repeat answers like the first.
+     * @param {string} token The token of the visitor's conversation.
+     */
+    sendMessage(slug, values, token) {
       return client.post(
         `/agent/public-chat/${slug}/conversation/messages/`,
-        { content },
+        values,
         withToken(token)
       )
     },

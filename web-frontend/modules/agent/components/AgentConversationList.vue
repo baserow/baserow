@@ -36,7 +36,7 @@
       />
       <DropdownItem
         value="visitors"
-        :name="$t('agent.visitors')"
+        :name="$t('agent.channelsFilter')"
         icon="iconoir-multi-bubble"
       />
       <DropdownItem

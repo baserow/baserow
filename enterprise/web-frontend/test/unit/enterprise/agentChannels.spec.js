@@ -23,7 +23,13 @@ const publicChat = (values = {}) => ({
 })
 
 const failure = () =>
-  Object.assign(new Error(), { handler: { notifyIf: vi.fn() } })
+  Object.assign(new Error(), {
+    handler: {
+      notifyIf: vi.fn(),
+      getMessage: () => ({ title: 'Not saved', message: '' }),
+      handled: vi.fn(),
+    },
+  })
 
 describe('agent channels', () => {
   let app, agent
@@ -175,7 +181,11 @@ describe('agent channels', () => {
     )
   })
 
-  test('sets a password, and switching protection off sends an empty one', async () => {
+  test('a password shows as set only once saved, and a failed removal keeps it', async () => {
+    let answerSet
+    mocks.service.update
+      .mockReturnValueOnce(new Promise((resolve) => (answerSet = resolve)))
+      .mockRejectedValueOnce(failure())
     const wrapper = await mountSection()
     const protection = () =>
       wrapper.get('.agent-public-chat-card__password-switch')
@@ -186,17 +196,62 @@ describe('agent channels', () => {
     inModal('.agent-public-chat-password-modal__save').click()
     await flushPromises()
 
+    expect(
+      inModal('.agent-public-chat-password-modal__save').classList
+    ).toContain('button--loading')
+    expect(protection().classes()).not.toContain('switch--active')
+    answerSet({ data: publicChat({ has_password: true }) })
+    await flushPromises()
     expect(inModal('.agent-public-chat-password-modal')).toBe(null)
     expect(protection().classes()).toContain('switch--active')
+
     await protection().trigger('click')
     inModal('.agent-public-chat-disable-password-modal__disable').click()
     await flushPromises()
 
-    expect(protection().classes()).not.toContain('switch--active')
+    expect(
+      inModal('.agent-public-chat-disable-password-modal__disable')
+    ).not.toBe(null)
+    expect(document.body.textContent).toContain('Not saved')
+    expect(protection().classes()).toContain('switch--active')
     expect(mocks.service.update.mock.calls).toEqual([
       [8, 1, { password: 'long secret' }],
       [8, 1, { password: '' }],
     ])
+  })
+
+  test('a welcome text whose markdown is too long is kept and not saved', async () => {
+    const wrapper = await mountSection()
+    const editor = wrapper.findComponent(RichTextEditor)
+    editor.vm.editor.commands.setContent(
+      `<p><strong>${'a'.repeat(1999)}</strong></p>`
+    )
+    editor.vm.$emit('update:modelValue', {})
+    editor.vm.$emit('blur')
+    await flushPromises()
+
+    expect(mocks.service.update).not.toHaveBeenCalled()
+    expect(editor.vm.serializeToMarkdown()).toBe(`**${'a'.repeat(1999)}**`)
+    expect(wrapper.text()).toContain('agentChannels.welcomeTextTooLong')
+  })
+
+  test('without Advanced or Enterprise, a chat can only be switched off and deleted', async () => {
+    const wrapper = await mountSection({ licensed: false })
+    const enabled = () => wrapper.get('.agent-public-chat-card__switch')
+
+    expect(titleInput(wrapper).element.disabled).toBe(true)
+    expect(wrapper.findComponent(RichTextEditor).props('editable')).toBe(false)
+    expect(
+      wrapper.get('.agent-public-chat-card__password-switch').classes()
+    ).toContain('switch--disabled')
+    expect(wrapper.find('.agent-public-chat-card__delete').exists()).toBe(true)
+    await enabled().trigger('click')
+    await flushPromises()
+
+    expect(mocks.service.update.mock.calls).toEqual([
+      [8, 1, { enabled: false }],
+    ])
+    expect(enabled().classes()).toContain('switch--disabled')
   })
 
   test('sends two quick toggles one after the other and shows what the server last accepted', async () => {

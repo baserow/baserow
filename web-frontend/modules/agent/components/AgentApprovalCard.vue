@@ -177,7 +177,11 @@
         {{ $t(announcement.textKey) }}
       </span>
     </div>
-    <AgentRejectModal ref="rejectModal" @reject="reject" />
+    <AgentRejectModal
+      ref="rejectModal"
+      :started-by-channel="startedByChannel"
+      @reject="reject"
+    />
   </div>
 </template>
 
@@ -204,6 +208,8 @@ const props = defineProps({
   deciding: { type: Boolean, default: false },
   /** Short button labels, for lists of several cards. */
   compact: { type: Boolean, default: false },
+  /** A visitor started the conversation through a channel. */
+  startedByChannel: { type: Boolean, default: false },
 })
 const emit = defineEmits(['decide'])
 

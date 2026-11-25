@@ -33,12 +33,12 @@
         class="agent-public-chat-card__switch"
         small
         role="switch"
-        :tabindex="editable ? 0 : -1"
+        :tabindex="canSwitch ? 0 : -1"
         :aria-label="$t('agentChannels.publicChatEnabled')"
         :aria-checked="channel.enabled"
-        :aria-disabled="!editable"
+        :aria-disabled="!canSwitch"
         :model-value="channel.enabled"
-        :disabled="!editable"
+        :disabled="!canSwitch"
         @update:model-value="$emit('update', { enabled: $event })"
         @keydown.enter.prevent="toggleEnabled"
         @keydown.space.prevent="toggleEnabled"
@@ -77,11 +77,11 @@
           class="agent-public-chat-card__password-switch"
           small
           role="switch"
-          :tabindex="editable ? 0 : -1"
+          :tabindex="canEdit ? 0 : -1"
           :aria-checked="channel.has_password"
-          :aria-disabled="!editable"
+          :aria-disabled="!canEdit"
           :model-value="channel.has_password"
-          :disabled="!editable"
+          :disabled="!canEdit"
           @update:model-value="togglePassword"
           @keydown.enter.prevent="togglePassword"
           @keydown.space.prevent="togglePassword"
@@ -95,7 +95,7 @@
           }}</span>
         </SwitchInput>
         <a
-          v-if="editable && channel.has_password"
+          v-if="canEdit && channel.has_password"
           v-tooltip="$t('agentChannels.changePassword')"
           href="#"
           class="agent-public-chat-card__password-change"
@@ -107,11 +107,11 @@
         <AgentPublicChatPasswordModal
           ref="passwordModal"
           :change="channel.has_password"
-          @save="$emit('update', { password: $event })"
+          :save="savePassword"
         />
         <AgentPublicChatDisablePasswordModal
           ref="disablePasswordModal"
-          @disable="$emit('update', { password: '' })"
+          :disable="() => savePassword('')"
         />
       </div>
       <div class="agent-public-chat-card__section">
@@ -125,7 +125,7 @@
             class="agent-public-chat-card__title-input"
             :placeholder="agentName"
             :maxlength="TITLE_MAX_LENGTH"
-            :disabled="!editable"
+            :disabled="!canEdit"
             @blur="saveDraft('title', title)"
           />
         </FormGroup>
@@ -133,17 +133,23 @@
           class="agent-public-chat-card__field"
           :label="$t('agentChannels.welcomeText')"
           small-label
+          :error="welcomeTextTooLong"
         >
           <RichTextEditor
             ref="welcomeEditor"
             class="form-input field-rich-text agent-public-chat-card__welcome-text"
             :model-value="channel.welcome_text"
-            :editable="editable"
+            :editable="canEdit"
             :enable-rich-text-formatting="true"
             :allow-identity-suggestions="false"
             @update:model-value="welcomeTextChanged = true"
             @blur="saveWelcomeText"
           />
+          <template #error>{{
+            $t('agentChannels.welcomeTextTooLong', {
+              max: WELCOME_TEXT_MAX_LENGTH,
+            })
+          }}</template>
         </FormGroup>
       </div>
     </div>
@@ -178,6 +184,7 @@ import AgentPublicChatPasswordModal from '@baserow_enterprise/components/agent/A
 import AgentPublicChatDisablePasswordModal from '@baserow_enterprise/components/agent/AgentPublicChatDisablePasswordModal'
 
 const TITLE_MAX_LENGTH = 160
+const WELCOME_TEXT_MAX_LENGTH = 2000
 
 const props = defineProps({
   /** The public chat as the card shows it, edits included. */
@@ -186,6 +193,10 @@ const props = defineProps({
   agentName: { type: String, default: '' },
   /** Whether the user may change the public chat. */
   editable: Boolean,
+  /** Without the licence, only switching the chat off and deleting it remain. */
+  licensed: Boolean,
+  /** Saves a new password, or removes it with '', and rejects when that fails. */
+  savePassword: { type: Function, required: true },
   /** Whether the card shows its settings below its header. */
   expanded: Boolean,
   /** Whether a save of the public chat is in flight. */
@@ -198,6 +209,10 @@ const copied = ref(null)
 const passwordModal = ref(null)
 const disablePasswordModal = ref(null)
 
+const canEdit = computed(() => props.editable && props.licensed)
+const canSwitch = computed(
+  () => canEdit.value || (props.editable && props.channel.enabled)
+)
 const shownName = computed(
   () => props.channel.title || t('agentChannels.publicChat')
 )
@@ -227,18 +242,23 @@ function draftOf(field) {
 
 const title = draftOf('title')
 const welcomeEditor = ref(null)
+const welcomeTextTooLong = ref(false)
 let welcomeTextChanged = false
 
 function saveDraft(field, value) {
-  if (props.editable && value !== props.channel[field]) {
+  if (canEdit.value && value !== props.channel[field]) {
     emit('update', { [field]: value })
   }
 }
 
 function saveWelcomeText() {
   if (!welcomeTextChanged) return
+  const markdown = welcomeEditor.value.serializeToMarkdown()
+  // Counted in code points, as the server counts them.
+  welcomeTextTooLong.value = [...markdown].length > WELCOME_TEXT_MAX_LENGTH
+  if (welcomeTextTooLong.value) return
   welcomeTextChanged = false
-  saveDraft('welcome_text', welcomeEditor.value.serializeToMarkdown())
+  saveDraft('welcome_text', markdown)
 }
 
 function copyLink() {
@@ -247,12 +267,12 @@ function copyLink() {
 }
 
 function toggleEnabled() {
-  if (props.editable) emit('update', { enabled: !props.channel.enabled })
+  if (canSwitch.value) emit('update', { enabled: !props.channel.enabled })
 }
 
 /** The switch never changes the password itself; the modals do once confirmed. */
 function togglePassword() {
-  if (!props.editable) return
+  if (!canEdit.value) return
   const modal = props.channel.has_password
     ? disablePasswordModal
     : passwordModal

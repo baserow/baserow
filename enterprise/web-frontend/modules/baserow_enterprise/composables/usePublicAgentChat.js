@@ -9,11 +9,13 @@ import {
   foldRunEvent,
   initialRunView,
 } from '@baserow/modules/core/chatRuns/fold'
+import { generateUUID, uuid } from '@baserow/modules/core/utils/string'
 import { API_ERROR_CODE, MESSAGE_ROLE } from '@baserow/modules/agent/constants'
 import { AGENT_REPLY_STATUS } from '@baserow/modules/agent/utils/replies'
 import PublicAgentChatService from '@baserow_enterprise/services/publicAgentChat'
 
 const STREAM_RETRY_MS = 2000
+const MAX_RETRY_MS = 30000
 const WAITING_SYNC_MS = 5000
 const REFUSED_STATUSES = [401, 404]
 const SYNC_ERRORS = [
@@ -29,6 +31,12 @@ const UNFINISHED_STATUSES = [
 const isRefused = (error) => REFUSED_STATUSES.includes(error.response?.status)
 const isChannelGone = (error) =>
   error.response?.data?.error === API_ERROR_CODE.AGENT_CHANNEL_DOES_NOT_EXIST
+const mergeById = (messages, accepted) => [
+  ...messages,
+  ...accepted.filter(
+    ({ id }) => !messages.some((message) => message.id === id)
+  ),
+]
 
 /**
  * A visitor's conversation in a public chat: its tokens, its messages and the
@@ -51,12 +59,17 @@ export function usePublicAgentChat(slug, initialInfo) {
   const sending = ref(false)
   const sendError = ref(false)
   const unavailable = ref(false)
+  const restoreFailed = ref(false)
 
   let cursor = null
   let streamController = null
   let idleTimer = null
   let syncTimer = null
   let acceptedSends = 0
+  let historyLoaded = false
+  let failedSyncs = 0
+  // Resending the content of a send whose answer was lost must not run it twice.
+  let pendingSend = null
   let unmounted = false
 
   const token = () => tokens.conversationToken || tokens.accessToken
@@ -174,6 +187,7 @@ export function usePublicAgentChat(slug, initialInfo) {
     clearTimeout(syncTimer)
     runId.value = null
     savedMessages.value = []
+    restoreFailed.value = false
     setTokens({ conversationToken: null })
   }
 
@@ -183,8 +197,14 @@ export function usePublicAgentChat(slug, initialInfo) {
     const sendsBefore = acceptedSends
     try {
       const { data } = await service.getConversation(slug, conversationToken)
-      if (tokens.conversationToken !== conversationToken) return
-      if (acceptedSends !== sendsBefore || unavailable.value) return
+      if (tokens.conversationToken !== conversationToken || unavailable.value) {
+        return
+      }
+      // The send accepted meanwhile added only its own messages.
+      if (acceptedSends !== sendsBefore) return await sync()
+      historyLoaded = true
+      restoreFailed.value = false
+      failedSyncs = 0
       savedMessages.value = data.messages
       follow(data.run_id)
       keepSyncing(WAITING_SYNC_MS)
@@ -193,9 +213,18 @@ export function usePublicAgentChat(slug, initialInfo) {
       if (isChannelGone(error)) {
         markUnavailable()
       } else if (isRefused(error)) {
-        forgetConversation()
+        await handleRefusal(error)
       } else {
-        keepSyncing(STREAM_RETRY_MS)
+        const delay = Math.min(
+          STREAM_RETRY_MS * 2 ** failedSyncs++,
+          MAX_RETRY_MS
+        )
+        if (historyLoaded) {
+          keepSyncing(delay)
+        } else {
+          restoreFailed.value = true
+          scheduleSync(delay)
+        }
       }
     }
   }
@@ -208,6 +237,31 @@ export function usePublicAgentChat(slug, initialInfo) {
       if (!isChannelGone(error)) throw error
       markUnavailable()
     }
+  }
+
+  async function reloadInfo() {
+    try {
+      await refreshInfo()
+      // A protected chat hides its title from a token it doesn't accept.
+      if (
+        !unavailable.value &&
+        info.value.password_protected &&
+        !info.value.title
+      ) {
+        setTokens({ accessToken: null })
+      }
+    } catch {}
+  }
+
+  /** The chat may have a password since, which the reloaded info tells. */
+  async function handleRefusal(error) {
+    pendingSend = null
+    if (tokens.conversationToken) {
+      forgetConversation()
+    } else if (error.response.status === 401) {
+      setTokens({ accessToken: null })
+    }
+    await reloadInfo()
   }
 
   async function authorize(password) {
@@ -227,20 +281,26 @@ export function usePublicAgentChat(slug, initialInfo) {
     await refreshInfo()
   }
 
-  async function postMessage(content) {
+  async function postMessage({ content, key, messageUuid }) {
     if (tokens.conversationToken) {
-      return await service.sendMessage(slug, content, tokens.conversationToken)
+      return await service.sendMessage(
+        slug,
+        { uuid: messageUuid, content },
+        tokens.conversationToken
+      )
     }
     const response = await service.startConversation(
       slug,
-      content,
+      { key, content },
       tokens.accessToken
     )
+    historyLoaded = true
+    restoreFailed.value = false
     setTokens({ conversationToken: response.data.token })
     return response
   }
 
-  function handleSendError(error) {
+  async function handleSendError(error) {
     const code = error.response?.data?.error
     if (code === API_ERROR_CODE.AGENT_CHANNEL_DOES_NOT_EXIST) {
       markUnavailable()
@@ -251,12 +311,7 @@ export function usePublicAgentChat(slug, initialInfo) {
       return
     }
     sendError.value = true
-    if (!isRefused(error)) return
-    if (tokens.conversationToken) {
-      forgetConversation()
-    } else if (error.response.status === 401) {
-      setTokens({ accessToken: null })
-    }
+    if (isRefused(error)) await handleRefusal(error)
   }
 
   /**
@@ -266,14 +321,19 @@ export function usePublicAgentChat(slug, initialInfo) {
   async function send(content) {
     sending.value = true
     sendError.value = false
+    if (pendingSend?.content !== content) {
+      // The key is the visitor's secret, so it comes from the crypto generator.
+      pendingSend = { content, key: generateUUID(), messageUuid: uuid() }
+    }
     try {
-      const { data } = await postMessage(content)
+      const { data } = await postMessage(pendingSend)
+      pendingSend = null
       acceptedSends += 1
-      savedMessages.value = [...savedMessages.value, ...data.messages]
+      savedMessages.value = mergeById(savedMessages.value, data.messages)
       follow(data.run_id)
       return true
     } catch (error) {
-      handleSendError(error)
+      await handleSendError(error)
       return false
     } finally {
       sending.value = false
@@ -290,20 +350,13 @@ export function usePublicAgentChat(slug, initialInfo) {
 
   function reset() {
     forgetConversation()
+    pendingSend = null
     sendError.value = false
   }
 
   onMounted(async () => {
     readTokens()
-    if (info.value.password_protected && token()) {
-      try {
-        await refreshInfo()
-        // A protected chat hides its title from a token it doesn't accept.
-        if (!unavailable.value && !info.value.title) {
-          setTokens({ accessToken: null })
-        }
-      } catch {}
-    }
+    if (info.value.password_protected && token()) await reloadInfo()
     if (tokens.conversationToken) await sync()
   })
 
@@ -323,6 +376,7 @@ export function usePublicAgentChat(slug, initialInfo) {
     sending,
     sendError,
     unavailable,
+    restoreFailed,
     authorize,
     send,
     stop,

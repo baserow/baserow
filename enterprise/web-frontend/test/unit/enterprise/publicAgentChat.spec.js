@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 import { defineComponent } from 'vue'
 
 import { usePublicAgentChat } from '@baserow_enterprise/composables/usePublicAgentChat'
+import PublicAgentChatPage from '@baserow_enterprise/pages/publicAgentChat'
 
 const mocks = vi.hoisted(() => ({ service: {} }))
 
@@ -138,6 +139,130 @@ describe('usePublicAgentChat', () => {
     })
     expect(contents(chat)).toEqual(['Hello', 'Hi there!'])
     expect(chat.replying.value).toBe(false)
+  })
+
+  test('a send whose request failed is sent again with the same ids, and a new message gets new ones', async () => {
+    mocks.service.startConversation.mockRejectedValueOnce(
+      new Error('Network error occurred')
+    )
+    mocks.service.sendMessage.mockResolvedValue({
+      data: { messages: [], run_id: null },
+    })
+    const { chat } = await mountChat()
+
+    expect(await chat.send('Hello')).toBe(false)
+    expect(await chat.send('Hello')).toBe(true)
+    await chat.send('Hello')
+
+    const [[, first], [, retry]] = mocks.service.startConversation.mock.calls
+    expect(first).toEqual({
+      key: expect.stringMatching(/^[0-9a-f-]{32,128}$/),
+      content: 'Hello',
+    })
+    expect(retry).toEqual(first)
+    const [[, next]] = mocks.service.sendMessage.mock.calls
+    expect(next).toEqual({ uuid: expect.any(String), content: 'Hello' })
+    expect(next.uuid).not.toBe(first.key)
+  })
+
+  test('an accepted send a history reload already shows is not shown twice', async () => {
+    localStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify({ conversationToken: 'conversation' })
+    )
+    const again = { id: 'm3', role: 'visitor', content: 'Again', status: null }
+    const answer = { ...reply('completed', 'Sure'), id: 'm4' }
+    const earlier = [visitor, reply('completed', 'Hi!')]
+    mocks.service.getConversation
+      .mockResolvedValueOnce({ data: { messages: earlier, run_id: null } })
+      .mockResolvedValue({
+        data: { messages: [...earlier, again, answer], run_id: null },
+      })
+    let accept
+    mocks.service.sendMessage.mockReturnValue(
+      new Promise((resolve) => (accept = resolve))
+    )
+    const { chat } = await mountChat()
+
+    const sent = chat.send('Again')
+    await chat.sync()
+    accept({ data: { messages: [again, answer], run_id: null } })
+    await sent
+
+    expect(contents(chat)).toEqual(['Hello', 'Hi!', 'Again', 'Sure'])
+  })
+
+  test('a conversation refused because the chat got a password asks for it', async () => {
+    const { chat } = await mountChat()
+    await chat.send('Hello')
+    mocks.service.sendMessage.mockRejectedValueOnce(refused(401))
+    mocks.service.getInfo.mockResolvedValueOnce({ data: PROTECTED })
+
+    expect(await chat.send('Again')).toBe(false)
+
+    expect(mocks.service.getInfo).toHaveBeenCalledWith(SLUG, null)
+    expect(chat.needsPassword.value).toBe(true)
+    expect(storedTokens().conversationToken).toBeFalsy()
+  })
+
+  test('a stored conversation whose first load fails says so until it loads', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
+    localStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify({ conversationToken: 'conversation' })
+    )
+    mocks.service.getConversation
+      .mockRejectedValueOnce(refused(502))
+      .mockResolvedValue({
+        data: { messages: [visitor, reply('completed', 'Hi!')], run_id: null },
+      })
+    const { chat } = await mountChat()
+    expect(chat.messages.value).toEqual([])
+    expect(chat.restoreFailed.value).toBe(true)
+
+    await vi.advanceTimersByTimeAsync(2000)
+
+    expect(contents(chat)).toEqual(['Hello', 'Hi!'])
+    expect(chat.restoreFailed.value).toBe(false)
+  })
+
+  test('the page shows a failing first load above a composer that stays usable', async () => {
+    localStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify({ conversationToken: 'conversation' })
+    )
+    mocks.service.getConversation.mockRejectedValue(refused(502))
+    const wrapper = await mountSuspended(PublicAgentChatPage, {
+      route: `/public/agent-chat/${SLUG}`,
+    })
+    await flushPromises()
+
+    expect(wrapper.find('.public-agent-chat__restore-failed').text()).toBe(
+      'publicAgentChat.restoreFailed'
+    )
+    expect(
+      wrapper.find('.public-agent-chat__composer textarea').attributes()
+    ).not.toHaveProperty('disabled')
+    wrapper.unmount()
+  })
+
+  test('the page shows a stopped reply without text as stopped', async () => {
+    localStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify({ conversationToken: 'conversation' })
+    )
+    mocks.service.getConversation.mockResolvedValue({
+      data: { messages: [visitor, reply('cancelled')], run_id: null },
+    })
+    const wrapper = await mountSuspended(PublicAgentChatPage, {
+      route: `/public/agent-chat/${SLUG}`,
+    })
+    await flushPromises()
+
+    expect(
+      wrapper.findAll('.chat-message__bubble').map((bubble) => bubble.text())
+    ).toEqual(['Hello', 'publicAgentChat.stopped'])
+    wrapper.unmount()
   })
 
   test('a stored conversation is restored and followed; a refused one is forgotten', async () => {

@@ -929,7 +929,7 @@ describe('Agent conversations', () => {
     ['agent.private', { shared: false }, ['Mine']],
     ['agent.shared', { shared: true }, ['Team', 'Ticket']],
     ['agent.triggered', { started_by_trigger: true }, ['Ticket']],
-    ['agent.visitors', { started_by_channel: true }, ['Team']],
+    ['agent.channelsFilter', { started_by_channel: true }, ['Team']],
     ['agent.failed', { last_reply_failed: true }, ['Ticket']],
   ])(
     'filters %s conversations on the server',

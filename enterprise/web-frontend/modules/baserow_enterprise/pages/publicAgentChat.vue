@@ -67,7 +67,11 @@
           <ChatMessage v-if="message.role !== MESSAGE_ROLE.ASSISTANT" own>
             <div class="chat-message__bubble">{{ message.content }}</div>
           </ChatMessage>
-          <ChatMessage v-else-if="showsReply(message) || isFailed(message)">
+          <ChatMessage
+            v-else-if="
+              showsReply(message) || isFailed(message) || isStopped(message)
+            "
+          >
             <div
               v-if="showsReply(message)"
               class="chat-message__bubble"
@@ -83,9 +87,19 @@
             >
               {{ $t('publicAgentChat.failed') }}
             </div>
+            <div v-if="isStopped(message)" class="chat-message__bubble">
+              {{ $t('publicAgentChat.stopped') }}
+            </div>
           </ChatMessage>
         </template>
       </div>
+      <p
+        v-if="restoreFailed && !unavailable"
+        class="public-agent-chat__restore-failed"
+        role="status"
+      >
+        {{ $t('publicAgentChat.restoreFailed') }}
+      </p>
       <p v-if="unavailable" class="public-agent-chat__unavailable">
         {{ $t('publicAgentChat.unavailable') }}
       </p>
@@ -188,6 +202,7 @@ const {
   sending,
   sendError,
   unavailable,
+  restoreFailed,
   authorize,
   send,
   stop,
@@ -209,6 +224,8 @@ const isRunning = (message) =>
     message.status
   )
 const isFailed = (message) => message.status === AGENT_REPLY_STATUS.FAILED
+const isStopped = (message) =>
+  message.status === AGENT_REPLY_STATUS.CANCELLED && !message.content
 const showsReply = (message) => Boolean(message.content) || isRunning(message)
 
 async function submitPassword() {

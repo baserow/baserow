@@ -35,6 +35,7 @@
         :disabled="!canDecide"
         :can-always-allow="canAlwaysAllow"
         :deciding="deciding"
+        :started-by-channel="startedByChannel"
         @decide="(decisions, options) => $emit('decide', decisions, options)"
       />
       <ChatStepGroup
@@ -136,6 +137,8 @@ const props = defineProps({
   triggerName: { type: String, default: null },
   /** Whether the message is part of an example, sent by nobody of this instance. */
   example: { type: Boolean, default: false },
+  /** Whether a visitor started the conversation through a channel. */
+  startedByChannel: { type: Boolean, default: false },
 })
 defineEmits(['decide'])
 

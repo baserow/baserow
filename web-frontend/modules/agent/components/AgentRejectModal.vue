@@ -22,8 +22,18 @@
       <p :id="descriptionId" class="agent-reject-modal__description">
         {{
           stepTitles.length > 1
-            ? $t('agent.rejectStepsDescription', { count: stepTitles.length })
-            : $t('agent.rejectStepDescription', { step: stepTitles[0] })
+            ? $t(
+                startedByChannel
+                  ? 'agent.rejectStepsVisitorDescription'
+                  : 'agent.rejectStepsDescription',
+                { count: stepTitles.length }
+              )
+            : $t(
+                startedByChannel
+                  ? 'agent.rejectStepVisitorDescription'
+                  : 'agent.rejectStepDescription',
+                { step: stepTitles[0] }
+              )
         }}
       </p>
       <FormTextarea
@@ -55,6 +65,10 @@
 import { nextTick, ref, useId } from 'vue'
 
 /** Confirms held steps won't run, with an optional reason for the agent. */
+defineProps({
+  /** A visitor started the conversation, so the agent may pass the reason on. */
+  startedByChannel: { type: Boolean, default: false },
+})
 const emit = defineEmits(['reject'])
 
 const modal = ref(null)

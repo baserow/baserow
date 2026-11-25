@@ -7,15 +7,9 @@ import AgentChannelService from '@baserow_enterprise/services/agentChannels'
 export const PUBLIC_CHAT_CHANNEL_TYPE = 'public_chat'
 
 /**
- * @param {object} values The values sent to the server.
- * @returns {object} The values the channel shows; a password only as whether one is set.
- */
-const shownValuesOf = ({ password, ...values }) =>
-  password === undefined ? values : { ...values, has_password: password !== '' }
-
-/**
  * The channels of one Agent. Changes show at once, and a failed save puts the
- * saved values back where the channel still shows what was sent.
+ * saved values back where the channel still shows what was sent. A password
+ * shows only once saved.
  *
  * @param {import('vue').Ref<object>} agent The Agent whose channels are listed.
  * @param {object} options
@@ -79,20 +73,37 @@ export function useAgentChannels(agent, { load = true } = {}) {
   }
 
   /**
-   * Sends the values after the channel's previous save, so two never race.
+   * Runs the save after the channel's previous one, so two never race.
    *
+   * @param {object} channel The channel the save changes.
+   * @param {Function} send Sends the change.
+   * @returns {Promise} Settles as `send` does.
+   */
+  async function queueSave(channel, send) {
+    savingIds.add(channel.id)
+    const save = (savesInFlight.get(channel.id) || Promise.resolve()).then(send)
+    const settled = save.catch(() => {})
+    savesInFlight.set(channel.id, settled)
+    try {
+      return await save
+    } finally {
+      if (savesInFlight.get(channel.id) === settled) {
+        savesInFlight.delete(channel.id)
+        savingIds.delete(channel.id)
+      }
+    }
+  }
+
+  /**
    * @param {object} channel The channel as its card shows it.
-   * @param {object} values Any of `enabled`, `title`, `welcome_text` and
-   *   `password`, where '' removes the password.
+   * @param {object} values Any of `enabled`, `title` and `welcome_text`.
    */
   async function updateChannel(channel, values) {
     const agentId = agent.value.id
-    const shown = shownValuesOf(values)
     const stillShown = () =>
-      Object.keys(shown).filter((field) => channel[field] === shown[field])
-    Object.assign(channel, shown)
-    savingIds.add(channel.id)
-    const send = async () => {
+      Object.keys(values).filter((field) => channel[field] === values[field])
+    Object.assign(channel, values)
+    await queueSave(channel, async () => {
       try {
         const { data } = await service.update(agentId, channel.id, values)
         for (const field of stillShown()) channel[field] = data[field]
@@ -104,14 +115,24 @@ export function useAgentChannels(agent, { load = true } = {}) {
         }
         notifyIf(error, 'channel')
       }
-    }
-    const save = (savesInFlight.get(channel.id) || Promise.resolve()).then(send)
-    savesInFlight.set(channel.id, save)
-    await save
-    if (savesInFlight.get(channel.id) === save) {
-      savesInFlight.delete(channel.id)
-      savingIds.delete(channel.id)
-    }
+    })
+  }
+
+  /**
+   * Waits for the server, because a link that looks protected before it is
+   * could be shared on that belief.
+   *
+   * @param {object} channel The channel as its card shows it.
+   * @param {string} password The new password, or '' to remove it.
+   * @throws The request's error, for the caller to show.
+   */
+  async function savePassword(channel, password) {
+    const agentId = agent.value.id
+    await queueSave(channel, async () => {
+      const { data } = await service.update(agentId, channel.id, { password })
+      channel.has_password = data.has_password
+      if (saved.has(channel.id)) track(data)
+    })
   }
 
   /** Hides the channel at once and trashes it; it comes back if that fails. */
@@ -155,6 +176,7 @@ export function useAgentChannels(agent, { load = true } = {}) {
     retryLoad: fetchChannels,
     createChannel,
     updateChannel,
+    savePassword,
     deleteChannel,
   }
 }

@@ -48,7 +48,9 @@
         :agent-name="agent?.name || ''"
         :expanded="expandedIds.has(channel.id)"
         :editable="editable"
+        :licensed="licensed"
         :saving="savingIds.has(channel.id)"
+        :save-password="(password) => savePassword(channel, password)"
         @toggle="toggle(channel.id)"
         @update="updateChannel(channel, $event)"
         @delete="deleteChannel(channel)"
@@ -96,6 +98,7 @@ const {
   retryLoad,
   createChannel,
   updateChannel,
+  savePassword,
   deleteChannel,
 } = useAgentChannels(agent, { load: !templatePreview })
 const { expandedIds, allExpanded, toggle, toggleAll, list, creating, addItem } =

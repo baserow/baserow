@@ -154,6 +154,9 @@
                 :trigger-type="state.selectedConversation?.trigger_type"
                 :trigger-name="state.selectedConversation?.trigger_name"
                 :example="state.selectedConversation?.is_example"
+                :started-by-channel="
+                  state.selectedConversation?.started_by_channel
+                "
                 :can-approve="state.canApprove"
                 :can-decide="state.canDecide"
                 :can-always-allow="state.canUpdateConfiguration"

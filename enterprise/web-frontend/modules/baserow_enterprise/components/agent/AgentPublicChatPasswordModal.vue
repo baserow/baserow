@@ -10,7 +10,8 @@
           )
         }}
       </h2>
-      <form class="agent-public-chat-password-modal" @submit.prevent="save">
+      <Error :error="error" />
+      <form class="agent-public-chat-password-modal" @submit.prevent="submit">
         <p class="box__description">
           {{
             $t(
@@ -33,6 +34,7 @@
             type="secondary"
             size="large"
             button-type="button"
+            :disabled="loading"
             @click="modal.hide()"
           >
             {{ $t('action.cancel') }}
@@ -42,7 +44,8 @@
             size="large"
             button-type="submit"
             class="agent-public-chat-password-modal__save"
-            :disabled="v$.$invalid"
+            :loading="loading"
+            :disabled="loading || v$.$invalid"
           >
             {{
               $t(
@@ -64,13 +67,16 @@ import { useVuelidate } from '@vuelidate/core'
 import { passwordValidation } from '@baserow/modules/core/validators'
 import PasswordInput from '@baserow/modules/core/components/helpers/PasswordInput'
 
-/** Asks for the password of a public chat, which is forgotten once emitted. */
-defineProps({
+/** Asks for the password of a public chat and stays open until it is saved. */
+const props = defineProps({
   /** Whether the public chat already has a password, which this changes. */
   change: Boolean,
+  /** Saves the password, and rejects when that fails. */
+  save: { type: Function, required: true },
 })
-const emit = defineEmits(['save'])
 const modal = ref(null)
+const loading = ref(false)
+const error = reactive({ visible: false, title: '', message: '' })
 const values = reactive({ password: '' })
 const v$ = useVuelidate({ password: passwordValidation }, values, {
   $lazy: true,
@@ -79,18 +85,31 @@ const v$ = useVuelidate({ password: passwordValidation }, values, {
 function show() {
   values.password = ''
   v$.value.$reset()
+  error.visible = false
   modal.value.show()
   nextTick(() =>
     modal.value.getTeleportedElement()?.querySelector('input')?.focus()
   )
 }
 
-function save() {
+async function submit() {
   v$.value.$touch()
   if (v$.value.$invalid) return
-  emit('save', values.password)
-  values.password = ''
-  modal.value.hide()
+  error.visible = false
+  loading.value = true
+  try {
+    await props.save(values.password)
+    values.password = ''
+    modal.value.hide()
+  } catch (caught) {
+    if (!caught.handler) throw caught
+    Object.assign(error, caught.handler.getMessage('channel'), {
+      visible: true,
+    })
+    caught.handler.handled()
+  } finally {
+    loading.value = false
+  }
 }
 
 defineExpose({ show })

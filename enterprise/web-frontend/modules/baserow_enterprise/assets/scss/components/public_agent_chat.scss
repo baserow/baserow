@@ -11,6 +11,7 @@ $public-agent-chat-gutter: 16px;
 .public-agent-chat__header,
 .public-agent-chat__composer,
 .public-agent-chat__unavailable,
+.public-agent-chat__restore-failed,
 .public-agent-chat__password {
   width: 100%;
   max-width: $public-agent-chat-width + 2 * $public-agent-chat-gutter;
@@ -65,7 +66,8 @@ $public-agent-chat-gutter: 16px;
   padding-bottom: $public-agent-chat-gutter;
 }
 
-.public-agent-chat__unavailable {
+.public-agent-chat__unavailable,
+.public-agent-chat__restore-failed {
   flex-shrink: 0;
   padding-top: $public-agent-chat-gutter;
   padding-bottom: $public-agent-chat-gutter;
