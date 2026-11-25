@@ -141,27 +141,43 @@ describe('HTML element', () => {
     )
   })
 
-  test('keeps scripts and handlers off in Preview on the editor hostname', async () => {
+  // innerHTML leaves a script inert; running one means creating a fresh copy.
+  async function mountCountingScripts(...args) {
+    const createElement = vi.spyOn(document, 'createElement')
+    const wrapper = await mountElement(...args)
+    const created = createElement.mock.results.filter(
+      ({ value }) => value?.tagName === 'SCRIPT'
+    ).length
+    createElement.mockRestore()
+    return { wrapper, created }
+  }
+
+  test('shows HTML but keeps scripts inert in Preview on the editor hostname', async () => {
     setPreviewUrl('https://editor.example.com:3001')
     const html =
-      '<button id="anchor" onclick="steal()">Go</button><script>steal()</script>'
-    const wrapper = await mountElement('preview', 'preview', html)
-    const frame = wrapper.get('iframe')
-    expect(frame.attributes('srcdoc')).toBe(html)
-    expect(frame.attributes('sandbox')).toBe('allow-same-origin')
-    expect(wrapper.find('#anchor').exists()).toBe(false)
-    expect(wrapper.find('script').exists()).toBe(false)
-    expect(
-      wrapper.find('[aria-label="htmlElement.scriptsNotInPreview"]').exists()
-    ).toBe(true)
+      '<div id="anchor" data-widget="map"></div><script>window.x = 1</script>'
+    const { wrapper, created } = await mountCountingScripts(
+      'preview',
+      'preview',
+      html
+    )
+    expect(wrapper.find('iframe').exists()).toBe(false)
+    expect(wrapper.get('#anchor').attributes('data-widget')).toBe('map')
+    expect(wrapper.get('script').text()).toBe('window.x = 1')
+    expect(created).toBe(0)
   })
 
   test('runs scripts on a published site on any hostname', async () => {
     setPreviewUrl(EDITOR_URL)
     const html = '<div id="anchor"></div><script>window.x = 1</script>'
-    const wrapper = await mountElement('public', 'public', html)
+    const { wrapper, created } = await mountCountingScripts(
+      'public',
+      'public',
+      html
+    )
     expect(wrapper.find('iframe').exists()).toBe(false)
     expect(wrapper.get('script').text()).toBe('window.x = 1')
+    expect(created).toBe(1)
   })
 
   test('waits for an explicit visitor context before inserting markup', async () => {

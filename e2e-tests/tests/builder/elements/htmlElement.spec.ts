@@ -126,9 +126,16 @@ for (const mode of ["preview", "published"]) {
       );
       await expect(anchor).toHaveAttribute("data-initialized", "1");
       await visitor.waitForLoadState("networkidle");
+      // Scripts in the HTML run, except in Preview on the editor's hostname,
+      // where they would share the editor's cookies.
+      const previewSharesEditorHostname =
+        new URL(baserowConfig.BUILDER_PREVIEW_URL).hostname ===
+        new URL(baserowConfig.PUBLIC_WEB_FRONTEND_URL).hostname;
       expect(
         await visitor.evaluate(() => Reflect.get(window, "htmlSourceScriptRan"))
-      ).toBeUndefined();
+      ).toBe(
+        mode === "preview" && previewSharesEditorHostname ? undefined : true
+      );
       await anchor.getByText("Widget status", { exact: true }).click();
       await expect(anchor.getByText("Clicked", { exact: true })).toBeVisible();
       const initial = await anchor.elementHandle();

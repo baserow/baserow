@@ -23,16 +23,7 @@
       />
     </template>
   </div>
-  <div v-else-if="showHTML && isolatePreview" class="html-element__editor">
-    <ClientOnly>
-      <HTMLElementPreview :html="resolvedHTML" />
-    </ClientOnly>
-    <ElementPreviewHint
-      class="html-element__hint"
-      :message="$t('htmlElement.scriptsNotInPreview')"
-    />
-  </div>
-  <div v-else-if="showHTML" v-html-content="resolvedHTML"></div>
+  <div v-else-if="showHTML" v-html-content:[scriptMode]="resolvedHTML"></div>
 </template>
 
 <script>
@@ -45,14 +36,16 @@ import { previewSharesEditorHostname } from '@baserow_enterprise/utils/builderHe
 
 const RUN = Symbol('htmlElementScriptRun')
 
-function insertHTML(host, { value, oldValue }) {
+function insertHTML(host, { value, oldValue, arg }) {
   if (value === oldValue) {
     return
   }
   host.innerHTML = value
   const run = Symbol('run')
   host[RUN] = run
-  runInsertedScripts(host, () => host[RUN] === run)
+  if (arg === 'run') {
+    runInsertedScripts(host, () => host[RUN] === run)
+  }
 }
 
 export default {
@@ -72,18 +65,19 @@ export default {
     },
     /**
      * Preview on the editor's hostname shares the editor's cookies, so the
-     * snippet stays in a script-disabled frame there, like head HTML does.
+     * snippet's scripts don't run there, like head HTML isn't added there.
      */
-    isolatePreview() {
-      return (
-        this.applicationContext.mode === 'preview' &&
+    scriptMode() {
+      return this.applicationContext.mode === 'preview' &&
         previewSharesEditorHostname(this.$config.public)
-      )
+        ? 'inert'
+        : 'run'
     },
   },
   directives: {
-    // Insert client-side and run the snippet's scripts, which `innerHTML`
-    // alone leaves inert. A newer render cancels a run still loading scripts.
+    // Insert client-side and, with the `run` argument, run the snippet's
+    // scripts, which `innerHTML` alone leaves inert. A newer render cancels a
+    // run still loading scripts.
     htmlContent: {
       mounted: insertHTML,
       updated: insertHTML,
