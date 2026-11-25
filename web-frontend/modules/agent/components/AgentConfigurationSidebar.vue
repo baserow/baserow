@@ -37,14 +37,24 @@
       aria-hidden="true"
     >
       <div
-        v-for="registeredSection in registeredSections"
-        :key="registeredSection.type"
-        class="agent-configuration__skeleton-row"
+        v-for="(group, index) in sectionGroups"
+        :key="group.type"
+        class="agent-configuration__group"
+        :class="{ 'agent-configuration__group--separated': index > 0 }"
       >
-        <SkeletonBlock width="16px" height="16px" />
-        <div class="agent-configuration__section-content">
-          <SkeletonBlock width="120px" />
-          <SkeletonBlock class="margin-top-1" width="180px" height="10px" />
+        <div class="agent-configuration__group-header">
+          <SkeletonBlock width="100px" />
+        </div>
+        <div
+          v-for="item in group.items"
+          :key="item.id"
+          class="agent-configuration__skeleton-row"
+        >
+          <SkeletonBlock width="16px" height="16px" />
+          <div class="agent-configuration__section-content">
+            <SkeletonBlock width="120px" />
+            <SkeletonBlock class="margin-top-1" width="180px" height="10px" />
+          </div>
         </div>
       </div>
     </div>
@@ -59,34 +69,52 @@
       </Alert>
     </div>
     <template v-else>
-      <MenuList
-        v-if="!selectedSection"
-        class="agent-configuration__sections"
-        :items="sectionItems"
-        @select="section = $event.id"
-      >
-        <template #item-meta="{ item }">
-          <Icon
-            v-if="item.error"
-            v-tooltip="item.error"
-            tooltip-position="bottom-left"
-            class="agent-configuration__section-status"
-            icon="iconoir-warning-circle"
-            type="error"
-            size="small"
-            role="img"
-            :aria-label="item.error"
-          />
-          <Icon
-            v-else
-            class="agent-configuration__section-status"
-            icon="iconoir-nav-arrow-right"
-            type="secondary"
-            size="small"
-            aria-hidden="true"
-          />
-        </template>
-      </MenuList>
+      <div v-if="!selectedSection" class="agent-configuration__sections">
+        <section
+          v-for="(group, index) in sectionGroups"
+          :key="group.type"
+          class="agent-configuration__group"
+          :class="{ 'agent-configuration__group--separated': index > 0 }"
+        >
+          <div class="agent-configuration__group-header">
+            <h3 class="agent-configuration__group-title">
+              {{ $t(group.name) }}
+            </h3>
+            <span
+              v-if="group.optional"
+              class="agent-configuration__group-optional"
+              >{{ $t('agent.optional') }}</span
+            >
+          </div>
+          <MenuList
+            class="agent-configuration__group-items"
+            :items="group.items"
+            @select="section = $event.id"
+          >
+            <template #item-meta="{ item }">
+              <Icon
+                v-if="item.error"
+                v-tooltip="item.error"
+                tooltip-position="bottom-left"
+                class="agent-configuration__section-status"
+                icon="iconoir-warning-circle"
+                type="error"
+                size="small"
+                role="img"
+                :aria-label="item.error"
+              />
+              <Icon
+                v-else
+                class="agent-configuration__section-status"
+                icon="iconoir-nav-arrow-right"
+                type="secondary"
+                size="small"
+                aria-hidden="true"
+              />
+            </template>
+          </MenuList>
+        </section>
+      </div>
       <ReadOnlyForm
         v-else
         :read-only="!editable"
@@ -131,6 +159,7 @@ import ReadOnlyForm from '@baserow/modules/core/components/ReadOnlyForm'
 import MenuList from '@baserow/modules/core/components/MenuList'
 import Icon from '@baserow/modules/core/components/Icon'
 import ButtonText from '@baserow/modules/core/components/ButtonText'
+import { CONFIGURATION_SECTION_GROUPS } from '@baserow/modules/agent/constants'
 
 const props = defineProps({
   name: { type: String, required: true },
@@ -156,14 +185,28 @@ const selectedSection = computed(() =>
     (registered) => registered.type === section.value
   )
 )
-const sectionItems = computed(() =>
-  registeredSections.value.map((registered) => ({
-    id: registered.type,
-    label: registered.name,
-    description: registered.description,
-    icon: registered.icon,
-    error: registered.getErrorMessage(props.errors, props.configuration),
-  }))
+
+// A section of an unknown group stays reachable in the last group.
+function getGroupType(registered) {
+  const known = CONFIGURATION_SECTION_GROUPS.some(
+    (group) => group.type === registered.group
+  )
+  return known ? registered.group : CONFIGURATION_SECTION_GROUPS.at(-1).type
+}
+
+const sectionGroups = computed(() =>
+  CONFIGURATION_SECTION_GROUPS.map((group) => ({
+    ...group,
+    items: registeredSections.value
+      .filter((registered) => getGroupType(registered) === group.type)
+      .map((registered) => ({
+        id: registered.type,
+        label: registered.name,
+        description: registered.description,
+        icon: registered.icon,
+        error: registered.getErrorMessage(props.errors, props.configuration),
+      })),
+  })).filter((group) => group.items.length)
 )
 
 // Lets a section send people to another one, like to set up workspace access.

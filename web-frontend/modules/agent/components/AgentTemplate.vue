@@ -42,7 +42,7 @@
           </ul>
         </section>
         <section class="agent-template__section">
-          <h2 class="agent-template__heading">{{ $t('agent.whenItRuns') }}</h2>
+          <h2 class="agent-template__heading">{{ $t('agent.triggers') }}</h2>
           <ul v-if="triggers.length" class="agent-template__list">
             <li v-for="trigger in triggers" :key="trigger.id">
               {{ triggerName(trigger) }}

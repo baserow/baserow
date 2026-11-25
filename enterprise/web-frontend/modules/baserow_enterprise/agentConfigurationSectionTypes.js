@@ -1,5 +1,6 @@
 import { markRaw } from 'vue'
 import { AgentConfigurationSectionType } from '@baserow/modules/agent/configurationSectionTypes'
+import { CONFIGURATION_SECTION_GROUP } from '@baserow/modules/agent/constants'
 import EnterpriseFeatures from '@baserow_enterprise/features'
 import AgentParticipationSettings from '@baserow_enterprise/components/agent/AgentParticipationSettings'
 
@@ -24,6 +25,10 @@ export class PermissionsAgentConfigurationSectionType extends AgentConfiguration
 
   get component() {
     return ParticipationSettings
+  }
+
+  get group() {
+    return CONFIGURATION_SECTION_GROUP.START
   }
 
   /**

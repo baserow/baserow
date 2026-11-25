@@ -145,5 +145,30 @@ export const RUN_AS_STATUS = Object.freeze({
   MISSING: 'missing',
 })
 
+export const CONFIGURATION_SECTION_GROUP = Object.freeze({
+  ESSENTIALS: 'essentials',
+  START: 'start',
+  CAPABILITIES: 'capabilities',
+})
+
+/** The groups of the configuration sidebar, in the order they are shown. */
+export const CONFIGURATION_SECTION_GROUPS = Object.freeze([
+  {
+    type: CONFIGURATION_SECTION_GROUP.ESSENTIALS,
+    name: 'agent.groupEssentials',
+    optional: false,
+  },
+  {
+    type: CONFIGURATION_SECTION_GROUP.START,
+    name: 'agent.groupStart',
+    optional: true,
+  },
+  {
+    type: CONFIGURATION_SECTION_GROUP.CAPABILITIES,
+    name: 'agent.groupCapabilities',
+    optional: true,
+  },
+])
+
 /** The configuration section where the Agent's workspace identity is set. */
 export const WORKSPACE_ACCESS_SECTION = 'workspace_access'

@@ -14,7 +14,7 @@ import { AgentPage } from "../../pages/agent/agentPage";
 
 // The section's copy, from web-frontend/modules/agent/locales/en.json.
 const COPY = {
-  section: "When it runs",
+  section: "Triggers",
   addTrigger: "Add trigger",
   enabled: "Trigger enabled",
   deleteTrigger: "Delete trigger",
