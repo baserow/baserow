@@ -19,6 +19,7 @@ export const ACTION_ERROR_LABELS = {
   required: 'agent.actionErrorRequired',
   invalid: 'agent.actionErrorInvalid',
   unavailable: 'agent.actionErrorUnavailable',
+  forbidden: 'agent.actionErrorForbidden',
   fixed_host: 'agent.actionErrorFixedHost',
   fixed_value: 'agent.actionErrorFixedValue',
 }

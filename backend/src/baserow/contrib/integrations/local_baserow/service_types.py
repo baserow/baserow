@@ -323,6 +323,7 @@ class LocalBaserowSubjectReadableTablesMixin:
         services: List[LocalBaserowTableService],
         subject: Optional[Subject],
         workspace: Workspace,
+        operations: Optional[Tuple[str, ...]] = None,
     ) -> Set[int]:
         """
         Like `can_subject_read`, for many services in one permission check.
@@ -330,6 +331,8 @@ class LocalBaserowSubjectReadableTablesMixin:
         :param services: The specific services, with their tables.
         :param subject: The subject the consumer acts as, or None for none.
         :param workspace: The workspace the consumer acts in.
+        :param operations: The operations the subject needs on a table instead of
+            the type's read operations, for a consumer that does more than read.
         :return: The ids of the services' tables the subject may read.
         """
 
@@ -343,7 +346,7 @@ class LocalBaserowSubjectReadableTablesMixin:
         checks_by_table_id = {
             table_id: [
                 PermissionCheck(subject, operation, table)
-                for operation in self.read_operations
+                for operation in operations or self.read_operations
             ]
             for table_id, table in tables.items()
             if table.database.workspace_id == workspace.id

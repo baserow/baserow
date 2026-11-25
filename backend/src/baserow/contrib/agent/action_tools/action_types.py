@@ -11,6 +11,13 @@ from requests import exceptions as request_exceptions
 
 from baserow.contrib.agent.constants import ACTION_MAX_RESULT_CHARACTERS
 from baserow.contrib.agent.models import AgentAction
+from baserow.contrib.database.rows.operations import (
+    DeleteDatabaseRowOperationType,
+    UpdateDatabaseRowOperationType,
+)
+from baserow.contrib.database.table.operations import (
+    CreateRowDatabaseTableOperationType,
+)
 from baserow.contrib.integrations.core.constants import BODY_TYPE, HTTP_METHOD
 from baserow.contrib.integrations.core.models import (
     CoreHTTPRequestService,
@@ -593,6 +600,12 @@ class LocalBaserowAgentActionType(AgentActionType):
     acts_as_run_identity = True
     filters_read_inputs = True
 
+    change_operations: tuple[str, ...] = ()
+    """
+    The operations the run identity needs on the table to make the change a call
+    makes, next to reading it. A type that only reads needs none.
+    """
+
     def get_preview_values(
         self, service: Service, resolved_values: dict[str, Any]
     ) -> dict[str, Any]:
@@ -653,7 +666,8 @@ class LocalBaserowAgentActionType(AgentActionType):
     ) -> dict[int, dict[str, str]]:
         """
         Check whether the identity can read the actions' tables in one permission
-        check, so that it doesn't cost a query per action.
+        check, and whether it can change them in another, so that neither costs a
+        query per action.
         """
 
         if not actions:
@@ -663,12 +677,27 @@ class LocalBaserowAgentActionType(AgentActionType):
             identity,
             actions[0].agent.workspace,
         )
-        return {
+        errors = {
             action.id: self._get_configuration_errors(
                 action, identity, readable_table_ids
             )
             for action in actions
         }
+        if self.change_operations and identity is not None:
+            changeable_table_ids = self.service_type.get_subject_readable_table_ids(
+                [action.service.specific for action in actions],
+                identity,
+                actions[0].agent.workspace,
+                self.change_operations,
+            )
+            for action in actions:
+                # A table the identity can't read is reported as that already.
+                if (
+                    "table_id" not in errors[action.id]
+                    and action.service.specific.table_id not in changeable_table_ids
+                ):
+                    errors[action.id]["table_id"] = "forbidden"
+        return errors
 
     def _get_configuration_errors(
         self,
@@ -703,6 +732,7 @@ class LocalBaserowAgentActionType(AgentActionType):
 class LocalBaserowCreateRowAgentActionType(LocalBaserowAgentActionType):
     type = "local_baserow_create_row"
     service_type_name = "local_baserow_upsert_row"
+    change_operations = (CreateRowDatabaseTableOperationType.type,)
 
     def get_defaults(self) -> AgentActionDefaults:
         return {
@@ -755,6 +785,7 @@ class LocalBaserowCreateRowAgentActionType(LocalBaserowAgentActionType):
 
 class LocalBaserowUpdateRowAgentActionType(LocalBaserowCreateRowAgentActionType):
     type = "local_baserow_update_row"
+    change_operations = (UpdateDatabaseRowOperationType.type,)
 
     def get_defaults(self) -> AgentActionDefaults:
         row_id, formula = bound_input(
@@ -783,6 +814,7 @@ class LocalBaserowUpdateRowAgentActionType(LocalBaserowCreateRowAgentActionType)
 
 class LocalBaserowDeleteRowAgentActionType(LocalBaserowAgentActionType):
     type = "local_baserow_delete_row"
+    change_operations = (DeleteDatabaseRowOperationType.type,)
 
     def get_defaults(self) -> AgentActionDefaults:
         row_id, formula = bound_input(
