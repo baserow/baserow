@@ -432,8 +432,8 @@ class Workspace(HierarchicalModelMixin, TrashableModelMixin, CreatedAndUpdatedOn
         """
 
         if include_trash:
-            return self.application_set_including_trash().exclude(
-                shared_application_filter()
+            return self.application_set_including_trash().filter(
+                sharedapplication__isnull=True
             )
         return self.application_set(manager="objects_without_shared").all()
 
@@ -712,26 +712,6 @@ class WorkspaceInvitationLink(
         ordering = ("id",)
 
 
-def shared_application_filter(prefix: str = "") -> Q:
-    """
-    Matches the shared applications by the natural key of their content type. It
-    joins the content type table instead of looking the content type up, so the
-    number of queries doesn't depend on Django's content type cache.
-
-    :param prefix: The path from the queried model to the application, ending with
-        `__`, when the query doesn't select applications.
-    :return: The filter matching the shared applications.
-    """
-
-    opts = SharedApplication._meta
-    return Q(
-        **{
-            f"{prefix}content_type__app_label": opts.app_label,
-            f"{prefix}content_type__model": opts.model_name,
-        }
-    )
-
-
 class ApplicationWithoutSharedManager(NoTrashManager):
     """
     Excludes trashed applications and the shared applications, which own the
@@ -740,7 +720,7 @@ class ApplicationWithoutSharedManager(NoTrashManager):
     """
 
     def get_queryset(self):
-        return super().get_queryset().exclude(shared_application_filter())
+        return super().get_queryset().filter(sharedapplication__isnull=True)
 
 
 class Application(

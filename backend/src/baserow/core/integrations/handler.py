@@ -25,7 +25,6 @@ from baserow.core.integrations.registries import (
 from baserow.core.models import (
     Application,
     SharedApplication,
-    shared_application_filter,
 )
 from baserow.core.registries import ImportExportConfig, application_type_registry
 from baserow.core.storage import ExportZipFile
@@ -410,7 +409,7 @@ class IntegrationHandler:
         usable = Q(application=application)
         if application.workspace_id is not None:
             usable |= Q(
-                shared_application_filter(prefix="application__"),
+                application__sharedapplication__isnull=False,
                 application__workspace_id=application.workspace_id,
             )
 
@@ -672,7 +671,7 @@ class IntegrationHandler:
 
         integrations = self.get_integrations(
             base_queryset=Integration.objects.filter(
-                shared_application_filter(prefix="application__"),
+                application__sharedapplication__isnull=False,
                 id__in=integration_ids,
                 application__workspace_id=application.workspace_id,
             )

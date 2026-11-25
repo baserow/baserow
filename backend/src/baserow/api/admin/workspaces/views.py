@@ -1,5 +1,5 @@
 from django.db import transaction
-from django.db.models import Count
+from django.db.models import Count, Q
 
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import OpenApiParameter, extend_schema
@@ -16,7 +16,7 @@ from baserow.core.admin.workspaces.exceptions import CannotDeleteATemplateGroupE
 from baserow.core.admin.workspaces.handler import WorkspacesAdminHandler
 from baserow.core.exceptions import WorkspaceDoesNotExist
 from baserow.core.handler import CoreHandler
-from baserow.core.models import Workspace, shared_application_filter
+from baserow.core.models import Workspace
 from baserow.core.usage.handler import UsageHandler
 
 from .errors import ERROR_CANNOT_DELETE_A_TEMPLATE_GROUP
@@ -47,7 +47,7 @@ class WorkspacesAdminView(AdminListingView):
             .annotate(
                 application_count=Count(
                     "application",
-                    filter=~shared_application_filter("application__"),
+                    filter=Q(application__sharedapplication__isnull=True),
                 ),
                 template_count=Count("template"),
                 **{
