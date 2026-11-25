@@ -362,26 +362,44 @@ def test_row_action_forms_choose_from_the_tables_the_identity_reads(
 @pytest.mark.django_db
 @pytest.mark.parametrize(
     "type_name",
-    ["local_baserow_create_row", "local_baserow_list_rows"],
+    [
+        "local_baserow_create_row",
+        "local_baserow_update_row",
+        "local_baserow_delete_row",
+        "local_baserow_get_row",
+        "local_baserow_list_rows",
+        "local_baserow_aggregate_rows",
+        "slack_write_message",
+    ],
 )
 def test_listing_more_actions_of_a_type_costs_no_more_queries(
     api_client, api_user, data_fixture, people, type_name
 ):
     agent, table, fields, rows = people
+    slack = data_fixture.create_slack_bot_integration(application=agent)
 
     def add():
         action = AgentActionService().create_action(api_user, agent.id, type_name)
-        service = action.service.specific
-        service_values = {"table_id": table.id}
-        if type_name == "local_baserow_create_row":
+        if type_name == "slack_write_message":
+            service_values = {"integration_id": slack.id, "channel": "general"}
+        else:
+            service_values = {"table_id": table.id}
+        if type_name in ("local_baserow_create_row", "local_baserow_update_row"):
             service_values["field_mappings"] = [
                 {"field_id": field.id, "value": "'x'", "enabled": True}
                 for field in fields
             ]
-        else:
+        if type_name in (
+            "local_baserow_get_row",
+            "local_baserow_list_rows",
+            "local_baserow_aggregate_rows",
+        ):
             data_fixture.create_local_baserow_table_service_filter(
-                service=service, field=fields[0], value="'Ada'"
+                service=action.service.specific, field=fields[0], value="'Ada'"
             )
+        if type_name == "local_baserow_aggregate_rows":
+            service_values["field_id"] = fields[0].id
+            service_values["aggregation_type"] = "not_empty_count"
         AgentActionService().update_action(
             api_user, agent.id, action.id, service_values=service_values
         )

@@ -122,6 +122,7 @@ from baserow.contrib.integrations.local_baserow.utils import (
 )
 from baserow.core.action.handler import is_replaying_action
 from baserow.core.cache import global_cache, local_cache
+from baserow.core.db import specific_queryset
 from baserow.core.formula.serializers import FormulaSerializerField
 from baserow.core.formula.types import BaserowFormulaObject
 from baserow.core.formula.validator import (
@@ -1813,7 +1814,17 @@ class LocalBaserowAggregateRowsUserServiceType(
         return (
             super()
             .enhance_queryset(queryset)
-            .prefetch_related("field__table__database")
+            .prefetch_related(
+                # The context data serializes the field in its specific form,
+                # which reads its constraints.
+                Prefetch(
+                    "field",
+                    queryset=specific_queryset(
+                        Field.objects_and_trash.prefetch_related("field_constraints")
+                    ),
+                ),
+                "field__table__database",
+            )
         )
 
     @property
