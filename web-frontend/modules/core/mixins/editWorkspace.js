@@ -35,6 +35,13 @@ export default {
       }
 
       this.setLoading(workspace, true)
+      // Show the new name right away, otherwise the old one is shown again
+      // between the end of editing and the response. The `Editable` follows the
+      // store, so reverting the store also reverts the name that is shown.
+      this.$store.dispatch('workspace/forceUpdate', {
+        workspace,
+        values: { name: event.value },
+      })
 
       try {
         await this.$store.dispatch('workspace/update', {
@@ -44,7 +51,10 @@ export default {
           },
         })
       } catch (error) {
-        this.$refs.rename.set(event.oldValue)
+        this.$store.dispatch('workspace/forceUpdate', {
+          workspace,
+          values: { name: event.oldValue },
+        })
         notifyIf(error, 'workspace')
       }
 

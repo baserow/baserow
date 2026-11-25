@@ -181,15 +181,6 @@ $sidebar-home-inset: calc(($sidebar-home-size - $sidebar-brand-height) / 2);
   min-width: 0;
 }
 
-.sidebar__workspace-plan {
-  display: flex;
-  flex: none;
-
-  &:empty {
-    display: none;
-  }
-}
-
 .sidebar__workspace-trigger-icon {
   flex: none;
   margin-left: auto;

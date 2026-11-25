@@ -2,6 +2,19 @@
   <div v-if="workspaceExists">
     <div class="dashboard__header" ph-autocapture="dashboard-header">
       <h1 class="dashboard__title">{{ $t('sidebar.overview') }}</h1>
+      <SkeletonBlock
+        v-if="loading && dashboardWorkspacePlanBadge.length > 0"
+        width="80px"
+        height="20px"
+      ></SkeletonBlock>
+      <component
+        :is="component"
+        v-for="(component, index) in dashboardWorkspacePlanBadge"
+        v-else
+        :key="index"
+        :workspace="selectedWorkspace"
+        :component-arguments="workspaceComponentArguments"
+      ></component>
       <div class="dashboard__header-right">
         <SkeletonBlock
           v-if="loading && dashboardWorkspaceRowUsageComponent.length > 0"
@@ -353,6 +366,12 @@ const dashboardHelpComponents = computed(() =>
         components.concat(plugin.getDashboardHelpComponents()),
       []
     )
+    .filter((c) => c !== null)
+)
+
+const dashboardWorkspacePlanBadge = computed(() =>
+  Object.values($registry.getAll('plugin'))
+    .map((p) => p.getDashboardWorkspacePlanBadge())
     .filter((c) => c !== null)
 )
 

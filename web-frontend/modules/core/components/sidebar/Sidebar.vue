@@ -71,18 +71,6 @@
             selectedWorkspace.name
           }}</span>
           <span
-            v-show="!collapsed && width >= 200"
-            v-if="workspacePlanBadges.length"
-            class="sidebar__workspace-plan"
-          >
-            <component
-              :is="badge"
-              v-for="(badge, index) in workspacePlanBadges"
-              :key="index"
-              :workspace="selectedWorkspace"
-            ></component>
-          </span>
-          <span
             v-show="!collapsed"
             v-if="unreadNotificationsInOtherWorkspaces"
             class="sidebar__unread-notifications-icon"
@@ -253,11 +241,6 @@ export default {
     },
     hasSelectedWorkspace() {
       return Object.prototype.hasOwnProperty.call(this.selectedWorkspace, 'id')
-    },
-    workspacePlanBadges() {
-      return Object.values(this.$registry.getAll('plugin'))
-        .map((plugin) => plugin.getSidebarWorkspacePlanBadge())
-        .filter((component) => component !== null)
     },
     ...mapGetters({
       name: 'auth/getName',
