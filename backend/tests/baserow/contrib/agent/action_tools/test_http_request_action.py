@@ -255,6 +255,15 @@ def test_a_malformed_or_long_address_is_refused_when_prepared(
         # The model picks the host of a request carrying a key.
         (f"concat('https://', {TRACE}, '/orders')", True, "evil.example", False),
         (TRACE, True, "https://evil.example", False),
+        # The same input, read with a bracket path.
+        (f"get('tool_input[{TRACE_ID}]')", True, "https://evil.example", False),
+        # Requests sends this to api.example.com.attacker.example.
+        (
+            f"concat('https://api.example.com', {TRACE})",
+            True,
+            ".attacker.example\\@api.example.com/orders",
+            False,
+        ),
         # Nothing hidden goes with it, so the model may choose the address.
         (TRACE, False, "https://evil.example", True),
     ],
@@ -283,7 +292,9 @@ def test_a_request_carrying_hidden_values_only_goes_to_the_builders_host(
         (f"concat('https://api.example.com/orders/', {TRACE})", True, {}),
         (f"concat('https://', {TRACE}, '/orders')", True, {"url": "fixed_host"}),
         (TRACE, True, {"url": "fixed_host"}),
+        (f"get('tool_input[{TRACE_ID}]')", True, {"url": "fixed_host"}),
         (TRACE, False, {}),
+        (f"get('tool_input[{TRACE_ID}]')", False, {}),
     ],
 )
 def test_the_builder_is_told_when_a_request_with_hidden_values_has_no_fixed_host(
@@ -564,3 +575,41 @@ def test_a_call_only_follows_redirects_that_stay_on_its_host(http_action):
         action_type.dispatch(action, resolved)
 
     assert send.call_args.kwargs["redirects_stay_on_host"] is True
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "url,trace,refused",
+    [
+        # The model picks the address: refused, whatever the instance allows.
+        (TRACE, "http://10.0.0.5/latest/meta-data", True),
+        # The builder fixed the private host, the model only picks the path.
+        (f"concat('http://10.0.0.5/', {TRACE})", "orders", False),
+    ],
+)
+def test_an_address_the_model_picks_never_reaches_a_private_address(
+    http_action, settings, url, trace, refused
+):
+    settings.INTEGRATIONS_ALLOW_PRIVATE_ADDRESS = True
+    action = update(http_action, url=formula(url), headers=[])
+    action_type = HTTPRequestAgentActionType()
+    resolved = action_type.prepare(action, {"body": "{}", "trace": trace})
+
+    with patch(SEND, return_value=answer({"id": 7})) as send:
+        action_type.dispatch(action, resolved)
+
+    assert send.call_args.kwargs["refuse_private_addresses"] is refused
+
+
+@pytest.mark.django_db
+def test_the_approver_reads_the_address_a_model_chosen_url_is_sent_to(http_action):
+    action = update(http_action, url=formula(TRACE), headers=[])
+    action_type = HTTPRequestAgentActionType()
+    # Read as api.example.com by urllib, sent to evil.example by Requests.
+    arguments = {"body": "{}", "trace": "https://evil.example\\@api.example.com/x"}
+
+    values = action_type.get_preview(
+        action, action_type.prepare(action, arguments), arguments
+    )["values"]
+
+    assert values["url"] == "https://evil.example/%5C@api.example.com/x"

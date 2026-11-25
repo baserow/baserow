@@ -54,6 +54,11 @@ class DispatchContext(RuntimeFormulaContext, ABC):
     # redirect, as they always have.
     redirects_stay_on_host = False
 
+    # Whether an external request refuses private addresses even when the
+    # instance allows them, for an address a model picked rather than one a
+    # person typed.
+    refuse_private_addresses = False
+
     def get_sample_data_table_ids(self, service: Service) -> Optional[List[int]]:
         """
         The IDs of the database tables the sample data about to be stored for the

@@ -86,6 +86,7 @@ def test_core_http_request_basic(
                 "deadline": ANY,
                 "operation_timeout": ANY,
                 "redirects_stay_on_host": False,
+                "refuse_private_addresses": False,
                 "url": "http://example.notexist/",
             }
         )
@@ -270,6 +271,7 @@ def test_core_http_request_basic_body_raw(
                 "deadline": ANY,
                 "operation_timeout": ANY,
                 "redirects_stay_on_host": False,
+                "refuse_private_addresses": False,
                 "url": "http://example.notexist/",
             }
         )
@@ -301,6 +303,7 @@ def test_core_http_request_basic_body_json(
                 "deadline": ANY,
                 "operation_timeout": ANY,
                 "redirects_stay_on_host": False,
+                "refuse_private_addresses": False,
                 "url": "http://example.notexist/",
             }
         )
@@ -403,6 +406,7 @@ def test_core_http_request_body_json_with_to_json_escapes_data_source(data_fixtu
                 "deadline": ANY,
                 "operation_timeout": ANY,
                 "redirects_stay_on_host": False,
+                "refuse_private_addresses": False,
                 "url": "http://example.notexist/",
             }
         )
@@ -444,6 +448,7 @@ def test_core_http_request_basic_body_json_with_control_characters(
                 "deadline": ANY,
                 "operation_timeout": ANY,
                 "redirects_stay_on_host": False,
+                "refuse_private_addresses": False,
                 "url": "http://example.notexist/",
             }
         )
@@ -476,6 +481,7 @@ def test_core_http_request_with_formulas(
                 "deadline": ANY,
                 "operation_timeout": ANY,
                 "redirects_stay_on_host": False,
+                "refuse_private_addresses": False,
                 "url": "http://example.notexist/2",
             }
         )
@@ -514,6 +520,7 @@ def test_core_http_request_with_headers(
                 "deadline": ANY,
                 "operation_timeout": ANY,
                 "redirects_stay_on_host": False,
+                "refuse_private_addresses": False,
                 "url": "http://example.notexist/",
             }
         )
@@ -548,6 +555,7 @@ def test_core_http_request_with_query_params(
                 "deadline": ANY,
                 "operation_timeout": ANY,
                 "redirects_stay_on_host": False,
+                "refuse_private_addresses": False,
                 "url": "http://example.notexist/",
             }
         )
@@ -583,6 +591,7 @@ def test_core_http_request_with_form_data(
                 "deadline": ANY,
                 "operation_timeout": ANY,
                 "redirects_stay_on_host": False,
+                "refuse_private_addresses": False,
                 "url": "http://example.notexist/",
             }
         )
@@ -934,6 +943,7 @@ def test_core_http_request_dispatch_data_with_json(data_fixture, content_type):
                 "deadline": ANY,
                 "operation_timeout": ANY,
                 "redirects_stay_on_host": False,
+                "refuse_private_addresses": False,
                 "url": "http://example.notexist/",
             }
         )
@@ -994,6 +1004,7 @@ def test_core_http_request_dispatch_data_with_text(data_fixture, content_type):
                 "deadline": ANY,
                 "operation_timeout": ANY,
                 "redirects_stay_on_host": False,
+                "refuse_private_addresses": False,
                 "url": "http://example.notexist/",
             }
         )
