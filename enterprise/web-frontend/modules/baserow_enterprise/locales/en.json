@@ -1012,7 +1012,7 @@
   },
   "htmlElement": {
     "source": "HTML source",
-    "sourceHelp": "Add HTML for custom content, layouts or widgets. Scripts in the HTML run in Preview and the published application, each time the element is shown. For JavaScript shared by every page, use application settings → Custom CSS/JS.",
+    "sourceHelp": "Add HTML for custom content, layouts or widgets. Scripts in the HTML run in the published application each time the element is shown, and in Preview unless JavaScript is restricted there. For JavaScript shared by every page, use application settings → Custom CSS/JS.",
     "placeholder": "Empty HTML source...",
     "previewTitle": "HTML preview"
   },

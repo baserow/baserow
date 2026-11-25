@@ -146,9 +146,10 @@ for (const mode of ["preview", "published"]) {
       );
       await expect(anchor).toHaveAttribute("data-initialized", "1");
       await visitor.waitForLoadState("networkidle");
+      // The page isn't restricted here, so the scripts in the HTML run.
       expect(
         await visitor.evaluate(() => Reflect.get(window, "htmlSourceScriptRan"))
-      ).toBeUndefined();
+      ).toBe(true);
       await anchor.getByText("Widget status", { exact: true }).click();
       await expect(anchor.getByText("Clicked", { exact: true })).toBeVisible();
       const initial = await anchor.elementHandle();
