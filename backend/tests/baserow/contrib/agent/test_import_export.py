@@ -431,7 +431,7 @@ def test_conversations_are_excluded_outside_full_internal_copies(
     data_fixture, configured_agent, config_values
 ):
     user = data_fixture.create_user()
-    agent = configured_agent(user=user)
+    agent = configured_agent(user=user, suggested_messages=["Hi", "What's new?"])
     data_fixture.create_agent_message(user=user, agent=agent, content="PRIVATE MESSAGE")
     internal = export_internal(agent)
     application_type = AgentApplicationType()
@@ -445,6 +445,7 @@ def test_conversations_are_excluded_outside_full_internal_copies(
     assert "PRIVATE MESSAGE" in json.dumps(internal)
     assert "PRIVATE MESSAGE" not in json.dumps(serialized)
     assert imported.instructions == agent.instructions
+    assert imported.suggested_messages == ["Hi", "What's new?"]
     assert not imported.conversations.exists()
 
 

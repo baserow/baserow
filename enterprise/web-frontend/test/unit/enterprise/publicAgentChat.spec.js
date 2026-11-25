@@ -274,6 +274,27 @@ describe('usePublicAgentChat', () => {
     wrapper.unmount()
   })
 
+  test('the page fills the draft from a picked suggested message', async () => {
+    mocks.service.getInfo.mockResolvedValue({
+      data: { ...OPEN, suggested_messages: ['What can you do?'] },
+    })
+    const wrapper = await mountSuspended(PublicAgentChatPage, {
+      route: `/public/agent-chat/${SLUG}`,
+      attachTo: document.body,
+    })
+    await flushPromises()
+
+    await wrapper.get('.chat-suggestions__item').trigger('click')
+    await flushPromises()
+
+    const input = wrapper.get('.public-agent-chat__composer textarea').element
+    expect(input.value).toBe('What can you do?')
+    expect(document.activeElement).toBe(input)
+    expect(mocks.service.startConversation).not.toHaveBeenCalled()
+    wrapper.unmount()
+  })
+
+
   test('a stored access token shows neither the password nor the chat until its check ends', async () => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify({ accessToken: 'access' }))
     let answerInfo

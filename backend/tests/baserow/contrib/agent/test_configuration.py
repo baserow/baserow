@@ -152,6 +152,7 @@ def test_configuration_update_records_full_snapshots_and_ignores_noop_drafts(
         "allowed_tools": [],
         "web_search_enabled": False,
         "web_fetch_enabled": False,
+        "suggested_messages": [],
         "ask_first_tools": [],
     }
     params = registered.call_args.args[1]
@@ -189,6 +190,7 @@ def test_configuration_audit_snapshots_record_normalized_values(
         "allowed_tools": [],
         "web_search_enabled": False,
         "web_fetch_enabled": False,
+        "suggested_messages": [],
         "ask_first_tools": [],
     }
 
@@ -254,6 +256,7 @@ def test_configuration_audit_snapshots_record_identity_assignment_replacement_an
             "allowed_tools": [],
             "web_search_enabled": False,
             "web_fetch_enabled": False,
+            "suggested_messages": [],
             "ask_first_tools": [],
         }
     ]
@@ -438,6 +441,12 @@ def test_tool_configuration_updates_the_timestamp_only_when_values_change(
             "ask_first_tools",
             "invalid",
             id="ask-first-without-allowed-tools",
+        ),
+        pytest.param(
+            {"suggested_messages": ["Hi"] * 5},
+            "suggested_messages",
+            "max_length",
+            id="too-many-suggested-messages",
         ),
         pytest.param(
             {"allowed_tools": ["list_tables"], "ask_first_tools": ["create_rows"]},
@@ -1083,6 +1092,7 @@ def test_configuration_is_served_only_by_the_agent_endpoints(
     configuration = {
         "readiness": "ready",
         "instructions": "PRIVATE",
+        "suggested_messages": [],
         "provider_type": "openai",
         "model_identifier": "test-model",
         "reasoning_effort": None,
@@ -1130,6 +1140,45 @@ def test_configuration_is_served_only_by_the_agent_endpoints(
     assert "PRIVATE" not in str(broadcast.call_args)
     assert "PRIVATE" not in api_client.get(application_url).content.decode()
     assert api_client.get(agent_url(database, "configuration")).status_code == 404
+
+
+@pytest.mark.django_db
+def test_suggested_messages_are_saved_and_shared_with_the_agent_payload(
+    configured_agent, api_client, api_user
+):
+    agent = configured_agent(user=api_user)
+
+    response = api_client.patch(
+        agent_url(agent, "configuration"),
+        {"suggested_messages": [" What can you do? ", "Summarize my week"]},
+    )
+
+    expected = ["What can you do?", "Summarize my week"]
+    assert response.status_code == 200
+    assert response.json()["suggested_messages"] == expected
+    assert api_client.get(agent_url(agent, "item")).json()["suggested_messages"] == (
+        expected
+    )
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "message,error_code", [("x" * 201, "max_length"), (" ", "blank")]
+)
+def test_suggested_messages_refuse_long_and_blank_messages(
+    configured_agent, api_client, api_user, message, error_code
+):
+    agent = configured_agent(user=api_user)
+
+    response = api_client.patch(
+        agent_url(agent, "configuration"), {"suggested_messages": ["Hi", message]}
+    )
+
+    assert response.status_code == 400
+    errors = response.json()["detail"]["suggested_messages"]
+    assert errors["1"][0]["code"] == error_code
+    agent.refresh_from_db()
+    assert agent.suggested_messages == []
 
 
 @pytest.mark.django_db

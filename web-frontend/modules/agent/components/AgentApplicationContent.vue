@@ -167,7 +167,14 @@
                 "
               />
             </template>
-            <AgentChatIntro v-else-if="showChatIntro" :name="agent.name" />
+            <AgentChatIntro v-else-if="showChatIntro" :name="agent.name">
+              <ChatSuggestions
+                v-if="showComposer && agent.suggested_messages?.length"
+                class="agent-chat__suggestions"
+                :suggestions="agent.suggested_messages"
+                @pick="pickSuggestion"
+              />
+            </AgentChatIntro>
           </div>
         </div>
         <div class="agent-chat__footer">
@@ -292,6 +299,7 @@ import { computed, nextTick, provide, reactive, ref, toRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useNuxtApp } from '#app'
 import ChatComposer from '@baserow/modules/core/components/chat/ChatComposer'
+import ChatSuggestions from '@baserow/modules/core/components/chat/ChatSuggestions'
 import { STEP_STATUS } from '@baserow/modules/core/chatRuns/constants'
 import {
   stepStatusText,
@@ -595,6 +603,12 @@ function stopReply() {
 }
 async function startConversation() {
   state.newConversation()
+  await nextTick()
+  messageInput.value?.focus()
+}
+
+async function pickSuggestion(text) {
+  state.updateMessage(text)
   await nextTick()
   messageInput.value?.focus()
 }

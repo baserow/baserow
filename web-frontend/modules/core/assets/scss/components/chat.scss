@@ -784,3 +784,59 @@ $chat-ease: cubic-bezier(0.22, 1, 0.36, 1);
     transition: opacity 0.2s $chat-ease;
   }
 }
+
+.chat-suggestions {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: fit-content;
+  max-width: min(440px, 100%);
+  margin-inline: auto;
+}
+
+.chat-suggestions__item {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  width: 100%;
+  padding: 14px 18px;
+  border: 1px solid $palette-neutral-200;
+  background: $palette-neutral-0;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.2s ease;
+
+  @include rounded($rounded-xl);
+  @include elevation($elevation-low);
+
+  &:hover {
+    border-color: $palette-neutral-400;
+  }
+
+  &:focus-visible {
+    outline: 2px solid $palette-blue-500;
+    outline-offset: 2px;
+  }
+}
+
+.chat-suggestions__icon {
+  display: flex;
+  flex: 0 0 40px;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 100%;
+  background: $palette-neutral-50;
+  color: $palette-neutral-700;
+  font-size: 18px;
+}
+
+.chat-suggestions__text {
+  min-width: 0;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 20px;
+  color: $palette-neutral-1200;
+  overflow-wrap: anywhere;
+}

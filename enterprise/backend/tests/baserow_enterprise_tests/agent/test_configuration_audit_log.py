@@ -37,6 +37,7 @@ def test_configuration_audit_log_persists_full_before_and_after_snapshots(
         "allowed_tools": [],
         "web_search_enabled": False,
         "web_fetch_enabled": False,
+        "suggested_messages": [],
         "ask_first_tools": [],
     }
     changed_values = {

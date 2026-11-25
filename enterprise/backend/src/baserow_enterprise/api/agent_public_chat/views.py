@@ -262,6 +262,9 @@ class PublicChatInfoView(PublicChatView):
                 {
                     "title": (chat.title or chat.agent.name) if allowed else "",
                     "welcome_text": chat.welcome_text if allowed else "",
+                    "suggested_messages": (
+                        chat.agent.suggested_messages if allowed else []
+                    ),
                     "password_protected": chat.has_password,
                     "has_access": allowed,
                 }

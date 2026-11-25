@@ -49,7 +49,12 @@ class AgentApplicationType(ApplicationType):
     type = "agent"
     model_class = AgentApplication
     data_provider_type_registry = agent_data_provider_type_registry
-    serializer_field_names = ["name", "readiness", "waits_for_identity"]
+    serializer_field_names = [
+        "name",
+        "readiness",
+        "waits_for_identity",
+        "suggested_messages",
+    ]
     serializer_mixins = [AgentApplicationSerializer]
     request_serializer_field_names = ["name"]
     request_serializer_mixins = []
@@ -374,6 +379,7 @@ class AgentApplicationType(ApplicationType):
         )
         serialized.update(
             instructions=application.instructions,
+            suggested_messages=application.suggested_messages,
             provider_type=application.provider_type,
             model_identifier=application.model_identifier,
             reasoning_effort=application.reasoning_effort,
@@ -463,6 +469,7 @@ class AgentApplicationType(ApplicationType):
             progress_builder,
         )
         application.instructions = serialized_values.get("instructions", "")
+        application.suggested_messages = serialized_values.get("suggested_messages", [])
         application.provider_type, application.model_identifier = self._imported_model(
             workspace, serialized_values, import_export_config
         )

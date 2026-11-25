@@ -40,6 +40,7 @@ const LINKED_FIELDS = [MODEL_FIELDS, TOOL_FIELDS]
 // The tools an Agent can be allowed to call are listed with its configuration.
 const CONFIGURATION_FIELDS = [
   ...REQUIRED_FIELDS,
+  CONFIGURATION_FIELD.SUGGESTED_MESSAGES,
   CONFIGURATION_FIELD.REASONING_EFFORT,
   CONFIGURATION_FIELD.APPLIED_REASONING_EFFORT,
   CONFIGURATION_FIELD.RUN_AS,
@@ -60,6 +61,7 @@ const CONFIGURATION_FIELDS = [
 
 const emptyConfiguration = () => ({
   instructions: '',
+  suggested_messages: [],
   provider_type: null,
   model_identifier: null,
   reasoning_effort: null,
@@ -81,12 +83,17 @@ const emptyConfiguration = () => ({
   max_parallel_trigger_runs: null,
 })
 
-/** Identities match by type and id, and tool lists by their names. */
+/** Identities match by type and id, tools by name, suggested messages in order. */
 const isSameValue = (field, a, b) => {
   if (field === CONFIGURATION_FIELD.RUN_AS)
     return a?.type === b?.type && a?.id === b?.id
   if (TOOL_FIELDS.includes(field)) {
     return a?.length === b?.length && a.every((name) => b.includes(name))
+  }
+  if (field === CONFIGURATION_FIELD.SUGGESTED_MESSAGES) {
+    return (
+      a?.length === b?.length && a.every((text, index) => text === b[index])
+    )
   }
   return a === b
 }
@@ -332,7 +339,10 @@ export function useAgentConfiguration(agent) {
     ++readinessRequest
     readinessError.value = false
     // Keep only public metadata in the shared application store.
-    updateApplication({ readiness: data.readiness })
+    updateApplication({
+      readiness: data.readiness,
+      suggested_messages: saved.suggested_messages,
+    })
   }
 
   async function fetchConfiguration(realtimeRecovery = false) {

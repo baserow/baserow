@@ -119,16 +119,19 @@ def test_info_names_the_chat_and_hides_a_protected_one_without_a_token(
     api_client, chat, create_chat
 ):
     protected = create_chat(password="secret", title="Support", welcome_text="Hello")
+    AgentApplication.objects.update(suggested_messages=["What can you do?"])
 
     assert api_client.get(url(chat.slug, "info")).json() == {
         "title": chat.agent.name,
         "welcome_text": "Ask me anything",
+        "suggested_messages": ["What can you do?"],
         "password_protected": False,
         "has_access": True,
     }
     assert api_client.get(url(protected.slug, "info")).json() == {
         "title": "",
         "welcome_text": "",
+        "suggested_messages": [],
         "password_protected": True,
         "has_access": False,
     }
@@ -137,6 +140,7 @@ def test_info_names_the_chat_and_hides_a_protected_one_without_a_token(
     ).json() == {
         "title": "Support",
         "welcome_text": "Hello",
+        "suggested_messages": ["What can you do?"],
         "password_protected": True,
         "has_access": True,
     }

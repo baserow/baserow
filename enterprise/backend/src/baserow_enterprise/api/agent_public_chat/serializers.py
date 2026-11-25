@@ -18,6 +18,11 @@ class PublicChatInfoSerializer(serializers.Serializer):
         help_text="Shown before the first message. Empty for a password protected "
         "chat until the request carries a valid token."
     )
+    suggested_messages = serializers.ListField(
+        child=serializers.CharField(),
+        help_text="Messages offered before the first one, in display order. Empty "
+        "for a password protected chat until the request carries a valid token.",
+    )
     password_protected = serializers.BooleanField()
     has_access = serializers.BooleanField(
         help_text="Whether the request may talk in the chat: always without a "

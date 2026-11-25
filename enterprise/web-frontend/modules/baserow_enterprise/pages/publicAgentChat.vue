@@ -63,6 +63,12 @@
           :editable="false"
           :enable-rich-text-formatting="true"
         />
+        <ChatSuggestions
+          v-if="showSuggestions"
+          class="public-agent-chat__suggestions"
+          :suggestions="info.suggested_messages"
+          @pick="pickSuggestion"
+        />
         <template v-for="message in messages" :key="message.id">
           <ChatMessage v-if="message.role !== MESSAGE_ROLE.ASSISTANT" own>
             <div class="chat-message__bubble">{{ message.content }}</div>
@@ -105,6 +111,7 @@
       </p>
       <ChatComposer
         v-else
+        ref="composer"
         v-model="draft"
         class="public-agent-chat__composer"
         :placeholder="$t('publicAgentChat.messagePlaceholder')"
@@ -129,7 +136,7 @@
 </template>
 
 <script setup>
-import { nextTick, onBeforeUnmount, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { createError, useAsyncData, useNuxtApp, useState } from '#app'
 import { useHead } from '#imports'
@@ -137,6 +144,7 @@ import { useHead } from '#imports'
 import ChatComposer from '@baserow/modules/core/components/chat/ChatComposer'
 import ChatMarkdown from '@baserow/modules/core/components/chat/ChatMarkdown'
 import ChatMessage from '@baserow/modules/core/components/chat/ChatMessage'
+import ChatSuggestions from '@baserow/modules/core/components/chat/ChatSuggestions'
 import ChatTyping from '@baserow/modules/core/components/chat/ChatTyping'
 import RichTextEditor from '@baserow/modules/core/components/editor/RichTextEditor'
 import { MESSAGE_ROLE } from '@baserow/modules/agent/constants'
@@ -219,6 +227,15 @@ const authorizing = ref(false)
 const authorizeFailed = ref(false)
 const draft = ref('')
 const messagesElement = ref(null)
+const composer = ref(null)
+const showSuggestions = computed(
+  () =>
+    !messages.value.length &&
+    Boolean(info.value.suggested_messages?.length) &&
+    !unavailable.value &&
+    !waiting.value &&
+    !sending.value
+)
 
 const isRunning = (message) =>
   [AGENT_REPLY_STATUS.QUEUED, AGENT_REPLY_STATUS.RUNNING].includes(
@@ -239,6 +256,12 @@ async function submitPassword() {
   } finally {
     authorizing.value = false
   }
+}
+
+async function pickSuggestion(text) {
+  draft.value = text
+  await nextTick()
+  composer.value?.focus()
 }
 
 async function sendDraft() {

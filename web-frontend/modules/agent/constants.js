@@ -5,6 +5,8 @@ export const AGENT_APPLICATION_TYPE = 'agent'
 /** The built-in tool a triggered run calls to ask a person a question. */
 export const ASK_PERSON_TOOL = 'ask_person'
 export const ASK_PERSON_ANSWER_MAX_LENGTH = 10000
+export const AGENT_SUGGESTED_MESSAGES_MAX = 4
+export const AGENT_SUGGESTED_MESSAGE_MAX_LENGTH = 200
 
 export const AGENT_READINESS = Object.freeze({
   INCOMPLETE: 'incomplete',
@@ -19,6 +21,7 @@ export const CONFIGURATION_ERROR = Object.freeze({
 
 export const CONFIGURATION_FIELD = Object.freeze({
   INSTRUCTIONS: 'instructions',
+  SUGGESTED_MESSAGES: 'suggested_messages',
   PROVIDER_TYPE: 'provider_type',
   MODEL_IDENTIFIER: 'model_identifier',
   REASONING_EFFORT: 'reasoning_effort',
