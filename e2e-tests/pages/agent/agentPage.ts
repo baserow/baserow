@@ -20,7 +20,7 @@ export class AgentPage extends BaserowPage {
   async openSection(name: string): Promise<Locator> {
     await this.configuration.getByRole("menuitem", { name }).click();
     await expect(
-      this.configuration.getByRole("heading", { name })
+      this.configuration.getByRole("heading", { name, level: 2 })
     ).toBeVisible();
     return this.configuration.locator(".agent-configuration__body");
   }

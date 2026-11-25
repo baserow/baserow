@@ -112,7 +112,7 @@ $sidebar-home-inset: calc(($sidebar-home-size - $sidebar-brand-height) / 2);
   border-radius: $rounded-md;
 
   &:hover {
-    background-color: rgba($palette-neutral-1300, 6%);
+    background-color: $sidebar-hover-background;
   }
 
   &:focus-visible {
@@ -170,7 +170,7 @@ $sidebar-home-inset: calc(($sidebar-home-size - $sidebar-brand-height) / 2);
 
   &:hover,
   &[aria-expanded='true'] {
-    background-color: $palette-neutral-100;
+    background-color: $sidebar-hover-background;
   }
 }
 
@@ -179,15 +179,6 @@ $sidebar-home-inset: calc(($sidebar-home-size - $sidebar-brand-height) / 2);
   @extend %ellipsis;
 
   min-width: 0;
-}
-
-.sidebar__workspace-plan {
-  display: flex;
-  flex: none;
-
-  &:empty {
-    display: none;
-  }
 }
 
 .sidebar__workspace-trigger-icon {
@@ -215,7 +206,7 @@ $sidebar-home-inset: calc(($sidebar-home-size - $sidebar-brand-height) / 2);
 
   &:hover,
   &[aria-expanded='true'] {
-    background-color: rgba($palette-neutral-1300, 6%);
+    background-color: $sidebar-hover-background;
   }
 
   &:focus-visible {
@@ -324,7 +315,7 @@ $sidebar-home-inset: calc(($sidebar-home-size - $sidebar-brand-height) / 2);
 
     &:hover,
     &[aria-expanded='true'] {
-      background-color: rgba($palette-neutral-1300, 4%);
+      background-color: $sidebar-hover-background;
       color: $palette-neutral-1200;
 
       .context__menu-item-icon {
@@ -451,7 +442,7 @@ $sidebar-home-inset: calc(($sidebar-home-size - $sidebar-brand-height) / 2);
     text-decoration: none;
 
     .sidebar__section--workspace & {
-      background-color: rgba($palette-neutral-1300, 0.04);
+      background-color: $sidebar-hover-background;
     }
   }
 }
@@ -540,10 +531,12 @@ $sidebar-home-inset: calc(($sidebar-home-size - $sidebar-brand-height) / 2);
   color: $palette-neutral-700;
 
   @include center-text(24px, 16px);
+  @include rounded($rounded-md);
 
   &:hover {
     text-decoration: none;
     color: $palette-neutral-1200;
+    background-color: $sidebar-hover-background;
   }
 
   &.sidebar__foot-link--loading {
@@ -598,7 +591,7 @@ $sidebar-home-inset: calc(($sidebar-home-size - $sidebar-brand-height) / 2);
   margin-left: -8px;
 
   &:hover {
-    background-color: rgba($palette-neutral-1300, 6%);
+    background-color: $sidebar-hover-background;
     text-decoration: none;
   }
 
@@ -634,7 +627,7 @@ $sidebar-home-inset: calc(($sidebar-home-size - $sidebar-brand-height) / 2);
   @include rounded($rounded-md);
 
   &:hover {
-    background-color: rgba($palette-neutral-1300, 0.04);
+    background-color: $sidebar-hover-background;
   }
 }
 

@@ -81,7 +81,7 @@ describe('Agent configuration', () => {
   test('hosts a trigger form without nesting it in another form', async () => {
     testApp.mock.onGet('/agent/10/triggers/').reply(200, [periodicTrigger()])
     const wrapper = await mount()
-    await openSection(wrapper, 'agent.whenItRuns')
+    await openSection(wrapper, 'agent.triggers')
     await flushPromises()
 
     expect(wrapper.find('.agent-trigger-card form').exists()).toBe(true)

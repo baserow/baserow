@@ -146,7 +146,7 @@ describe('Agent template preview', () => {
     expect(wrapper.find('.read-only-form').exists()).toBe(true)
 
     await wrapper.get('.agent-configuration__header-button').trigger('click')
-    await openSection(wrapper, 'agent.whenItRuns')
+    await openSection(wrapper, 'agent.triggers')
     await flushPromises()
     expect(wrapper.get('.agent-trigger-card__name').element.value).toBe(
       'Morning digest'
@@ -200,7 +200,7 @@ describe('Agent template preview', () => {
     ])
 
     for (const section of [
-      'agent.whenItRuns',
+      'agent.triggers',
       'agent.workspaceAccess',
       'agent.actions',
       'agent.connectedApps',

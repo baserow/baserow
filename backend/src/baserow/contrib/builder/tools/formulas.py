@@ -23,6 +23,7 @@ from baserow.contrib.builder.data_providers.registries import (
 )
 from baserow.contrib.builder.data_sources.actions import UpdateDataSourceActionType
 from baserow.contrib.builder.data_sources.handler import DataSourceHandler
+from baserow.contrib.builder.data_sources.models import DataSource
 from baserow.contrib.builder.elements.actions import UpdateElementActionType
 from baserow.contrib.builder.elements.handler import ElementHandler
 from baserow.contrib.builder.elements.mixins import (
@@ -102,24 +103,34 @@ class BuilderFormulaContext:
             elements = ElementHandler().get_elements(self.page, use_cache=False)
             self._load_form_data(elements)
 
-    def load_data_source_filter_context(self) -> None:
+    def load_data_source_filter_context(self, data_source: DataSource) -> None:
         """
-        Load only the data providers a data source filter value may use.
+        Load only the data providers the filter values of a data source may use.
 
-        Data sources can't read form data or a current record, and reading other
-        data sources is left out to avoid dependency cycles between them.
+        Data sources can't read form data or a current record. They can read the
+        data sources before them, shared page ones first, which avoids dependency
+        cycles between them.
+
+        :param data_source: The data source whose filters are written.
         """
 
+        self._load_data_sources(before=data_source)
         self._load_page_parameters()
         self._load_user_context()
 
     # -- Private loaders ----------------------------------------------------
 
-    def _load_data_sources(self) -> None:
-        """Load data sources with schemas."""
+    def _load_data_sources(self, before: DataSource | None = None) -> None:
+        """
+        Load data sources with schemas.
+
+        :param before: Only load the data sources coming before this one.
+        """
 
         data_sources = DataSourceHandler().get_data_sources(self.page, with_shared=True)
         for ds in data_sources:
+            if before is not None and ds.id == before.id:
+                break
             self.data_sources[ds.id] = {"name": ds.name, "schema": None}
             if not ds.service:
                 continue

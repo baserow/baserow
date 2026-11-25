@@ -1068,7 +1068,7 @@ describe('Agent conversations', () => {
       'agent.sharedNoMessages'
     )
     expect(wrapper.find('.agent-chat__shared .button').exists()).toBe(false)
-    expect(wrapper.find('.agent-chat .iconoir-lock').exists()).toBe(false)
+    expect(wrapper.find('.agent-audience').exists()).toBe(false)
     expect(wrapper.get('.agent-trigger-start__text').text()).toBe(
       'Trigger data'
     )

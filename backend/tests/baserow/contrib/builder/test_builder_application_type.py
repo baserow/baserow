@@ -2639,3 +2639,37 @@ def test_create_builder_refuses_a_login_page(data_fixture):
         )
 
     assert not Builder.objects.filter(workspace=workspace).exists()
+
+
+@pytest.mark.django_db
+def test_formula_examples_of_a_data_source_filter_include_earlier_data_sources(
+    data_fixture,
+):
+    user, _ = data_fixture.create_user_and_token()
+    table = data_fixture.create_database_table(user=user)
+    data_fixture.create_text_field(table=table, name="Name", primary=True)
+    page = data_fixture.create_builder_page(
+        user=user, path="/task/:id", path_params=[{"name": "id", "type": "numeric"}]
+    )
+    shared = data_fixture.create_builder_local_baserow_list_rows_data_source(
+        page=page.builder.shared_page, table=table
+    )
+    earlier = data_fixture.create_builder_local_baserow_list_rows_data_source(
+        page=page, table=table
+    )
+    data_source = data_fixture.create_builder_local_baserow_list_rows_data_source(
+        page=page, table=table
+    )
+    later = data_fixture.create_builder_local_baserow_list_rows_data_source(
+        page=page, table=table
+    )
+
+    examples = BuilderApplicationType().get_formula_examples(user, data_source)
+
+    context = examples.get_formula_context()
+    assert f"data_source.{shared.id}" in context
+    assert f"data_source.{earlier.id}" in context
+    assert f"data_source.{data_source.id}" not in context
+    assert f"data_source.{later.id}" not in context
+    assert "page_parameter" in context
+    assert f"data_source.{earlier.id}" in examples.get_context_metadata()

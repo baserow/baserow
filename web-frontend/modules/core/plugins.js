@@ -53,13 +53,6 @@ export class BaserowPlugin extends Registerable {
   }
 
   /**
-   * Display an optional plan badge for the selected workspace in the sidebar header.
-   */
-  getSidebarWorkspacePlanBadge() {
-    return null
-  }
-
-  /**
    * Every registered plugin can display additional items in the sidebar menu that
    * is shown on pages without a workspace context, like the all workspaces page.
    */
@@ -110,8 +103,9 @@ export class BaserowPlugin extends Registerable {
   }
 
   /*
-   * Every registered plugin can display a component in the `DashboardWorkspace`
-   * component directly after the workspace name.
+   * Every registered plugin can display a plan badge on the workspace homepage,
+   * directly after the "Overview" title. The component receives the `workspace` and
+   * the `componentArguments` fetched by `fetchAsyncDashboardData`.
    */
   getDashboardWorkspacePlanBadge() {
     return null

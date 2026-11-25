@@ -6,6 +6,10 @@ export class LocalBaserowSemanticSearchToolPresentationType extends ActionToolPr
     return 'local_baserow_semantic_search'
   }
 
+  get offeredInSetup() {
+    return true
+  }
+
   get fieldLabels() {
     return {
       table: 'localBaserowTableSelector.tableFieldLabel',

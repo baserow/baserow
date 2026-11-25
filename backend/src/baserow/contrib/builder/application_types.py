@@ -111,7 +111,7 @@ class BuilderApplicationType(ApplicationType):
         from baserow.contrib.builder.tools.formulas import BuilderFormulaContext
 
         context = BuilderFormulaContext(target.page)
-        context.load_data_source_filter_context()
+        context.load_data_source_filter_context(target)
         return context
 
     @property

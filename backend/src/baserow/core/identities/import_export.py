@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 from typing import Any
 
 from django.contrib.auth.models import AbstractUser
@@ -31,7 +32,130 @@ NO_ACCESS_ROLE_UID = "NO_ACCESS"
 IDENTITIES_MAPPING = "identities"
 DEFINITIONS_MAPPING = "identity_definitions"
 EMAILS_MAPPING = "identity_emails"
-IMPORTER_MAPPING = "identity_importer"
+
+
+@dataclass(frozen=True)
+class ExportedRole:
+    """
+    A role an exported identity had: on its workspace, or on one of the exported
+    applications. In a file it's `{"scope_type": "workspace", "role"}` or
+    `{"scope_type": "application", "scope_id", "role"}`.
+    """
+
+    scope_type: str
+    role: str
+    # The id of the application, as exported.
+    scope_id: int | None = None
+
+    @classmethod
+    def parse(cls, serialized: Any) -> "ExportedRole | None":
+        """
+        :param serialized: A role as found in a file. Untrusted.
+        :return: The role, or None when it isn't understood.
+        """
+
+        if not (
+            isinstance(serialized, dict) and isinstance(serialized.get("role"), str)
+        ):
+            return None
+        scope_type, scope_id = serialized.get("scope_type"), serialized.get("scope_id")
+        if scope_type == WORKSPACE_SCOPE:
+            return cls(WORKSPACE_SCOPE, serialized["role"])
+        if scope_type == APPLICATION_SCOPE and type(scope_id) is int:
+            return cls(APPLICATION_SCOPE, serialized["role"], scope_id)
+        return None
+
+    def serialize(self) -> dict[str, Any]:
+        if self.scope_type == WORKSPACE_SCOPE:
+            return {"scope_type": self.scope_type, "role": self.role}
+        return {
+            "scope_type": self.scope_type,
+            "scope_id": self.scope_id,
+            "role": self.role,
+        }
+
+
+@dataclass(frozen=True)
+class ExportedIdentity:
+    """
+    An identity as an export or a template holds it, beside the applications that
+    refer to it: `{"key", "name", "email", "roles"}`.
+    """
+
+    # What the exported applications refer to it by. Never an id.
+    key: str
+    name: str
+    # The address the exported data refers to it by, if it's one only an
+    # identity can have.
+    email: str | None
+    roles: tuple[ExportedRole, ...]
+
+    @classmethod
+    def parse(cls, serialized: Any) -> "ExportedIdentity | None":
+        """
+        :param serialized: An identity as found in a file. Untrusted.
+        :return: The identity, or None when it isn't understood.
+        """
+
+        if not isinstance(serialized, dict):
+            return None
+        key, name = serialized.get("key"), serialized.get("name")
+        if not (isinstance(key, str) and key):
+            return None
+        if not (isinstance(name, str) and name.strip() and "\x00" not in name):
+            return None
+        email = serialized.get("email")
+        if not (
+            isinstance(email, str)
+            and len(email) <= 254
+            and "\x00" not in email
+            and email.endswith(f"@{IDENTITY_EMAIL_DOMAIN}")
+        ):
+            email = None
+        return cls(key, name.strip()[:150], email, parse_roles(serialized.get("roles")))
+
+    def serialize(self) -> dict[str, Any]:
+        return {
+            "key": self.key,
+            "name": self.name,
+            "email": self.email,
+            "roles": [role.serialize() for role in self.roles],
+        }
+
+
+def parse_roles(serialized: Any) -> tuple[ExportedRole, ...]:
+    """
+    :param serialized: The roles of an identity as found in a file, or as kept by
+        an `IdentityDefinition`. Untrusted.
+    :return: The roles that are understood, with one role on the workspace at
+        most.
+    """
+
+    roles, has_workspace_role = [], False
+    for role in map(
+        ExportedRole.parse, serialized if isinstance(serialized, list) else []
+    ):
+        if role is None or (role.scope_type == WORKSPACE_SCOPE and has_workspace_role):
+            continue
+        has_workspace_role = has_workspace_role or role.scope_type == WORKSPACE_SCOPE
+        roles.append(role)
+    return tuple(roles)
+
+
+def split_roles(roles: tuple[ExportedRole, ...]) -> tuple[str | None, dict[int, str]]:
+    """
+    :param roles: The roles of an exported identity.
+    :return: Its role on the workspace, and its roles by application id.
+    """
+
+    workspace_role = next(
+        (role.role for role in roles if role.scope_type == WORKSPACE_SCOPE), None
+    )
+    return workspace_role, {
+        role.scope_id: role.role
+        for role in roles
+        if role.scope_type == APPLICATION_SCOPE
+    }
 
 
 def imported_identity(id_mapping: dict, key: Any) -> User | None:
@@ -55,15 +179,6 @@ def imported_identity_definition(
     """
 
     return (id_mapping.get(DEFINITIONS_MAPPING) or {}).get(_usable(key))
-
-
-def identity_importer(id_mapping: dict) -> AbstractUser | None:
-    """
-    :param id_mapping: The export-to-import id map.
-    :return: The user the identities of this import were created on behalf of.
-    """
-
-    return id_mapping.get(IMPORTER_MAPPING)
 
 
 def imported_identity_emails(id_mapping: dict) -> dict[str, User]:
@@ -138,7 +253,9 @@ class IdentityExport:
                     source.source_email,
                     source.workspace,
                 )
-                workspace_role, application_roles = _split_roles(source.roles or [])
+                workspace_role, application_roles = split_roles(
+                    parse_roles(source.roles)
+                )
             else:
                 name, email = source.first_name, source.email
                 workspace = IdentityHandler.get_workspace(source)
@@ -147,18 +264,18 @@ class IdentityExport:
                     identity_extension_type_registry.get_application_roles(source) or []
                 )
             identities.append(
-                {
-                    "key": key,
-                    "name": name,
-                    "email": email,
-                    "roles": self._roles(
+                ExportedIdentity(
+                    key,
+                    name,
+                    email,
+                    self._roles(
                         workspace_role,
                         application_roles,
                         workspace,
                         exported_by,
                         application_ids,
                     ),
-                }
+                ).serialize()
             )
         return {IDENTITIES: identities} if identities else None
 
@@ -169,7 +286,7 @@ class IdentityExport:
         workspace: Workspace,
         exported_by: AbstractUser | None,
         application_ids: list[int],
-    ) -> list[dict]:
+    ) -> tuple[ExportedRole, ...]:
         """
         :return: The role on the workspace, and the role on each exported
             application that has its own.
@@ -189,7 +306,7 @@ class IdentityExport:
             }
         roles = []
         if workspace_role:
-            roles.append({"scope_type": WORKSPACE_SCOPE, "role": workspace_role})
+            roles.append(ExportedRole(WORKSPACE_SCOPE, workspace_role))
         for application_id in sorted(application_ids):
             if application_id not in readable:
                 # It may have a narrower role there than on the workspace.
@@ -198,31 +315,8 @@ class IdentityExport:
                 role = application_roles[application_id]
             else:
                 continue
-            roles.append(
-                {
-                    "scope_type": APPLICATION_SCOPE,
-                    "scope_id": application_id,
-                    "role": role,
-                }
-            )
-        return roles
-
-
-def _split_roles(roles: list[dict]) -> tuple[str | None, dict[int, str]]:
-    """
-    :param roles: The roles of an exported identity, as parsed by an import.
-    :return: Its role on the workspace, and its roles by application id.
-    """
-
-    workspace_role = next(
-        (role["role"] for role in roles if role["scope_type"] == WORKSPACE_SCOPE),
-        None,
-    )
-    return workspace_role, {
-        role["scope_id"]: role["role"]
-        for role in roles
-        if role["scope_type"] == APPLICATION_SCOPE
-    }
+            roles.append(ExportedRole(APPLICATION_SCOPE, role, application_id))
+        return tuple(roles)
 
 
 class IdentityImport:
@@ -245,83 +339,40 @@ class IdentityImport:
         self,
         workspace: Workspace,
         workspace_objects: Any,
-        user: AbstractUser | None,
         import_export_config: ImportExportConfig,
     ) -> None:
         """
         :param workspace: The workspace the applications are imported into.
         :param workspace_objects: The part of the file that holds the identities.
             Untrusted: what isn't understood is left out.
-        :param user: The user who imports, or None when nobody does, as for the
-            content of a template. Without one no identity is created.
-        :param import_export_config: How the applications are imported.
+        :param import_export_config: How the applications are imported. Without
+            an `imported_by`, as for the content of a template, no identity is
+            created.
         """
 
         self.workspace = workspace
-        self.user = user
+        self.user = import_export_config.imported_by
         self.import_export_config = import_export_config
         self._entries = self._parse(workspace_objects)
         self._definitions: list[IdentityDefinition] = []
         # The created identities, with the roles they came with.
-        self._identities: list[tuple[User, list[dict]]] = []
+        self._identities: list[tuple[User, ExportedIdentity]] = []
         # The exported ids of the applications that refer to an identity.
         self._referring: set[int] = set()
 
     @staticmethod
-    def _parse(workspace_objects: Any) -> list[dict]:
+    def _parse(workspace_objects: Any) -> list[ExportedIdentity]:
         if not isinstance(workspace_objects, dict):
             return []
         serialized = workspace_objects.get(IDENTITIES)
         entries, keys = [], set()
-        for identity in serialized if isinstance(serialized, list) else []:
-            if not isinstance(identity, dict):
-                continue
-            key, name = identity.get("key"), identity.get("name")
-            if not (isinstance(key, str) and key and key not in keys):
-                continue
-            if not (isinstance(name, str) and name.strip() and "\x00" not in name):
-                continue
-            keys.add(key)
-            email = identity.get("email")
-            # Only an address no person can have is a key for an identity.
-            if not (
-                isinstance(email, str)
-                and len(email) <= 254
-                and "\x00" not in email
-                and email.endswith(f"@{IDENTITY_EMAIL_DOMAIN}")
-            ):
-                email = None
-            entries.append(
-                {
-                    "key": key,
-                    "name": name.strip()[:150],
-                    "email": email,
-                    "roles": IdentityImport._parse_roles(identity.get("roles")),
-                }
-            )
+        for entry in map(
+            ExportedIdentity.parse, serialized if isinstance(serialized, list) else []
+        ):
+            if entry is not None and entry.key not in keys:
+                keys.add(entry.key)
+                entries.append(entry)
         return entries
-
-    @staticmethod
-    def _parse_roles(serialized: Any) -> list[dict]:
-        roles, has_workspace_role = [], False
-        for role in serialized if isinstance(serialized, list) else []:
-            if not (isinstance(role, dict) and isinstance(role.get("role"), str)):
-                continue
-            if role.get("scope_type") == WORKSPACE_SCOPE and not has_workspace_role:
-                has_workspace_role = True
-                roles.append({"scope_type": WORKSPACE_SCOPE, "role": role["role"]})
-            elif (
-                role.get("scope_type") == APPLICATION_SCOPE
-                and type(role.get("scope_id")) is int
-            ):
-                roles.append(
-                    {
-                        "scope_type": APPLICATION_SCOPE,
-                        "scope_id": role["scope_id"],
-                        "role": role["role"],
-                    }
-                )
-        return roles
 
     def _can_create(self) -> bool:
         from baserow.core.identities.service import IdentityService
@@ -348,18 +399,17 @@ class IdentityImport:
         identities = id_mapping.setdefault(IDENTITIES_MAPPING, {})
         definitions = id_mapping.setdefault(DEFINITIONS_MAPPING, {})
         emails = id_mapping.setdefault(EMAILS_MAPPING, {})
-        id_mapping[IMPORTER_MAPPING] = self.user
         if not self._entries:
             return
         referred = set()
         for application in serialized_applications:
             keys = application_type_registry.get(
                 application["type"]
-            ).get_imported_identity_keys(application, self.user)
+            ).get_imported_identity_keys(application, self.import_export_config)
             if keys:
                 referred.update(keys)
                 self._referring.add(application.get("id"))
-        entries = [entry for entry in self._entries if entry["key"] in referred]
+        entries = [entry for entry in self._entries if entry.key in referred]
         if not entries:
             return
         can_create = self._can_create()
@@ -375,38 +425,38 @@ class IdentityImport:
         source_emails = set()
         for entry in entries:
             # What refers to an address goes to the first identity that had it.
-            email = None if entry["email"] in source_emails else entry["email"]
+            email = None if entry.email in source_emails else entry.email
             source_emails.add(email)
             identity = self._create(entry, names) if can_create else None
             if identity is None:
                 definition = IdentityDefinition.objects.create(
                     workspace=self.workspace,
-                    name=entry["name"],
+                    name=entry.name,
                     source_email=email,
                     # By exported ids, until the applications exist.
-                    roles=entry["roles"],
+                    roles=[role.serialize() for role in entry.roles],
                 )
-                definitions[entry["key"]] = definition
+                definitions[entry.key] = definition
                 self._definitions.append(definition)
                 continue
             names.add(identity.first_name)
-            identities[entry["key"]] = identity
-            self._identities.append((identity, entry["roles"]))
+            identities[entry.key] = identity
+            self._identities.append((identity, entry))
             if email:
                 emails[email] = identity
 
-    def _create(self, entry: dict, names: set[str]) -> User | None:
+    def _create(self, entry: ExportedIdentity, names: set[str]) -> User | None:
         from baserow.core.action.registries import action_type_registry
         from baserow.core.identities.actions import CreateScopedIdentityActionType
 
         # Identity names reach emails, so they get the check of the identities API.
         try:
-            no_url_validation(entry["name"])
+            no_url_validation(entry.name)
         except ValidationError:
             logger.warning(
                 "Not creating the imported identity {}: its name can't be the "
                 "name of an identity.",
-                entry["key"],
+                entry.key,
             )
             return None
         try:
@@ -416,12 +466,12 @@ class IdentityImport:
                 ).do(
                     self.user,
                     self.workspace,
-                    name=find_unused_name([entry["name"]], names, max_length=150),
+                    name=find_unused_name([entry.name], names, max_length=150),
                 )
         except SoftTimeLimitExceeded:
             raise
         except Exception as error:
-            self._report("create", entry["key"], error)
+            self._report("create", entry.key, error)
             return None
 
     @staticmethod
@@ -448,12 +498,15 @@ class IdentityImport:
         for definition in self._definitions:
             # Roles on things outside this import are dropped.
             definition.roles = [
-                {**role, "scope_id": imported_ids[role["scope_id"]]}
-                if role["scope_type"] == APPLICATION_SCOPE
-                else role
-                for role in definition.roles
-                if role["scope_type"] != APPLICATION_SCOPE
-                or role["scope_id"] in imported_ids
+                (
+                    ExportedRole(
+                        role.scope_type, role.role, imported_ids[role.scope_id]
+                    )
+                    if role.scope_type == APPLICATION_SCOPE
+                    else role
+                ).serialize()
+                for role in parse_roles(definition.roles)
+                if role.scope_type != APPLICATION_SCOPE or role.scope_id in imported_ids
             ]
             definition.save(update_fields=["roles"])
         if not self._identities:
@@ -471,8 +524,8 @@ class IdentityImport:
             for application in applications
             if application.id not in referring
         ]
-        for identity, roles in self._identities:
-            workspace_role, application_roles = _split_roles(roles)
+        for identity, entry in self._identities:
+            workspace_role, application_roles = split_roles(entry.roles)
             self._scope(
                 identity,
                 scoped,
@@ -525,10 +578,14 @@ class IdentityImport:
         from baserow.core.identities.actions import DeleteIdentityActionType
         from baserow.core.identities.signals import identity_deleted
 
+        # Not through the delete action: it needs the permission to delete any
+        # identity, which a builder who imports doesn't have. These are the ones
+        # the import created on their behalf.
         deleted = action_type_registry.get_by_type(DeleteIdentityActionType)
         for identity, _ in self._identities:
+            for extension in identity_extension_type_registry.get_all():
+                extension.before_delete(identity, self.user)
             IdentityHandler().delete_identity(self.user, identity)
-            # Recorded like its creation.
             deleted.register_action(
                 user=self.user,
                 params=deleted.Params(

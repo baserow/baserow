@@ -27,6 +27,16 @@ $dashboard-header-height: 72px;
   width: 100%;
 }
 
+// The title and the plan badge shrink and wrap onto two lines on narrow
+// screens, so the header never pushes the add new button out of view.
+.dashboard__header-left {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 15px;
+  min-width: 0;
+}
+
 .dashboard__title {
   color: $palette-neutral-1200;
   font-size: 18px;

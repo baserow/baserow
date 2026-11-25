@@ -81,7 +81,7 @@
           v-if="participantNames || state.canAskForApproval"
           class="agent-audience"
         >
-          <i class="iconoir-lock" aria-hidden="true"></i>
+          <i class="iconoir-user" aria-hidden="true"></i>
           <span class="agent-audience__participants" :title="participantNames">
             {{
               participantNames
