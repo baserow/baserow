@@ -32,6 +32,7 @@ from baserow.core.tools.errors import ToolFailedError, ToolInputError
 from baserow.core.types import Subject
 
 from .data_providers import AgentActionDispatchContext
+from .formulas import get_single_input_id
 from .registries import AgentActionDefaults, AgentActionType
 
 HTTP_ACTION_MAX_REQUEST_BYTES = 64 * 1024
@@ -50,11 +51,6 @@ _HTTP_ROWS = (
 )
 """Each list of key and value rows, with the prefix of its resolved values."""
 
-# Either way the formula language spells a path: `tool_input.<id>` or
-# `tool_input[<id>]`.
-_SINGLE_INPUT = re.compile(
-    r"""^get\(\s*(['"])tool_input(?:\.([^'"\[\]]+)|\[([^'"\]]+)\])\1\s*\)$"""
-)
 _LINE_BREAK = re.compile(r"[\r\n]")
 
 
@@ -467,11 +463,7 @@ class HTTPRequestAgentActionType(AgentActionType):
             then reads as the model chose it.
         """
 
-        formula = self._get_formula(service, key)
-        if formula.get("mode") == BASEROW_FORMULA_MODE_RAW:
-            return None
-        match = _SINGLE_INPUT.match((formula.get("formula") or "").strip())
-        return (match.group(2) or match.group(3)) if match else None
+        return get_single_input_id(self._get_formula(service, key))
 
     def _is_shown(self, service: CoreHTTPRequestService, key: str) -> bool:
         """

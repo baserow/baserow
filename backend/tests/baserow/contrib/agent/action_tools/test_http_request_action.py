@@ -31,6 +31,11 @@ from ..utils import run_reply
 SEND = "baserow.contrib.integrations.core.service_types.send_http_request"
 TRACE_ID = "b2e1c7d0-0000-4000-8000-000000000001"
 TRACE = f"get('tool_input.{TRACE_ID}')"
+TRACE_SPELLINGS = [
+    f"get('tool_input[{TRACE_ID}]')",
+    f"(get('tool_input[{TRACE_ID}]'))",
+    f"GET('tool_input.{TRACE_ID}')",
+]
 
 
 def answer(body, status_code=200, content_type="application/json"):
@@ -292,9 +297,14 @@ def test_a_request_carrying_hidden_values_only_goes_to_the_builders_host(
         (f"concat('https://api.example.com/orders/', {TRACE})", True, {}),
         (f"concat('https://', {TRACE}, '/orders')", True, {"url": "fixed_host"}),
         (TRACE, True, {"url": "fixed_host"}),
-        (f"get('tool_input[{TRACE_ID}]')", True, {"url": "fixed_host"}),
         (TRACE, False, {}),
-        (f"get('tool_input[{TRACE_ID}]')", False, {}),
+        # The same input however it is spelled: with nothing hidden the model may
+        # pick the address, with a key the builder must fix the host.
+        *[
+            (spelling, carries_key, {"url": "fixed_host"} if carries_key else {})
+            for spelling in TRACE_SPELLINGS
+            for carries_key in (True, False)
+        ],
     ],
 )
 def test_the_builder_is_told_when_a_request_with_hidden_values_has_no_fixed_host(
