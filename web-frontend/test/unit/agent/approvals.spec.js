@@ -679,10 +679,14 @@ describe('Agent tool approvals', () => {
     [true, false],
     [false, true],
   ])(
-    'a shared conversation takes no messages, and decisions only from members who can send them: %s',
-    async (canSend, disabled) => {
-      allowed.value = (operation) =>
-        canSend || operation !== 'agent_application.create_message'
+    'trigger follow-ups use the continue permission (%s) and approvals the approval permission (%s)',
+    async (canContinue, canApprove) => {
+      const denied = [
+        !canContinue && 'agent_application.continue_triggered_conversation',
+        !canApprove && 'agent_application.approve_tool_calls',
+      ]
+      allowed.value = (operation) => !denied.includes(operation)
+      const disabled = !canApprove
       const shared = sharedConversation('digest', 'Daily digest')
       mockConversations(
         testApp,
@@ -704,7 +708,7 @@ describe('Agent tool approvals', () => {
       const wrapper = await mount()
       await selectConversation(wrapper, shared.title)
 
-      expect(composerExists(wrapper)).toBe(false)
+      expect(composerExists(wrapper)).toBe(canContinue)
       expect(title(wrapper)).toBe(
         disabled ? 'agent.approvalRequestReadOnly' : 'agent.approvalRequest'
       )
@@ -715,10 +719,45 @@ describe('Agent tool approvals', () => {
       await flushPromises()
 
       expect(sentBodies(testApp)).toEqual(
-        canSend ? [{ decisions: [{ id: 1, approved: true }] }] : []
+        canApprove ? [{ decisions: [{ id: 1, approved: true }] }] : []
       )
     }
   )
+
+  test('requests two named approvers while keeping the conversation private', async () => {
+    const people = [
+      { id: 2, name: 'Alice' },
+      { id: 3, name: 'Bob' },
+    ]
+    const endpoint = `/agent/10/conversations/${chat.uuid}/approvers/`
+    testApp.mock.onGet(endpoint).reply(200, { count: 2, results: people })
+    testApp.mock
+      .onPost(endpoint)
+      .reply(200, { ...chat, participants: [...chat.participants, ...people] })
+    const wrapper = await openWaitingReply([approval(1)])
+    await wrapper.get('.agent-audience button').trigger('click')
+    for (const person of people) {
+      document.body.querySelector('.modal__box .dropdown__selected').click()
+      await flushPromises()
+      Array.from(
+        document.body.querySelectorAll('.modal__box .select__item-link')
+      )
+        .find((el) => el.textContent.includes(person.name))
+        .click()
+      await flushPromises()
+    }
+    expect(document.querySelectorAll('.agent-approvers__item')).toHaveLength(2)
+    Array.from(document.querySelectorAll('.modal__box button'))
+      .find((el) => el.textContent.trim() === 'agent.askForApproval')
+      .click()
+    await flushPromises()
+    expect(JSON.parse(testApp.mock.history.post.at(-1).data)).toEqual({
+      user_ids: [2, 3],
+    })
+    expect(wrapper.get('.agent-audience__participants').text()).toBe(
+      'agent.privateWith'
+    )
+  })
 
   test('rejecting one step sends the reason given in the modal', async () => {
     mockApprovals(
@@ -1275,7 +1314,7 @@ describe('Agent tool approvals', () => {
     expect(composer(wrapper).element.readOnly).toBe(false)
   })
 
-  test('only a member who can send decides', async () => {
+  test('approval permission is independent of sending', async () => {
     allowed.value = (operation) =>
       operation !== 'agent_application.create_message'
     const wrapper = await openWaitingReply([approval(1)])
@@ -1283,6 +1322,6 @@ describe('Agent tool approvals', () => {
     expect(composerExists(wrapper)).toBe(false)
     expect(
       headerButtons(wrapper).map((button) => button.element.disabled)
-    ).toEqual([true, true])
+    ).toEqual([false, false])
   })
 })

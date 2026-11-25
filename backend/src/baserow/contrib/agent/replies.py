@@ -5,8 +5,6 @@ from dataclasses import dataclass
 from functools import cached_property, partial
 from typing import TYPE_CHECKING, Any
 
-from django.conf import settings
-
 from asgiref.sync import sync_to_async
 from loguru import logger
 from pydantic_ai import (
@@ -68,7 +66,7 @@ from baserow.core.generative_ai.registries import (
     generative_ai_model_type_registry,
 )
 from baserow.core.tools import ToolContext
-from baserow.core.tools.errors import ToolErrorCode
+from baserow.core.tools.errors import ToolErrorCode, describe_failure
 from baserow.core.utils import remove_null_characters
 
 from .action_tools.tools import BoundActionTool
@@ -147,6 +145,20 @@ def name_sender(content: str, sender: AgentConversationUser | None) -> str:
     )
 
 
+def get_prompt_content(message: AgentMessage, names_senders: bool) -> str:
+    """
+    :param message: A prompt, sent by a person or a trigger, with its sender.
+    :param names_senders: Whether people's messages name who wrote them.
+    :return: The content as the model reads it. Only a person's message names
+        its sender, so only one of those can come from a deleted user.
+    """
+
+    if not names_senders or message.role != AgentMessage.Role.USER:
+        return message.content
+    sender = message.sender
+    return name_sender(message.content, sender and AgentConversationUser.of(sender))
+
+
 def build_history(
     messages: list[AgentMessage], names_senders: bool = False
 ) -> list[ModelMessage]:
@@ -165,12 +177,7 @@ def build_history(
     history: list[ModelMessage] = []
     for message in messages:
         if message.role in prompt_roles:
-            content = message.content
-            if names_senders and message.role == AgentMessage.Role.USER:
-                sender = message.sender
-                content = name_sender(
-                    content, sender and AgentConversationUser.of(sender)
-                )
+            content = get_prompt_content(message, names_senders)
             history.append(ModelRequest(parts=[UserPromptPart(content=content)]))
         elif history:
             text = message.content
@@ -212,20 +219,6 @@ def create_reply_model(request: AgentReplyRequest) -> tuple[Model, dict]:
         request.model_identifier, model_settings
     )
     return model, model_settings
-
-
-def _describe_failure(error: BaseException) -> str:
-    """
-    Include the original error only in debug mode: it can echo private content.
-
-    :param error: What the model raised.
-    :return: The class/status summary, with the exception text when debugging.
-    """
-
-    status_code = getattr(error, "status_code", None)
-    name = type(error).__name__
-    summary = f"{name}, status {status_code}" if status_code else name
-    return f"{summary}: {error}" if settings.DEBUG else summary
 
 
 def _step_text(value: object) -> str | None:
@@ -395,7 +388,7 @@ class AgentResponder:
             summary = tool.get_step_input(arguments)
         except Exception as exc:
             logger.error(
-                "Agent tool {} step input failed ({})", tool.type, type(exc).__name__
+                "Agent tool {} step input failed ({})", tool.type, describe_failure(exc)
             )
             summary = {}
         description = {"changes_data": tool.changes_data, "input": summary}
@@ -437,8 +430,8 @@ class AgentResponder:
                 name=request.conversation_user.name,
                 user_id=request.conversation_user.id,
             )
-            if request.names_senders:
-                instructions += f"\n\n{SHARED_CONVERSATION_INSTRUCTIONS}"
+        if request.names_senders:
+            instructions += f"\n\n{SHARED_CONVERSATION_INSTRUCTIONS}"
         if request.run_as_unavailable:
             instructions += f"\n\n{UNAVAILABLE_WORKSPACE_ACCESS_INSTRUCTIONS}"
         if request.started_by_trigger:
@@ -541,9 +534,11 @@ class AgentResponder:
             if resume is None
             else None
         )
-        prompt = request.prompt
-        if prompt is not None and request.names_senders:
-            prompt = name_sender(prompt, request.conversation_user)
+        prompt = (
+            None
+            if request.prompt is None
+            else get_prompt_content(request.prompt, request.names_senders)
+        )
         async with agent.run_stream_events(
             prompt,
             conversation=resume.paused_conversation if resume else None,
@@ -775,7 +770,7 @@ class AgentResponder:
                 self._journal.run.id,
                 self._request.provider_type[:128],
                 self._request.model_identifier[:128],
-                _describe_failure(error),
+                describe_failure(error),
             )
         return ChatRunOutcome(
             ChatRunStatus.FAILED, self._failure_error_code(error), result

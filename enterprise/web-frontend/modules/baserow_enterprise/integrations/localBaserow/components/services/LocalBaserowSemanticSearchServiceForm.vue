@@ -5,6 +5,7 @@
       :service-type="serviceType"
       :default-values="defaultValues"
       :databases="databases"
+      :form-choices-error="formChoicesError"
       @values-changed="values = { ...values, ...$event }"
       @table-changed="onTableChanged"
     ></LocalBaserowServiceForm>
@@ -73,6 +74,16 @@ export default {
     LocalBaserowSemanticSearchSettings,
   },
   mixins: [form, localBaserowService],
+  props: {
+    /**
+     * Why there is nothing to choose from, forwarded to the service form.
+     */
+    formChoicesError: {
+      type: String,
+      required: false,
+      default: '',
+    },
+  },
   setup() {
     return { v$: useVuelidate({ $lazy: true }) }
   },

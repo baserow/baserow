@@ -73,9 +73,29 @@
         @load-more="state.loadMoreConversations"
         @update="state.updateConversation"
         @share="state.shareConversation"
+        @leave="state.leaveConversation"
         @delete="state.deleteConversation"
       />
       <main class="agent-chat" :class="{ 'agent-chat--empty': showChatIntro }">
+        <div
+          v-if="participantNames || state.canAskForApproval"
+          class="agent-audience"
+        >
+          <i class="iconoir-lock" aria-hidden="true"></i>
+          <span class="agent-audience__participants" :title="participantNames">
+            {{
+              participantNames
+                ? $t('agent.privateWith', { names: participantNames })
+                : $t('agent.private')
+            }}
+          </span>
+          <ButtonText
+            v-if="state.canAskForApproval"
+            size="small"
+            @click="requestApprovalModal.show()"
+            >{{ $t('agent.askForApproval') }}</ButtonText
+          >
+        </div>
         <div class="agent-chat__announcement" role="status">
           {{ announcement }}
         </div>
@@ -233,6 +253,12 @@
           </div>
         </div>
       </main>
+      <AgentRequestApprovalModal
+        ref="requestApprovalModal"
+        :agent-id="agent.id"
+        :conversation-uuid="state.selectedUuid"
+        @request="state.requestApproval"
+      />
       <AgentConfigurationSidebar
         v-if="state.canReadConfiguration && configurationOpen"
         ref="configurationSidebar"
@@ -269,6 +295,7 @@ import {
 import { provideNow } from '@baserow/modules/core/composables/useNow'
 import AgentPendingApprovalsContext from '@baserow/modules/agent/components/AgentPendingApprovalsContext'
 import AgentConversationList from '@baserow/modules/agent/components/AgentConversationList'
+import AgentRequestApprovalModal from '@baserow/modules/agent/components/AgentRequestApprovalModal'
 import AgentMessage from '@baserow/modules/agent/components/AgentMessage'
 import AgentChatIntro from '@baserow/modules/agent/components/AgentChatIntro'
 import AgentConfigurationSidebar from '@baserow/modules/agent/components/AgentConfigurationSidebar'
@@ -308,6 +335,14 @@ const conversationsToggleLabel = computed(() =>
   )
 )
 const configurationOpen = ref(true)
+const requestApprovalModal = ref(null)
+// Named only once someone else takes part, as everyone else's are just theirs.
+const participantNames = computed(() => {
+  const participants = state.selectedConversation?.participants || []
+  return participants.length > 1
+    ? participants.map((person) => person.name).join(', ')
+    : ''
+})
 provideNow()
 // Configuration sections read the Agent's workspace from here.
 provide('agentApplication', agent)
@@ -457,11 +492,10 @@ const showComposer = computed(
 )
 const readOnlyNote = computed(() => {
   const conversation = state.selectedConversation
-  if (conversation?.started_by_trigger) return 'agent.sharedNoMessages'
-  if (conversation && !conversation.local && !state.canWriteSelected) {
-    return 'agent.cannotSendMessages'
-  }
-  return ''
+  if (!conversation || conversation.local || state.canWriteSelected) return ''
+  return conversation.started_by_trigger
+    ? 'agent.sharedNoMessages'
+    : 'agent.cannotSendMessages'
 })
 const warningTitle = computed(() =>
   hasLoadError.value

@@ -27,3 +27,11 @@ class DeleteAgentConversationOperationType(ApplicationOperationType):
 
 class RestoreAgentConversationOperationType(ApplicationOperationType):
     type = "agent_application.restore_conversation"
+
+
+class ApproveAgentToolCallsOperationType(ApplicationOperationType):
+    type = "agent_application.approve_tool_calls"
+
+
+class ContinueAgentTriggeredConversationOperationType(ApplicationOperationType):
+    type = "agent_application.continue_triggered_conversation"

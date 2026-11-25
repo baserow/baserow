@@ -1334,6 +1334,40 @@ describe('Agent triggers', () => {
     expect(patches(testApp)).toEqual([])
   })
 
+  test('links a trigger without tables to choose from to workspace access', async () => {
+    testApp.mock.onGet('/agent/10/triggers/').reply(200, [rowsTrigger()])
+    testApp.mock.onGet('/agent/10/trigger-types/').reply(200, [
+      {
+        type: 'local_baserow_rows_created',
+        form_choices: { databases: [] },
+        default_on_overlap: 'wait',
+      },
+    ])
+    const openSection = vi.fn()
+    const wrapper = await testApp.mount(AgentWhenItRunsSection, {
+      props: {
+        configuration: completeConfiguration({
+          available_trigger_types: ['local_baserow_rows_created'],
+          max_queued_trigger_runs: 10,
+          max_parallel_trigger_runs: 5,
+        }),
+        editable: true,
+      },
+      global: {
+        provide: {
+          agentApplication: ref(agent),
+          openAgentConfigurationSection: openSection,
+        },
+      },
+    })
+    await flushPromises()
+
+    const error = wrapper.find('.control__messages--error')
+    expect(error.text()).toContain('agent.noWorkspaceAccessTables')
+    await error.find('a').trigger('click')
+    expect(openSection).toHaveBeenCalledWith('workspace_access')
+  })
+
   test('marks a trigger that reads the workspace as one that won’t run until the agent has access', async () => {
     testApp.mock.onGet('/agent/10/trigger-types/').replyOnce(200, [
       triggerTypeOf('periodic'),
@@ -1363,7 +1397,7 @@ describe('Agent triggers', () => {
         .map((item) => item.text())
 
     expect(statuses()).toEqual(['agent.triggerNeedsWorkspaceAccess'])
-    expect(fieldErrors()).toEqual(['agent.triggerSetWorkspaceAccess'])
+    expect(fieldErrors()).toEqual(['agent.noWorkspaceAccessTables'])
     expect(rowsCard().findAll('.dropdown--error')).toHaveLength(1)
     expect(wrapper.find('.agent-trigger-card .alert').exists()).toBe(false)
     expect(selected()).not.toContain('Orders')

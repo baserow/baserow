@@ -1,3 +1,4 @@
+from collections import defaultdict
 from dataclasses import dataclass
 from typing import Any
 from zipfile import ZipFile
@@ -19,6 +20,7 @@ from baserow.core.services.models import Service
 from baserow.core.services.registries import ServiceType
 from baserow.core.storage import ExportZipFile
 from baserow.core.trash.handler import TrashHandler
+from baserow.core.types import Subject
 
 from .exceptions import (
     AgentActionDoesNotExist,
@@ -27,6 +29,13 @@ from .exceptions import (
 )
 from .inputs import validate_action_name, validate_inputs
 from .registries import agent_action_type_registry
+
+
+@dataclass
+class AgentActionTypeOptions:
+    type: str
+    form_choices: dict[str, Any] | None
+    """What the type's form may choose from for the Agent's run identity."""
 
 
 @dataclass
@@ -96,26 +105,27 @@ class AgentActionHandler:
             queryset = queryset.filter(enabled=True)
         return self._load_services(list(queryset.select_related("agent__workspace")))
 
-    def available_action_types(self, agent: AgentApplication) -> list[str]:
+    def available_action_types(self) -> list[str]:
         """
-        :param agent: The Agent.
-        :return: The service types that can be added to it as actions.
+        :return: The service types offered as actions on this instance, including
+            the ones a workspace's license locks.
         """
 
         return [
-            action_type.type
-            for action_type in agent_action_type_registry.get_all()
-            if action_type.is_available(agent.workspace)
+            action_type.type for action_type in agent_action_type_registry.get_all()
         ]
 
-    def check_type_available(self, agent: AgentApplication, type_name: str) -> None:
+    def check_type_usable(self, agent: AgentApplication, type_name: str) -> None:
         """
         :param agent: The Agent.
         :param type_name: A service type name.
-        :raises AgentActionTypeNotAvailable: When it can't be added as an action.
+        :raises AgentActionTypeNotAvailable: When the type isn't offered as an
+            action or can't be used in the Agent's workspace.
         """
 
-        if type_name not in self.available_action_types(agent):
+        if type_name not in self.available_action_types() or not (
+            agent_action_type_registry.get(type_name).is_usable(agent.workspace)
+        ):
             raise AgentActionTypeNotAvailable(type_name)
 
     def check_limit(self, agent: AgentApplication) -> None:
@@ -128,29 +138,98 @@ class AgentActionHandler:
         if limit and AgentAction.objects.filter(agent=agent).count() >= limit:
             raise AgentActionLimitReached(limit)
 
+    def get_run_identity(self, agent: AgentApplication) -> Subject | None:
+        """
+        :param agent: The Agent, with its workspace.
+        :return: The run identity the Agent may act as now, or None.
+        """
+
+        # Imported here, as the Agent's handler builds on this one.
+        from baserow.contrib.agent.handler import AgentHandler
+
+        return AgentHandler().get_run_identity(agent)
+
     def get_configuration_errors(self, action: AgentAction) -> dict[str, str]:
         """
         :param action: The action, with its agent and workspace.
         :return: An error code by field, empty when the action can be called.
         """
 
-        return agent_action_type_registry.get(
-            action.service.get_type().type
-        ).get_configuration_errors(action)
+        action_type = agent_action_type_registry.get(action.service.get_type().type)
+        identity = (
+            self.get_run_identity(action.agent)
+            if action_type.acts_as_run_identity
+            else None
+        )
+        return action_type.get_configuration_errors(action, identity)
 
     def get_callable_actions(self, agent: AgentApplication) -> list[AgentAction]:
         """
         :param agent: The Agent.
-        :return: Its actions the model may call: switched on, of an available
-            type and completely configured.
+        :return: Its actions the model may call: switched on and completely
+            configured, which includes a type usable in the Agent's workspace,
+            and the run identity for a type that acts as it.
         """
 
-        available = set(self.available_action_types(agent))
+        actions = self.list_actions(agent, only_enabled=True)
+        errors = self.get_configuration_errors_by_action(agent, actions)
+        return [action for action in actions if not errors[action.id]]
+
+    def get_configuration_errors_by_action(
+        self, agent: AgentApplication, actions: list[AgentAction]
+    ) -> dict[int, dict[str, str]]:
+        """
+        Check the actions of an Agent with the run identity resolved once, and
+        each type's checks done for all its actions together.
+
+        :param agent: The Agent, with its workspace.
+        :param actions: Its actions, with their specific services.
+        :return: The errors of each action, by action id.
+        """
+
+        actions_by_type = defaultdict(list)
+        for action in actions:
+            actions_by_type[action.service.get_type().type].append(action)
+        action_types = [
+            agent_action_type_registry.get(type_name) for type_name in actions_by_type
+        ]
+        identity = (
+            self.get_run_identity(agent)
+            if any(action_type.acts_as_run_identity for action_type in action_types)
+            else None
+        )
+        errors = {}
+        for action_type in action_types:
+            errors.update(
+                action_type.get_configuration_errors_by_action(
+                    actions_by_type[action_type.type], identity
+                )
+            )
+        return errors
+
+    def list_action_types(
+        self, agent: AgentApplication, identity: Subject | None
+    ) -> list[AgentActionTypeOptions]:
+        """
+        Describe each action type: what its form may choose from for the Agent's
+        run identity, for a type that acts as it.
+
+        :param agent: The Agent, with its workspace.
+        :param identity: The Agent's run identity, or None when it has none it can
+            act as.
+        :return: One entry per available type, in registry order.
+        """
+
         return [
-            action
-            for action in self.list_actions(agent, only_enabled=True)
-            if action.service.get_type().type in available
-            and not self.get_configuration_errors(action)
+            AgentActionTypeOptions(
+                type=action_type.type,
+                form_choices=(
+                    action_type.service_type.get_form_choices(identity, agent.workspace)
+                    if action_type.acts_as_run_identity
+                    else None
+                ),
+            )
+            for action_type in agent_action_type_registry.get_all()
         ]
 
     @staticmethod
@@ -344,11 +423,17 @@ class AgentActionHandler:
                 and not import_export_config.is_template
                 and values.get("enabled", False)
             )
-            integration = IntegrationHandler().get_integration_for_import(
-                service_values.get("integration_id"),
-                id_mapping,
-                application_id=agent.id,
-                keep_unmapped=False,
+            integration = (
+                None
+                if agent_action_type_registry.get(
+                    service_values["type"]
+                ).acts_as_run_identity
+                else IntegrationHandler().get_integration_for_import(
+                    service_values.get("integration_id"),
+                    id_mapping,
+                    application_id=agent.id,
+                    keep_unmapped=False,
+                )
             )
             service = ServiceHandler().import_service(
                 integration,

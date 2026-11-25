@@ -1,6 +1,7 @@
 from django.urls import include, path
 
 from .admin import urls as admin_urls
+from .agent_permissions import urls as agent_permissions_urls
 from .audit_log import urls as audit_log_urls
 from .automatic_snapshots import urls as automatic_snapshots_urls
 from .builder.custom_code import urls as custom_code_urls
@@ -13,6 +14,8 @@ from .teams import urls as teams_urls
 app_name = "baserow_enterprise.api"
 
 urlpatterns = [
+    # Next to the core agent endpoints, which don't match these paths.
+    path("agent/", include(agent_permissions_urls, namespace="agent_permissions")),
     path("teams/", include(teams_urls, namespace="teams")),
     path("role/", include(role_urls, namespace="role")),
     path("admin/", include(admin_urls, namespace="admin")),

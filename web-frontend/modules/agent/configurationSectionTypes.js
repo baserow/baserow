@@ -10,6 +10,7 @@ import { getRunAsStatus } from '@baserow/modules/agent/utils/runAs'
 import {
   CONFIGURATION_ERROR,
   RUN_AS_STATUS,
+  WORKSPACE_ACCESS_SECTION,
 } from '@baserow/modules/agent/constants'
 
 const ActionsSection = markRaw(AgentActionsSection)
@@ -132,7 +133,7 @@ export class WhenItRunsAgentConfigurationSectionType extends AgentConfigurationS
 
 export class WorkspaceAccessAgentConfigurationSectionType extends AgentConfigurationSectionType {
   static getType() {
-    return 'workspace_access'
+    return WORKSPACE_ACCESS_SECTION
   }
 
   get name() {

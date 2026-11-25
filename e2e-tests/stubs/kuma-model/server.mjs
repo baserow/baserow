@@ -23,6 +23,18 @@ function textOf(message) {
   return (message.content ?? []).map((part) => part.text ?? "").join("");
 }
 
+/** What a person wrote, also when a shared conversation wraps it with its sender. */
+function promptOf(message) {
+  const text = textOf(message);
+  try {
+    const wrapped = JSON.parse(text);
+    if (typeof wrapped?.message === "string") return wrapped.message;
+  } catch {
+    // Plain text, as in a private conversation.
+  }
+  return text;
+}
+
 function toolCall(name, args) {
   return {
     id: `call_${name}`,
@@ -41,7 +53,21 @@ function nextAnswer(body) {
       : { toolCall: toolCall(MODEL_CHECK_TOOL, { value: "e2e" }) };
   }
   const lastUser = messages.findLast((message) => message.role === "user");
-  const prompt = lastUser ? textOf(lastUser) : "";
+  const prompt = lastUser ? promptOf(lastUser) : "";
+  if (
+    prompt === "Create a support database." &&
+    tools.includes("create_database")
+  ) {
+    const result = messages.at(-1);
+    if (result?.role === "tool") {
+      return {
+        text: textOf(result).includes("created_database")
+          ? "The support database is ready."
+          : "I could not create the support database.",
+      };
+    }
+    return { toolCall: toolCall("create_database", { name: "Support" }) };
+  }
   const script = prompt.match(SCRIPT);
   const rowsHold = prompt.match(ROWS_HOLD);
   if (rowsHold && !script) {
@@ -79,7 +105,7 @@ function nextAnswer(body) {
   return {
     words: Array.from(
       { length: Number(wordCount) },
-      (_, index) => `word${index + 1}`,
+      (_, index) => `word${index + 1}`
     ),
   };
 }
@@ -114,7 +140,7 @@ async function stream(res, answer) {
       chunk({
         role: "assistant",
         tool_calls: [{ index: 0, ...answer.toolCall }],
-      }),
+      })
     );
     send(chunk({}, "tool_calls"));
   } else {
@@ -122,7 +148,7 @@ async function stream(res, answer) {
     for (const [index, part] of parts.entries()) {
       if (res.destroyed) return;
       send(
-        chunk({ role: "assistant", content: index === 0 ? part : ` ${part}` }),
+        chunk({ role: "assistant", content: index === 0 ? part : ` ${part}` })
       );
       if (answer.words) await sleep(WORD_DELAY_MS);
     }
@@ -154,7 +180,7 @@ function respond(res, answer) {
         },
       ],
       usage: USAGE,
-    }),
+    })
   );
 }
 

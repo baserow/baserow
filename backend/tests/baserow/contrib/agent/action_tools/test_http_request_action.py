@@ -10,10 +10,10 @@ from advocate.exceptions import UnacceptableAddressException
 from baserow.contrib.agent.action_tools.action_types import (
     HIDDEN_VALUE,
     HTTP_ACTION_MAX_REQUEST_BYTES,
-    HTTP_ACTION_MAX_RESULT_CHARACTERS,
     HTTPRequestAgentActionType,
 )
 from baserow.contrib.agent.action_tools.service import AgentActionService
+from baserow.contrib.agent.constants import ACTION_MAX_RESULT_CHARACTERS
 from baserow.contrib.agent.handler import AgentHandler
 from baserow.contrib.integrations.core.constants import BODY_TYPE
 from baserow.contrib.integrations.core.models import HTTPHeader
@@ -426,20 +426,20 @@ def test_the_model_reads_a_short_answer_whole_and_the_start_of_a_long_one(
         "body_omitted": False,
     }
 
-    long_text = "a" * (HTTP_ACTION_MAX_RESULT_CHARACTERS + 10)
+    long_text = "a" * (ACTION_MAX_RESULT_CHARACTERS + 10)
     result = result_of(answer(long_text, content_type="text/plain"))
-    assert result["body"] == long_text[:HTTP_ACTION_MAX_RESULT_CHARACTERS]
+    assert result["body"] == long_text[:ACTION_MAX_RESULT_CHARACTERS]
     assert result["body_truncated"] is True
 
     long_json = {"items": ["b" * 100] * 300}
     result = result_of(answer(long_json))
-    assert result["body"] == json.dumps(long_json)[:HTTP_ACTION_MAX_RESULT_CHARACTERS]
+    assert result["body"] == json.dumps(long_json)[:ACTION_MAX_RESULT_CHARACTERS]
     assert result["body_truncated"] is True
 
     # The raw body of a list leaves its empty items out, so it can't measure it.
-    empty_items = [None] * HTTP_ACTION_MAX_RESULT_CHARACTERS
+    empty_items = [None] * ACTION_MAX_RESULT_CHARACTERS
     result = result_of(answer(empty_items))
-    assert result["body"] == json.dumps(empty_items)[:HTTP_ACTION_MAX_RESULT_CHARACTERS]
+    assert result["body"] == json.dumps(empty_items)[:ACTION_MAX_RESULT_CHARACTERS]
     assert result["body_truncated"] is True
 
     result = result_of(answer("%PDF", content_type="application/pdf"))

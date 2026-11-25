@@ -565,7 +565,7 @@ class AgentTriggerHandler:
             chat_id=OuterRef("conversation_id"),
             status__in=ACTIVE_CHAT_RUN_STATUSES,
         )
-        return Q(conversation__trashed=False) & (
+        return Q(conversation__trashed=False, unattended=True) & (
             Q(status=AgentReplyStatus.WAITING)
             | Q(Exists(active_run), status=AgentReplyStatus.RUNNING)
         )

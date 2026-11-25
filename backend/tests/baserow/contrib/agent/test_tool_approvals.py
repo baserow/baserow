@@ -81,7 +81,7 @@ def test_the_last_decision_resumes_the_reply_and_each_is_audited_by_tool(
     )
 
     run = ChatRun.objects.get()
-    assert run.context == {"reply_id": held_reply.id}
+    assert run.context == {"reply_id": held_reply.id, "approver_id": api_user.id}
     assert (last.json()["status"], last.json()["run_id"]) == ("running", str(run.id))
     assert last.json()["approvals"] == [
         {

@@ -48,6 +48,8 @@
         :data-card-id="action.id"
         :expanded="expandedIds.has(action.id)"
         :action="action"
+        :type-options="actionTypes && (actionTypes[action.type] || {})"
+        :run-as-active="runAsActive"
         :workspace="workspace"
         :editable="editable"
         :saving="savingIds.has(action.id)"
@@ -78,6 +80,8 @@ import AgentCardListHeader from '@baserow/modules/agent/components/configuration
 import AgentActionCard from '@baserow/modules/agent/components/configuration/AgentActionCard'
 import AgentServicePicker from '@baserow/modules/agent/components/configuration/AgentServicePicker'
 import { useAgentActions } from '@baserow/modules/agent/composables/useAgentActions'
+import { RUN_AS_STATUS } from '@baserow/modules/agent/constants'
+import { getRunAsStatus } from '@baserow/modules/agent/utils/runAs'
 
 defineOptions({ inheritAttrs: false })
 const props = defineProps({
@@ -87,6 +91,7 @@ const props = defineProps({
 const emit = defineEmits(['reload'])
 const store = useStore()
 const agent = inject('agentApplication')
+const templatePreview = inject('agentTemplatePreview', false)
 const picker = ref(null)
 const workspace = computed(() =>
   agent.value ? store.getters['workspace/get'](agent.value.workspace.id) : null
@@ -94,8 +99,12 @@ const workspace = computed(() =>
 const availableTypes = computed(
   () => props.configuration.available_action_types || []
 )
+const runAsActive = computed(
+  () => getRunAsStatus(props.configuration.run_as) === RUN_AS_STATUS.ACTIVE
+)
 const {
   actions,
+  actionTypes,
   loading,
   loadError,
   allActions,
@@ -106,7 +115,12 @@ const {
   updateAction,
   deleteAction,
   flush,
-} = useAgentActions(agent, () => emit('reload'))
+} = useAgentActions(
+  agent,
+  () => emit('reload'),
+  () => props.configuration.run_as,
+  { loadTypes: !templatePreview }
+)
 const { expandedIds, allExpanded, toggle, toggleAll, list, creating, addItem } =
   useAgentCardList(actions, createAction, allActions)
 const atLimit = computed(

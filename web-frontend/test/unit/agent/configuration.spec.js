@@ -2298,7 +2298,9 @@ describe('Agent configuration', () => {
       .trigger('click')
     await flushPromises()
 
-    expect(wrapper.findAll('.menu-list__item-button')).toHaveLength(6)
+    expect(wrapper.findAll('.menu-list__item-button')).toHaveLength(
+      testApp.getRegistry().getOrderedList('agentConfigurationSection').length
+    )
   })
 
   test('warns when model availability cannot be loaded until retry', async () => {

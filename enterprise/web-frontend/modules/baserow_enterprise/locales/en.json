@@ -32,6 +32,32 @@
     "createRowCommentsDoneCount": "Posted {count} comment | Posted {count} comments",
     "createRowCommentsDoneCountTable": "Posted {count} comment in {table} | Posted {count} comments in {table}"
   },
+  "agentPermissions": {
+    "section": "Permissions",
+    "sectionDescription": "Who can chat, approve tools and continue triggered chats.",
+    "chat": "Who can chat",
+    "approve": "Who can approve tool calls",
+    "continue": "Who can continue triggered conversations",
+    "managePeople": "Manage people and teams ({count})",
+    "loadError": "Couldn’t load agent permissions.",
+    "EDITOR": "Editors and higher",
+    "CUSTOM": "Specific users or teams",
+    "NOBODY": "Nobody",
+    "EVERYONE": "Everyone in the workspace",
+    "default": "Default",
+    "loading": "Loading…",
+    "chooseSubjects": "Choose at least one person or team for “{setting}”.",
+    "noApproverTitle": "Nobody could approve",
+    "noApproverDescription": "None of these people or team members has Editor access or higher on this agent. Keep at least one who does.",
+    "unlicensedNote": "Without Advanced or Enterprise, every member can chat and approve tool calls, and nobody can continue conversations started by triggers."
+  },
+  "agentPermissionSubjects": {
+    "accessNote": "Changes apply immediately. People and team members need Editor access or higher on this agent.",
+    "canEdit": "Selected people and teams",
+    "noSelectedSubjects": "Choose at least one person or team.",
+    "addPeopleOrTeams": "Add people or teams",
+    "searchPlaceholder": "Search people or teams"
+  },
   "clientHandler": {
     "cannotDisableAllAuthProvidersTitle": "Last enabled provider",
     "cannotDisableAllAuthProvidersDescription": "It is not possible to disable or delete last enabled provider."
@@ -124,6 +150,12 @@
     "minSimilarityHelper": "From 0 to 1. Weaker matches are left out.",
     "minSimilarityTooltip": "Rows of which the meaning is less similar to the search query are left out, even if they contain its words. It's compared with the Similarity value of each result.",
     "minSimilarityPlaceholder": "No minimum"
+  },
+  "agentSemanticSearch": {
+    "tool": "Search rows by meaning",
+    "toolRunning": "Searching rows by meaning…",
+    "toolDone": "Rows searched by meaning",
+    "filters": "Filters"
   },
   "createTeamModal": {
     "title": "Create team",
@@ -606,7 +638,7 @@
     "dataScanner": "Data scanner",
     "dataScannerContent": "Scan all data in your Baserow instance for sensitive patterns like IBAN numbers or medical IDs, or match against known value lists. Configure automatic scanning schedules and view detailed results.",
     "semanticSearch": "Semantic search",
-    "semanticSearchContent": "Find rows by the meaning of their text instead of exact words, and use the results in automations and applications.",
+    "semanticSearchContent": "Find rows by the meaning of their text instead of exact words, and use the results in automations, applications and agents.",
     "automaticSnapshots": "Automatic snapshots",
     "automaticSnapshotsContent": "Snapshot your applications on a schedule, for the whole workspace or one application at a time, so there's always a recent copy to go back to. The oldest unprotected snapshots are replaced as new ones are taken."
   },

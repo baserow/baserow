@@ -284,6 +284,8 @@ export const conversation = (
   title,
   shared: false,
   started_by_trigger: false,
+  owner: viewer,
+  participants: [viewer],
   created_on: '2026-10-14T10:00:00Z',
   updated_on: updatedOn,
 })
@@ -292,6 +294,8 @@ export const sharedConversation = (uuid, title, triggerType = 'periodic') => ({
   ...conversation(uuid, title),
   shared: true,
   started_by_trigger: true,
+  owner: null,
+  participants: [],
   trigger_type: triggerType,
 })
 

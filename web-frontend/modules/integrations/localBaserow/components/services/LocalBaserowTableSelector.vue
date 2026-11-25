@@ -8,6 +8,14 @@
       small-label
       required
     >
+      <template v-if="formChoicesError && formChoicesErrorAction" #error>
+        <span>
+          {{ formChoicesError }}
+          <a href="#" @click.prevent="formChoicesErrorAction.onClick()">{{
+            formChoicesErrorAction.label
+          }}</a>
+        </span>
+      </template>
       <Dropdown
         :model-value="modelValue"
         show-search
@@ -68,6 +76,13 @@
 <script>
 export default {
   name: 'LocalBaserowTableSelector',
+  inject: {
+    /**
+     * What resolves `formChoicesError`, as a `label` and an `onClick`, from the
+     * host that knows where it's set, or null.
+     */
+    formChoicesErrorAction: { default: null },
+  },
   props: {
     modelValue: {
       type: Number,

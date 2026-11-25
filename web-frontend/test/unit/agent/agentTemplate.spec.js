@@ -132,7 +132,7 @@ describe('Agent template preview', () => {
     ).toBe(false)
     expect(
       wrapper.findAll('.agent-configuration .menu-list__item-button')
-    ).toHaveLength(6)
+    ).toHaveLength(7)
   })
 
   test('shows the configuration sections read-only', async () => {
@@ -235,7 +235,7 @@ describe('Agent template preview', () => {
     expect(wrapper.find('.agent-chat__intro').exists()).toBe(true)
     expect(
       wrapper.findAll('.agent-configuration .menu-list__item-button')
-    ).toHaveLength(6)
+    ).toHaveLength(7)
   })
 
   test('shows the example conversations read-only', async () => {
@@ -308,6 +308,6 @@ describe('Agent template preview', () => {
 
     expect(
       wrapper.findAll('.agent-configuration .menu-list__item-button')
-    ).toHaveLength(6)
+    ).toHaveLength(7)
   })
 })

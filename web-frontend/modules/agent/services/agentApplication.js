@@ -62,6 +62,23 @@ export default (client) => ({
       `/agent/${agentId}/conversations/${conversationUuid}/share/`
     )
   },
+  leaveConversation(agentId, conversationUuid) {
+    return client.post(
+      `/agent/${agentId}/conversations/${conversationUuid}/leave/`
+    )
+  },
+  getApproverCandidates(agentId, conversationUuid, page, search) {
+    return client.get(
+      `/agent/${agentId}/conversations/${conversationUuid}/approvers/`,
+      { params: { page, search } }
+    )
+  },
+  requestApproval(agentId, conversationUuid, userIds) {
+    return client.post(
+      `/agent/${agentId}/conversations/${conversationUuid}/approvers/`,
+      { user_ids: userIds }
+    )
+  },
   deleteConversation(agentId, conversationUuid) {
     return client.delete(`/agent/${agentId}/conversations/${conversationUuid}/`)
   },

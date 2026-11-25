@@ -78,6 +78,9 @@ def register_row_comment_trigger():
 
 def register_semantic_search_features():
     from baserow.api.settings.registries import settings_data_registry
+    from baserow.contrib.agent.action_tools.registries import (
+        agent_action_type_registry,
+    )
     from baserow.contrib.automation.nodes.registries import (
         automation_node_type_registry,
     )
@@ -89,6 +92,9 @@ def register_semantic_search_features():
     )
     from baserow_enterprise.automation.nodes.node_types import (
         LocalBaserowSemanticSearchActionNodeType,
+    )
+    from baserow_enterprise.integrations.local_baserow.agent_action_types import (
+        LocalBaserowSemanticSearchAgentActionType,
     )
     from baserow_enterprise.integrations.local_baserow.service_types import (
         LocalBaserowSemanticSearchServiceType,
@@ -129,6 +135,7 @@ def register_semantic_search_features():
     settings_data_registry.register(SemanticSearchSettingsDataType())
     service_type_registry.register(LocalBaserowSemanticSearchServiceType())
     automation_node_type_registry.register(LocalBaserowSemanticSearchActionNodeType())
+    agent_action_type_registry.register(LocalBaserowSemanticSearchAgentActionType())
 
     import baserow_enterprise.semantic_search.receivers  # noqa: F401
 
@@ -196,6 +203,9 @@ class BaserowEnterpriseConfig(AppConfig):
             plugin_registry,
         )
         from baserow.core.trash.registries import trash_item_type_registry
+        from baserow_enterprise.agent_permissions.actions import (
+            UpdateAgentParticipationRuleActionType,
+        )
         from baserow_enterprise.api.invitation_data_types import (
             EnterpriseInvitationScopesDataType,
             EnterpriseInvitationTeamsDataType,
@@ -284,6 +294,7 @@ class BaserowEnterpriseConfig(AppConfig):
         application_type_registry.register(EnterpriseBuilderApplicationType())
 
         action_type_registry.register(CreateTeamActionType())
+        action_type_registry.register(UpdateAgentParticipationRuleActionType())
         action_type_registry.register(UpdateTeamActionType())
         action_type_registry.register(DeleteTeamActionType())
         action_type_registry.register(CreateTeamSubjectActionType())
@@ -412,9 +423,18 @@ class BaserowEnterpriseConfig(AppConfig):
 
         from baserow.core.registries import permission_manager_type_registry
 
+        from .agent_permissions.permission_manager import (
+            AgentParticipationPermissionManagerType,
+        )
         from .field_permissions.permission_manager import FieldPermissionManagerType
         from .role.permission_manager import RolePermissionManagerType
 
+        permission_manager_type_registry.unregister(
+            AgentParticipationPermissionManagerType.type
+        )
+        permission_manager_type_registry.register(
+            AgentParticipationPermissionManagerType()
+        )
         permission_manager_type_registry.register(FieldPermissionManagerType())
         permission_manager_type_registry.register(RolePermissionManagerType())
 
@@ -463,9 +483,13 @@ class BaserowEnterpriseConfig(AppConfig):
 
         from baserow.core.registries import serialization_processor_registry
         from baserow_enterprise.structure_types import (
+            AgentParticipationSerializationProcessorType,
             RoleAssignmentSerializationProcessorType,
         )
 
+        serialization_processor_registry.register(
+            AgentParticipationSerializationProcessorType()
+        )
         serialization_processor_registry.register(
             RoleAssignmentSerializationProcessorType()
         )
@@ -713,6 +737,7 @@ class BaserowEnterpriseConfig(AppConfig):
 
         # The signals must always be imported last because they use the registries
         # which need to be filled first.
+        import baserow_enterprise.agent_permissions.receivers  # noqa: F401
         import baserow_enterprise.assistant.tasks  # noqa: F401
         import baserow_enterprise.audit_log.signals  # noqa: F401
         import baserow_enterprise.automatic_snapshots.tasks  # noqa: F401

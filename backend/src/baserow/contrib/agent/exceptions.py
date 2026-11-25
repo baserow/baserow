@@ -15,15 +15,11 @@ class AgentRunAsSubjectDoesNotExist(Exception):
 
 
 class AgentConversationWaitingForApproval(Exception):
-    """The conversation's latest reply waits for the owner to decide its held calls."""
+    """The conversation's latest reply waits for decisions on its held calls."""
 
 
 class AgentToolApprovalNotPending(Exception):
     """The approval is decided or isn't held by the conversation's waiting reply."""
-
-
-class AgentConversationReadOnly(Exception):
-    """A trigger started the conversation, so it takes no messages."""
 
 
 class AgentTriggerOff(Exception):

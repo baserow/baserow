@@ -14,6 +14,7 @@ import {
 } from '@baserow_enterprise/adminTypes'
 import authProviderAdminStore from '@baserow_enterprise/store/authProviderAdmin'
 import assistantStore from '@baserow_enterprise/store/assistant'
+import { PermissionsAgentConfigurationSectionType } from '@baserow_enterprise/agentConfigurationSectionTypes'
 import { AssistantChatRunType } from '@baserow_enterprise/chatRunTypes'
 import {
   storeChatUuid,
@@ -152,6 +153,7 @@ import {
   LocalBaserowSemanticSearchServiceType,
   LocalBaserowRowCommentPostedTriggerServiceType,
 } from '@baserow_enterprise/integrations/localBaserow/serviceTypes'
+import { LocalBaserowSemanticSearchToolPresentationType } from '@baserow_enterprise/agentToolPresentationTypes'
 import { SemanticSearchFieldFormAdvancedSettingType } from '@baserow_enterprise/fieldFormAdvancedSettingTypes'
 import {
   AISemanticSearchFieldType,
@@ -175,6 +177,10 @@ export default defineNuxtPlugin({
     const context = { app: nuxtApp }
 
     $registry.register('plugin', new EnterprisePlugin(context))
+    $registry.register(
+      'agentConfigurationSection',
+      new PermissionsAgentConfigurationSectionType(context)
+    )
     $registry.register(
       'aiProviderModelFeature',
       new KumaAIProviderModelFeatureType(context)
@@ -334,6 +340,10 @@ export default defineNuxtPlugin({
     $registry.register(
       'node',
       new LocalBaserowSemanticSearchActionNodeType(context)
+    )
+    $registry.register(
+      'toolPresentation',
+      new LocalBaserowSemanticSearchToolPresentationType(context)
     )
 
     $registry.register(

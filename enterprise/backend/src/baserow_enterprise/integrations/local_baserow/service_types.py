@@ -19,6 +19,7 @@ from baserow.contrib.integrations.local_baserow.mixins import (
     import_refinement_field_id,
 )
 from baserow.contrib.integrations.local_baserow.service_types import (
+    LocalBaserowSubjectReadableTablesMixin,
     LocalBaserowTableRowsListServiceTypeMixin,
     LocalBaserowTableSignalTriggerServiceType,
     LocalBaserowViewServiceType,
@@ -62,6 +63,7 @@ RESULT_PROPERTIES = [SCORE_PROPERTY, SIMILARITY_PROPERTY, MATCHED_FIELD_PROPERTY
 
 
 class LocalBaserowSemanticSearchServiceType(
+    LocalBaserowSubjectReadableTablesMixin,
     LocalBaserowTableRowsListServiceTypeMixin,
     LocalBaserowTableServiceFilterableMixin,
     LocalBaserowViewServiceType,
@@ -72,6 +74,7 @@ class LocalBaserowSemanticSearchServiceType(
     """
 
     type = "local_baserow_semantic_search"
+    form_choices_with_views = True
     model_class = LocalBaserowSemanticSearch
     dispatch_types = [DispatchTypes.DATA, DispatchTypes.ACTION]
     serializer_mixins = LocalBaserowTableServiceFilterableMixin.mixin_serializer_mixins

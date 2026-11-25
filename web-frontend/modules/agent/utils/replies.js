@@ -47,14 +47,21 @@ const FAILED_REPLY_NOTICES = {
  *   `not_started` for a cancelled one that never ran.
  * @param {string|null} [reply.run_id] The run the reply belongs to, if any.
  * @param {boolean} [reply.replying] Whether its run is still being followed.
- * @returns {{note?: string, error?: string}} Translation keys to show.
+ * @param {object|null} [reply.stopped_by] The person who stopped it, if any.
+ * @param {number} [userId] The viewer, who isn't named for their own stop.
+ * @returns {{note?: string, noteParams?: object, error?: string}} Translation
+ *   keys to show, with the note's parameters.
  */
-export function replyOutcome({
-  status,
-  error_code: errorCode,
-  run_id: runId,
-  replying,
-}) {
+export function replyOutcome(
+  {
+    status,
+    error_code: errorCode,
+    run_id: runId,
+    replying,
+    stopped_by: stoppedBy,
+  },
+  userId
+) {
   if (
     replying ||
     !status ||
@@ -67,6 +74,12 @@ export function replyOutcome({
     return { note: 'agent.replyWaitingForPreviousRun' }
   }
   if (status === AGENT_REPLY_STATUS.CANCELLED) {
+    if (stoppedBy && stoppedBy.id !== userId) {
+      return {
+        note: 'agent.replyStoppedBy',
+        noteParams: { name: stoppedBy.name },
+      }
+    }
     return {
       note:
         errorCode === RUN_ERROR_CODE.NOT_STARTED

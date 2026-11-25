@@ -560,12 +560,12 @@ describe('Agent replies', () => {
     allowed.value = withoutConfiguration
     const wrapper = await mount()
     await selectConversation(wrapper, 'Conversation A')
-    expect(wrapper.find('.chat-composer').exists()).toBe(false)
-    expect(wrapper.find('.agent-chat__shared .button').exists()).toBe(false)
+    expect(wrapper.find('.chat-composer').exists()).toBe(true)
+    expect(wrapper.find('.chat-composer__button--stop').exists()).toBe(false)
 
     allowed.value = () => true
     await flushPromises()
-    await wrapper.get('.agent-chat__shared .button').trigger('click')
+    await wrapper.get('.chat-composer__button--stop').trigger('click')
     await flushPromises()
 
     expect(api.cancel).toHaveBeenCalledExactlyOnceWith('run-4')

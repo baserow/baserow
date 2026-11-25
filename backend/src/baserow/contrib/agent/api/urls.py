@@ -4,6 +4,7 @@ from .action_tools import urls as action_tools_urls
 from .triggers import urls as triggers_urls
 from .views import (
     AgentApplicationView,
+    AgentApproversView,
     AgentConfigurationView,
     AgentConversationsView,
     AgentConversationView,
@@ -12,6 +13,7 @@ from .views import (
     AgentRunAsIdentitiesView,
     AgentToolApprovalsView,
     AgentToolsView,
+    LeaveAgentConversationView,
     ShareAgentConversationView,
 )
 
@@ -63,6 +65,16 @@ urlpatterns = [
         "<int:agent_id>/pending-approvals/",
         AgentPendingApprovalsView.as_view(),
         name="pending_approvals",
+    ),
+    path(
+        "<int:agent_id>/conversations/<uuid:conversation_uuid>/leave/",
+        LeaveAgentConversationView.as_view(),
+        name="leave_conversation",
+    ),
+    path(
+        "<int:agent_id>/conversations/<uuid:conversation_uuid>/approvers/",
+        AgentApproversView.as_view(),
+        name="approvers",
     ),
     path("", include(triggers_urls, namespace="triggers")),
     path("", include(action_tools_urls, namespace="actions")),

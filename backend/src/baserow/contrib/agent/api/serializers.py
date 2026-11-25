@@ -89,7 +89,7 @@ class AgentRunAsOptionSerializer(serializers.Serializer):
     name = serializers.CharField(read_only=True)
 
 
-class AgentRunAsIdentitiesQueryParamsSerializer(serializers.Serializer):
+class AgentOptionsQueryParamsSerializer(serializers.Serializer):
     page = serializers.IntegerField(min_value=1, required=False, default=1)
     size = serializers.IntegerField(min_value=1, max_value=100, required=False)
     search = serializers.CharField(required=False, allow_blank=True, default="")
@@ -137,8 +137,7 @@ class AgentConfigurationSerializer(serializers.Serializer):
     )
     ask_first_tools = serializers.ListField(
         child=serializers.CharField(),
-        help_text="The names of the allowed tools that wait for the conversation "
-        "owner's approval before they run.",
+        help_text="The allowed tools that require approval before they run.",
     )
     pending_tools = serializers.ListField(
         child=serializers.CharField(),
@@ -170,7 +169,8 @@ class AgentConfigurationSerializer(serializers.Serializer):
     )
     available_action_types = serializers.ListField(
         child=serializers.CharField(),
-        help_text="The service types available as configured agent actions.",
+        help_text="The service types offered as agent actions on this instance, "
+        "including the ones the workspace's license locks.",
     )
     max_actions = serializers.IntegerField(
         allow_null=True,
@@ -257,8 +257,8 @@ class AgentConfigurationUpdateSerializer(
     ask_first_tools = serializers.ListField(
         child=serializers.CharField(),
         required=False,
-        help_text="The names of the allowed tools that wait for the conversation "
-        "owner's approval. Provide it with allowed_tools. When it's left out, newly "
+        help_text="The allowed tools that require approval. Provide this list with "
+        "allowed_tools. When it's left out, newly "
         "allowed tools that change data ask first and the other tools keep their "
         "setting.",
     )
@@ -358,13 +358,16 @@ class AgentConversationSerializer(serializers.ModelSerializer):
     shared = serializers.BooleanField(
         read_only=True,
         help_text="Whether everyone who may read the agent's conversations reads "
-        "this one, and anyone who may send the agent messages decides its held tool "
-        "calls. Otherwise only its owner sees it.",
+        "this one. Otherwise only its participants see it.",
     )
     started_by_trigger = serializers.BooleanField(
         read_only=True,
-        help_text="Whether a trigger started this shared conversation, so it "
-        "accepts no messages.",
+        help_text="Whether a trigger started this shared conversation, so only "
+        "those who may continue triggered conversations send messages in it.",
+    )
+    participants = serializers.SerializerMethodField(
+        help_text="Who sees this private conversation: its owner and the people "
+        "asked to approve its tool calls. Empty when it's shared."
     )
     owner = AgentConversationUserSerializer(
         source="owner_user",
@@ -403,6 +406,7 @@ class AgentConversationSerializer(serializers.ModelSerializer):
             "shared",
             "started_by_trigger",
             "owner",
+            "participants",
             "trigger_id",
             "trigger_type",
             "trigger_name",
@@ -421,6 +425,14 @@ class AgentConversationSerializer(serializers.ModelSerializer):
         return self.context.get("conversation_pending_approvals", {}).get(
             conversation.id, 0
         )
+
+    @extend_schema_field(AgentConversationUserSerializer(many=True))
+    def get_participants(self, conversation: AgentConversation) -> list[dict]:
+        if conversation.shared:
+            return []
+        return AgentConversationUserSerializer(
+            conversation.participants.all(), many=True
+        ).data
 
     @extend_schema_field(serializers.CharField(allow_null=True))
     def get_trigger_type(self, conversation: AgentConversation) -> str | None:
@@ -535,6 +547,11 @@ class AgentMessageSerializer(serializers.ModelSerializer):
         help_text="The person who sent the message, or whom the reply answers. "
         "Null for a trigger or a deleted user.",
     )
+    stopped_by = AgentConversationUserSerializer(
+        read_only=True,
+        allow_null=True,
+        help_text="The person who stopped the reply, if a person did and still exists.",
+    )
     steps = AgentMessageStepSerializer(many=True, allow_null=True, read_only=True)
     approvals = AgentToolApprovalSerializer(
         many=True,
@@ -560,6 +577,7 @@ class AgentMessageSerializer(serializers.ModelSerializer):
             "created_on",
             "status",
             "error_code",
+            "stopped_by",
             "run_id",
             "steps",
             "approvals",
@@ -569,6 +587,23 @@ class AgentMessageSerializer(serializers.ModelSerializer):
     @extend_schema_field(serializers.UUIDField(allow_null=True))
     def get_run_id(self, message: AgentMessage) -> UUID | None:
         return self.context.get("active_runs", {}).get(message.id)
+
+
+class LeaveAgentConversationSerializer(serializers.Serializer):
+    trashed = serializers.BooleanField(
+        read_only=True,
+        help_text="Whether the conversation went to the trash, as nobody else "
+        "takes part in it.",
+    )
+
+
+class RequestAgentApprovalSerializer(serializers.Serializer):
+    user_ids = serializers.ListField(
+        child=serializers.IntegerField(min_value=1),
+        allow_empty=False,
+        max_length=100,
+        help_text="The workspace members to add, who may approve tool calls.",
+    )
 
 
 class AgentMessageContentSerializer(

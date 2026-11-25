@@ -256,13 +256,26 @@ class ChatRunHandler:
         stopping = bool(running.update(lease_expires_at=expires_at))
         return LeaseRenewal(alive=stopping, cancel_requested=stopping)
 
-    def request_cancel(self, run_id: UUID) -> ChatRunStatus:
-        """Called by the HTTP service; running workers observe Stop on renewal."""
+    def request_cancel(
+        self, run_id: UUID, user: AbstractUser | None = None
+    ) -> ChatRunStatus:
+        """Called by the HTTP service; running workers observe Stop on renewal.
+
+        :param run_id: The id of the run.
+        :param user: The person stopping it, or None when the system does.
+        :raises ChatRunDoesNotExist: When the run doesn't exist.
+        :return: The run's status after the request.
+        """
 
         with transaction.atomic():
             run = self.runs.select_for_update().filter(id=run_id).first()
             if run is None:
                 raise ChatRunDoesNotExist()
+            accepted = run.status == ChatRunStatus.QUEUED or (
+                run.status == ChatRunStatus.RUNNING and not run.cancel_requested_at
+            )
+            if accepted and user is not None:
+                self._record_canceller(run, user)
             if run.status == ChatRunStatus.QUEUED:
                 self._end_without_worker(
                     run,
@@ -275,6 +288,14 @@ class ChatRunHandler:
                 run.save(update_fields=["cancel_requested_at"])
                 notify_run_on_commit(run)
             return ChatRunStatus(run.status)
+
+    @staticmethod
+    def _record_canceller(run: ChatRun, user: AbstractUser) -> None:
+        try:
+            kind = chat_run_type_registry.get(run.run_type)
+        except chat_run_type_registry.does_not_exist_exception_class:
+            return
+        kind.on_cancel_requested(run, user)
 
     def lock_running_run(self, run_id: UUID) -> bool:
         return (

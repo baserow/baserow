@@ -3259,12 +3259,17 @@ class LocalBaserowDeleteRowServiceType(
         return DispatchResult(data=dispatch_data["data"], status=204)
 
 
-class LocalBaserowTableSignalTriggerServiceType(
-    TriggerServiceTypeMixin, LocalBaserowTableServiceType
-):
-    signal: Signal
-    events_can_be_skipped = False
+class LocalBaserowSubjectReadableTablesMixin:
+    """
+    Lists and checks the tables a subject may read through a service type, for
+    consumers that act as a subject of their own rather than through an
+    integration, like an Agent with its run identity.
+    """
+
     read_operations = (ListRowsDatabaseTableOperationType.type,)
+    # Whether the form choices hold the views of each table, for a form with a
+    # view picker.
+    form_choices_with_views = False
 
     def can_subject_read(
         self,
@@ -3273,40 +3278,70 @@ class LocalBaserowTableSignalTriggerServiceType(
         workspace: Workspace,
     ) -> bool:
         """
-        A subject needs the trigger's read permissions on the whole table.
-        Without a selected table the service receives no events.
+        A subject needs the type's read permissions on the whole table, in the
+        consumer's workspace. Without a selected table there is nothing to read.
 
-        :param service: The specific trigger service.
+        :param service: The specific service.
         :param subject: The subject the consumer acts as, or None for none.
         :param workspace: The workspace the consumer acts in.
-        :return: Whether the subject may receive the service's events.
+        :return: Whether the subject may read what the service reads.
         """
 
         if service.table_id is None:
             return True
-        table = service.table
-        if (
-            subject is None
-            or table.database.workspace_id != workspace.id
-            or TrashHandler.item_has_a_trashed_parent(table, check_item_also=True)
-        ):
-            return False
-        checks = [
-            PermissionCheck(subject, operation, table)
-            for operation in self.read_operations
-        ]
-        allowed = CoreHandler().check_multiple_permissions(checks, workspace=workspace)
-        return all(allowed[check] is True for check in checks)
+        return service.table_id in self.get_subject_readable_table_ids(
+            [service], subject, workspace
+        )
 
-    def get_event_source_id(self, service: LocalBaserowTableService) -> int | None:
-        return service.table_id
+    def get_subject_readable_table_ids(
+        self,
+        services: List[LocalBaserowTableService],
+        subject: Optional[Subject],
+        workspace: Workspace,
+    ) -> Set[int]:
+        """
+        Like `can_subject_read`, for many services in one permission check.
+
+        :param services: The specific services, with their tables.
+        :param subject: The subject the consumer acts as, or None for none.
+        :param workspace: The workspace the consumer acts in.
+        :return: The ids of the services' tables the subject may read.
+        """
+
+        if subject is None:
+            return set()
+        tables = {
+            service.table_id: service.table
+            for service in services
+            if service.table_id is not None
+        }
+        checks_by_table_id = {
+            table_id: [
+                PermissionCheck(subject, operation, table)
+                for operation in self.read_operations
+            ]
+            for table_id, table in tables.items()
+            if table.database.workspace_id == workspace.id
+            and not TrashHandler.item_has_a_trashed_parent(table, check_item_also=True)
+        }
+        if not checks_by_table_id:
+            return set()
+        allowed = CoreHandler().check_multiple_permissions(
+            [check for checks in checks_by_table_id.values() for check in checks],
+            workspace=workspace,
+        )
+        return {
+            table_id
+            for table_id, checks in checks_by_table_id.items()
+            if all(allowed[check] is True for check in checks)
+        }
 
     def get_form_choices(
         self, subject: Optional[Subject], workspace: Workspace
     ) -> Dict[str, List[Dict]]:
         """
-        The databases and tables readable by the subject, shared by trigger
-        types requiring the same permissions.
+        The databases and tables readable by the subject, shared by types
+        requiring the same permissions.
 
         :param subject: The subject the consumer acts as, or None for none.
         :param workspace: The workspace the consumer acts in.
@@ -3317,8 +3352,8 @@ class LocalBaserowTableSignalTriggerServiceType(
             return {"databases": []}
         subject_type = subject_type_registry.get_by_model(subject).type
         return local_cache.get(
-            f"local_baserow_trigger_form_choices_{subject_type}_"
-            f"{subject.pk}_{workspace.id}_{self.read_operations}",
+            f"local_baserow_form_choices_{subject_type}_{subject.pk}_"
+            f"{workspace.id}_{self.read_operations}_{self.form_choices_with_views}",
             lambda: {"databases": self._list_readable_databases(subject, workspace)},
         )
 
@@ -3329,11 +3364,12 @@ class LocalBaserowTableSignalTriggerServiceType(
         :param subject: The subject the tables are listed for.
         :param workspace: The workspace the tables are in.
         :return: The serialized databases holding a table whose rows the subject
-            may list, with only those tables and no views.
+            may list, with only those tables, and their views when the form
+            picks one.
         """
 
         databases = LocalBaserowIntegrationType.get_local_baserow_databases_for(
-            subject, workspace, with_views=False
+            subject, workspace, with_views=self.form_choices_with_views
         )
         checks = [
             PermissionCheck(subject, operation, table)
@@ -3347,7 +3383,15 @@ class LocalBaserowTableSignalTriggerServiceType(
         }
         serialized = LocalBaserowDatabaseSerializer(databases, many=True).data
         return [
-            {**database, "tables": tables}
+            {
+                **database,
+                "tables": tables,
+                "views": [
+                    view
+                    for view in database["views"]
+                    if view["table_id"] not in unreadable_ids
+                ],
+            }
             for database in serialized
             if (
                 tables := [
@@ -3357,6 +3401,18 @@ class LocalBaserowTableSignalTriggerServiceType(
                 ]
             )
         ]
+
+
+class LocalBaserowTableSignalTriggerServiceType(
+    LocalBaserowSubjectReadableTablesMixin,
+    TriggerServiceTypeMixin,
+    LocalBaserowTableServiceType,
+):
+    signal: Signal
+    events_can_be_skipped = False
+
+    def get_event_source_id(self, service: LocalBaserowTableService) -> int | None:
+        return service.table_id
 
     def connect(self) -> None:
         """

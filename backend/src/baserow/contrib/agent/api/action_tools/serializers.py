@@ -52,7 +52,25 @@ class AgentActionSerializer(serializers.ModelSerializer):
 
     @extend_schema_field(OpenApiTypes.OBJECT)
     def get_errors(self, instance: AgentAction) -> dict[str, str]:
+        # A list passes the errors of all its actions, checked together.
+        errors_by_action = self.context.get("errors_by_action")
+        if errors_by_action is not None:
+            return errors_by_action[instance.id]
         return AgentActionHandler().get_configuration_errors(instance)
+
+
+class AgentActionTypeSerializer(serializers.Serializer):
+    """An action type, as the agent's run identity sees it."""
+
+    type = serializers.CharField(
+        help_text="The service type, one of the configuration's available_action_types."
+    )
+    form_choices = serializers.JSONField(
+        allow_null=True,
+        help_text="What the type's form may choose from for the agent's run "
+        "identity, such as `databases` with the tables it can read, or null when "
+        "the type doesn't act as the run identity.",
+    )
 
 
 class AgentActionWriteSerializer(
