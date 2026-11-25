@@ -31,6 +31,20 @@
         >
           <div class="agent-tool-permissions__list-head">
             <span>{{ kind.label }}</span>
+            <Button
+              v-if="editable && usableIn(kind).length"
+              type="secondary"
+              size="small"
+              class="agent-tool-permissions__select-all"
+              @click="allowAll(kind, !allAllowed(kind))"
+              >{{
+                $t(
+                  allAllowed(kind)
+                    ? 'agent.deselectAllTools'
+                    : 'agent.selectAllTools'
+                )
+              }}</Button
+            >
             <div class="agent-tool-permissions__columns">
               <span>{{ $t('agent.toolAllow') }}</span>
               <span>{{ $t('agent.toolAskFirst') }}</span>
@@ -70,11 +84,15 @@
               ></i>
               <template v-else>
                 <Checkbox
+                  v-tooltip="requiredByText(tool.name)"
                   class="agent-tool-permissions__allow"
                   :model-value="picked.has(tool.name)"
-                  :disabled="!editable"
+                  :disabled="!editable || requiring.has(tool.name)"
                   @update:model-value="allow(tool.name, $event)"
-                  >{{ tool.label }}</Checkbox
+                  >{{ tool.label
+                  }}<template v-if="requiring.has(tool.name)"
+                    >, {{ requiredByText(tool.name) }}</template
+                  ></Checkbox
                 >
                 <Checkbox
                   class="agent-tool-permissions__ask-first"
@@ -99,12 +117,12 @@
       </div>
       <div class="agent-tool-permissions__actions">
         <Button type="secondary" button-type="button" @click="modal.hide()">
-          {{ $t('action.cancel') }}
+          {{ $t(editable ? 'action.cancel' : 'agent.toolsClose') }}
         </Button>
         <Button
+          v-if="editable"
           type="primary"
           button-type="button"
-          :disabled="!editable"
           @click="done"
         >
           {{ $t('agent.toolsDone') }}
@@ -119,8 +137,11 @@ import { useNuxtApp } from '#app'
 import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import {
+  agentToolLabel,
+  agentToolsRequiring,
   groupAgentTools,
   nextAskFirst,
+  requiredAgentTools,
 } from '@baserow/modules/agent/agentTools'
 
 /** Picks an Agent's tools and which ask first, saved only on Done. */
@@ -144,6 +165,25 @@ const deactivatedModals = {}
 const groups = computed(() =>
   groupAgentTools(props.availableTools, $registry, t)
 )
+const requiring = computed(() =>
+  agentToolsRequiring(props.availableTools, picked.value)
+)
+
+function requiredByText(name) {
+  const names = requiring.value.get(name)
+  if (!names) return null
+  return t('agent.toolRequiredBy', {
+    names: names.map((n) => agentToolLabel(n, $registry, t)).join(', '),
+  })
+}
+
+function withRequired(names) {
+  return new Set([...names, ...requiredAgentTools(props.availableTools, names)])
+}
+
+const usableIn = (kind) => kind.tools.filter((tool) => !tool.deactivated)
+const allAllowed = (kind) =>
+  usableIn(kind).every((tool) => picked.value.has(tool.name))
 
 function kindsOf(group) {
   return [
@@ -158,15 +198,32 @@ function kindsOf(group) {
   ].filter((kind) => kind.tools.length)
 }
 
-function allow(name, allowed) {
-  if (!props.editable) return
-  const next = new Set(picked.value)
-  if (allowed) next.add(name)
-  else next.delete(name)
+/** Allow exactly these tools and the ones they require. */
+function pick(names) {
+  const next = withRequired(names)
   askFirst.value = new Set(
     nextAskFirst(props.availableTools, picked.value, askFirst.value, next)
   )
   picked.value = next
+}
+
+function allow(name, allowed) {
+  if (!props.editable) return
+  pick(
+    allowed
+      ? [...picked.value, name]
+      : [...picked.value].filter((other) => other !== name)
+  )
+}
+
+function allowAll(kind, allowed) {
+  if (!props.editable) return
+  const names = usableIn(kind).map((tool) => tool.name)
+  pick(
+    allowed
+      ? [...picked.value, ...names]
+      : [...picked.value].filter((name) => !names.includes(name))
+  )
 }
 
 function setAskFirst(name, value) {
@@ -178,7 +235,7 @@ function setAskFirst(name, value) {
 }
 
 function show() {
-  picked.value = new Set(props.allowedTools)
+  picked.value = withRequired(props.allowedTools)
   askFirst.value = new Set(props.askFirstTools)
   modal.value.show()
 }

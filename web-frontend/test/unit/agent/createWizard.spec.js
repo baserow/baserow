@@ -60,12 +60,12 @@ describe('AgentCreateModal', () => {
 
   const button = (wrapper, label) =>
     wrapper.findAll('button').find((item) => item.text() === label)
-  const nameInput = (wrapper) => wrapper.get('.agent-create__body input')
-  const textarea = (wrapper) => wrapper.get('.agent-create__body textarea')
-  const title = (wrapper) => wrapper.get('.agent-create__title').text()
+  const nameInput = (wrapper) => wrapper.get('input')
+  const textarea = (wrapper) => wrapper.get('textarea')
+  const title = (wrapper) => wrapper.get('h2').text()
   const dropdown = (wrapper, label) =>
     wrapper
-      .findAll('.agent-create__body .control')
+      .findAll('.control')
       .find((control) => control.get('.control__label').text().includes(label))
       .get('.dropdown')
   const selected = (wrapper, label) =>
@@ -80,8 +80,7 @@ describe('AgentCreateModal', () => {
     }
   }
 
-  const back = (wrapper) =>
-    wrapper.get('button[aria-label="action.back"]').trigger('click')
+  const back = (wrapper) => button(wrapper, 'action.back').trigger('click')
 
   async function chooseCustomTools(wrapper, label) {
     await choose(
@@ -353,7 +352,7 @@ describe('AgentCreateModal', () => {
     await button(wrapper, 'agent.createApplication').trigger('click')
     await flushPromises()
 
-    expect(wrapper.find('.agent-create .alert').exists()).toBe(true)
+    expect(wrapper.find('.alert').exists()).toBe(true)
     expect(wrapper.emitted('created')).toBeUndefined()
     expect(select).not.toHaveBeenCalled()
     expect(
@@ -367,7 +366,7 @@ describe('AgentCreateModal', () => {
 
     const wrapper = await open()
 
-    expect(wrapper.find('.agent-create .alert').exists()).toBe(true)
+    expect(wrapper.find('.alert').exists()).toBe(true)
   })
 
   test('opens the agent and warns about what was not applied', async () => {
@@ -395,7 +394,7 @@ describe('AgentCreateModal', () => {
 
     expect(wrapper.emitted('created')[0][0].id).toBe(10)
     expect(select).toHaveBeenCalledWith(expect.objectContaining({ id: 10 }))
-    expect(wrapper.find('.agent-create').exists()).toBe(false)
+    expect(wrapper.find('.modal__box').exists()).toBe(false)
     expect(testApp.store.state.toast.items).toEqual([
       expect.objectContaining({
         type: 'warning',

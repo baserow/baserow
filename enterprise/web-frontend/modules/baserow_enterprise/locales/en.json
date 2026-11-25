@@ -572,7 +572,9 @@
   },
   "membersRoleField": {
     "noAccessHelpText": "This user requires explicit access to resources.",
-    "adminFullAccessHelpText": "Admins have full access to everything in this workspace. Their role on a database, table or view can't be lowered. To restrict an admin, lower their workspace role first."
+    "adminFullAccessHelpText": "Admins have full access to everything in this workspace. Their role on a database, table or view can't be lowered. To restrict an admin, lower their workspace role first.",
+    "teamRole": "{role}, through team {teams} | {role}, through teams {teams}",
+    "teamRoleHiddenTeams": "{role}, through their teams"
   },
   "membersPagePlugin": {
     "roleHelpText": "Can be overriden with roles on databases and tables."

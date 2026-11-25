@@ -1,4 +1,5 @@
 import { STEP_STATUS } from '@baserow/modules/core/chatRuns/constants'
+import { ASK_PERSON_TOOL } from '@baserow/modules/agent/constants'
 import {
   ToolPresentationType,
   WORKSPACE_TOOL_GROUP,
@@ -385,6 +386,34 @@ export class WebFetchToolPresentationType extends WebSearchToolPresentationType 
   }
 }
 
+/** A question a triggered run holds until a person answers or dismisses it. */
+export class AskPersonToolPresentationType extends ToolPresentationType {
+  static getType() {
+    return ASK_PERSON_TOOL
+  }
+
+  getLabel(t) {
+    return t('agent.toolAskPerson')
+  }
+
+  getActivity({ status }, t) {
+    return t(
+      status === STEP_STATUS.RUNNING
+        ? 'agent.toolAskPersonRunning'
+        : status === STEP_STATUS.DONE
+          ? 'agent.toolAskPersonDone'
+          : 'agent.toolAskPerson'
+    )
+  }
+
+  getActivityDetails({ input }) {
+    return {
+      description:
+        typeof input.question === 'string' ? input.question.trim() : '',
+    }
+  }
+}
+
 const isEmpty = (value) =>
   value == null || value === '' || (Array.isArray(value) && !value.length)
 
@@ -532,6 +561,7 @@ export const agentToolPresentationTypes = [
   HTTPRequestToolPresentationType,
   WebSearchToolPresentationType,
   WebFetchToolPresentationType,
+  AskPersonToolPresentationType,
   ListDatabasesToolPresentationType,
   ListTablesToolPresentationType,
   GetTableSchemaToolPresentationType,

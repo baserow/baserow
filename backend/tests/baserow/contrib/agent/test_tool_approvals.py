@@ -91,6 +91,7 @@ def test_the_last_decision_resumes_the_reply_and_each_is_audited_by_tool(
             "tool": "create_rows",
             "status": "approved",
             "reason": "",
+            "answer": "",
         },
         {
             "id": updated.id,
@@ -99,6 +100,7 @@ def test_the_last_decision_resumes_the_reply_and_each_is_audited_by_tool(
             "tool": "update_rows",
             "status": "rejected",
             "reason": "Wrong row",
+            "answer": "",
         },
     ]
     listed = api_client.get(

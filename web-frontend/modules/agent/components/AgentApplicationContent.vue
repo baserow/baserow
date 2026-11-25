@@ -153,6 +153,8 @@
                 :message="message"
                 :trigger-type="state.selectedConversation?.trigger_type"
                 :trigger-name="state.selectedConversation?.trigger_name"
+                :example="state.selectedConversation?.is_example"
+                :can-approve="state.canApprove"
                 :can-decide="state.canDecide"
                 :can-always-allow="state.canUpdateConfiguration"
                 :deciding="state.decidingReplies.has(message.uuid)"
@@ -162,17 +164,7 @@
                 "
               />
             </template>
-            <div v-else-if="showChatIntro" class="agent-chat__intro">
-              <div class="agent-chat__avatar">
-                <img :src="agentOrb" alt="" />
-              </div>
-              <i18n-t scope="global" keypath="agent.talkTo" tag="h1">
-                <template #name>
-                  <span class="agent-chat__intro-name">{{ agent.name }}</span>
-                </template>
-              </i18n-t>
-              <p>{{ $t('agent.chatDescription') }}</p>
-            </div>
+            <AgentChatIntro v-else-if="showChatIntro" :name="agent.name" />
           </div>
         </div>
         <div class="agent-chat__footer">
@@ -296,7 +288,6 @@
 import { computed, nextTick, provide, reactive, ref, toRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useNuxtApp } from '#app'
-import agentOrb from '@baserow/modules/agent/assets/images/agent-orb.svg?url'
 import ChatComposer from '@baserow/modules/core/components/chat/ChatComposer'
 import { STEP_STATUS } from '@baserow/modules/core/chatRuns/constants'
 import {
@@ -308,6 +299,7 @@ import AgentPendingApprovalsContext from '@baserow/modules/agent/components/Agen
 import AgentConversationList from '@baserow/modules/agent/components/AgentConversationList'
 import AgentRequestApprovalModal from '@baserow/modules/agent/components/AgentRequestApprovalModal'
 import AgentMessage from '@baserow/modules/agent/components/AgentMessage'
+import AgentChatIntro from '@baserow/modules/agent/components/AgentChatIntro'
 import AgentConfigurationSidebar from '@baserow/modules/agent/components/AgentConfigurationSidebar'
 import { useAgentConfiguration } from '@baserow/modules/agent/composables/useAgentConfiguration'
 import { useAgentConversations } from '@baserow/modules/agent/composables/useAgentConversations'
@@ -503,6 +495,7 @@ const showComposer = computed(
 const readOnlyNote = computed(() => {
   const conversation = state.selectedConversation
   if (!conversation || conversation.local || state.canWriteSelected) return ''
+  if (conversation.is_example) return 'agent.exampleNoMessages'
   return conversation.started_by_trigger
     ? 'agent.sharedNoMessages'
     : 'agent.cannotSendMessages'

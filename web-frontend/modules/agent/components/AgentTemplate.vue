@@ -1,161 +1,309 @@
 <template>
-  <div class="agent-template">
-    <div class="agent-template__content">
-      <h1 class="agent-template__title">{{ agent.name }}</h1>
-      <p class="agent-template__hint">{{ $t('agent.templatePreviewHint') }}</p>
-      <div v-if="loading" class="loading"></div>
-      <Alert v-else-if="loadError" type="error">
-        {{ $t('agent.templatePreviewLoadError') }}
-      </Alert>
-      <template v-else>
-        <section class="agent-template__section">
-          <h2 class="agent-template__heading">
-            {{ $t('agent.instructions') }}
-          </h2>
-          <p class="agent-template__instructions">
-            {{ configuration.instructions }}
-          </p>
-        </section>
-        <section class="agent-template__section">
-          <h2 class="agent-template__heading">{{ $t('agent.model') }}</h2>
-          <p class="agent-template__text">{{ model }}</p>
-        </section>
-        <section class="agent-template__section">
-          <h2 class="agent-template__heading">
-            {{ $t('agent.workspaceTools') }}
-          </h2>
-          <ul v-if="tools.length" class="agent-template__list">
-            <li v-for="tool in tools" :key="tool.name">{{ tool.label }}</li>
-          </ul>
-          <p v-else class="agent-template__empty">
-            {{ $t('agent.templatePreviewNoTools') }}
-          </p>
-        </section>
-        <section v-if="servers.length" class="agent-template__section">
-          <h2 class="agent-template__heading">
-            {{ $t('agent.connectedApps') }}
-          </h2>
-          <ul class="agent-template__list">
-            <li v-for="server in servers" :key="server.id">
-              {{ server.name }}
-            </li>
-          </ul>
-        </section>
-        <section class="agent-template__section">
-          <h2 class="agent-template__heading">{{ $t('agent.triggers') }}</h2>
-          <ul v-if="triggers.length" class="agent-template__list">
-            <li v-for="trigger in triggers" :key="trigger.id">
-              {{ triggerName(trigger) }}
-            </li>
-          </ul>
-          <p v-else class="agent-template__empty">
-            {{ $t('agent.templatePreviewNoTriggers') }}
-          </p>
-        </section>
-        <section v-if="actions.length" class="agent-template__section">
-          <h2 class="agent-template__heading">{{ $t('agent.actions') }}</h2>
-          <ul class="agent-template__list">
-            <li v-for="action in actions" :key="action.id">
-              {{ actionName(action) }}
-            </li>
-          </ul>
-        </section>
-      </template>
+  <div class="agent-application">
+    <header
+      class="layout__col-2-1 header header--space-between agent-application__header"
+    >
+      <div class="agent-application__header-title">
+        <ButtonIcon
+          v-if="hasConversations"
+          icon="baserow-icon-sidebar"
+          :active="conversationsOpen"
+          :aria-label="conversationsToggleLabel"
+          :title="conversationsToggleLabel"
+          :aria-expanded="conversationsOpen"
+          aria-controls="agent-conversations"
+          @click="conversationsOpen = !conversationsOpen"
+        />
+        <div class="agent-application__header-name">{{ agent.name }}</div>
+      </div>
+      <ButtonIcon
+        icon="iconoir-settings"
+        :active="configurationOpen"
+        :aria-label="$t('agent.configuration')"
+        :title="$t('agent.configuration')"
+        :aria-expanded="configurationOpen"
+        @click="configurationOpen = !configurationOpen"
+      />
+    </header>
+    <div class="layout__col-2-2 agent-application__content">
+      <AgentConversationList
+        v-if="hasConversations"
+        v-show="conversationsOpen"
+        id="agent-conversations"
+        :items="conversations"
+        :filter="conversationFilter"
+        :selected="selectedConversation?.uuid"
+        :loading="conversationsLoading"
+        :has-more="Boolean(conversationsCursor)"
+        :error="conversationsError"
+        @select="selectConversation"
+        @load-more="loadConversations(conversationsCursor)"
+        @retry="loadConversations(conversationsCursor)"
+      />
+      <main
+        class="agent-chat"
+        :class="{ 'agent-chat--empty': !history.items.length }"
+      >
+        <div ref="historyElement" class="agent-chat__history chat-thread">
+          <div class="chat-thread__column">
+            <Alert v-if="history.error" type="error">
+              {{ $t('agent.messagesLoadError') }}
+              <template #actions
+                ><Button
+                  type="secondary"
+                  size="small"
+                  button-type="button"
+                  @click="loadMessages(history.page + 1)"
+                  >{{ $t('action.retry') }}</Button
+                ></template
+              >
+            </Alert>
+            <template v-if="history.items.length">
+              <Button
+                v-if="history.next"
+                type="secondary"
+                size="small"
+                button-type="button"
+                :loading="history.loading"
+                class="agent-chat__older"
+                @click="loadMessages(history.page + 1)"
+                >{{ $t('agent.olderMessages') }}</Button
+              >
+              <AgentMessage
+                v-for="message in history.items"
+                :key="message.uuid"
+                :message="message"
+                :trigger-type="selectedConversation.trigger_type"
+                :trigger-name="selectedConversation.trigger_name"
+                :example="selectedConversation.is_example"
+              />
+            </template>
+            <AgentChatIntro v-else-if="showsIntro" :name="agent.name" />
+          </div>
+        </div>
+        <div class="agent-chat__footer">
+          <div class="agent-chat__shared">
+            <i
+              class="agent-chat__shared-icon iconoir-info-empty"
+              aria-hidden="true"
+            ></i>
+            <span class="agent-chat__shared-text">{{
+              $t('agent.templatePreviewHint')
+            }}</span>
+          </div>
+        </div>
+      </main>
+      <AgentConfigurationSidebar
+        v-if="configurationOpen"
+        :name="agent.name"
+        :configuration="configuration"
+        :errors="NOTHING"
+        :enabled-models="NOTHING"
+        :loading="configurationLoading"
+        :load-error="configurationLoadError"
+        @close="configurationOpen = false"
+        @reload="loadConfiguration"
+      />
     </div>
   </div>
 </template>
 
 <script setup>
-import { computed, ref, watch } from 'vue'
+import { computed, nextTick, provide, reactive, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { useNuxtApp } from '#app'
+import { provideNow } from '@baserow/modules/core/composables/useNow'
 import AgentApplicationService from '@baserow/modules/agent/services/agentApplication'
-import AgentTriggerService from '@baserow/modules/agent/services/agentTriggers'
-import AgentActionService from '@baserow/modules/agent/services/agentActions'
-import IntegrationService from '@baserow/modules/core/services/integration'
-import { agentToolLabel } from '@baserow/modules/agent/agentTools'
-import { serviceTypeOf } from '@baserow/modules/agent/utils/triggers'
-import { MCP_SERVER_INTEGRATION_TYPE } from '@baserow/modules/agent/constants'
+import AgentChatIntro from '@baserow/modules/agent/components/AgentChatIntro'
+import AgentConversationList from '@baserow/modules/agent/components/AgentConversationList'
+import AgentMessage from '@baserow/modules/agent/components/AgentMessage'
+import AgentConfigurationSidebar from '@baserow/modules/agent/components/AgentConfigurationSidebar'
+import {
+  CONVERSATION_FILTERS,
+  mergeMessages,
+} from '@baserow/modules/agent/composables/useAgentConversations'
+
+// A preview doesn't check the setup against the visitor's workspace, so it
+// reports no errors and offers no other models.
+const NOTHING = Object.freeze({})
 
 /**
- * Shows an Agent of a template read-only. It only reads what a template preview
- * may read, so nothing here needs the visitor to be a workspace member.
+ * Shows an Agent of a template like its real page, read-only: the example
+ * conversations it came with, if any, and its configuration. It only reads, so
+ * the visitor doesn't have to be a workspace member or signed in.
  */
 const props = defineProps({
   pageValue: { type: Object, required: true },
 })
-const { $client, $registry } = useNuxtApp()
+const { $client } = useNuxtApp()
 const { t } = useI18n()
+const service = AgentApplicationService($client)
 const agent = computed(() => props.pageValue.agent)
-const loading = ref(true)
-const loadError = ref(false)
+// Configuration sections read the Agent from here, and what to leave out.
+provide('agentApplication', agent)
+provide('agentTemplatePreview', true)
+provideNow()
+
+const configurationOpen = ref(true)
 const configuration = ref({})
-const triggers = ref([])
-const actions = ref([])
-const servers = ref([])
-let request = 0
+const configurationLoading = ref(true)
+const configurationLoadError = ref(false)
 
-const model = computed(() =>
-  [configuration.value.provider_type, configuration.value.model_identifier]
-    .filter(Boolean)
-    .join(' · ')
+const conversationsOpen = ref(true)
+const conversationsToggleLabel = computed(() =>
+  t(
+    conversationsOpen.value
+      ? 'agent.hideConversations'
+      : 'agent.showConversations'
+  )
 )
-// An installed template's agent turns on the pending tools with an identity.
-const tools = computed(() => {
-  const names = configuration.value.run_as
-    ? configuration.value.allowed_tools
-    : configuration.value.pending_tools
-  return (names || []).map((name) => ({
-    name,
-    label: agentToolLabel(name, $registry, t),
-  }))
+const hasConversations = ref(false)
+const conversations = ref([])
+// The examples are all shared and never wait or fail, so they aren't filtered.
+const conversationFilter = 'all'
+const conversationsCursor = ref(null)
+const conversationsLoading = ref(false)
+const conversationsError = ref(false)
+// Whether the first page answered, so the intro doesn't show before an example.
+const conversationsSettled = ref(false)
+const selectedConversation = ref(null)
+const emptyHistory = () => ({
+  items: [],
+  page: 0,
+  next: false,
+  loading: false,
+  error: false,
 })
+const history = reactive(emptyHistory())
+const showsIntro = computed(
+  () =>
+    conversationsSettled.value &&
+    !conversationsError.value &&
+    !selectedConversation.value &&
+    !history.items.length
+)
+const historyElement = ref(null)
+// Bumped for every Agent shown, so a late answer for another one is dropped.
+let scope = 0
+let conversationsRequest = 0
 
-function triggerName(trigger) {
-  const serviceType = serviceTypeOf($registry, trigger.type)
-  return (
-    trigger.name ||
-    serviceType?.getDefaultName(trigger.service, {}) ||
-    serviceType?.name ||
-    trigger.type
-  )
-}
-
-function actionName(action) {
-  return (
-    action.name || serviceTypeOf($registry, action.type)?.name || action.type
-  )
-}
-
-async function load(agentId) {
-  const current = ++request
-  loading.value = true
-  loadError.value = false
+async function loadConfiguration() {
+  const current = scope
+  configurationLoading.value = true
+  configurationLoadError.value = false
   try {
-    const [
-      configurationResponse,
-      triggersResponse,
-      actionsResponse,
-      integrationsResponse,
-    ] = await Promise.all([
-      AgentApplicationService($client).getConfiguration(agentId),
-      AgentTriggerService($client).list(agentId),
-      AgentActionService($client).list(agentId),
-      IntegrationService($client).fetchAll(agentId),
-    ])
-    if (current !== request) return
-    configuration.value = configurationResponse.data
-    triggers.value = triggersResponse.data
-    actions.value = actionsResponse.data
-    // Actions keep their integrations too; only MCP servers are connected apps.
-    servers.value = integrationsResponse.data.filter(
-      (integration) => integration.type === MCP_SERVER_INTEGRATION_TYPE
-    )
+    const { data } = await service.getConfiguration(agent.value.id)
+    if (current === scope) configuration.value = data
   } catch {
-    if (current === request) loadError.value = true
+    if (current === scope) configurationLoadError.value = true
   } finally {
-    if (current === request) loading.value = false
+    if (current === scope) configurationLoading.value = false
   }
 }
 
-watch(() => agent.value.id, load, { immediate: true })
+/**
+ * Loads a page of the example conversations. They are optional: an Agent
+ * without any, or one whose conversations the visitor may not read, shows the
+ * chat intro instead of a list. Any other failure shows the list with a retry.
+ *
+ * @param {string|null} cursor The cursor of the page, or null for the first.
+ */
+async function loadConversations(cursor = null) {
+  const current = scope
+  const request = ++conversationsRequest
+  const isCurrent = () => current === scope && request === conversationsRequest
+  conversationsLoading.value = true
+  conversationsError.value = false
+  try {
+    const { data } = await service.getConversations(
+      agent.value.id,
+      cursor,
+      CONVERSATION_FILTERS[conversationFilter].params
+    )
+    if (!isCurrent()) return
+    conversations.value = cursor
+      ? [...conversations.value, ...data.results]
+      : data.results
+    conversationsCursor.value = data.next_cursor
+    if (!cursor) {
+      hasConversations.value = data.results.length > 0
+      if (!selectedConversation.value && data.results.length) {
+        selectConversation(data.results[0])
+      }
+    }
+  } catch (error) {
+    if (!isCurrent()) return
+    // Kept, so that a retry asks for the same page.
+    conversationsCursor.value = cursor
+    if (![401, 403].includes(error.response?.status)) {
+      conversationsError.value = true
+      hasConversations.value = true
+    }
+  } finally {
+    if (isCurrent()) {
+      conversationsLoading.value = false
+      conversationsSettled.value = true
+    }
+  }
+}
+
+function selectConversation(conversation) {
+  if (conversation.uuid === selectedConversation.value?.uuid) return
+  selectedConversation.value = conversation
+  Object.assign(history, emptyHistory())
+  loadMessages()
+}
+
+/**
+ * Loads a page of the selected conversation's messages, the newest first.
+ *
+ * @param {number} page The page to load; older pages go above the loaded ones.
+ */
+async function loadMessages(page = 1) {
+  const current = scope
+  const conversation = selectedConversation.value
+  const isCurrent = () =>
+    current === scope && conversation === selectedConversation.value
+  history.loading = true
+  history.error = false
+  try {
+    const { data } = await service.getMessages(
+      agent.value.id,
+      conversation.uuid,
+      page
+    )
+    if (!isCurrent()) return
+    history.items = mergeMessages(data.results, page > 1 ? history.items : [])
+    history.page = page
+    history.next = Boolean(data.next)
+    if (page === 1) {
+      await nextTick()
+      if (historyElement.value) {
+        historyElement.value.scrollTop = historyElement.value.scrollHeight
+      }
+    }
+  } catch {
+    if (isCurrent()) history.error = true
+  } finally {
+    if (isCurrent()) history.loading = false
+  }
+}
+
+watch(
+  () => agent.value.id,
+  () => {
+    ++scope
+    configuration.value = {}
+    hasConversations.value = false
+    conversations.value = []
+    conversationsCursor.value = null
+    conversationsError.value = false
+    conversationsSettled.value = false
+    selectedConversation.value = null
+    Object.assign(history, emptyHistory())
+    loadConfiguration()
+    loadConversations()
+  },
+  { immediate: true }
+)
 </script>

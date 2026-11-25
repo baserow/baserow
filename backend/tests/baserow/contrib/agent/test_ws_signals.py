@@ -85,6 +85,7 @@ def update_of(
                 for user in conversation.participants.all()
             ],
             "started_by_trigger": conversation.started_by_trigger,
+            "is_example": conversation.is_example,
             "owner": owner and {"id": owner.id, "name": owner.first_name},
             "trigger_id": conversation.trigger_id,
             "trigger_type": trigger_type,

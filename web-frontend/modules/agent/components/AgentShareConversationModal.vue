@@ -5,13 +5,14 @@
     role="dialog"
     aria-modal="true"
     :aria-labelledby="titleId"
-    :aria-describedby="descriptionId"
+    :aria-describedby="`${descriptionId} ${noteId}`"
   >
     <template #content>
       <h2 :id="titleId" class="box__title">
         {{ $t('agent.shareConversation') }}
       </h2>
       <p :id="descriptionId">{{ $t('agent.shareConversationWarning') }}</p>
+      <p :id="noteId">{{ $t('agent.shareConversationExportNote') }}</p>
       <div class="actions actions--right actions--gap">
         <Button type="secondary" @click="modal.hide()">
           {{ $t('action.cancel') }}
@@ -32,6 +33,7 @@ const modal = ref(null)
 const conversation = ref(null)
 const titleId = useId()
 const descriptionId = useId()
+const noteId = useId()
 
 function show(item) {
   conversation.value = item

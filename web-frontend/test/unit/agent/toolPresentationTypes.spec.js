@@ -65,14 +65,14 @@ describe('Agent tool presentations', () => {
           agentToolPresentationTypes.some((Type) => presenter instanceof Type)
         )
         .map((presenter) => presenter.getType())
-        // These have no agent tool type: the provider runs web search, Baserow
-        // opens web pages itself, and the others come from servers or actions.
+        // No agent tool type: provider, Baserow, trigger, server or action tools.
         .filter(
           (type) =>
             ![
               'mcp_server_tool',
               'web_search',
               'web_fetch',
+              'ask_person',
               'smtp_email',
               'http_request',
               'agent_action',
@@ -164,6 +164,21 @@ describe('Agent tool presentations', () => {
       ['Table', 'Leads'],
       ['Values', { Name: 'Ada' }],
     ])
+  })
+
+  test('a question to a person is described by the question', () => {
+    const activity = (status, input = { question: ' Which customer? ' }) => {
+      const { title, description } = toolActivity(
+        step('ask_person', status, { input }),
+        registry,
+        t
+      )
+      return [title, description]
+    }
+    expect(activity('running')).toEqual(['Asking a person', 'Which customer?'])
+    expect(activity('done')).toEqual(['Asked a person', 'Which customer?'])
+    expect(activity('waiting')).toEqual(['Ask a person', 'Which customer?'])
+    expect(activity('waiting', {})).toEqual(['Ask a person', ''])
   })
 
   test('an HTTP request reads in the order of its form, with hidden values kept', () => {

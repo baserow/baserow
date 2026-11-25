@@ -26,9 +26,11 @@ from .api.serializers import AgentConversationUserSerializer
 from .constants import AgentReadinessState
 from .exceptions import (
     AgentConversationDoesNotExist,
+    AgentConversationIsExample,
     AgentConversationWaitingForApproval,
     AgentNotReady,
     AgentToolApprovalNotPending,
+    AgentToolRequirementsMissing,
     AgentTriggerOff,
 )
 from .handler import AgentHandler
@@ -180,6 +182,8 @@ class AgentService:
         :raises rest_framework.exceptions.PermissionDenied: When an allowed tool is
             deactivated in the Agent's workspace, unless its type raises its own
             error.
+        :raises AgentToolRequirementsMissing: When the allowed tools leave out a
+            tool one of them requires.
         :return: The Agent, its original and new configuration values, and the
             resolved resulting configuration.
         """
@@ -195,8 +199,11 @@ class AgentService:
         current_run_as = [getattr(agent, field) for field in self.handler.run_as_fields]
         if any(run_as) and run_as != current_run_as:
             IdentityService().check_can_bind(user, agent.workspace)
-        for name in values.get("allowed_tools") or []:
+        allowed_tools = values.get("allowed_tools") or []
+        for name in allowed_tools:
             agent_tool_type_registry.get(name).raise_if_deactivated(agent.workspace)
+        if missing := agent_tool_type_registry.get_missing_requirements(allowed_tools):
+            raise AgentToolRequirementsMissing(missing)
         updated = self.handler.update_configuration(agent, **values)
         if updated.original_values != updated.new_values:
             # Open pages refresh readiness from this public application payload.
@@ -959,6 +966,9 @@ class AgentService:
         :raises AgentMessageConflict: When the uuid was accepted with other content.
         :raises AgentConversationWaitingForApproval: When the latest reply waits for
             the user to decide its held calls.
+        :raises AgentConversationIsExample: When the conversation is an example,
+            which stays as it came so that it can't carry this workspace's data out
+            through the next export.
         :raises AgentNotReady: When the agent isn't ready for a new message.
         :raises ChatRunAlreadyActive: When the agent is still replying in this
             conversation.
@@ -981,6 +991,8 @@ class AgentService:
         CoreHandler().check_permissions(
             user, operation.type, workspace=agent.workspace, context=agent
         )
+        if conversation.is_example:
+            raise AgentConversationIsExample
         validate_message_content(content)
         retry = self.handler.get_message_retry(conversation, uuid, content, user)
         if retry is not None:
@@ -1015,7 +1027,7 @@ class AgentService:
         :param agent_id: The id of the agent.
         :param conversation_uuid: The uuid of the conversation.
         :param decisions: Whether each held call may run, by approval id, with the
-            reason for a rejection.
+            reason for a rejection or the answer to a question.
         :param always_allow: Whether the tools of the approved calls stop asking
             first, which needs the access of a configuration update.
         :raises FeatureDisabledException: When Agents are disabled.
@@ -1025,6 +1037,9 @@ class AgentService:
             with this uuid in the agent.
         :raises AgentToolApprovalNotPending: When an approval is decided already or
             isn't held by the reply waiting in the conversation.
+        :raises AgentToolDecisionInvalid: When a question is answered without an
+            answer or dismissed with a reason, or another call is decided with an
+            answer.
         :raises AgentNotReady: When the agent isn't ready to continue the reply.
         :raises ChatRunLimitReached: When a reply limit is reached.
         :return: The reply with its approvals, the run continuing it or None while

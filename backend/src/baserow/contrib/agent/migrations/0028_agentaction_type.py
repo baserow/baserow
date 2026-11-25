@@ -3,7 +3,7 @@ from django.db import migrations, models
 
 class Migration(migrations.Migration):
     dependencies = [
-        ("agent", "0025_conversation_participants"),
+        ("agent", "0027_agent_ask_person"),
     ]
 
     operations = [

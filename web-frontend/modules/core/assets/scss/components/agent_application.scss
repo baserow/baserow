@@ -1189,7 +1189,8 @@
   flex: 1;
 }
 
-.agent-mcp-tools__select-all {
+.agent-mcp-tools__select-all,
+.agent-tool-permissions__select-all {
   margin-inline: auto 12px;
 }
 
@@ -1395,6 +1396,27 @@
 
 .agent-pending-approvals__conversation-name {
   @extend %ellipsis;
+}
+
+.agent-pending-approvals__question {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 10px 12px;
+  border: 1px solid $palette-neutral-200;
+  border-radius: 12px 12px 12px 6px;
+  font-size: 13px;
+  line-height: 20px;
+
+  & + .agent-approval {
+    margin-top: 8px;
+  }
+}
+
+.agent-pending-approvals__question-note {
+  flex-shrink: 0;
+  color: $palette-neutral-900;
 }
 
 .agent-audience {

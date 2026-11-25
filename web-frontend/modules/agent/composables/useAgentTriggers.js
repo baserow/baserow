@@ -21,9 +21,16 @@ const TRIGGER_FIELDS = [
   'enabled',
   'message',
   'on_overlap',
+  'may_ask_person',
   'batch_size',
 ]
-const PICKED_FIELDS = ['type', 'name', 'enabled', 'on_overlap']
+const PICKED_FIELDS = [
+  'type',
+  'name',
+  'enabled',
+  'on_overlap',
+  'may_ask_person',
+]
 const SAVED_FIELDS = [...TRIGGER_FIELDS, 'service']
 const TYPE_CHANGE_FIELDS = ['type', 'service', 'message']
 
@@ -49,11 +56,18 @@ const savedValuesOf = (trigger) =>
  * @param {import('vue').Ref<object>} agent The Agent whose triggers are listed.
  * @param {Function} getRunAs Returns the Agent's configured run identity, or
  *   null.
+ * @param {object} options
+ * @param {boolean} options.loadTypes False to show the forms without choices,
+ *   for a template preview, which has no run identity to load them for.
  * @returns {object} The triggers, their loading and saving state, the options
  *   of each trigger type with a counter that changes whenever they reload,
  *   whether either failed to load, and actions.
  */
-export function useAgentTriggers(agent, getRunAs = () => null) {
+export function useAgentTriggers(
+  agent,
+  getRunAs = () => null,
+  { loadTypes = true } = {}
+) {
   const { $client, $registry } = useNuxtApp()
   const { t } = useI18n()
   const service = AgentTriggerService($client)
@@ -159,6 +173,10 @@ export function useAgentTriggers(agent, getRunAs = () => null) {
    */
   async function fetchTriggerTypes() {
     if (!agentId()) return
+    if (!loadTypes) {
+      triggerTypes.value = {}
+      return
+    }
     const currentScope = scope
     const request = ++typesRequest
     const isCurrent = () =>

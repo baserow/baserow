@@ -18,9 +18,34 @@ class AgentConversationWaitingForApproval(Exception):
     """The conversation's latest reply waits for decisions on its held calls."""
 
 
+class AgentToolRequirementsMissing(Exception):
+    """Allowed tools leave out tools they require."""
+
+    def __init__(self, missing: dict[str, list[str]]):
+        """
+        :param missing: The required tools left out, by the tool requiring them.
+        """
+
+        self.missing = missing
+        super().__init__(
+            "; ".join(
+                f"{name} requires {', '.join(required)}"
+                for name, required in missing.items()
+            )
+        )
+
+
 class AgentToolApprovalNotPending(Exception):
     """The approval is decided or isn't held by the conversation's waiting reply."""
 
 
+class AgentToolDecisionInvalid(Exception):
+    """A decision's answer doesn't fit the held call it decides."""
+
+
 class AgentTriggerOff(Exception):
     """The trigger of a shared conversation is off or gone, so its reply stops."""
+
+
+class AgentConversationIsExample(Exception):
+    """Raised when a message is sent to an example conversation, which is read-only."""

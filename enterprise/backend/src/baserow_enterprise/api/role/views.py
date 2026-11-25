@@ -49,7 +49,6 @@ from baserow.core.registries import (
     object_scope_type_registry,
     subject_type_registry,
 )
-from baserow.core.types import PermissionCheck
 from baserow.core.utils import (
     get_user_remote_ip_address_from_request,
     unique_dicts_in_list,
@@ -88,7 +87,6 @@ from baserow_enterprise.role.actions import (
 from baserow_enterprise.role.constants import ROLE_ASSIGNABLE_OBJECT_MAP
 from baserow_enterprise.role.handler import RoleAssignmentHandler
 from baserow_enterprise.role.types import NewRoleAssignment
-from baserow_enterprise.teams.operations import ListTeamSubjectsOperationType
 from baserow_premium.license.handler import LicenseHandler
 
 from .exceptions import DuplicateRoleAssignments
@@ -480,21 +478,11 @@ class EffectiveAccessView(APIView):
             workspace, scope
         )
 
-        # Which teams a subject belongs to is only shown to those who may list the
-        # members of the team.
-        teams = {team for access in effective_access for team in access.teams}
-        checks = {
-            team.id: PermissionCheck(
-                request.user, ListTeamSubjectsOperationType.type, team
+        visible_team_ids = (
+            RoleAssignmentHandler().get_visible_effective_access_team_ids(
+                request.user, workspace, effective_access
             )
-            for team in teams
-        }
-        results = CoreHandler().check_multiple_permissions(
-            list(checks.values()), workspace=workspace
         )
-        visible_team_ids = {
-            team_id for team_id, check in checks.items() if results[check] is True
-        }
 
         return Response(
             EffectiveAccessSerializer(

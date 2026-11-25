@@ -237,6 +237,10 @@ class AgentToolType(Instance):
     """True when the tool creates, changes or deletes data. It then runs alone, and
     new Agents start without it."""
 
+    requires: tuple[str, ...] = ()
+    """The tools that give the model an input this tool needs and can't get
+    otherwise, like a table's ID. An Agent is allowed the tool only with them."""
+
     unavailable_reason: str = ""
     """Why a workspace can't use the tool, worded to follow "because". The model of
     an Agent that was allowed the tool is told, and nothing is told without one."""
@@ -390,6 +394,21 @@ class AgentToolTypeRegistry(Registry[AgentToolType]):
                 "AgentToolNeeds value."
             )
         super().register(instance)
+
+    def get_missing_requirements(self, names: list[str]) -> dict[str, list[str]]:
+        """
+        :param names: The names of the tools an Agent would be allowed.
+        :return: The required tools left out, by the name of each tool that
+            requires them, in registry order.
+        """
+
+        allowed = set(names)
+        missing = {
+            tool_type.type: [name for name in tool_type.requires if name not in allowed]
+            for tool_type in self.get_all()
+            if tool_type.type in allowed
+        }
+        return {name: required for name, required in missing.items() if required}
 
 
 agent_tool_type_registry = AgentToolTypeRegistry()
