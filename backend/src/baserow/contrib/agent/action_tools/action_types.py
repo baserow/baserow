@@ -796,6 +796,31 @@ class LocalBaserowDeleteRowAgentActionType(LocalBaserowAgentActionType):
             "service": {"row_id": formula},
         }
 
+    def _get_configuration_errors(
+        self,
+        action: AgentAction,
+        identity: Subject | None,
+        readable_table_ids: set[int],
+    ) -> dict[str, str]:
+        errors = super()._get_configuration_errors(action, identity, readable_table_ids)
+        # Without a row, the service deletes nothing and still succeeds.
+        if not action.service.specific.row_id["formula"]:
+            errors["row_id"] = "required"
+        return errors
+
+    def prepare(self, action: AgentAction, arguments: dict[str, Any]) -> dict[str, Any]:
+        """
+        Refuse a call that names no row, which the service would answer like one
+        that deleted a row.
+
+        :raises ToolInputError: When the row ID resolves to nothing.
+        """
+
+        resolved_values = super().prepare(action, arguments)
+        if not resolved_values["row_id"]:
+            raise ToolInputError("Give the id of the row to delete.")
+        return resolved_values
+
     def get_tool_result(self, action: AgentAction, result: DispatchResult) -> Any:
         # The service answers nothing once the row is gone.
         return {"deleted": True}

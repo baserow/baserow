@@ -15,6 +15,7 @@ from baserow.contrib.agent.handler import AgentHandler
 from baserow.contrib.automation.nodes.registries import automation_node_type_registry
 from baserow.contrib.database.search.handler import SearchHandler
 from baserow.core.registries import ImportExportConfig
+from baserow.core.tools.errors import ToolInputError
 
 from ..utils import agent_url
 
@@ -279,6 +280,22 @@ def test_rows_are_read_changed_and_deleted_as_the_run_identity(api_client, peopl
     result, _ = call(deleted["id"], {"row_id": rows[2].id})
     assert result == {"deleted": True}
     assert not model.objects.filter(id=rows[2].id).exists()
+
+    row_id = {**deleted["inputs"][0], "required": False}
+    response = api_client.patch(
+        agent_url(agent, "actions:item", action_id=deleted["id"]),
+        {"inputs": [row_id]},
+    )
+    assert response.json()["errors"] == {}
+    with pytest.raises(ToolInputError):
+        call(deleted["id"], {})
+    assert model.objects.count() == 2
+
+    response = api_client.patch(
+        agent_url(agent, "actions:item", action_id=deleted["id"]),
+        {"service": {"row_id": ""}},
+    )
+    assert response.json()["errors"] == {"row_id": "required"}
 
     AgentHandler().update_configuration(
         agent, run_as_subject_type=None, run_as_subject_id=None
