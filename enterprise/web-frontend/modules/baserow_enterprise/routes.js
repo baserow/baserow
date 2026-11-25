@@ -37,6 +37,14 @@ export const rootChildRoutes = [
   },
 ]
 
+export const publicRoutes = [
+  {
+    name: 'agent-public-chat',
+    path: '/public/agent-chat/:slug',
+    file: path.resolve(__dirname, 'pages/publicAgentChat.vue'),
+  },
+]
+
 // Login pages (children of login-pages route, inherit login layout)
 export const routes = [
   {

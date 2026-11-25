@@ -1255,5 +1255,16 @@
     "suggestion_previousNode_prompt": "Only rows where [field] equals the [field] of the trigger",
     "suggestion_change": "Change or remove a filter",
     "suggestion_change_prompt": "Change the [field] filter to "
+  },
+  "publicAgentChat": {
+    "passwordTitle": "This chat is password protected",
+    "passwordDescription": "Enter the password to start a conversation.",
+    "enter": "Enter",
+    "wrongPassword": "The password is incorrect.",
+    "messagePlaceholder": "Write a message",
+    "newConversation": "New conversation",
+    "waiting": "Waiting for the team to approve a step.",
+    "failed": "Something went wrong. Send your message again.",
+    "unavailable": "This chat is no longer available."
   }
 }
