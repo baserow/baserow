@@ -75,7 +75,7 @@
       {{ $t(outcome.error) }}
     </div>
     <div v-if="outcome.note" class="chat-message__note">
-      {{ $t(outcome.note) }}
+      {{ $t(outcome.note, outcome.noteParams || {}) }}
     </div>
     <template v-if="shown.content && !shown.replying" #actions>
       <ChatMessageFooter
@@ -240,5 +240,7 @@ const entries = computed(() => {
   }
   return items
 })
-const outcome = computed(() => replyOutcome(shown.value))
+const outcome = computed(() =>
+  replyOutcome(shown.value, store.getters['auth/getUserId'])
+)
 </script>

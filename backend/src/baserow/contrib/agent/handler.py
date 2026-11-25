@@ -692,11 +692,11 @@ class AgentHandler:
         last_reply_failed: bool | None = None,
     ) -> QuerySet[AgentConversation]:
         """
-        Return the conversations the user sees in the agent: their own private
-        ones and the shared ones.
+        Return the conversations the user sees in the agent: the private ones they
+        take part in and the shared ones.
 
         :param agent: The agent the conversations belong to.
-        :param user: The user whose own conversations are included.
+        :param user: The user whose private conversations are included.
         :param cursor: The last conversation of the previous page, to continue after.
         :param pinned: Only pinned or unpinned conversations, or both when omitted.
         :param has_pending_approvals: Only conversations with or without pending calls.
@@ -706,12 +706,14 @@ class AgentHandler:
         :param last_reply_failed: Only conversations whose latest reply failed or
             not, or both when omitted.
         :return: The conversations, pinned first, then most recently active, with
-            their trigger and owner.
+            their trigger and owner, and the participants of each private one.
         """
 
-        conversations = AgentConversation.objects.filter(
-            self._visible_to(user), agent=agent
-        ).select_related("trigger__service", "owner_user")
+        conversations = (
+            AgentConversation.objects.filter(self._visible_to(user), agent=agent)
+            .select_related("trigger__service", "owner_user")
+            .prefetch_related("participants")
+        )
         if pinned is not None:
             conversations = conversations.filter(pinned=pinned)
         if shared is not None:
@@ -750,11 +752,14 @@ class AgentHandler:
     def _visible_to(user: AbstractUser) -> Q:
         """
         :param user: The user reading conversations.
-        :return: The filter keeping the user's own private conversations and the
-            shared ones.
+        :return: The filter keeping the private conversations the user takes part
+            in and the shared ones.
         """
 
-        return Q(owner_user_id=user.id, shared=False) | Q(shared=True)
+        membership = AgentConversation.participants.through.objects.filter(
+            agentconversation_id=OuterRef("pk"), user_id=user.id
+        )
+        return Q(shared=True) | Q(Exists(membership))
 
     def get_conversation(
         self,
@@ -771,9 +776,8 @@ class AgentHandler:
         :param uuid: The uuid of the conversation.
         :param for_update: Whether to lock the conversation until the transaction ends.
         :raises AgentConversationDoesNotExist: When the conversation doesn't exist,
-            also when it belongs to another owner or agent.
-        :return: The conversation, with the agent it was found in, and the user as
-            its owner unless it is shared.
+            also when it belongs to another agent or the user doesn't see it.
+        :return: The conversation, with the agent it was found in.
         """
 
         queryset = AgentConversation.objects.filter(self._visible_to(user))
@@ -783,9 +787,14 @@ class AgentHandler:
             conversation = queryset.get(uuid=uuid, agent=agent)
         except AgentConversation.DoesNotExist as exc:
             raise AgentConversationDoesNotExist from exc
+        # The user may have left while this transaction waited for the row lock.
+        if (
+            for_update
+            and not conversation.shared
+            and not conversation.participants.filter(id=user.id).exists()
+        ):
+            raise AgentConversationDoesNotExist
         conversation.agent = agent
-        if not conversation.shared:
-            conversation.owner_user = user
         return conversation
 
     def update_conversation(
@@ -847,6 +856,63 @@ class AgentHandler:
 
         agent = conversation.agent
         TrashHandler.trash(user, agent.workspace, agent, conversation)
+        self._stop_active_run(conversation)
+
+    def delete_conversation_forever(self, conversation: AgentConversation) -> None:
+        """
+        Delete a conversation and stop the reply still being written in it.
+
+        :param conversation: The conversation, locked so no new reply can start.
+        """
+
+        self._stop_active_run(conversation)
+        # A queryset delete keeps the instance's id for the action and signals.
+        AgentConversation.objects.filter(id=conversation.id).delete()
+
+    def leave_conversations_of_workspace(
+        self, workspace_id: int, user_id: int
+    ) -> list[AgentConversation]:
+        """
+        Take a person out of the private conversations they were asked into in a
+        workspace they left, and delete those nobody is left in. The ones they
+        own are kept, as they were before others could be asked in.
+
+        :param workspace_id: The id of the workspace the person left.
+        :param user_id: The id of the person.
+        :return: The conversations others still take part in, with their agent.
+        """
+
+        Participant = AgentConversation.participants.through
+        memberships = Participant.objects.filter(
+            user_id=user_id,
+            agentconversation__agent__workspace_id=workspace_id,
+            agentconversation__shared=False,
+        ).exclude(agentconversation__owner_user_id=user_id)
+        conversation_ids = list(
+            memberships.values_list("agentconversation_id", flat=True)
+        )
+        memberships.delete()
+        kept = []
+        for conversation in (
+            AgentConversation.objects_and_trash.filter(id__in=conversation_ids)
+            .annotate(
+                joined=Exists(
+                    Participant.objects.filter(agentconversation_id=OuterRef("pk"))
+                )
+            )
+            .select_related("agent__workspace")
+        ):
+            if conversation.joined:
+                kept.append(conversation)
+            else:
+                self.delete_conversation_forever(conversation)
+        return kept
+
+    def _stop_active_run(self, conversation: AgentConversation) -> None:
+        """
+        :param conversation: The conversation being removed.
+        """
+
         run = ChatRunHandler().get_active_run(AGENT_RUN_TYPE, conversation.id)
         if run is not None:
             # Runs are locked before their conversation, so stop it after commit.
@@ -899,6 +965,7 @@ class AgentHandler:
             conversation.trashed
             or conversation.agent_id != agent.id
             or conversation.owner_user_id != owner.id
+            or not conversation.participants.filter(id=owner.id).exists()
         ):
             raise AgentConversationDoesNotExist
         message = conversation.messages.order_by("id").first()
@@ -977,6 +1044,7 @@ class AgentHandler:
                     title=normalize_title(title or content),
                     is_test=is_test,
                 )
+                conversation.participants.add(user)
         except IntegrityError:
             # A concurrent request created this uuid after the retry check.
             return self._get_first_message_retry(
@@ -1123,6 +1191,7 @@ class AgentHandler:
             uuid=uuid or uuid4(),
             role=role,
             sender=sender,
+            unattended=role == AgentMessage.Role.TRIGGER,
             content=content,
         )
         reply = AgentMessage.objects.create(
@@ -1130,6 +1199,7 @@ class AgentHandler:
             uuid=uuid4(),
             role=AgentMessage.Role.ASSISTANT,
             sender=sender,
+            unattended=role == AgentMessage.Role.TRIGGER,
             content="",
             status=AgentReplyStatus.RUNNING if start_run else AgentReplyStatus.QUEUED,
         )
@@ -1157,33 +1227,45 @@ class AgentHandler:
         )
 
     def _start_reply_run(
-        self, conversation: AgentConversation, reply: AgentMessage
+        self,
+        conversation: AgentConversation,
+        reply: AgentMessage,
+        approver: AbstractUser | None = None,
     ) -> ChatRun:
         """
-        Start the run writing the reply: as the person it answers, or with nobody
-        for a trigger's unattended reply.
+        Start the run writing the reply: as the person whose decision resumes it,
+        else as the person it answers, or with nobody for an unattended reply.
 
         :param conversation: The conversation, with its agent.
         :param reply: The empty reply the run writes, with its sender.
+        :param approver: The person whose decision resumes the reply, if any.
         :raises ChatRunLimitReached: When a reply limit is reached.
         :return: The run.
         """
 
+        context = {"reply_id": reply.id}
+        actor = reply.sender
+        if approver is not None:
+            context["approver_id"] = approver.id
+            actor = None if reply.unattended else approver
         return ChatRunHandler().start_run(
             AGENT_RUN_TYPE,
             conversation.id,
             conversation.agent.workspace,
-            reply.sender,
-            context={"reply_id": reply.id},
+            actor,
+            context=context,
             created_event_data={},
         )
 
-    def _start_existing_reply(self, reply: AgentMessage) -> ChatRun:
+    def _start_existing_reply(
+        self, reply: AgentMessage, approver: AbstractUser | None = None
+    ) -> ChatRun:
         """
         Mark a saved reply running and start the run writing it, as its
         conversation's latest activity.
 
         :param reply: The reply, with its conversation, agent and workspace.
+        :param approver: The person whose decision resumes the reply, if any.
         :raises ChatRunLimitReached: When a reply limit is reached.
         :return: The run writing the reply.
         """
@@ -1192,7 +1274,7 @@ class AgentHandler:
         conversation.save(update_fields=["updated_on"])
         reply.status = AgentReplyStatus.RUNNING
         reply.save(update_fields=["status", "updated_on"])
-        return self._start_reply_run(conversation, reply)
+        return self._start_reply_run(conversation, reply, approver)
 
     def start_queued_replies(self, trigger: AgentTrigger) -> list[AgentMessage]:
         """
@@ -1276,7 +1358,8 @@ class AgentHandler:
                 "conversation__trigger__service", "conversation__owner_user"
             )
             .prefetch_related(
-                Prefetch("approvals", queryset=pending, to_attr="pending_approvals")
+                "conversation__participants",
+                Prefetch("approvals", queryset=pending, to_attr="pending_approvals"),
             )
         )
 
@@ -1315,10 +1398,10 @@ class AgentHandler:
         self, user_ids: list[int], agent_ids: list[int]
     ) -> dict[int, dict[int, int]]:
         """
-        Count the held calls waiting for each user's decision in their untrashed
-        private conversations with each Agent.
+        Count the held calls waiting for each user's decision in the untrashed
+        private conversations they take part in with each Agent.
 
-        :param user_ids: The ids of the users who own the conversations.
+        :param user_ids: The ids of the participants to count for.
         :param agent_ids: The ids of the Agents to count in.
         :return: The number of pending approvals by Agent id, by user id, leaving
             out users and Agents with none.
@@ -1328,17 +1411,17 @@ class AgentHandler:
         for user_id, agent_id, count in (
             self._pending_approvals()
             .filter(
-                reply__conversation__owner_user_id__in=user_ids,
+                reply__conversation__participants__id__in=user_ids,
                 reply__conversation__shared=False,
                 reply__conversation__agent_id__in=agent_ids,
                 reply__conversation__trashed=False,
             )
             .values(
-                "reply__conversation__owner_user_id", "reply__conversation__agent_id"
+                "reply__conversation__participants__id", "reply__conversation__agent_id"
             )
             .annotate(count=Count("id"))
             .values_list(
-                "reply__conversation__owner_user_id",
+                "reply__conversation__participants__id",
                 "reply__conversation__agent_id",
                 "count",
             )
@@ -1419,19 +1502,20 @@ class AgentHandler:
         prefetch_related_objects([reply], "approvals")
         return reply, decided, not pending
 
-    def resume_reply(self, reply: AgentMessage) -> ChatRun:
+    def resume_reply(self, reply: AgentMessage, approver: AbstractUser) -> ChatRun:
         """
         Start the run continuing a reply whose held calls are all decided.
 
         Call it in the transaction that saved the last decision, so a refused run
         leaves the decisions pending.
 
-        :param reply: The waiting reply, with its conversation, agent and owner.
+        :param reply: The waiting reply, with its conversation and agent.
+        :param approver: The person whose decision completed the held calls.
         :raises ChatRunLimitReached: When a reply limit is reached.
         :return: The run continuing the reply.
         """
 
-        return self._start_existing_reply(reply)
+        return self._start_existing_reply(reply, approver)
 
     def get_active_reply_runs(self, conversation: AgentConversation) -> dict[int, UUID]:
         """
@@ -1685,7 +1769,8 @@ class AgentHandler:
             action_tools=action_tools,
             timezone=self._get_reply_timezone(reply),
             conversation_user=self._get_conversation_user(reply),
-            names_senders=conversation.shared and not conversation.started_by_trigger,
+            names_senders=not reply.unattended
+            and self._has_several_writers(conversation),
             mcp_servers=mcp_servers,
             reasoning_effort=agent.reasoning_effort,
             web_search_tool=web_search_tool,
@@ -1754,18 +1839,17 @@ class AgentHandler:
             )
         return tuple(snapshots)
 
-    def _get_reply_timezone(self, reply: AgentMessage) -> str:
+    def _get_reply_timezone(self, reply: AgentMessage) -> str | None:
         """
         :param reply: The reply being written, with its sender.
         :return: The timezone the reply's tools read dates in: its sender's, or for
             a trigger's reply the trigger's, so "today" means the day the builder
-            scheduled it for.
+            scheduled it for. None when the sender was deleted.
         """
 
-        conversation = reply.conversation
-        if not conversation.started_by_trigger:
-            return reply.sender.profile.timezone
-        return trigger_timezone_name(conversation.trigger.service.specific)
+        if not reply.unattended:
+            return reply.sender.profile.timezone if reply.sender else None
+        return trigger_timezone_name(reply.conversation.trigger.service.specific)
 
     def _get_unavailable_tool_messages(
         self, agent: AgentApplication, deactivated: list[str]
@@ -1794,16 +1878,29 @@ class AgentHandler:
             for reason, names in names_by_reason.items()
         ]
 
+    def _has_several_writers(self, conversation: AgentConversation) -> bool:
+        """
+        :param conversation: The conversation a reply is written in.
+        :return: Whether more than one person can write in it: everyone reading a
+            shared one, or the people its owner asked to approve in a private one.
+        """
+
+        return (
+            conversation.shared
+            or conversation.participants.exclude(id=conversation.owner_user_id).exists()
+        )
+
     def _get_conversation_user(
         self, reply: AgentMessage
     ) -> AgentConversationUser | None:
         """
         :param reply: The reply being written, with its sender.
         :return: The person it answers, named on one short line as the name ends
-            up in the instructions, or None when a trigger started the conversation.
+            up in the instructions, or None for an unattended reply or a deleted
+            sender, whose reply someone they asked to approve may resume.
         """
 
-        if reply.conversation.started_by_trigger:
+        if reply.unattended or reply.sender is None:
             return None
         return AgentConversationUser.of(reply.sender)
 
@@ -1830,13 +1927,15 @@ class AgentHandler:
             .first()
         )
 
-    def _get_reply_prompt(self, reply: AgentMessage) -> tuple[str, list[AgentMessage]]:
+    def _get_reply_prompt(
+        self, reply: AgentMessage
+    ) -> tuple[AgentMessage, list[AgentMessage]]:
         """
         Find what a reply answers: the message right before it.
 
         :param reply: The reply.
-        :return: The prompt, and the recent messages before it with their senders,
-            oldest first.
+        :return: The prompt and the recent messages before it, oldest first, each
+            with its sender.
         """
 
         prompt, *history = (
@@ -1844,7 +1943,7 @@ class AgentHandler:
             .select_related("sender")
             .order_by("-id")[: HISTORY_MESSAGE_LIMIT + 1]
         )
-        return prompt.content, history[::-1]
+        return prompt, history[::-1]
 
     def _get_reply_resume(
         self,
@@ -1968,7 +2067,7 @@ class AgentHandler:
 
         # The caller's lock on the run or the reply serializes everything ending it.
         reply = (
-            AgentMessage.objects.select_related("conversation")
+            AgentMessage.objects.select_related("conversation", "stopped_by")
             .filter(id=reply_id)
             .first()
         )
@@ -2176,12 +2275,13 @@ class AgentHandler:
             AgentConversation.objects.filter(agent=agent)
             .order_by("id")
             .prefetch_related(
+                "participants",
                 Prefetch(
                     "messages",
                     queryset=AgentMessage.objects.order_by("id").prefetch_related(
                         "approvals"
                     ),
-                )
+                ),
             )
         )
         return [
@@ -2192,6 +2292,9 @@ class AgentHandler:
                 "owner_user_id": conversation.owner_user_id,
                 "shared": conversation.shared,
                 "started_by_trigger": conversation.started_by_trigger,
+                "participant_ids": [
+                    user.id for user in conversation.participants.all()
+                ],
                 "trigger_id": conversation.trigger_id,
                 "created_on": conversation.created_on.isoformat(),
                 "updated_on": conversation.updated_on.isoformat(),
@@ -2199,6 +2302,7 @@ class AgentHandler:
                     {
                         "role": message.role,
                         "sender_id": message.sender_id,
+                        "unattended": message.unattended,
                         "content": message.content,
                         "status": message.status,
                         "error_code": message.error_code,
@@ -2226,10 +2330,11 @@ class AgentHandler:
     ) -> None:
         """
         Copy conversations with their messages into the agent with new uuids.
-        Private conversations of deleted owners are skipped, shared ones are always
-        kept without the users deleted since, and a reply still being written or
-        waiting for approvals is ended as interrupted. A conversation whose trigger
-        wasn't copied loses the link, as it does when the trigger is deleted.
+        Private conversations whose participants were all deleted are skipped,
+        others are kept without the users deleted since, and a reply still being
+        written or waiting for approvals is ended as interrupted. A conversation
+        whose trigger wasn't copied loses the link, as it does when the trigger is
+        deleted.
 
         :param agent: The agent to copy the conversations into.
         :param serialized_conversations: The conversations from export_conversations.
@@ -2242,6 +2347,7 @@ class AgentHandler:
             for data in serialized_conversations
             for user_id in (
                 data["owner_user_id"],
+                *data["participant_ids"],
                 *(message["sender_id"] for message in data["messages"]),
             )
             if user_id is not None
@@ -2258,7 +2364,7 @@ class AgentHandler:
         retained_data = [
             data
             for data in serialized_conversations
-            if data["shared"] or data["owner_user_id"] in existing_user_ids
+            if data["shared"] or existing_user_ids.intersection(data["participant_ids"])
         ]
         trigger_ids = id_mapping.get("agent_triggers", {})
         conversations = [
@@ -2279,6 +2385,15 @@ class AgentHandler:
         AgentConversation.objects.bulk_create(conversations, batch_size=1000)
         messages = []
         message_data = []
+        Participant = AgentConversation.participants.through
+        Participant.objects.bulk_create(
+            [
+                Participant(agentconversation_id=conversation.id, user_id=user_id)
+                for conversation, data in zip(conversations, retained_data)
+                for user_id in existing_user_ids.intersection(data["participant_ids"])
+            ],
+            batch_size=1000,
+        )
         for conversation, data in zip(conversations, retained_data):
             conversation.created_on = parse_datetime(data["created_on"])
             conversation.updated_on = parse_datetime(data["updated_on"])
@@ -2298,6 +2413,7 @@ class AgentHandler:
                         uuid=uuid4(),
                         role=serialized_message["role"],
                         sender_id=existing(serialized_message["sender_id"]),
+                        unattended=serialized_message["unattended"],
                         content=serialized_message["content"],
                         status=status,
                         error_code=error_code,

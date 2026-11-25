@@ -43,15 +43,14 @@ mixed-version compatibility is needed for these changes.
 | Listener             | A callable a consumer registers to receive `(services, event_payload, user, isolate_failures)`.                     |
 | Armed                | A trigger service that receives real events now: periodic `next_run_at` set, HTTP/email `is_public`.                |
 | Shared conversation  | A conversation with `shared` set; readable by everyone with `read_conversations` on the agent.                      |
-| Private conversation | A conversation started by a person and not shared; visible to that person only.                                     |
+| Private conversation | A conversation started by a person and not shared; visible to its participants only.                                |
 | Run identity         | The subject the agent's tools act as. Never a conversation owner, never an author.                                  |
 | Ask-first tool       | An allowed tool whose calls pause the reply until a person approves them.                                           |
 
 In scope: how events reach consumers, how a service goes live, who owns and sees
 trigger-started conversations, and what an unattended run may do. Out of scope: which
 trigger types the picker offers (a constant, widened per release), rate limits and
-auto-disable, continuation of shared conversations, the agent-level pause and "Run
-once".
+auto-disable, the agent-level pause and "Run once".
 
 ## Decision
 
@@ -84,25 +83,39 @@ a `trigger` foreign key (set to null when the trigger is deleted) records what s
 it. A person's conversation starts private, and its owner can share it for good: once
 others may have read it, making it private again wouldn't take back what they saw.
 Shared conversations are visible to everyone with `read_conversations` on the agent;
-private ones stay visible to their owner only. Each message records its `sender`, and a
-reply runs for the person it answers. A shared conversation outlives its owner's
-account; a private one is deleted with it.
+private ones to their participants: the owner, and whom the owner asked to approve
+held calls. Those keep access after the decision, and after the owner leaves or deletes
+their account. Each message records its `sender`, and a reply runs for the person it
+answers, or for the person whose decision resumed it.
+
+Three operations decide who takes part: `create_message` sends messages in a
+person's conversation, `approve_tool_calls` decides held calls, and
+`continue_triggered_conversation` sends messages in a trigger-started one. With RBAC,
+per-agent rules set each to a lowest role, specific users or teams, or nobody. Chat
+and approve default to Editors and above, continue to nobody, workspace admins
+included; approve can't be nobody, or no held run could resume. Without RBAC every
+member chats and approves and nobody continues; stored rules are kept, not applied.
+Always allowing a tool also needs configuration access.
 
 Renaming, trashing, restoring and stopping a shared conversation additionally require
-`application.update`, except that the person a reply answers can always stop it.
-Following its runs live requires `read_conversations`. Anyone
-who may send the agent messages continues a person's shared conversation; sending a
-message in a trigger-started one is refused in this release, and continuing it is a
-later change.
-Its held calls are decided like a private one's, by anyone who may send the agent
-messages, so editors approve or reject a call and only builders, who may update the
-configuration, also always allow its tool. Realtime updates go to the users permitted
-to read the agent's conversations instead of one owner, and its pending count to
-everyone who may decide it.
+`application.update`; only the owner changes a private one. The person a reply answers
+can always stop it. Following its runs live requires `read_conversations`. Realtime
+updates go to the users permitted to read the agent's conversations, or to a private
+one's participants, and the pending count to everyone who may decide the held calls.
 
 Viewers read conversations, and may trash and restore their own private ones, such as
 one left from an older role. Renaming needs the editor role, the lowest role that may
 create a conversation.
+
+Everyone in a private conversation can remove it from their own list ("Delete for me"),
+and the others keep it; only its owner deletes it for everyone. The owner leaving alone
+trashes it, as deleting does. Once the owner has left, the last person to leave deletes
+it for good, because only an owner's trash may list a private conversation: without one,
+every trash reader would see it. A person removed from the workspace leaves the
+conversations they were asked into, and the rules that name them, as they lose their
+role assignments; the ones they own are kept. Shared deletion, restoration, renaming
+and stopping require the existing management permissions. A reply stopped by someone
+else says who stopped it. Realtime delivery checks conversation visibility.
 
 The opening message, with role `trigger`, holds the resolved trigger message, a runtime
 formula over the event payload. A message with no text opens with the trigger and when
@@ -182,17 +195,15 @@ core when another background feature needs it.
 - Plugins that overrode `start_listening` or `stop_listening` on a trigger service type
   must override `connect` and `disconnect` instead; the `on_event` class attribute is
   now a method.
-- A reply runs for its `sender`, not the conversation's owner: in a shared
-  conversation they differ, and the owner can be gone.
+- A reply runs for its `sender`, or the person whose decision resumed it, not the
+  conversation's owner: they differ, and the owner can be gone.
 - Readers of a shared conversation see what the run identity could read. Builders pick
   the identity knowing that.
 - The periodic beat tick only resolves trigger messages; conversations start in tasks
   after it commits. Rate limits and auto-disable follow before other types are offered.
-- Follow-ups: editors continuing shared conversations, in-app notifications for their
-  waiting approvals, the
-  agent-level pause switch, "Run once" and "Last run", email triggers in the
-  picker, per trigger rate limits and auto-disable, the setup wizard's "Run
-  automatically" step, the "Who can use it" role settings, a "Row comment is created"
+- Follow-ups: in-app notifications for waiting approvals, the agent-level pause
+  switch, "Run once" and "Last run", email triggers in the picker, per trigger rate
+  limits and auto-disable, the setup wizard's "Run automatically" step, a "Row comment is created"
   trigger type, the `manual` type (hidden until something can start an agent), an
   optional shared secret for HTTP triggers, and sample data for their message picker.
 

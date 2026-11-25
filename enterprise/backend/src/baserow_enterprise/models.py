@@ -1,3 +1,4 @@
+from baserow_enterprise.agent_permissions.models import AgentParticipationRule
 from baserow_enterprise.automatic_snapshots.models import (
     AutomaticSnapshotLastRun,
     AutomaticSnapshotSchedule,
@@ -48,6 +49,7 @@ from baserow_enterprise.teams.models import Team, TeamSubject, WorkspaceTeamInvi
 __all__ = [
     "AutomaticSnapshotSchedule",
     "AutomaticSnapshotLastRun",
+    "AgentParticipationRule",
     "Team",
     "TeamSubject",
     "WorkspaceTeamInvitation",

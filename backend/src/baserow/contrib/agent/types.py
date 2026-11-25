@@ -193,8 +193,8 @@ class AgentReplyRequest:
     instructions: str
     provider_type: str
     model_identifier: str
-    prompt: str | None = None
-    """The message the reply answers, or None when it resumes."""
+    prompt: AgentMessage | None = None
+    """The message the reply answers, with its sender, or None when it resumes."""
     history: list[AgentMessage] = field(default_factory=list)
     """The earlier messages of the conversation, oldest first."""
     resume: AgentReplyResume | None = None
@@ -216,7 +216,7 @@ class AgentReplyRequest:
     conversation_user: AgentConversationUser | None = None
     """The person the reply answers, or None when a trigger started the conversation."""
     names_senders: bool = False
-    """Whether each person's message names who wrote it, as several people can."""
+    """Whether each person's message names who wrote it, as told in the instructions."""
     mcp_servers: tuple[MCPServerSnapshot, ...] = ()
     """The MCP servers with tools turned on, as reviewed when the reply started."""
     reasoning_effort: str | None = None

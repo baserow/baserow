@@ -9,6 +9,7 @@ import { isTerminalStatus } from '@baserow/modules/core/chatRuns/constants'
 import { AGENT_RUN_TYPE } from '@baserow/modules/agent/chatRunTypes'
 import AgentApplicationService from '@baserow/modules/agent/services/agentApplication'
 import { API_ERROR_CODE } from '@baserow/modules/agent/constants'
+import { managesConversation } from '@baserow/modules/agent/utils/conversations'
 import {
   AGENT_REPLY_STATUS,
   APPROVAL_STATUS,
@@ -65,7 +66,6 @@ const REJECTED_MESSAGE_ERRORS = [
   API_ERROR_CODE.CHAT_RUN_IN_PROGRESS,
   API_ERROR_CODE.AGENT_BUSY,
   API_ERROR_CODE.AGENT_CONVERSATION_WAITING_FOR_APPROVAL,
-  API_ERROR_CODE.AGENT_CONVERSATION_READ_ONLY,
 ]
 
 const SEND_ERRORS = {
@@ -74,7 +74,6 @@ const SEND_ERRORS = {
   [API_ERROR_CODE.AGENT_BUSY]: 'agent.agentsBusy',
   [API_ERROR_CODE.AGENT_CONVERSATION_WAITING_FOR_APPROVAL]:
     'agent.conversationWaitingForApproval',
-  [API_ERROR_CODE.AGENT_CONVERSATION_READ_ONLY]: 'agent.conversationReadOnly',
 }
 
 // Another session changed the conversation, so a refusal re-reads it.
@@ -204,26 +203,36 @@ export function useAgentConversations(agent, configuration) {
       ? null
       : error
   })
-  const canMessageSelected = computed(
+  const canApprove = computed(() =>
+    permission('agent_application.approve_tool_calls')
+  )
+  const canContinueTriggered = computed(() =>
+    permission('agent_application.continue_triggered_conversation')
+  )
+  const managesSelected = computed(
     () =>
-      canReadConversations.value &&
-      canCreateMessage.value &&
       Boolean(selectedConversation.value) &&
-      (!selectedConversation.value.local || canCreateConversation.value)
+      managesConversation(
+        selectedConversation.value,
+        store.getters['auth/getUserId'],
+        canUpdateAgent.value
+      )
   )
-  // A conversation a trigger started takes no messages until continuation ships.
-  const canWriteSelected = computed(
-    () =>
-      canMessageSelected.value && !selectedConversation.value.started_by_trigger
-  )
+  const canWriteSelected = computed(() => {
+    const conversation = selectedConversation.value
+    if (!conversation || !canReadConversations.value) return false
+    if (conversation.started_by_trigger) return canContinueTriggered.value
+    return (
+      canCreateMessage.value &&
+      (!conversation.local || canCreateConversation.value)
+    )
+  })
   // A running reply is the newest message, and who asked for it may stop it.
   const canStopSelected = computed(
     () =>
-      Boolean(selectedConversation.value) &&
-      (!selectedConversation.value.shared ||
-        canUpdateAgent.value ||
-        currentHistory.value?.items.at(-1)?.sender?.id ===
-          store.getters['auth/getUserId'])
+      managesSelected.value ||
+      currentHistory.value?.items.at(-1)?.sender?.id ===
+        store.getters['auth/getUserId']
   )
   // Sending is blocked while a reply waits, so the waiting reply is the newest.
   const pendingApprovalCount = computed(
@@ -245,15 +254,22 @@ export function useAgentConversations(agent, configuration) {
       !replyFollower.value &&
       !waitingForApproval.value
   )
-  // Deciding continues the reply, so it needs sending access, even when shared.
   const canReviewPending = computed(
     () =>
       configuration.readyToSend.value &&
       canReadConversations.value &&
-      canCreateMessage.value
+      canApprove.value
   )
   const canDecide = computed(
-    () => configuration.readyToSend.value && canMessageSelected.value
+    () => canReviewPending.value && Boolean(selectedConversation.value)
+  )
+  // The owner of a private conversation may ask others to decide its held steps.
+  const canAskForApproval = computed(
+    () =>
+      waitingForApproval.value &&
+      managesSelected.value &&
+      !selectedConversation.value.shared &&
+      !selectedConversation.value.local
   )
   const decidingReplies = reactive(new Set())
   const scopeIsCurrent = (currentScope) => scope === currentScope
@@ -880,11 +896,47 @@ export function useAgentConversations(agent, configuration) {
       else notifyIf(error)
       return
     }
+    await removeTrashedConversation(conversation)
+  }
+
+  /** Remove the owner from a private conversation the others keep. */
+  async function leaveConversation(conversation) {
+    let trashed
+    try {
+      ;({
+        data: { trashed },
+      } = await service.leaveConversation(agent.value.id, conversation.uuid))
+    } catch (error) {
+      if (isDeletedElsewhere(error)) removeConversation(conversation.uuid)
+      else notifyIf(error)
+      return
+    }
+    if (trashed) await removeTrashedConversation(conversation)
+    else removeConversation(conversation.uuid)
+  }
+
+  async function removeTrashedConversation(conversation) {
     removeConversation(conversation.uuid)
     await store.dispatch('toast/restore', {
       trash_item_type: 'agent_conversation',
       trash_item_id: conversation.id,
     })
+  }
+
+  /** Add people who may decide the held steps of the waiting reply. */
+  async function requestApproval(userIds) {
+    const conversation = selectedConversation.value
+    try {
+      const { data } = await service.requestApproval(
+        agent.value.id,
+        conversation.uuid,
+        userIds
+      )
+      receiveConversation(data)
+    } catch (error) {
+      if (isDeletedElsewhere(error)) removeConversation(conversation.uuid)
+      else notifyIf(error)
+    }
   }
 
   async function stopReply() {
@@ -1081,5 +1133,8 @@ export function useAgentConversations(agent, configuration) {
     updateConversation,
     shareConversation,
     deleteConversation,
+    leaveConversation,
+    requestApproval,
+    canAskForApproval,
   }
 }

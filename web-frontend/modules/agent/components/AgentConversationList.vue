@@ -260,23 +260,39 @@
             {{ $t('action.delete') }}
           </a>
         </li>
+        <li v-if="canLeaveItem(menuItem)" class="context__menu-item">
+          <a
+            class="context__menu-item-link context__menu-item-link--delete"
+            @click="leave"
+          >
+            <i class="context__menu-item-icon iconoir-bin"></i>
+            {{ $t('agent.deleteForMe') }}
+          </a>
+        </li>
       </ul>
     </Context>
     <AgentShareConversationModal
       ref="shareModal"
       @share="$emit('share', $event)"
     />
+    <AgentDeleteConversationModal
+      ref="deleteModal"
+      @leave="$emit('leave', $event)"
+      @delete="$emit('delete', $event)"
+    />
   </aside>
 </template>
 
 <script setup>
 import { nextTick, ref, watch } from 'vue'
+import { useStore } from 'vuex'
 import Icon from '@baserow/modules/core/components/Icon'
 import Context from '@baserow/modules/core/components/Context'
 import InfiniteScroll from '@baserow/modules/core/components/helpers/InfiniteScroll'
 import AgentShareConversationModal from '@baserow/modules/agent/components/AgentShareConversationModal'
-import { useStore } from 'vuex'
 import { useI18n } from 'vue-i18n'
+import AgentDeleteConversationModal from '@baserow/modules/agent/components/AgentDeleteConversationModal'
+import { managesConversation } from '@baserow/modules/agent/utils/conversations'
 import { useNuxtApp } from '#app'
 import { getHumanAgoLabel } from '@baserow/modules/core/utils/date'
 import { injectNow } from '@baserow/modules/core/composables/useNow'
@@ -304,6 +320,7 @@ const emit = defineEmits([
   'create',
   'update',
   'share',
+  'leave',
   'delete',
 ])
 
@@ -316,6 +333,7 @@ const scroll = ref(null)
 const menu = ref(null)
 const menuItem = ref(null)
 const shareModal = ref(null)
+const deleteModal = ref(null)
 const renameInput = ref([])
 const renamingUuid = ref(null)
 const renameTitle = ref('')
@@ -344,13 +362,21 @@ function startedBy(item) {
     ? t('agent.you')
     : item.owner.name
 }
-const canUpdateItem = (item) =>
-  props.canUpdate && (!item.shared || props.canUpdateAgent)
-const canDeleteItem = (item) =>
-  props.canDelete && (!item.shared || props.canUpdateAgent)
+const managesItem = (item) =>
+  managesConversation(
+    item,
+    store.getters['auth/getUserId'],
+    props.canUpdateAgent
+  )
+const canUpdateItem = (item) => props.canUpdate && managesItem(item)
+const canDeleteItem = (item) => props.canDelete && managesItem(item)
+// Those asked to approve may only remove it from their own list.
+const canLeaveItem = (item) =>
+  props.canDelete && !item.shared && !managesItem(item)
 // A draft exists only in this tab until its first message is sent.
 const hasOptions = (item) =>
-  !item.local && (canUpdateItem(item) || canDeleteItem(item))
+  !item.local &&
+  (canUpdateItem(item) || canDeleteItem(item) || canLeaveItem(item))
 const isListed = (uuid) => props.items.some((item) => item.uuid === uuid)
 
 watch([() => props.items, renamingUuid], ([items, renaming]) => {
@@ -446,6 +472,13 @@ function share() {
 function remove() {
   const item = menuItem.value
   menu.value.hide()
-  emit('delete', item)
+  if (!item.shared && item.participants.length > 1) deleteModal.value.show(item)
+  else emit('delete', item)
+}
+
+function leave() {
+  const item = menuItem.value
+  menu.value.hide()
+  deleteModal.value.show(item, { forEveryone: false })
 }
 </script>

@@ -78,6 +78,12 @@ def update_of(
             "pinned": conversation.pinned,
             "is_test": conversation.is_test,
             "shared": conversation.shared,
+            "participants": []
+            if conversation.shared
+            else [
+                {"id": user.id, "name": user.first_name}
+                for user in conversation.participants.all()
+            ],
             "started_by_trigger": conversation.started_by_trigger,
             "owner": owner and {"id": owner.id, "name": owner.first_name},
             "trigger_id": conversation.trigger_id,

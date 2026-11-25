@@ -14,6 +14,7 @@ import {
   RowsUpdatedAgentTriggerType,
 } from '@baserow/modules/agent/agentTriggerTypes'
 import { searchTypeRegistry } from '@baserow/modules/core/search/types/registry'
+import { AgentParticipationPermissionManagerType } from '@baserow/modules/agent/permissionManagerTypes'
 import {
   ActionsAgentConfigurationSectionType,
   ConnectedAppsAgentConfigurationSectionType,
@@ -35,6 +36,10 @@ export default defineNuxtPlugin({
         new ToolPresentation(context)
       )
     }
+    nuxtApp.$registry.register(
+      'permissionManager',
+      new AgentParticipationPermissionManagerType(context)
+    )
     nuxtApp.$registry.registerNamespace('agentConfigurationSection')
     nuxtApp.$registry.registerNamespace('agentDataProvider')
     nuxtApp.$registry.registerNamespace('agentTriggerType')

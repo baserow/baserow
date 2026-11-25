@@ -16,4 +16,13 @@ describe('replyOutcome', () => {
       error: notice,
     })
   })
+
+  test('names who stopped a reply unless the viewer did', () => {
+    const reply = { status: 'cancelled', stopped_by: { id: 2, name: 'Ada' } }
+    expect(replyOutcome(reply, 1)).toEqual({
+      note: 'agent.replyStoppedBy',
+      noteParams: { name: 'Ada' },
+    })
+    expect(replyOutcome(reply, 2)).toEqual({ note: 'agent.replyStopped' })
+  })
 })

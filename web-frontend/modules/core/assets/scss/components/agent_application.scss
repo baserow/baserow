@@ -1324,3 +1324,30 @@
 .agent-pending-approvals__conversation-name {
   @extend %ellipsis;
 }
+
+.agent-audience {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  color: $palette-neutral-900;
+  font-size: 12px;
+}
+
+.agent-audience__participants {
+  @extend %ellipsis;
+
+  min-width: 0;
+}
+
+.agent-approvers__list {
+  margin: 12px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.agent-approvers__item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}

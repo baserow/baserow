@@ -14,7 +14,7 @@ from baserow.contrib.agent.constants import AgentRunAsState
 from baserow.contrib.agent.handler import AgentHandler
 from baserow.contrib.agent.models import AgentApplication
 from baserow.contrib.agent.operations import (
-    CreateAgentMessageOperationType,
+    ApproveAgentToolCallsOperationType,
     ReadAgentConfigurationOperationType,
 )
 from baserow.contrib.agent.registries import (
@@ -248,9 +248,7 @@ class AgentApplicationType(ApplicationType):
         self, users: list[AbstractUser], applications: list[AgentApplication]
     ) -> dict[int, dict[int, int]]:
         """
-        Count the held calls waiting for each user's decision: in their own
-        conversations with each Agent, and in its shared ones when they may send
-        it messages.
+        Count pending calls in conversations each user can see and approve.
 
         :param users: The users to count for.
         :param applications: The Agents to count in.
@@ -264,20 +262,28 @@ class AgentApplicationType(ApplicationType):
             [user.id for user in users], agent_ids
         )
         shared_counts = handler.get_shared_pending_approval_counts(agent_ids)
+        result = {}
         for application in applications:
-            if application.id not in shared_counts:
+            candidates = [
+                user
+                for user in users
+                if shared_counts.get(application.id)
+                or counts.get(user.id, {}).get(application.id)
+            ]
+            if not candidates:
                 continue
             for user in CoreHandler().check_permission_for_multiple_actors(
-                users,
-                CreateAgentMessageOperationType.type,
+                candidates,
+                ApproveAgentToolCallsOperationType.type,
                 application.workspace,
                 context=application,
             ):
-                user_counts = counts.setdefault(user.id, {})
-                user_counts[application.id] = (
-                    user_counts.get(application.id, 0) + shared_counts[application.id]
-                )
-        return counts
+                total = counts.get(user.id, {}).get(
+                    application.id, 0
+                ) + shared_counts.get(application.id, 0)
+                if total:
+                    result.setdefault(user.id, {})[application.id] = total
+        return result
 
     def export_safe_transaction_context(self, application: AgentApplication) -> Atomic:
         return transaction.atomic()

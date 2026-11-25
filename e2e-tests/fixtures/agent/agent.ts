@@ -29,11 +29,12 @@ export async function listAgentTriggers(agent: Agent): Promise<any[]> {
 
 export async function createAgentIdentity(
   name: string,
-  workspace: Workspace
+  workspace: Workspace,
+  roleUid?: string
 ): Promise<number> {
   const response: any = await getClient(workspace.user).post(
     `identities/workspace/${workspace.id}/`,
-    { name }
+    { name, role_uid: roleUid }
   );
   return response.data.id;
 }

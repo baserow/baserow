@@ -317,6 +317,102 @@ class ShareAgentConversationActionType(ActionType):
         return ApplicationActionScopeType.value(agent_id)
 
 
+class RequestAgentApprovalActionType(ActionType):
+    type = "request_agent_approval"
+    description = ActionTypeDescription(
+        _("Ask to approve agent tool calls"),
+        _(
+            "Users (%(user_ids)s) asked to approve tool calls in conversation "
+            "(%(conversation_id)s) of agent (%(agent_id)s)."
+        ),
+    )
+    analytics_params = ["agent_id", "conversation_id"]
+
+    @dataclass
+    class Params:
+        agent_id: int
+        conversation_id: int
+        user_ids: list[int]
+
+    @classmethod
+    @transaction.atomic
+    def do(
+        cls,
+        user: AbstractUser,
+        agent_id: int,
+        conversation_uuid: UUID,
+        user_ids: list[int],
+    ) -> AgentConversation:
+        """
+        Add members to a private conversation to decide its held calls.
+
+        :param user: The owner asking.
+        :param agent_id: The id of the agent.
+        :param conversation_uuid: The uuid of the conversation.
+        :param user_ids: The ids of the members to add.
+        :return: The conversation.
+        """
+
+        conversation = AgentService().request_approval(
+            user, agent_id, conversation_uuid, user_ids
+        )
+        cls.register_action(
+            user,
+            cls.Params(agent_id, conversation.id, user_ids),
+            cls.scope(agent_id),
+            conversation.agent.workspace,
+        )
+        return conversation
+
+    @classmethod
+    def scope(cls, agent_id: int) -> ActionScopeStr:
+        return ApplicationActionScopeType.value(agent_id)
+
+
+class LeaveAgentConversationActionType(ActionType):
+    type = "leave_agent_conversation"
+    description = ActionTypeDescription(
+        _("Leave agent conversation"),
+        _("Conversation (%(conversation_id)s) left in agent (%(agent_id)s)."),
+    )
+    analytics_params = ["agent_id", "conversation_id"]
+
+    @dataclass
+    class Params:
+        agent_id: int
+        conversation_id: int
+
+    @classmethod
+    @transaction.atomic
+    def do(
+        cls, user: AbstractUser, agent_id: int, conversation_uuid: UUID
+    ) -> AgentConversation:
+        """
+        Leave a private conversation the others keep, or remove it when nobody
+        else is in it.
+
+        :param user: The participant leaving.
+        :param agent_id: The id of the agent.
+        :param conversation_uuid: The uuid of the conversation.
+        :return: The conversation.
+        """
+
+        conversation = AgentService().leave_conversation(
+            user, agent_id, conversation_uuid
+        )
+        cls.register_action(
+            user,
+            cls.Params(agent_id, conversation.id),
+            cls.scope(agent_id),
+            conversation.agent.workspace,
+        )
+        return conversation
+
+    @classmethod
+    def scope(cls, agent_id: int) -> ActionScopeStr:
+        return ApplicationActionScopeType.value(agent_id)
+
+
 class DeleteAgentConversationActionType(UndoableActionType):
     type = "delete_agent_conversation"
     description = ActionTypeDescription(
