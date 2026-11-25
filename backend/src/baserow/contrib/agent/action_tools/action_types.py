@@ -609,10 +609,15 @@ class LocalBaserowAgentActionType(AgentActionType):
     def get_preview_values(
         self, service: Service, resolved_values: dict[str, Any]
     ) -> dict[str, Any]:
-        return {
-            "table": service.table.name if service.table_id else None,
-            **resolved_values,
-        }
+        """
+        :return: The table, the view when the service reads one, and the resolved
+            values.
+        """
+
+        values = {"table": service.table.name if service.table_id else None}
+        if getattr(service, "view_id", None):
+            values["view"] = service.view.name
+        return {**values, **resolved_values}
 
     def get_preview(
         self,
@@ -903,6 +908,19 @@ class LocalBaserowAggregateRowsAgentActionType(LocalBaserowAgentActionType):
             "table, such as a count or a sum.",
             "inputs": [],
             "service": {},
+        }
+
+    def get_preview_values(
+        self, service: Service, resolved_values: dict[str, Any]
+    ) -> dict[str, Any]:
+        """
+        :return: Also what is computed: the field and how it is aggregated.
+        """
+
+        return {
+            **super().get_preview_values(service, resolved_values),
+            "field": service.field.name if service.field_id else None,
+            "aggregation_type": service.aggregation_type,
         }
 
 

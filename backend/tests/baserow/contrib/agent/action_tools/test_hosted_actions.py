@@ -255,7 +255,9 @@ def test_list_rows_filters_and_searches_with_what_the_model_fills_in(
 
 
 @pytest.mark.django_db
-def test_rows_are_read_changed_and_deleted_as_the_run_identity(api_client, people):
+def test_rows_are_read_changed_and_deleted_as_the_run_identity(
+    api_client, data_fixture, people
+):
     agent, table, fields, rows = people
     model = table.get_model()
     service = {"service": {"table_id": table.id}}
@@ -275,8 +277,20 @@ def test_rows_are_read_changed_and_deleted_as_the_run_identity(api_client, peopl
         {"service": {"field_id": fields[0].id, "aggregation_type": "not_empty_count"}},
     )
     assert response.json()["errors"] == {}
-    result, _ = call(counted["id"], {})
+    result, preview = call(counted["id"], {})
     assert result == {"result": 3}
+    assert preview == {
+        "table": table.name,
+        "field": fields[0].name,
+        "aggregation_type": "not_empty_count",
+    }
+    view = data_fixture.create_grid_view(table=table)
+    api_client.patch(
+        agent_url(agent, "actions:item", action_id=counted["id"]),
+        {"service": {"view_id": view.id}},
+    )
+    _, preview = call(counted["id"], {})
+    assert preview["view"] == view.name
 
     deleted = add_action(api_client, agent, "local_baserow_delete_row", **service)
     result, _ = call(deleted["id"], {"row_id": rows[2].id})

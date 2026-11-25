@@ -468,6 +468,9 @@ export class GenericActionToolPresentationType extends ActionToolPresentationTyp
   get fieldLabels() {
     return {
       table: 'localBaserowTableSelector.tableFieldLabel',
+      view: 'localBaserowTableSelector.viewFieldLabel',
+      field: 'localBaserowAggregateRowsForm.aggregationFieldLabel',
+      aggregation_type: 'localBaserowAggregateRowsForm.aggregationTypeLabel',
       row_id: 'localBaserowServiceForm.rowIdLabel',
       fields: 'agent.actionFieldValues',
       channel: 'slackWriteMessageServiceForm.channelLabel',
