@@ -407,7 +407,6 @@ class DashboardDataSourceHandler:
                 serialized_service.pop("integration_id", None),
                 id_mapping,
                 application_id=dashboard.id,
-                import_export_config=import_export_config,
             )
 
             service = ServiceHandler().import_service(

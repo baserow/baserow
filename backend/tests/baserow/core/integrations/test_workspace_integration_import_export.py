@@ -154,7 +154,11 @@ def test_a_template_gets_copies_of_the_workspace_integrations_it_was_written_wit
 
 
 @pytest.mark.django_db
-def test_a_template_drops_a_workspace_integration_it_does_not_carry(data_fixture):
+@pytest.mark.parametrize("config", [FILE, TEMPLATE], ids=["file", "template"])
+def test_external_import_drops_a_workspace_integration_it_does_not_carry(
+    data_fixture, config
+):
+    """Even a colliding ID in the destination workspace must not be reused."""
     user = data_fixture.create_user()
     workspace = data_fixture.create_workspace(user=user)
     integration = _workspace_integration(data_fixture, workspace, user)
@@ -165,7 +169,7 @@ def test_a_template_drops_a_workspace_integration_it_does_not_carry(data_fixture
     )
 
     (installed,), _ = CoreHandler().import_applications_to_workspace(
-        workspace, [serialized], BytesIO(), TEMPLATE, None
+        workspace, [serialized], BytesIO(), config, None
     )
 
     assert _data_source_integration_id(installed.id) is None

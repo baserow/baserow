@@ -21,6 +21,7 @@ from baserow.core.integrations.registries import (
 )
 from baserow.core.registries import ImportExportConfig, application_type_registry
 from baserow.core.trash.handler import TrashHandler
+from baserow.core.utils import MirrorDict
 
 DUPLICATE = ImportExportConfig(include_permission_data=False, is_duplicate=True)
 
@@ -474,13 +475,12 @@ def test_get_integration_for_import(data_fixture):
     assert (
         handler.get_integration_for_import(
             imported.id,
-            {"integrations": {}},
+            {"integrations": MirrorDict()},
             application_id=application.id,
-            import_export_config=DUPLICATE,
         ).id
         == imported.id
     )
-    # An import that doesn't say it's a duplicate drops it.
+    # An explicit mapping without this reference drops it.
     assert (
         handler.get_integration_for_import(
             imported.id, {"integrations": {}}, application_id=application.id
@@ -491,9 +491,8 @@ def test_get_integration_for_import(data_fixture):
     assert (
         handler.get_integration_for_import(
             imported.id,
-            {"integrations": {}},
+            {"integrations": MirrorDict()},
             application_id=other_application.id,
-            import_export_config=DUPLICATE,
         )
         is None
     )
@@ -514,14 +513,16 @@ def test_get_integration_for_import_keeps_a_workspace_integration_of_the_target(
     )
     published_builder = data_fixture.create_builder_application(workspace=None)
     handler = IntegrationHandler()
-    id_mapping = {"integrations": {}}
+    id_mapping = {}
+    IntegrationHandler().prepare_integration_id_mapping(
+        id_mapping, workspace.id, DUPLICATE
+    )
 
     assert (
         handler.get_integration_for_import(
             integration.id,
             id_mapping,
             application_id=builder.id,
-            import_export_config=DUPLICATE,
         ).id
         == integration.id
     )
@@ -531,7 +532,6 @@ def test_get_integration_for_import_keeps_a_workspace_integration_of_the_target(
                 integration.id,
                 id_mapping,
                 application_id=application.id,
-                import_export_config=DUPLICATE,
             )
             is None
         )
@@ -559,7 +559,7 @@ def test_get_integration_for_import_keeps_a_workspace_integration_of_the_target(
         ),
     ],
 )
-def test_get_integration_for_import_keeps_a_workspace_integration_only_in_duplicates(
+def test_prepared_mapping_keeps_workspace_integrations_only_in_duplicates(
     data_fixture, import_export_config, kept
 ):
     workspace = data_fixture.create_workspace()
@@ -568,13 +568,14 @@ def test_get_integration_for_import_keeps_a_workspace_integration_only_in_duplic
     )
     builder = data_fixture.create_builder_application(workspace=workspace)
 
-    # A source application without integrations of its own adds none to the
-    # mapping.
+    id_mapping = {}
+    IntegrationHandler().prepare_integration_id_mapping(
+        id_mapping, workspace.id, import_export_config
+    )
     imported = IntegrationHandler().get_integration_for_import(
         integration.id,
-        {},
+        id_mapping,
         application_id=builder.id,
-        import_export_config=import_export_config,
     )
 
     assert (imported is not None) is kept
@@ -698,3 +699,43 @@ def test_get_integration_workspace_id_of_published_copies(data_fixture):
     )
     assert handler.get_integration_workspace_id(integration) is None
     assert not handler.is_integration_usable(integration, workspace_id=workspace.id)
+
+
+@pytest.mark.django_db
+def test_prepared_integration_mapping_retains_only_shared_references_in_workspace(
+    data_fixture,
+):
+    """Internal copies seed shared IDs, including trash, without borrowing other apps' credentials."""
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    shared = data_fixture.create_shared_application(workspace=workspace)
+    available = data_fixture.create_smtp_integration(application=shared)
+    trashed = data_fixture.create_smtp_integration(application=shared)
+    TrashHandler.trash(user, workspace, shared, trashed)
+    own = data_fixture.create_smtp_integration(
+        application=data_fixture.create_builder_application(workspace=workspace)
+    )
+    foreign = data_fixture.create_smtp_integration(
+        application=data_fixture.create_shared_application(user=user)
+    )
+    id_mapping = {}
+
+    IntegrationHandler().prepare_integration_id_mapping(
+        id_mapping, workspace.id, DUPLICATE
+    )
+
+    assert id_mapping["integrations"] == {
+        available.id: available.id,
+        trashed.id: trashed.id,
+    }
+    assert own.id not in id_mapping["integrations"]
+    assert foreign.id not in id_mapping["integrations"]
+
+
+def test_preparation_preserves_explicit_and_mirrored_integration_mappings():
+    """An import's explicit policy is not replaced by default workspace mappings."""
+    for integrations in [{}, {7: 12}, MirrorDict()]:
+        id_mapping = {"integrations": integrations}
+        IntegrationHandler().prepare_integration_id_mapping(id_mapping, 1, DUPLICATE)
+        assert id_mapping["integrations"] is integrations
+    assert integrations.get(7) == 7

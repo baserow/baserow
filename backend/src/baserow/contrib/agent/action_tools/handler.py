@@ -465,7 +465,6 @@ class AgentActionHandler:
                     service_values.get("integration_id"),
                     id_mapping,
                     application_id=agent.id,
-                    import_export_config=import_export_config,
                 )
             )
             service = ServiceHandler().import_service(

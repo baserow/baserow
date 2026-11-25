@@ -264,7 +264,6 @@ class DatabaseWorkflowServiceActionType(
             integration_id,
             id_mapping,
             application_id=field.table.database_id,
-            import_export_config=import_export_config,
         )
 
     @staticmethod

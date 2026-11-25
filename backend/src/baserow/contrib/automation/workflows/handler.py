@@ -459,6 +459,7 @@ class AutomationWorkflowHandler:
         progress.increment(by=export_progress)
 
         id_mapping = defaultdict(lambda: MirrorDict())
+        id_mapping["integrations"] = MirrorDict()
         id_mapping["automation_workflows"] = MirrorDict()
 
         new_workflow_clone = self.import_workflow(

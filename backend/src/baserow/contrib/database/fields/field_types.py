@@ -205,7 +205,7 @@ from baserow.core.user_files.template_files import (
     get_template_file_owner,
     is_template_file_unique,
 )
-from baserow.core.utils import grouper, list_to_comma_separated_string
+from baserow.core.utils import MirrorDict, grouper, list_to_comma_separated_string
 
 from .constants import (
     BASEROW_BOOLEAN_FIELD_FALSE_VALUES,
@@ -9744,6 +9744,7 @@ class ButtonFieldType(ReadOnlyFieldType):
         id_mapping = {
             "database_tables": UnchangedIdMapping(),
             "database_fields": UnchangedIdMapping(),
+            "integrations": MirrorDict(),
         }
 
         # Marked as a duplicate so the action types keep references outside

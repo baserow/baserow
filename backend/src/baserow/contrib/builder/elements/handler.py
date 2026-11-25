@@ -577,6 +577,7 @@ class ElementHandler:
 
         # We are just creating new elements here so other data id should remain
         id_mapping = defaultdict(lambda: MirrorDict())
+        id_mapping["integrations"] = MirrorDict()
 
         duplication = self._duplicate_element_recursive(
             element, id_mapping, element, GraphPointPosition.SOUTH

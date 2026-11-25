@@ -43,7 +43,13 @@ from baserow.core.trash.handler import TrashHandler
 from baserow.core.usage.registries import USAGE_UNIT_MB
 from baserow.core.user.utils import get_actor_language
 from baserow.core.user_files.models import UserFile
-from baserow.core.utils import ChildProgressBuilder, Progress, find_unused_name, grouper
+from baserow.core.utils import (
+    ChildProgressBuilder,
+    MirrorDict,
+    Progress,
+    find_unused_name,
+    grouper,
+)
 
 from .constants import (
     CREATED_BY_COLUMN_NAME,
@@ -813,6 +819,7 @@ class TableHandler:
 
         id_mapping: Dict[str, Any] = {
             "database_tables": {},
+            "integrations": MirrorDict(),
             "database_fields": all_table_dependency_field_ids,
             "database_views": all_database_view_ids,
             # The properties below must be kept in sync with

@@ -392,6 +392,7 @@ class PageHandler:
         progress.increment(by=export_progress)
 
         id_mapping = defaultdict(lambda: MirrorDict())
+        id_mapping["integrations"] = MirrorDict()
         id_mapping["builder_pages"] = MirrorDict()
         id_mapping["builder_elements"] = {}
         id_mapping["builder_workflow_actions"] = {}

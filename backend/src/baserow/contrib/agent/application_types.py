@@ -489,7 +489,6 @@ class AgentApplicationType(ApplicationType):
         """
 
         serialized_integrations = serialized_values.pop("integrations", [])
-        id_mapping.setdefault("integrations", {})
         application = super().import_serialized(
             workspace,
             serialized_values,

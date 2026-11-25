@@ -205,7 +205,6 @@ class UserSourceType(
                 value,
                 id_mapping,
                 application_id=kwargs.get("application_id"),
-                import_export_config=kwargs.get("import_export_config"),
             )
             return integration.id if integration else None
 

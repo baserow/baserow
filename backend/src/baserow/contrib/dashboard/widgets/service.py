@@ -14,6 +14,7 @@ from baserow.contrib.dashboard.widgets.operations import (
 )
 from baserow.contrib.dashboard.widgets.registries import widget_type_registry
 from baserow.core.handler import CoreHandler
+from baserow.core.integrations.service import IntegrationService
 from baserow.core.trash.handler import TrashHandler
 
 from .handler import WidgetHandler
@@ -257,6 +258,18 @@ class WidgetService:
             order=order,
             **kwargs,
         )
+
+        # Some widget types create their data source internally, bypassing the
+        # data-source service. Apply the same default before broadcasting it.
+        data_source = widget_type_from_registry.get_data_source(new_widget)
+        if data_source is not None:
+            service = data_source.service.specific
+            service_type = service.get_type()
+            if service.integration_id is None:
+                service.integration = IntegrationService().get_default_integration(
+                    user, dashboard, service_type.integration_type
+                )
+                service.save(update_fields=["integration"])
 
         new_layout = [*original_layout, WidgetLayoutHandler.from_widget(new_widget)]
         widget_created.send(self, user=user, widget=new_widget)

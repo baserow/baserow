@@ -358,7 +358,7 @@ def test_import_user_source(data_fixture):
     }
 
     imported_instance = UserSourceHandler().import_user_source(
-        builder, TO_IMPORT, defaultdict(MirrorDict)
+        builder, TO_IMPORT, {"integrations": MirrorDict()}
     )
 
     assert imported_instance.integration_id == integration.id

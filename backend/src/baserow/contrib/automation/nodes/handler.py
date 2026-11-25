@@ -328,6 +328,7 @@ class AutomationNodeHandler:
         exported_node = self.export_node(source_node)
 
         id_mapping = defaultdict(lambda: MirrorDict())
+        id_mapping["integrations"] = MirrorDict()
         id_mapping["automation_workflow_nodes"] = MirrorDict()
         # A single-node duplicate leaves referenced nodes (and thus their
         # services) in place, so mirror service ids too. This lets a self

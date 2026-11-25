@@ -93,12 +93,37 @@ class IntegrationHandler:
                 specific=False,
             )
 
+    def prepare_integration_id_mapping(
+        self,
+        id_mapping: Dict[str, Any],
+        workspace_id: int | None,
+        import_export_config: ImportExportConfig,
+    ) -> None:
+        """Seed existing shared references before importing an application's copies.
+
+        Internal copies can retain integrations shared by their destination workspace,
+        including trashed ones that may be restored later. Archives and publications
+        start with an empty mapping; imported integrations populate it normally.
+        Explicit mappings, including MirrorDict for copies within an app, take priority.
+        """
+        if "integrations" in id_mapping:
+            return
+
+        integrations = id_mapping["integrations"] = {}
+        if workspace_id is not None and import_export_config.keeps_unmapped_references:
+            integrations.update(
+                (integration_id, integration_id)
+                for integration_id in Integration.objects_and_trash.filter(
+                    application__sharedapplication__isnull=False,
+                    application__workspace_id=workspace_id,
+                ).values_list("id", flat=True)
+            )
+
     def get_integration_for_import(
         self,
         integration_id: Optional[int],
         id_mapping: Dict[str, Dict[int, int]],
         application_id: Optional[int] = None,
-        import_export_config: Optional[ImportExportConfig] = None,
     ) -> Optional[Integration]:
         """
         Returns the integration an imported service refers to. A trashed integration
@@ -107,44 +132,24 @@ class IntegrationHandler:
         :param integration_id: The exported integration ID, if any.
         :param id_mapping: The import ID mapping. The copies made for the
             application the service is imported into are looked up first, see
-            `import_integration`.
+            `import_integration`. Existing references must already be present in
+            the mapping; internal copies can supply a `MirrorDict`.
         :param application_id: The application the service is imported into. When
             given, an integration the application can't use is dropped, see
             `check_integration_usable`.
-        :param import_export_config: How the service is imported. An ID missing
-            from the mapping names an integration the import didn't copy: a
-            workspace integration, or an integration of the application a service
-            is duplicated within. It's kept only when the import keeps unmapped
-            references, see `ImportExportConfig.keeps_unmapped_references`.
-            Without a config it's dropped, as for an import from a file.
         :return: The integration, or `None` when there's none to refer to.
         """
 
         if not integration_id:
             return None
 
-        keep_unmapped = (
-            import_export_config is not None
-            and import_export_config.keeps_unmapped_references
-        )
         copies_of_the_application = (
             id_mapping.get("integrations_by_application") or {}
         ).get(application_id, {})
         if integration_id in copies_of_the_application:
             integration_id = copies_of_the_application[integration_id]
         else:
-            try:
-                # A `defaultdict` mapping answers with its default, like the
-                # `MirrorDict` a copy within an application uses.
-                integrations = id_mapping["integrations"]
-            except KeyError:
-                # Nothing was imported into the mapping when the source
-                # application has no integrations of its own, as when its
-                # services only use workspace integrations.
-                integrations = {}
-            integration_id = integrations.get(
-                integration_id, integration_id if keep_unmapped else None
-            )
+            integration_id = id_mapping.get("integrations", {}).get(integration_id)
         if integration_id is None:
             return None
 

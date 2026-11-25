@@ -752,6 +752,12 @@ class ApplicationType(
         if "import_workspace_id" not in id_mapping and workspace is not None:
             id_mapping["import_workspace_id"] = workspace.id
 
+        from baserow.core.integrations.handler import IntegrationHandler
+
+        IntegrationHandler().prepare_integration_id_mapping(
+            id_mapping, id_mapping.get("import_workspace_id"), import_export_config
+        )
+
         if "applications" not in id_mapping:
             id_mapping["applications"] = {}
 
