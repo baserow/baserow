@@ -1,0 +1,9 @@
+{
+    "type": "feature",
+    "message": "Agents know the identity they run as, so instructions can refer to rows assigned to them",
+    "issue_origin": "github",
+    "issue_number": 6259,
+    "domain": "core",
+    "bullet_points": [],
+    "created_at": "2026-11-25"
+}

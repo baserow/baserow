@@ -80,6 +80,7 @@ from .constants import (
     INTERRUPTED_REPLY_NOTE,
     OUTPUT_RETRIES,
     REPLY_REQUEST_LIMIT,
+    RUN_AS_IDENTITY_INSTRUCTIONS,
     SHARED_CONVERSATION_INSTRUCTIONS,
     TOOL_RETRIES,
     TRIGGER_CONVERSATION_INSTRUCTIONS,
@@ -103,6 +104,7 @@ from .types import (
     AgentPausedRun,
     AgentReplyRequest,
     AgentReplyResult,
+    one_line_name,
 )
 from .web_fetch import web_fetch_tool
 
@@ -475,8 +477,9 @@ class AgentResponder:
 
     def _get_instructions(self, web_search_tool: WebSearchTool | None) -> str:
         """
-        Combine saved instructions with this reply's workspace access, trigger,
-        whether anyone reads it as it's written, and web context.
+        Combine saved instructions with who this reply answers and acts as, its
+        workspace access, trigger, whether anyone reads it as it's written, and web
+        context.
 
         :param web_search_tool: The web search this attempt offers, if any.
         :return: The instructions.
@@ -488,6 +491,11 @@ class AgentResponder:
             instructions += "\n\n" + CONVERSATION_USER_INSTRUCTIONS.format(
                 name=request.conversation_user.name,
                 user_id=request.conversation_user.id,
+            )
+        if request.acting_subject is not None:
+            instructions += "\n\n" + RUN_AS_IDENTITY_INSTRUCTIONS.format(
+                name=one_line_name(request.acting_subject),
+                user_id=request.acting_subject.id,
             )
         if request.names_senders:
             instructions += f"\n\n{SHARED_CONVERSATION_INSTRUCTIONS}"
