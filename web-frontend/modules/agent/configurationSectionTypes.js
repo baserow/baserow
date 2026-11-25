@@ -9,6 +9,7 @@ import AgentActionsSection from '@baserow/modules/agent/components/configuration
 import { getRunAsStatus } from '@baserow/modules/agent/utils/runAs'
 import {
   CONFIGURATION_ERROR,
+  CONFIGURATION_SECTION_GROUP,
   RUN_AS_STATUS,
   WORKSPACE_ACCESS_SECTION,
 } from '@baserow/modules/agent/constants'
@@ -30,6 +31,9 @@ const WhenItRunsSection = markRaw(AgentWhenItRunsSection)
  * configuration warning. The fields map identifies which section owns a field
  * and provides its label and optional unavailable error message. Section errors
  * also receive the configuration for optional settings that don't block replies.
+ *
+ * The group is one of `CONFIGURATION_SECTION_GROUP` and decides under which
+ * heading of the sidebar the section is listed.
  */
 export class AgentConfigurationSectionType extends Registerable {
   get name() {
@@ -46,6 +50,10 @@ export class AgentConfigurationSectionType extends Registerable {
 
   get component() {
     return null
+  }
+
+  get group() {
+    return CONFIGURATION_SECTION_GROUP.CAPABILITIES
   }
 
   get fields() {
@@ -96,6 +104,10 @@ export class InstructionsAgentConfigurationSectionType extends AgentConfiguratio
     return InstructionsSection
   }
 
+  get group() {
+    return CONFIGURATION_SECTION_GROUP.ESSENTIALS
+  }
+
   get fields() {
     return { instructions: { label: 'agent.instructions' } }
   }
@@ -111,11 +123,11 @@ export class WhenItRunsAgentConfigurationSectionType extends AgentConfigurationS
   }
 
   get name() {
-    return this.$t('agent.whenItRuns')
+    return this.$t('agent.triggers')
   }
 
   get description() {
-    return this.$t('agent.whenItRunsDescription')
+    return this.$t('agent.triggersDescription')
   }
 
   get icon() {
@@ -124,6 +136,10 @@ export class WhenItRunsAgentConfigurationSectionType extends AgentConfigurationS
 
   get component() {
     return WhenItRunsSection
+  }
+
+  get group() {
+    return CONFIGURATION_SECTION_GROUP.START
   }
 
   getOrder() {
@@ -210,6 +226,10 @@ export class SettingsAgentConfigurationSectionType extends AgentConfigurationSec
 
   get component() {
     return SettingsSection
+  }
+
+  get group() {
+    return CONFIGURATION_SECTION_GROUP.ESSENTIALS
   }
 
   get fields() {

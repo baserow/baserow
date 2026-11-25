@@ -680,25 +680,95 @@
 }
 
 .agent-configuration__sections {
+  flex: 1;
   min-width: 0;
-  padding: 8px;
+  min-height: 0;
+  padding: 8px 0;
+  overflow-y: auto;
+
+  @include thin-scrollbar;
+}
+
+.agent-configuration__group {
+  padding-top: 12px;
+}
+
+.agent-configuration__group--separated {
+  margin-top: 12px;
+  padding-top: 20px;
+  border-top: 1px solid $palette-neutral-200;
+}
+
+.agent-configuration__group-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 26px;
+  padding: 0 16px 6px;
+}
+
+.agent-configuration__group-title {
+  margin: 0;
+  color: $palette-neutral-900;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 20px;
+}
+
+.agent-configuration__group-optional {
+  color: $palette-neutral-900;
+  font-size: 12px;
+  line-height: 20px;
+}
+
+// The selectors repeat `.menu-list` because the menu list styles are imported
+// later and would otherwise win.
+.agent-configuration__group-items.menu-list {
+  min-width: 0;
+
+  // The whole sidebar scrolls, so a group never scrolls on its own.
+  .menu-list__items {
+    max-height: none;
+    padding: 0;
+    overflow: visible;
+  }
 
   .menu-list__item + .menu-list__item::before {
     content: '';
     display: block;
 
     // Align the divider with the text, leaving the leading icon outside it.
-    margin: 0 10px 0 36px;
+    margin-left: 48px;
     border-top: 1px solid $palette-neutral-200;
+  }
+
+  .menu-list__item-button {
+    position: relative;
+    align-items: center;
+    gap: 16px;
+    min-height: 64px;
+
+    // The right side leaves room for the status icon.
+    padding: 12px 44px 12px 16px;
+    border-radius: 0;
+  }
+
+  .menu-list__item-icon {
+    margin-top: 0;
+  }
+
+  .menu-list__item-description {
+    line-height: 18px;
   }
 }
 
 .agent-configuration__skeleton-row {
   display: flex;
   align-items: center;
-  gap: 10px;
-  min-height: 60px;
-  padding: 8px 14px;
+  gap: 16px;
+  min-height: 64px;
+  padding: 12px 16px;
 }
 
 .agent-configuration__section-content {
@@ -707,8 +777,10 @@
 }
 
 .agent-configuration__section-status {
-  flex-shrink: 0;
-  margin-left: auto;
+  position: absolute;
+  top: 50%;
+  right: 14px;
+  transform: translateY(-50%);
 }
 
 .agent-configuration__form {
