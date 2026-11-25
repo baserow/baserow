@@ -5,6 +5,17 @@ import HTMLElement from '@baserow_enterprise/builder/components/elements/HTMLEle
 
 enableAutoUnmount(afterEach)
 
+const EDITOR_URL = 'https://editor.example.com'
+
+// Preview gets its own hostname unless a test shares the editor's.
+function setPreviewUrl(url) {
+  const config = useRuntimeConfig().public
+  config.publicWebFrontendUrl = EDITOR_URL
+  config.builderPreviewUrl = url
+}
+
+beforeEach(() => setPreviewUrl('https://preview.example.com'))
+
 const snippet =
   '<section id="anchor" class="widget" data-lang="en" aria-label="Demo">Widget</section>'
 
@@ -128,6 +139,29 @@ describe('HTML element', () => {
     expect(wrapper.get('iframe').attributes('sandbox')).toBe(
       'allow-same-origin'
     )
+  })
+
+  test('keeps scripts and handlers off in Preview on the editor hostname', async () => {
+    setPreviewUrl('https://editor.example.com:3001')
+    const html =
+      '<button id="anchor" onclick="steal()">Go</button><script>steal()</script>'
+    const wrapper = await mountElement('preview', 'preview', html)
+    const frame = wrapper.get('iframe')
+    expect(frame.attributes('srcdoc')).toBe(html)
+    expect(frame.attributes('sandbox')).toBe('allow-same-origin')
+    expect(wrapper.find('#anchor').exists()).toBe(false)
+    expect(wrapper.find('script').exists()).toBe(false)
+    expect(
+      wrapper.find('[aria-label="htmlElement.scriptsNotInPreview"]').exists()
+    ).toBe(true)
+  })
+
+  test('runs scripts on a published site on any hostname', async () => {
+    setPreviewUrl(EDITOR_URL)
+    const html = '<div id="anchor"></div><script>window.x = 1</script>'
+    const wrapper = await mountElement('public', 'public', html)
+    expect(wrapper.find('iframe').exists()).toBe(false)
+    expect(wrapper.get('script').text()).toBe('window.x = 1')
   })
 
   test('waits for an explicit visitor context before inserting markup', async () => {

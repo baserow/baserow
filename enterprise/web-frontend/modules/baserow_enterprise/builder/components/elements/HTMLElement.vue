@@ -23,14 +23,16 @@
       />
     </template>
   </div>
-  <div
-    v-else-if="
-      ['preview', 'public'].includes(applicationContext.mode) &&
-      !builder.untrusted_content &&
-      resolvedHTML
-    "
-    v-html-content="resolvedHTML"
-  ></div>
+  <div v-else-if="showHTML && isolatePreview" class="html-element__editor">
+    <ClientOnly>
+      <HTMLElementPreview :html="resolvedHTML" />
+    </ClientOnly>
+    <ElementPreviewHint
+      class="html-element__hint"
+      :message="$t('htmlElement.scriptsNotInPreview')"
+    />
+  </div>
+  <div v-else-if="showHTML" v-html-content="resolvedHTML"></div>
 </template>
 
 <script>
@@ -39,6 +41,7 @@ import element from '@baserow/modules/builder/mixins/element'
 import { ensureString } from '@baserow/modules/core/utils/validator'
 import HTMLElementPreview from '@baserow_enterprise/builder/components/elements/HTMLElementPreview'
 import { runInsertedScripts } from '@baserow_enterprise/builder/htmlElementScripts'
+import { previewSharesEditorHostname } from '@baserow_enterprise/utils/builderHeadHtml'
 
 const RUN = Symbol('htmlElementScriptRun')
 
@@ -59,6 +62,23 @@ export default {
   computed: {
     resolvedHTML() {
       return ensureString(this.resolveFormula(this.element.html))
+    },
+    showHTML() {
+      return (
+        ['preview', 'public'].includes(this.applicationContext.mode) &&
+        !this.builder.untrusted_content &&
+        Boolean(this.resolvedHTML)
+      )
+    },
+    /**
+     * Preview on the editor's hostname shares the editor's cookies, so the
+     * snippet stays in a script-disabled frame there, like head HTML does.
+     */
+    isolatePreview() {
+      return (
+        this.applicationContext.mode === 'preview' &&
+        previewSharesEditorHostname(this.$config.public)
+      )
     },
   },
   directives: {
