@@ -117,7 +117,9 @@ import DashboardTableSelector from '@baserow/modules/dashboard/components/data_s
 import DashboardServiceRefinementForms from '@baserow/modules/dashboard/components/data_source/DashboardServiceRefinementForms'
 import { useVuelidate } from '@vuelidate/core'
 import form from '@baserow/modules/core/mixins/form'
+import _ from 'lodash'
 import { computed } from 'vue'
+import { clone } from '@baserow/modules/core/utils/object'
 import serviceFiltersSync from '@baserow/modules/integrations/localBaserow/mixins/serviceFiltersSync'
 import { required } from '@vuelidate/validators'
 import tableFields from '@baserow/modules/database/mixins/tableFields'
@@ -125,6 +127,10 @@ import tableFields from '@baserow/modules/database/mixins/tableFields'
 const includes = (array) => (value) => {
   return array.includes(value)
 }
+
+// The saved values copied into the open form when they change elsewhere, e.g. by
+// another user or an undo. The filters are kept in sync by `serviceFiltersSync`.
+const SYNCED_VALUES = ['table_id', 'view_id', 'field_id', 'aggregation_type']
 
 const includesIfSet = (array) => (value) => {
   if (value === null || value === undefined) {
@@ -282,6 +288,27 @@ export default {
         await this.$nextTick()
         this.setEmitValues(true)
       },
+    },
+    dataSource: {
+      handler(dataSource, previous) {
+        // Another data source is handled by the `dataSource.id` watcher.
+        if (dataSource !== previous) {
+          return
+        }
+        const keys = SYNCED_VALUES.filter(
+          (key) =>
+            key in dataSource && !_.isEqual(this.values[key], dataSource[key])
+        )
+        if (!keys.length) {
+          return
+        }
+        // The values now match what's saved, so there is nothing to emit or save.
+        this.skipFirstValuesEmit = true
+        keys.forEach((key) => {
+          this.values[key] = clone(dataSource[key])
+        })
+      },
+      deep: true,
     },
     fieldsLoading(loading) {
       if (this.tableIdHasChanged && !loading) {

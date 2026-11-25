@@ -196,3 +196,105 @@ test('summary sources expose the shared filter control and save permanent condit
   await flushPromises()
   expect(form.vm.values.filters[0].value.formula).toBe('Unsaved edit')
 })
+
+test('summary form keeps values saved elsewhere while it is open', async () => {
+  const source = {
+    id: 4,
+    integration_id: 10,
+    type: 'local_baserow_aggregate_rows',
+    table_id: 2,
+    field_id: 3,
+    aggregation_type: 'sum',
+    view_id: null,
+    filters: [],
+    filter_groups: [],
+    filter_type: 'AND',
+  }
+  const widget = {
+    id: 5,
+    type: 'summary',
+    title: 'Total',
+    description: '',
+    data_source_id: 4,
+  }
+  const store = testApp.store
+  store.commit('dashboardApplication/SET_DASHBOARD_ID', 1)
+  store.commit('dashboardApplication/SET_DATA_SOURCES', [source])
+  store.commit('dashboardApplication/SET_WIDGETS', [widget])
+  vi.spyOn(store.$client, 'get').mockResolvedValue({
+    data: [
+      { id: 7, name: 'Name', type: 'text', table_id: 2 },
+      {
+        id: 3,
+        name: 'Amount',
+        type: 'number',
+        table_id: 2,
+        number_decimal_places: 0,
+      },
+    ],
+  })
+  const dispatch = vi.spyOn(store, 'dispatch').mockResolvedValue()
+  const wrapper = await testApp.mount(WidgetSettings, {
+    props: { dashboard: { id: 1 }, widget },
+    global: { stubs: { Teleport: false } },
+  })
+  await flushPromises()
+  store.commit('dashboardApplication/ADD_INTEGRATION', {
+    id: 10,
+    context_data: {
+      databases: [
+        {
+          id: 1,
+          name: 'Database',
+          tables: [{ id: 2, name: 'Rows' }],
+          views: [],
+        },
+      ],
+    },
+  })
+  await flushPromises()
+  const form = wrapper.findComponent(AggregateRowsDataSourceForm)
+
+  dispatch.mockClear()
+  // Another user, or an undo, changes the aggregation.
+  store.commit('dashboardApplication/UPDATE_DATA_SOURCE', {
+    dataSourceId: 4,
+    values: { aggregation_type: 'max' },
+  })
+  await flushPromises()
+  expect(form.vm.values.aggregation_type).toBe('max')
+  expect(
+    dispatch.mock.calls.filter(
+      ([action]) => action === 'dashboardApplication/updateDataSource'
+    )
+  ).toHaveLength(0)
+
+  // Editing the filters afterwards doesn't put the old aggregation back.
+  await wrapper
+    .find('.service-form__filter-buttons .header__filter-link')
+    .trigger('click')
+  const context = new DOMWrapper(document.body).find(
+    '.service-form__context--filter'
+  )
+  await context
+    .findAll('button')
+    .find(
+      (button) =>
+        button.text() === 'localBaserowTableServiceConditionalForm.addFilter'
+    )
+    .trigger('click')
+  await flushPromises()
+  const valueInput = context.find(
+    'input[placeholder="localBaserowTableServiceConditionalForm.textFilterInputPlaceholder"]'
+  )
+  await valueInput.setValue('Alpha')
+  await valueInput.trigger('keydown', { key: 'Enter' })
+  await flushPromises()
+  const updates = dispatch.mock.calls.filter(
+    ([action]) => action === 'dashboardApplication/updateDataSource'
+  )
+  expect(updates.length).toBeGreaterThan(0)
+  updates.forEach(([, { values }]) => {
+    expect(values.aggregation_type).toBe('max')
+  })
+})

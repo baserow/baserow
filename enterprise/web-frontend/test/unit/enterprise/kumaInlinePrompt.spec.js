@@ -41,7 +41,8 @@ function mount(props = {}) {
       placeholder: 'Describe the field',
       submitLabel: 'Create field',
       workingLabel: 'Writing your field…',
-      request: vi.fn(),
+      action: 'create_field',
+      parameters: { table_id: 3 },
       ...props,
     },
   })
@@ -58,6 +59,7 @@ function submitButton(wrapper) {
 
 describe('KumaInlinePrompt', () => {
   afterEach(() => {
+    mocks.runAction.mockReset()
     mocks.available = true
     mocks.dispatch = null
     selectedWorkspace.value = { id: 1 }
@@ -97,17 +99,19 @@ describe('KumaInlinePrompt', () => {
   })
 
   test('sends the request and shows the summary', async () => {
-    const request = vi.fn(async () => ({
+    mocks.runAction.mockResolvedValue({
       changed: true,
       summary: 'Added a Due date field.',
-    }))
-    const wrapper = await mount({ request })
+    })
+    const wrapper = await mount()
     await openAndType(wrapper, '  a due date  ')
 
     await submitButton(wrapper).trigger('click')
     await flushPromises()
 
-    expect(request).toHaveBeenCalledWith('a due date')
+    expect(mocks.runAction).toHaveBeenCalledWith('create_field', 'a due date', {
+      table_id: 3,
+    })
     // Active while the request was written and sent.
     expect(wrapper.emitted('active')).toEqual([[true], [false]])
     expect(wrapper.find('textarea').exists()).toBe(false)
@@ -118,9 +122,11 @@ describe('KumaInlinePrompt', () => {
 
   test('undoes the change', async () => {
     mocks.dispatch = vi.fn()
-    const wrapper = await mount({
-      request: async () => ({ changed: true, summary: 'Added a field.' }),
+    mocks.runAction.mockResolvedValue({
+      changed: true,
+      summary: 'Added a field.',
     })
+    const wrapper = await mount()
     await openAndType(wrapper, 'a due date')
     await submitButton(wrapper).trigger('click')
     await flushPromises()
@@ -136,9 +142,11 @@ describe('KumaInlinePrompt', () => {
   })
 
   test('offers no undo when nothing changed', async () => {
-    const wrapper = await mount({
-      request: async () => ({ changed: false, summary: 'Nothing to do.' }),
+    mocks.runAction.mockResolvedValue({
+      changed: false,
+      summary: 'Nothing to do.',
     })
+    const wrapper = await mount()
     await openAndType(wrapper, 'a due date')
     await submitButton(wrapper).trigger('click')
     await flushPromises()
@@ -149,9 +157,11 @@ describe('KumaInlinePrompt', () => {
   })
 
   test('the host can dismiss the summary', async () => {
-    const wrapper = await mount({
-      request: async () => ({ changed: true, summary: 'Added a field.' }),
+    mocks.runAction.mockResolvedValue({
+      changed: true,
+      summary: 'Added a field.',
     })
+    const wrapper = await mount()
     await openAndType(wrapper, 'a due date')
     await submitButton(wrapper).trigger('click')
     await flushPromises()
@@ -163,18 +173,16 @@ describe('KumaInlinePrompt', () => {
   })
 
   test('does nothing while the request is empty', async () => {
-    const request = vi.fn()
-    const wrapper = await mount({ request })
+    const wrapper = await mount()
     await openAndType(wrapper, '   ')
 
     await submitButton(wrapper).trigger('click')
 
-    expect(request).not.toHaveBeenCalled()
+    expect(mocks.runAction).not.toHaveBeenCalled()
   })
 
   test('shows why the request is blocked and refuses to send it', async () => {
-    const request = vi.fn()
-    const wrapper = await mount({ request, blockedMessage: 'Save first.' })
+    const wrapper = await mount({ blockedMessage: 'Save first.' })
     await openAndType(wrapper, 'a due date')
 
     expect(wrapper.find('.kuma-inline-prompt__notice--warning').text()).toBe(
@@ -182,7 +190,7 @@ describe('KumaInlinePrompt', () => {
     )
     expect(submitButton(wrapper).attributes('disabled')).toBeDefined()
     await wrapper.find('textarea').trigger('keydown', { key: 'Enter' })
-    expect(request).not.toHaveBeenCalled()
+    expect(mocks.runAction).not.toHaveBeenCalled()
   })
 
   test('is no longer active when closed', async () => {
@@ -195,16 +203,13 @@ describe('KumaInlinePrompt', () => {
 
   test('shows the error and keeps the request', async () => {
     const handled = vi.fn()
-    const wrapper = await mount({
-      request: async () => {
-        const error = new Error('failed')
-        error.handler = {
-          getMessage: () => ({ message: 'Kuma could not do it.' }),
-          handled,
-        }
-        throw error
-      },
-    })
+    const error = new Error('failed')
+    error.handler = {
+      getMessage: () => ({ message: 'Kuma could not do it.' }),
+      handled,
+    }
+    mocks.runAction.mockRejectedValue(error)
+    const wrapper = await mount()
     await openAndType(wrapper, 'a due date')
 
     await submitButton(wrapper).trigger('click')
@@ -232,7 +237,7 @@ describe('KumaInlinePrompt', () => {
   })
 })
 
-test('runs a targeted action and exposes its result to the host', async () => {
+test('runs the action with its parameters', async () => {
   const result = { changed: true, summary: 'Updated.', result: { value: 42 } }
   mocks.runAction.mockResolvedValueOnce(result)
   const wrapper = await mount({
@@ -247,5 +252,5 @@ test('runs a targeted action and exposes its result to the host', async () => {
     'Only done tasks',
     { kind: 'builder_data_source', id: 12 }
   )
-  expect(wrapper.emitted('completed')).toEqual([[result]])
+  expect(wrapper.find('.kuma-inline-prompt__done').text()).toContain('Updated.')
 })
