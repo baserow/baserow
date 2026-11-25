@@ -1408,6 +1408,10 @@
   border-radius: 12px 12px 12px 6px;
   font-size: 13px;
   line-height: 20px;
+
+  & + .agent-approval {
+    margin-top: 8px;
+  }
 }
 
 .agent-pending-approvals__question-note {

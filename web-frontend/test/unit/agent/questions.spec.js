@@ -269,6 +269,40 @@ describe('Agent questions', () => {
     expect(card(wrapper).get('.agent-question__question').text()).toBe(QUESTION)
   })
 
+  test('the pending approvals menu links a question and still decides the change held with it', async () => {
+    const held = reply(
+      [approval(1), approval(2, { tool: 'create_rows' })],
+      [questionStep(1), createStep(2)]
+    )
+    mockApprovals(testApp, chat.uuid, held)
+    testApp.mock
+      .onGet('/agent/10/pending-approvals/')
+      .reply(200, page([{ ...held, conversation: chat }]))
+    await testApp.store.dispatch('application/forceUpdate', {
+      application: agent,
+      data: { pending_count: 2 },
+    })
+    const wrapper = await mount({ stubs: { Teleport: false } })
+    await wrapper.get('.agent-application__approvals').trigger('click')
+    await flushPromises()
+
+    const menu = testApp.body.get('.agent-pending-approvals')
+    expect(menu.get('.agent-pending-approvals__question').text()).toContain(
+      'agent.questionNeedsAnswer'
+    )
+    expect(texts(menu.findAll('.agent-approval__tool'))).toEqual([
+      'create_rows',
+    ])
+    await menu
+      .get('.agent-approval__actions button:last-child')
+      .trigger('click')
+    await flushPromises()
+
+    expect(sentBodies(testApp)).toEqual([
+      { decisions: [{ id: 2, approved: true }] },
+    ])
+  })
+
   test('the pending approvals menu can approve an action after a question was answered', async () => {
     const action = approval(2, { tool: 'create_rows' })
     const response = reply(

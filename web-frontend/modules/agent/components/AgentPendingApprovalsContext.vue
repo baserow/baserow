@@ -43,7 +43,7 @@
         }}</span>
       </div>
       <AgentApprovalCard
-        v-else
+        v-if="items(reply).length"
         :items="items(reply)"
         :disabled="!canDecide"
         :can-always-allow="canAlwaysAllow"
@@ -51,7 +51,7 @@
         compact
         @decide="(decisions, options) => review(reply, decisions, options)"
       >
-        <template #title>
+        <template v-if="!hasPendingQuestion(reply)" #title>
           <button
             type="button"
             class="agent-pending-approvals__conversation"
@@ -116,23 +116,23 @@ const failedPage = ref(1)
 let request = 0
 let opened = false
 
-function hasPendingQuestion(reply) {
-  const pendingStepIds = new Set(reply.approvals.map(({ step_id }) => step_id))
-  return reply.steps.some(
-    (step) => pendingStepIds.has(step.id) && isQuestionStep(step)
-  )
+function heldSteps(reply) {
+  const steps = new Map(reply.steps.map((step) => [step.id, step]))
+  return reply.approvals.map((approval) => [
+    approval,
+    steps.get(approval.step_id) || { tool: approval.tool, status: 'waiting' },
+  ])
 }
 
+function hasPendingQuestion(reply) {
+  return heldSteps(reply).some(([, step]) => isQuestionStep(step))
+}
+
+/** A question is answered in its conversation, so the card holds the rest. */
 function items(reply) {
-  const steps = new Map(reply.steps.map((step) => [step.id, step]))
-  return reply.approvals.map((approval) =>
-    approvalItem(
-      steps.get(approval.step_id) || { tool: approval.tool, status: 'waiting' },
-      approval,
-      $registry,
-      t
-    )
-  )
+  return heldSteps(reply)
+    .filter(([, step]) => !isQuestionStep(step))
+    .map(([approval, step]) => approvalItem(step, approval, $registry, t))
 }
 
 async function load(number = 1) {
