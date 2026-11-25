@@ -1,3 +1,4 @@
+from baserow_enterprise.agent.models import PublicChatAgentChannel
 from baserow_enterprise.agent_permissions.models import AgentParticipationRule
 from baserow_enterprise.automatic_snapshots.models import (
     AutomaticSnapshotLastRun,
@@ -50,6 +51,7 @@ __all__ = [
     "AutomaticSnapshotSchedule",
     "AutomaticSnapshotLastRun",
     "AgentParticipationRule",
+    "PublicChatAgentChannel",
     "Team",
     "TeamSubject",
     "WorkspaceTeamInvitation",
