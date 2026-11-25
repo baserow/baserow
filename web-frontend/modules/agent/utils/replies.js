@@ -4,7 +4,10 @@ import {
   RUN_STATUS,
 } from '@baserow/modules/core/chatRuns/constants'
 
-import { AGENT_REPLY_ERROR_CODE } from '@baserow/modules/agent/constants'
+import {
+  AGENT_REPLY_ERROR_CODE,
+  ASK_PERSON_TOOL,
+} from '@baserow/modules/agent/constants'
 
 /** A reply's status: its run's, or waiting while held calls are decided. */
 export const AGENT_REPLY_STATUS = Object.freeze({
@@ -100,6 +103,10 @@ export function pendingApprovals(reply) {
         (approval) => approval?.status === APPROVAL_STATUS.PENDING
       )
     : []
+}
+
+export function isQuestionStep(step) {
+  return (step?.presentation_type || step?.tool) === ASK_PERSON_TOOL
 }
 
 export function approvalItem(step, approval, registry, t) {

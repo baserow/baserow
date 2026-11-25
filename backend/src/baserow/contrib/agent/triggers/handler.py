@@ -405,14 +405,6 @@ class AgentTriggerHandler:
             raise AgentTriggerTypeNotAvailable(service_type.type)
         service_type.arm(service)
 
-    def get_shown_name(self, trigger: AgentTrigger) -> str:
-        """
-        :param trigger: A trigger.
-        :return: Its name, or a generic one when it has none.
-        """
-
-        return trigger.name or "Trigger"
-
     def message_without_text(
         self,
         trigger: AgentTrigger,
@@ -432,9 +424,8 @@ class AgentTriggerHandler:
         """
 
         context = AgentTriggerDispatchContext(trigger, event_payload, fired_at)
-        message = (
-            f"{self.get_shown_name(trigger)} fired at {context.get_fired_at_display()}"
-        )
+        name = trigger.name or "Trigger"
+        message = f"{name} fired at {context.get_fired_at_display()}"
         if not BaserowFormulaObject.to_formula(trigger.message)["formula"].strip():
             service = context.service
             event_text = agent_trigger_type_registry.get_for_service_type(

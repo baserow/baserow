@@ -430,7 +430,7 @@
     "triggerSettings": "{name} settings",
     "triggerChangeType": "Change trigger type: {type}",
     "triggerMayAskPerson": "Ask a person when it can't continue",
-    "triggerMayAskPersonDescription": "When the agent needs a fact or decision it can't find, it pauses and asks in the conversation. Anyone who can approve tool calls can answer. When off, it never waits.",
+    "triggerMayAskPersonDescription": "When the agent needs a fact or decision it can't find, it pauses and asks in the conversation. Anyone who can approve tool calls can answer.",
     "triggerOnOverlap": "When a run is still going",
     "triggerOnOverlapDescription": "Choose what happens if this trigger fires again.",
     "triggerOnOverlapSkip": "Skip the new run",

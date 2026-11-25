@@ -3,7 +3,6 @@ from typing import Annotated
 from pydantic import StringConstraints
 from pydantic_ai import RunContext, Tool
 from pydantic_ai.exceptions import ApprovalRequired
-from pydantic_ai.toolsets import FunctionToolset
 
 from .constants import (
     ASK_PERSON_ANSWER_METADATA_KEY,
@@ -38,17 +37,13 @@ async def ask_person(
     return (ctx.tool_call_metadata or {})[ASK_PERSON_ANSWER_METADATA_KEY]
 
 
-def ask_person_toolset() -> FunctionToolset[None]:
+def ask_person_tool() -> Tool[None]:
     """
-    :return: The toolset offering the question tool to an unattended reply.
+    :return: The question tool offered to an unattended reply.
     """
 
-    return FunctionToolset(
-        [
-            Tool(
-                ask_person,
-                name=ASK_PERSON_TOOL_NAME,
-                description=ASK_PERSON_DESCRIPTION,
-            )
-        ]
+    return Tool(
+        ask_person,
+        name=ASK_PERSON_TOOL_NAME,
+        description=ASK_PERSON_DESCRIPTION,
     )

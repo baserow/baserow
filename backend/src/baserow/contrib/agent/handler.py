@@ -1498,19 +1498,17 @@ class AgentHandler:
         }
         if not {decision["id"] for decision in decisions} <= pending.keys():
             raise AgentToolApprovalNotPending
-        for decision in decisions:
-            self._check_answer(pending[decision["id"]], decision)
         decided_on = timezone.now()
         decided = []
         for decision in decisions:
             approval = pending.pop(decision["id"])
+            approval.answer = self._validate_approval_answer(approval, decision)
             approval.status = (
                 AgentToolApproval.Status.APPROVED
                 if decision["approved"]
                 else AgentToolApproval.Status.REJECTED
             )
             approval.reason = decision.get("reason", "")
-            approval.answer = decision.get("answer", "").strip()
             approval.decided_by = user
             approval.decided_on = decided_on
             decided.append(approval)
@@ -1520,29 +1518,26 @@ class AgentHandler:
         prefetch_related_objects([reply], "approvals")
         return reply, decided, not pending
 
-    def _check_answer(
+    def _validate_approval_answer(
         self, approval: AgentToolApproval, decision: AgentToolDecision
-    ) -> None:
+    ) -> str:
         """
-        Accept an answer only for a question, answer a question only with one, and
-        dismiss it without a reason, which the agent would never read.
-
         :param approval: The pending approval the decision decides.
         :param decision: The decision.
         :raises AgentToolDecisionInvalid: When the answer doesn't fit the held call.
+        :return: The trimmed answer, or an empty string when no answer applies.
         """
 
-        is_question = approval.tool_name == ASK_PERSON_TOOL_NAME
-        if "answer" in decision and not is_question:
-            raise AgentToolDecisionInvalid
-        if is_question and "reason" in decision:
-            raise AgentToolDecisionInvalid
-        if (
-            is_question
-            and decision["approved"]
-            and not decision.get("answer", "").strip()
+        answer = decision.get("answer", "").strip()
+        if "answer" in decision and (
+            not approval.is_question or not decision["approved"]
         ):
             raise AgentToolDecisionInvalid
+        if approval.is_question and (
+            "reason" in decision or (decision["approved"] and not answer)
+        ):
+            raise AgentToolDecisionInvalid
+        return answer
 
     def resume_reply(self, reply: AgentMessage, approver: AbstractUser) -> ChatRun:
         """
@@ -1689,7 +1684,6 @@ class AgentHandler:
         conversation = reply.conversation
         agent = conversation.agent
         trigger = conversation.trigger if reply.unattended else None
-        may_ask_person = trigger is not None and trigger.may_ask_person
         run_as = self.resolve_run_as_subject(
             agent.run_as_subject_type, agent.run_as_subject_id, agent.workspace
         )
@@ -1727,6 +1721,12 @@ class AgentHandler:
             for tool in all_action_tools
             if acting_subject is not None or tool.type not in identity_action_names
         ]
+        # An action saved before this name was reserved keeps its tool name.
+        may_ask_person = (
+            trigger is not None
+            and trigger.may_ask_person
+            and all(tool.type != ASK_PERSON_TOOL_NAME for tool in action_tools)
+        )
         if conversation.is_test:
             # A test Kuma started can't change anything without the owner's say-so.
             tools = {
@@ -1983,14 +1983,24 @@ class AgentHandler:
 
         :param reply: The reply.
         :return: The prompt and the recent messages before it, oldest first, each
-            with its sender and the approvals its questions are replayed from.
+            with its sender and the decided questions that are replayed.
         """
 
+        questions = (
+            AgentToolApproval.objects.filter(
+                tool_name=ASK_PERSON_TOOL_NAME, tool_key=""
+            )
+            .exclude(status=AgentToolApproval.Status.PENDING)
+            .select_related("decided_by")
+            .order_by("pause", "id")
+        )
         prompt, *history = (
             reply.conversation.messages.filter(id__lt=reply.id)
             .select_related("sender")
             .order_by("-id")
-            .prefetch_related("approvals__decided_by")[: HISTORY_MESSAGE_LIMIT + 1]
+            .prefetch_related(
+                Prefetch("approvals", queryset=questions, to_attr="decided_questions")
+            )[: HISTORY_MESSAGE_LIMIT + 1]
         )
         return prompt, history[::-1]
 
@@ -2036,7 +2046,7 @@ class AgentHandler:
         answers = {
             tool_call_id: {ASK_PERSON_ANSWER_METADATA_KEY: approval.answer}
             for tool_call_id, approval in approvals.items()
-            if approval.tool_name == ASK_PERSON_TOOL_NAME
+            if approval.is_question
             and approval.status == AgentToolApproval.Status.APPROVED
         }
         # A held action call sends the values kept when it was held.
@@ -2087,8 +2097,10 @@ class AgentHandler:
         :return: Whether the call runs, or why it doesn't.
         """
 
-        is_question = approval.tool_name == ASK_PERSON_TOOL_NAME
-        if approval.status == AgentToolApproval.Status.REJECTED and is_question:
+        if (
+            approval.status == AgentToolApproval.Status.REJECTED
+            and approval.is_question
+        ):
             return ToolDenied(ASK_PERSON_DISMISSED_NOTE)
         if approval.status == AgentToolApproval.Status.REJECTED:
             return ToolDenied(
@@ -2098,7 +2110,7 @@ class AgentHandler:
             )
         if approval.tool_name not in callable_tools:
             # A question, an MCP tool or another action doesn't act as the identity.
-            acts_as_identity = not is_question and (
+            acts_as_identity = not approval.is_question and (
                 not approval.tool_key or approval.tool_name in identity_action_names
             )
             return ToolDenied(

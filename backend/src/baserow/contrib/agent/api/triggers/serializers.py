@@ -39,9 +39,8 @@ BATCH_SIZE_HELP_TEXT = (
     "Payloads that aren't lists ignore it."
 )
 MAY_ASK_PERSON_HELP_TEXT = (
-    "Whether a run may pause to ask a person a question that people who can "
-    "approve tool calls answer. Off, the agent finishes on its own or stops and "
-    "explains why."
+    "Whether a run may pause to ask a question. People who can approve tool "
+    "calls can answer."
 )
 
 

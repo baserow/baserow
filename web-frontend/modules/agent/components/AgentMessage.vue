@@ -98,7 +98,7 @@
 </template>
 
 <script setup>
-import { ASK_PERSON_TOOL, MESSAGE_ROLE } from '@baserow/modules/agent/constants'
+import { MESSAGE_ROLE } from '@baserow/modules/agent/constants'
 import { computed } from 'vue'
 import { useStore } from 'vuex'
 import { useI18n } from 'vue-i18n'
@@ -118,6 +118,7 @@ import AgentQuestionCard from '@baserow/modules/agent/components/AgentQuestionCa
 import AgentTriggerStartCard from '@baserow/modules/agent/components/AgentTriggerStartCard'
 import {
   approvalItem,
+  isQuestionStep,
   replyOutcome,
 } from '@baserow/modules/agent/utils/replies'
 
@@ -209,7 +210,7 @@ function stepEntries(steps, approvals) {
       others.push(step)
       continue
     }
-    if (approval.tool === ASK_PERSON_TOOL) {
+    if (isQuestionStep(step)) {
       addOthers()
       entries.push({
         key: `question-${approval.id}`,

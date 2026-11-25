@@ -324,7 +324,7 @@ class AgentActionHandler:
         :raises ValidationError: When the new name is taken.
         """
 
-        if "name" in values:
+        if "name" in values and values["name"] != action.name:
             self.check_name_available(action.agent, values["name"], action.id)
         changed = []
         for name in self.editable_fields:

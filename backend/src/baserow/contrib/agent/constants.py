@@ -179,17 +179,12 @@ ASK_PERSON_DISMISSED_NOTE = (
 )
 ASK_PERSON_DISMISSED_HISTORY = "(Dismissed without an answer.)"
 UNATTENDED_REPLY_INSTRUCTIONS = (
-    'The trigger "{trigger}" started this reply, and nobody reads it while you '
+    "{trigger} started this reply, and nobody reads it while you "
     "work. Don't ask for confirmation or preferences in your reply: make reasonable "
     "assumptions and say which. End with what you did and what you couldn't do."
 )
-UNATTENDED_REPLY_UNNAMED_INSTRUCTIONS = (
-    "A trigger started this reply, and nobody reads it while you work. Don't ask "
-    "for confirmation or preferences in your reply: make reasonable assumptions and "
-    "say which. End with what you did and what you couldn't do."
-)
 UNATTENDED_ASK_PERSON_INSTRUCTIONS = (
-    f"When you can't finish without a fact or a decision only a person can give, "
+    "When you can't finish without a fact or a decision only a person can give, "
     f"call {ASK_PERSON_TOOL_NAME}."
 )
 UNATTENDED_NO_PERSON_INSTRUCTIONS = (

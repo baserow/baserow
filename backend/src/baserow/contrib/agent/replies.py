@@ -70,7 +70,6 @@ from baserow.core.tools.errors import ToolErrorCode, describe_failure
 from baserow.core.utils import remove_null_characters, remove_unstorable_characters
 
 from .action_tools.tools import BoundActionTool
-from .ask_person import ask_person_toolset
 from .constants import (
     ASK_FIRST_INSTRUCTIONS,
     ASK_PERSON_DISMISSED_HISTORY,
@@ -87,7 +86,6 @@ from .constants import (
     UNATTENDED_ASK_PERSON_INSTRUCTIONS,
     UNATTENDED_NO_PERSON_INSTRUCTIONS,
     UNATTENDED_REPLY_INSTRUCTIONS,
-    UNATTENDED_REPLY_UNNAMED_INSTRUCTIONS,
     UNAVAILABLE_WORKSPACE_ACCESS_INSTRUCTIONS,
     WEB_FETCH_INSTRUCTIONS,
     WEB_SEARCH_FAILED_INSTRUCTIONS,
@@ -99,6 +97,7 @@ from .constants import (
 from .models import AgentMessage, AgentToolApproval
 from .previews import arguments_preview
 from .registries import AgentToolType, agent_tool_type_registry, input_shower
+from .tools import ask_person_tool
 from .types import (
     AgentConversationUser,
     AgentPausedRun,
@@ -173,9 +172,8 @@ def _question_turns(
     Replay the decided questions of a reply as the agent asking and a person
     answering, in the order the calls were held.
 
-    :param reply: An earlier reply, with its approvals and who decided them
-        prefetched when it has questions, since the history is built inside the
-        event loop.
+    :param reply: An earlier reply with its decided questions and their deciders
+        prefetched.
     :param names_senders: Whether each answer names who gave it.
     :return: A response with each question followed by a request with its answer,
         or the dismissal; questions without a saved step are left out.
@@ -188,18 +186,10 @@ def _question_turns(
     }
     if not questions:
         return []
-    decided = sorted(
-        (
-            approval
-            for approval in reply.approvals.all()
-            if approval.tool_name == ASK_PERSON_TOOL_NAME
-            and approval.status != AgentToolApproval.Status.PENDING
-            and questions.get(approval.step_id)
-        ),
-        key=lambda approval: (approval.pause, approval.id),
-    )
     turns: list[ModelMessage] = []
-    for approval in decided:
+    for approval in reply.decided_questions:
+        if not (question := questions.get(approval.step_id)):
+            continue
         answer = (
             approval.answer
             if approval.status == AgentToolApproval.Status.APPROVED
@@ -208,9 +198,7 @@ def _question_turns(
         if names_senders and approval.status == AgentToolApproval.Status.APPROVED:
             decider = approval.decided_by
             answer = name_sender(answer, decider and AgentConversationUser.of(decider))
-        turns.append(
-            ModelResponse(parts=[TextPart(content=questions[approval.step_id])])
-        )
+        turns.append(ModelResponse(parts=[TextPart(content=question)]))
         turns.append(ModelRequest(parts=[UserPromptPart(content=answer)]))
     return turns
 
@@ -224,7 +212,7 @@ def build_history(
     person come before its text, as the agent asking and the person answering.
 
     :param messages: Earlier messages of the conversation, oldest first, with
-        their senders and the replies' approvals prefetched.
+        their senders and the replies' decided questions prefetched.
     :param names_senders: Whether each person's message and answer names who
         wrote it.
     :return: The history; replies before the first prompt in the window are left
@@ -397,9 +385,7 @@ class AgentResponder:
         self._web_search_tool: WebSearchTool | None = None
         # Fetched by Baserow rather than the provider, so every model can use it.
         self._web_fetch_tool = web_fetch_tool() if request.web_fetch_enabled else None
-        self._ask_person_toolset = (
-            ask_person_toolset() if request.may_ask_person else None
-        )
+        self._ask_person_tool = ask_person_tool() if request.may_ask_person else None
         self._response_calls: list[ToolCallPart] = []
         self._invalid_call_ids: set[str] = set()
         self._mcp_toolsets = [
@@ -443,7 +429,7 @@ class AgentResponder:
             self._web_fetch_tool is not None and name == self._web_fetch_tool.name
         ):
             return {"changes_data": False, "input": _web_search_step_input(arguments)}
-        if name == ASK_PERSON_TOOL_NAME and self._ask_person_toolset is not None:
+        if name == ASK_PERSON_TOOL_NAME and self._ask_person_tool is not None:
             question = arguments.get("question")
             # Its step is where a person reads the question, so it's kept whole.
             return {
@@ -510,10 +496,13 @@ class AgentResponder:
         if request.started_by_trigger:
             instructions += f"\n\n{TRIGGER_CONVERSATION_INSTRUCTIONS}"
         if request.unattended:
-            instructions += "\n\n" + (
-                UNATTENDED_REPLY_UNNAMED_INSTRUCTIONS
-                if request.trigger_name is None
-                else UNATTENDED_REPLY_INSTRUCTIONS.format(trigger=request.trigger_name)
+            trigger = (
+                f'The trigger "{request.trigger_name}"'
+                if request.trigger_name
+                else "A trigger"
+            )
+            instructions += "\n\n" + UNATTENDED_REPLY_INSTRUCTIONS.format(
+                trigger=trigger
             )
             instructions += "\n\n" + (
                 UNATTENDED_ASK_PERSON_INSTRUCTIONS
@@ -722,8 +711,8 @@ class AgentResponder:
             )
         if self._web_fetch_tool is not None:
             toolsets.append(FunctionToolset([self._web_fetch_tool]))
-        if self._ask_person_toolset is not None:
-            toolsets.append(self._ask_person_toolset)
+        if self._ask_person_tool is not None:
+            toolsets.append(FunctionToolset([self._ask_person_tool]))
         return [
             *toolsets,
             *(
@@ -772,7 +761,7 @@ class AgentResponder:
                 changes_data, ask_first = snapshot.changes_data, snapshot.ask_first
             elif (
                 call.tool_name == ASK_PERSON_TOOL_NAME
-                and self._ask_person_toolset is not None
+                and self._ask_person_tool is not None
             ):
                 changes_data, ask_first = False, True
             else:

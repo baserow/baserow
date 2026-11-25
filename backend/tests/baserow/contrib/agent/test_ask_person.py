@@ -11,6 +11,7 @@ from pydantic_ai.messages import ModelMessage
 from pydantic_ai.models.function import AgentInfo, DeltaToolCall, FunctionModel
 from pytest_mock import MockerFixture
 
+from baserow.contrib.agent.action_tools.service import AgentActionService
 from baserow.contrib.agent.constants import (
     ASK_PERSON_ANSWER_MAX_LENGTH,
     ASK_PERSON_DISMISSED_HISTORY,
@@ -21,8 +22,6 @@ from baserow.contrib.agent.constants import (
     TRIGGER_CONVERSATION_INSTRUCTIONS,
     UNATTENDED_ASK_PERSON_INSTRUCTIONS,
     UNATTENDED_NO_PERSON_INSTRUCTIONS,
-    UNATTENDED_REPLY_INSTRUCTIONS,
-    UNATTENDED_REPLY_UNNAMED_INSTRUCTIONS,
 )
 from baserow.contrib.agent.handler import AgentHandler
 from baserow.contrib.agent.models import (
@@ -183,7 +182,7 @@ def test_unattended_instructions_name_the_trigger_and_say_whether_it_may_ask(
     trigger_reply(data_fixture, agent, name="Orders", may_ask_person=may_ask_person)
 
     instructions = received[0][-1].instructions
-    assert UNATTENDED_REPLY_INSTRUCTIONS.format(trigger="Orders") in instructions
+    assert 'The trigger "Orders" started this reply' in instructions
     assert (UNATTENDED_ASK_PERSON_INSTRUCTIONS in instructions) is may_ask_person
     assert (UNATTENDED_NO_PERSON_INSTRUCTIONS in instructions) is not may_ask_person
     assert (ASK_PERSON_TOOL_NAME in offered[0]) is may_ask_person
@@ -199,7 +198,7 @@ def test_unattended_instructions_of_an_unnamed_trigger_name_no_trigger(
     trigger_reply(data_fixture, agent, name="")
 
     instructions = received[0][-1].instructions
-    assert UNATTENDED_REPLY_UNNAMED_INSTRUCTIONS in instructions
+    assert "A trigger started this reply" in instructions
     assert '"Trigger"' not in instructions
 
 
@@ -214,7 +213,7 @@ def test_a_private_conversation_and_a_follow_up_never_offer_the_question_tool(
     run_reply(run_of(start(user, agent).conversation))
     follow_up(user, trigger_reply(data_fixture, agent, name="Orders"))
 
-    unattended = UNATTENDED_REPLY_INSTRUCTIONS.format(trigger="Orders")
+    unattended = 'The trigger "Orders" started this reply'
     assert [ASK_PERSON_TOOL_NAME in tools for tools in offered] == [
         False,
         True,
@@ -299,6 +298,26 @@ def test_an_answer_and_a_held_action_of_the_same_response_both_reach_the_resume(
 
     assert reply_state(reply.id) == ("completed", "", "Done.")
     assert told_about_question(received[-1]) == ["Acme"]
+    assert [sent.to for sent in mailoutbox] == [["alice@example.com"]]
+
+
+@pytest.mark.django_db
+def test_a_legacy_action_named_ask_person_keeps_its_normal_approval(
+    data_fixture, email_action, mocker, mailoutbox
+):
+    user, agent, action, _, _ = email_action
+    action.name = ASK_PERSON_TOOL_NAME
+    action.ask_first = True
+    action.save(update_fields=["name", "ask_first"])
+    AgentActionService().update_action(user, agent.id, action.id, name=action.name)
+    respond(mocker, ({0: email_call(action.name)},))
+
+    reply = trigger_reply(data_fixture, agent)
+
+    assert reply.status == AgentReplyStatus.WAITING
+    assert reply.steps[0]["presentation_type"] == "smtp_email"
+    run_reply(answer(user, reply, approved=True))
+    assert reply_state(reply.id) == ("completed", "", "Done.")
     assert [sent.to for sent in mailoutbox] == [["alice@example.com"]]
 
 

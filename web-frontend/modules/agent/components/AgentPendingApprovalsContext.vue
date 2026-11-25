@@ -23,7 +23,10 @@
       :key="reply.uuid"
       class="agent-pending-approvals__reply"
     >
-      <div v-if="asksPerson(reply)" class="agent-pending-approvals__question">
+      <div
+        v-if="hasPendingQuestion(reply)"
+        class="agent-pending-approvals__question"
+      >
         <button
           type="button"
           class="agent-pending-approvals__conversation"
@@ -87,9 +90,9 @@ import { useNuxtApp } from '#app'
 import { useI18n } from 'vue-i18n'
 import AgentApprovalCard from '@baserow/modules/agent/components/AgentApprovalCard'
 import AgentApplicationService from '@baserow/modules/agent/services/agentApplication'
-import { ASK_PERSON_TOOL } from '@baserow/modules/agent/constants'
 import {
   approvalItem,
+  isQuestionStep,
   pendingApprovals,
 } from '@baserow/modules/agent/utils/replies'
 
@@ -113,9 +116,11 @@ const failedPage = ref(1)
 let request = 0
 let opened = false
 
-/** A question is answered in its conversation, so the run waits there anyway. */
-function asksPerson(reply) {
-  return reply.approvals.some((approval) => approval.tool === ASK_PERSON_TOOL)
+function hasPendingQuestion(reply) {
+  const pendingStepIds = new Set(reply.approvals.map(({ step_id }) => step_id))
+  return reply.steps.some(
+    (step) => pendingStepIds.has(step.id) && isQuestionStep(step)
+  )
 }
 
 function items(reply) {

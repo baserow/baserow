@@ -99,6 +99,18 @@ describe('Agent questions', () => {
     expect(wrapper.find('.chat-step-group').exists()).toBe(false)
   })
 
+  test('a custom action named ask_person still shows a tool approval', async () => {
+    const actionStep = {
+      ...createStep(1),
+      tool: 'ask_person',
+      presentation_type: 'smtp_email',
+    }
+    const wrapper = await openReply(reply([approval(1)], [actionStep]))
+
+    expect(wrapper.find('.agent-approval').exists()).toBe(true)
+    expect(wrapper.find('.agent-question').exists()).toBe(false)
+  })
+
   test('sending an answer decides the question with it', async () => {
     mockApprovals(
       testApp,
@@ -267,5 +279,48 @@ describe('Agent questions', () => {
     await flushPromises()
 
     expect(card(wrapper).get('.agent-question__question').text()).toBe(QUESTION)
+  })
+
+  test('the pending approvals menu can approve an action after a question was answered', async () => {
+    const action = approval(2, { tool: 'create_rows' })
+    const response = reply(
+      [
+        approval(1, { status: 'approved', answer: 'Acme' }),
+        approval(3, { tool: 'create_rows', status: 'approved' }),
+        action,
+      ],
+      [questionStep(1, 'done'), createStep(3), createStep(2)]
+    )
+    mockApprovals(testApp, chat.uuid, response)
+    testApp.mock.onGet('/agent/10/pending-approvals/').reply(
+      200,
+      page([
+        {
+          ...response,
+          conversation: chat,
+          approvals: [approval(3, { tool: 'create_rows' }), action],
+          steps: [createStep(3), createStep(2)],
+        },
+      ])
+    )
+    await testApp.store.dispatch('application/forceUpdate', {
+      application: agent,
+      data: { pending_count: 1 },
+    })
+    const wrapper = await mount({ stubs: { Teleport: false } })
+    await wrapper.get('.agent-application__approvals').trigger('click')
+    await flushPromises()
+
+    const menu = testApp.body.get('.agent-pending-approvals')
+    await menu
+      .get('.agent-approval__item-actions button:last-child')
+      .trigger('click')
+    await flushPromises()
+
+    expect(sentBodies(testApp)).toEqual([
+      { decisions: [{ id: 3, approved: true }] },
+    ])
+    expect(menu.find('.agent-pending-approvals__question').exists()).toBe(false)
+    expect(menu.findAll('.agent-approval__tool')).toHaveLength(1)
   })
 })

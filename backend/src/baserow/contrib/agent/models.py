@@ -5,6 +5,7 @@ from django.db.models import Q
 from baserow.contrib.agent.constants import (
     AGENT_TRIGGER_DEFAULT_BATCH_SIZE,
     AGENT_TRIGGER_NAME_MAX_LENGTH,
+    ASK_PERSON_TOOL_NAME,
 )
 from baserow.core.formula.field import FormulaField
 from baserow.core.mixins import (
@@ -350,6 +351,12 @@ class AgentToolApproval(BigAutoFieldMixin, models.Model):
     )
     decided_on = models.DateTimeField(null=True)
     created_on = models.DateTimeField(auto_now_add=True)
+
+    @property
+    def is_question(self) -> bool:
+        """A built-in question has no tool key, unlike a custom action."""
+
+        return self.tool_name == ASK_PERSON_TOOL_NAME and not self.tool_key
 
     class Meta:
         ordering = ("id",)
