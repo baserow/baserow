@@ -126,6 +126,7 @@ import {
   SemanticSearchPaidFeature,
   XLSFileReaderPaidFeature,
   AutomaticSnapshotsPaidFeature,
+  MicrosoftTeamsPaidFeature,
 } from '@baserow_enterprise/paidFeatures'
 import { FieldPermissionsContextItemType } from '@baserow_enterprise/fieldContextItemTypes'
 import {
@@ -144,12 +145,14 @@ import {
 import {
   CoreCodeWorkflowActionType,
   CoreXLSFileReaderWorkflowActionType,
+  MicrosoftTeamsWriteMessageWorkflowActionType,
 } from '@baserow_enterprise/builder/workflowActionTypes'
 import {
   CoreCodeActionNodeType,
   CoreXLSFileReaderActionNodeType,
   LocalBaserowSemanticSearchActionNodeType,
   LocalBaserowRowCommentPostedTriggerNodeType,
+  MicrosoftTeamsWriteMessageActionNodeType,
 } from '@baserow_enterprise/automation/nodeTypes'
 import { RowCommentPostedAgentTriggerType } from '@baserow_enterprise/agent/agentTriggerTypes'
 import {
@@ -161,6 +164,7 @@ import {
   LocalBaserowRowCommentPostedTriggerServiceType,
 } from '@baserow_enterprise/integrations/localBaserow/serviceTypes'
 import { LocalBaserowSemanticSearchToolPresentationType } from '@baserow_enterprise/agentToolPresentationTypes'
+import { MicrosoftTeamsWriteMessageServiceType } from '@baserow_enterprise/integrations/microsoftTeams/serviceTypes'
 import { SemanticSearchFieldFormAdvancedSettingType } from '@baserow_enterprise/fieldFormAdvancedSettingTypes'
 import {
   AISemanticSearchFieldType,
@@ -330,6 +334,18 @@ export default defineNuxtPlugin({
       new CoreXLSFileReaderWorkflowActionType(context)
     )
     $registry.register('node', new CoreXLSFileReaderActionNodeType(context))
+    $registry.register(
+      'service',
+      new MicrosoftTeamsWriteMessageServiceType(context)
+    )
+    $registry.register(
+      'workflowAction',
+      new MicrosoftTeamsWriteMessageWorkflowActionType(context)
+    )
+    $registry.register(
+      'node',
+      new MicrosoftTeamsWriteMessageActionNodeType(context)
+    )
 
     $registry.registerNamespace('semanticSearchFieldType')
     for (const SemanticSearchFieldType of [
@@ -474,6 +490,7 @@ export default defineNuxtPlugin({
     )
     $registry.register('paidFeature', new CodeRunnerPaidFeature(context))
     $registry.register('paidFeature', new XLSFileReaderPaidFeature(context))
+    $registry.register('paidFeature', new MicrosoftTeamsPaidFeature(context))
     $registry.register('paidFeature', new SemanticSearchPaidFeature(context))
 
     $registry.register('paidFeature', new DataScannerPaidFeature(context))

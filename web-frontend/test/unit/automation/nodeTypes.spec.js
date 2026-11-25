@@ -153,6 +153,7 @@ describe('Automation node types', () => {
       'goto',
       'wait',
       'slack_write_message',
+      'microsoft_teams_write_message',
     ])
   })
 

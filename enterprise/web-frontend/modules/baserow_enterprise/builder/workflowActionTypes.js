@@ -3,6 +3,7 @@ import {
   CoreCodeServiceType,
   CoreXLSFileReaderServiceType,
 } from '@baserow_enterprise/integrations/core/serviceTypes'
+import { MicrosoftTeamsWriteMessageServiceType } from '@baserow_enterprise/integrations/microsoftTeams/serviceTypes'
 
 export class CoreCodeWorkflowActionType extends WorkflowActionServiceType {
   static getType() {
@@ -39,5 +40,22 @@ export class CoreXLSFileReaderWorkflowActionType extends WorkflowActionServiceTy
 
   getOrder() {
     return 80
+  }
+}
+
+export class MicrosoftTeamsWriteMessageWorkflowActionType extends WorkflowActionServiceType {
+  static getType() {
+    return 'microsoft_teams_write_message'
+  }
+
+  get serviceType() {
+    return this.app.$registry.get(
+      'service',
+      MicrosoftTeamsWriteMessageServiceType.getType()
+    )
+  }
+
+  getOrder() {
+    return 91
   }
 }

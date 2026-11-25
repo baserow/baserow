@@ -9,6 +9,9 @@ from baserow_enterprise.integrations.core.models import (
 from baserow_enterprise.integrations.local_baserow.models import (
     LocalBaserowSemanticSearch,
 )
+from baserow_enterprise.integrations.microsoft_teams.models import (
+    MicrosoftTeamsWriteMessageService,
+)
 from baserow_enterprise.models import Role, RoleAssignment, Team, TeamSubject
 from baserow_premium.license.models import License
 
@@ -52,6 +55,9 @@ class EnterpriseFixtures:
 
     def create_local_baserow_semantic_search_service(self, **kwargs):
         return self.create_service(LocalBaserowSemanticSearch, **kwargs)
+
+    def create_microsoft_teams_write_message_service(self, **kwargs):
+        return self.create_service(MicrosoftTeamsWriteMessageService, **kwargs)
 
     def create_team(self, **kwargs):
         if "name" not in kwargs:

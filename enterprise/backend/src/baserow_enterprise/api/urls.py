@@ -1,5 +1,6 @@
 from django.urls import include, path
 
+from ..integrations.microsoft_teams.api import urls as microsoft_teams_urls
 from .admin import urls as admin_urls
 from .agent_permissions import urls as agent_permissions_urls
 from .agent_public_chat import urls as agent_public_chat_urls
@@ -32,6 +33,10 @@ urlpatterns = [
         ),
     ),
     path("teams/", include(teams_urls, namespace="teams")),
+    path(
+        "integrations/microsoft-teams/",
+        include(microsoft_teams_urls, namespace="microsoft_teams"),
+    ),
     path("role/", include(role_urls, namespace="role")),
     path("admin/", include(admin_urls, namespace="admin")),
     path("audit-log/", include(audit_log_urls, namespace="audit_log")),
