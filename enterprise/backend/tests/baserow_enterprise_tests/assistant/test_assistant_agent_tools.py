@@ -1266,3 +1266,19 @@ def test_a_change_saved_while_kuma_waits_for_the_agent_is_kept(data_fixture, moc
     agent.refresh_from_db()
     assert (agent.name, agent.instructions) == ("Renamed", "New")
     assert agent.web_fetch_enabled is False
+
+
+@pytest.mark.django_db
+def test_kuma_reads_the_type_of_actions_that_share_a_service_type(data_fixture):
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    agent = data_fixture.create_agent_application(user=user, workspace=workspace)
+    for action_type in ("local_baserow_create_row", "local_baserow_update_row"):
+        data_fixture.create_agent_action(agent=agent, action_type=action_type)
+
+    actions = get_agent(_ctx(user, workspace), agent.id, thought="t")["actions"]
+
+    assert [action["type"] for action in actions] == [
+        "local_baserow_create_row",
+        "local_baserow_update_row",
+    ]
