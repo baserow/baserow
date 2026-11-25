@@ -91,6 +91,7 @@ const props = defineProps({
 const emit = defineEmits(['reload'])
 const store = useStore()
 const agent = inject('agentApplication')
+const templatePreview = inject('agentTemplatePreview', false)
 const picker = ref(null)
 const workspace = computed(() =>
   agent.value ? store.getters['workspace/get'](agent.value.workspace.id) : null
@@ -117,7 +118,8 @@ const {
 } = useAgentActions(
   agent,
   () => emit('reload'),
-  () => props.configuration.run_as
+  () => props.configuration.run_as,
+  { loadTypes: !templatePreview }
 )
 const { expandedIds, allExpanded, toggle, toggleAll, list, creating, addItem } =
   useAgentCardList(actions, createAction, allActions)

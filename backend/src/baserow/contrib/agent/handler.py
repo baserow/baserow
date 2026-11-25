@@ -1,6 +1,7 @@
 import dataclasses
 from collections import defaultdict
 from collections.abc import Iterable
+from datetime import datetime
 from typing import Any
 from uuid import UUID, uuid4
 
@@ -187,6 +188,11 @@ class AgentHandler:
             or agent.web_fetch_enabled
         )
         web_search_tool = self._get_web_search_tool(agent, with_tools)
+        pending = (
+            {"allowed_tools": [], "ask_first_tools": []}
+            if agent.run_as_subject_type and agent.run_as_subject_id
+            else self.get_pending_tool_configuration(agent)
+        )
         return AgentConfiguration(
             readiness=readiness,
             instructions=agent.instructions,
@@ -198,11 +204,8 @@ class AgentHandler:
             ),
             run_as=run_as,
             **tools,
-            pending_tools=(
-                []
-                if agent.run_as_subject_type and agent.run_as_subject_id
-                else self.get_pending_tool_configuration(agent)["allowed_tools"]
-            ),
+            pending_tools=pending["allowed_tools"],
+            pending_ask_first_tools=pending["ask_first_tools"],
             deactivated_tools=deactivated,
             web_search_enabled=agent.web_search_enabled,
             web_search_available=web_search_tool is not None,
@@ -710,7 +713,7 @@ class AgentHandler:
         """
 
         conversations = (
-            AgentConversation.objects.filter(self._visible_to(user), agent=agent)
+            AgentConversation.objects.filter(self._visible_to(user, agent), agent=agent)
             .select_related("trigger__service", "owner_user")
             .prefetch_related("participants")
         )
@@ -749,13 +752,17 @@ class AgentHandler:
         return [UpdateApplicationOperationType.type] if conversation.shared else []
 
     @staticmethod
-    def _visible_to(user: AbstractUser) -> Q:
+    def _visible_to(user: AbstractUser, agent: AgentApplication | None = None) -> Q:
         """
         :param user: The user reading conversations.
+        :param agent: The agent read, when it's one. A template shows only its
+            examples, whoever reads it.
         :return: The filter keeping the private conversations the user takes part
             in and the shared ones.
         """
 
+        if agent is not None and agent.workspace.has_template():
+            return Q(shared=True, pinned=True, is_example=True)
         membership = AgentConversation.participants.through.objects.filter(
             agentconversation_id=OuterRef("pk"), user_id=user.id
         )
@@ -780,7 +787,7 @@ class AgentHandler:
         :return: The conversation, with the agent it was found in.
         """
 
-        queryset = AgentConversation.objects.filter(self._visible_to(user))
+        queryset = AgentConversation.objects.filter(self._visible_to(user, agent))
         if for_update:
             queryset = queryset.select_for_update(of=("self",))
         try:
@@ -2261,53 +2268,70 @@ class AgentHandler:
         )
         return reply.conversation
 
-    def export_conversations(self, agent: AgentApplication) -> list[dict]:
+    def export_conversations(
+        self, agent: AgentApplication, as_examples: bool = False
+    ) -> list[dict]:
         """
-        Serialize the agent's conversations and messages for an internal copy. Reply
-        transcripts stay behind: they hold every tool result, and nothing reads them.
+        Serialize the agent's conversations and messages: all of them for an internal
+        copy, or only the examples for any other export. Reply transcripts stay
+        behind: they hold every tool result, and nothing reads them.
 
         :param agent: The agent whose conversations are exported.
+        :param as_examples: Export them as the examples an export or a template
+            carries: only the shared, pinned ones a person started, so that
+            sharing and pinning a conversation is what picks it, without the people
+            who own them or sent their messages, and without the tool steps of the
+            replies, which hold the inputs and results of the calls and the ids of
+            the author's tables.
         :return: The conversations, oldest first, each with its messages in the order
             they were sent.
         """
 
-        conversations = (
-            AgentConversation.objects.filter(agent=agent)
-            .order_by("id")
-            .prefetch_related(
-                "participants",
-                Prefetch(
-                    "messages",
-                    queryset=AgentMessage.objects.order_by("id").prefetch_related(
-                        "approvals"
-                    ),
-                ),
+        conversations = AgentConversation.objects.filter(agent=agent)
+        if as_examples:
+            # Never a private conversation, which whoever exports may not even
+            # see, one a trigger started, nor one that only tested the Agent.
+            conversations = conversations.filter(
+                shared=True, pinned=True, started_by_trigger=False, is_test=False
             )
+        messages = AgentMessage.objects.order_by("id")
+        # Examples leave out the steps, and the approvals are only read to end them.
+        messages = (
+            messages.defer("steps")
+            if as_examples
+            else messages.prefetch_related("approvals")
+        )
+        conversations = conversations.order_by("id").prefetch_related(
+            *([] if as_examples else ["participants"]),
+            Prefetch("messages", queryset=messages),
         )
         return [
             {
                 "title": conversation.title,
                 "pinned": conversation.pinned,
                 "is_test": conversation.is_test,
-                "owner_user_id": conversation.owner_user_id,
+                "owner_user_id": None if as_examples else conversation.owner_user_id,
                 "shared": conversation.shared,
                 "started_by_trigger": conversation.started_by_trigger,
-                "participant_ids": [
-                    user.id for user in conversation.participants.all()
-                ],
+                "is_example": as_examples or conversation.is_example,
+                "participant_ids": []
+                if as_examples
+                else [user.id for user in conversation.participants.all()],
                 "trigger_id": conversation.trigger_id,
                 "created_on": conversation.created_on.isoformat(),
                 "updated_on": conversation.updated_on.isoformat(),
                 "messages": [
                     {
                         "role": message.role,
-                        "sender_id": message.sender_id,
+                        "sender_id": None if as_examples else message.sender_id,
                         "unattended": message.unattended,
                         "content": message.content,
                         "status": message.status,
                         "error_code": message.error_code,
                         # Approvals aren't copied, so the copy gets held calls ended.
-                        "steps": self._end_held_steps(
+                        "steps": None
+                        if as_examples
+                        else self._end_held_steps(
                             message,
                             message.steps or [],
                             resumed=message.status != AgentReplyStatus.WAITING,
@@ -2327,6 +2351,7 @@ class AgentHandler:
         agent: AgentApplication,
         serialized_conversations: list[dict],
         id_mapping: dict,
+        as_examples: bool = False,
     ) -> None:
         """
         Copy conversations with their messages into the agent with new uuids.
@@ -2340,43 +2365,97 @@ class AgentHandler:
         :param serialized_conversations: The conversations from export_conversations.
         :param id_mapping: The export-to-import id map, with the ``agent_triggers``
             the agent's triggers were imported under.
+        :param as_examples: Import them as examples: only those the export picks
+            as such, never attributed to a user of this instance and without tool
+            steps, whatever the file says. The users, steps and timestamps can be
+            left out of the file.
         """
 
-        referenced_user_ids = {
-            user_id
-            for data in serialized_conversations
-            for user_id in (
-                data["owner_user_id"],
-                *data["participant_ids"],
-                *(message["sender_id"] for message in data["messages"]),
-            )
-            if user_id is not None
-        }
-        existing_user_ids = set(
-            get_user_model()
-            .objects.filter(id__in=referenced_user_ids)
-            .values_list("id", flat=True)
-        )
+        def participant_ids(data: dict) -> list[int]:
+            # The examples of a template take part in nothing here.
+            return [] if as_examples else data["participant_ids"]
 
-        def existing(user_id: int | None) -> int | None:
+        existing_user_ids = set()
+        if not as_examples:
+            referenced_user_ids = {
+                user_id
+                for data in serialized_conversations
+                for user_id in (
+                    data["owner_user_id"],
+                    *participant_ids(data),
+                    *(message["sender_id"] for message in data["messages"]),
+                )
+                if user_id is not None
+            }
+            existing_user_ids = set(
+                get_user_model()
+                .objects.filter(id__in=referenced_user_ids)
+                .values_list("id", flat=True)
+            )
+
+        def existing(data: dict, key: str) -> int | None:
+            if as_examples:
+                return None
+            user_id = data[key]
             return user_id if user_id in existing_user_ids else None
 
-        retained_data = [
-            data
-            for data in serialized_conversations
-            if data["shared"] or existing_user_ids.intersection(data["participant_ids"])
-        ]
+        def parsed_time(value) -> datetime | None:
+            try:
+                return parse_datetime(value) if isinstance(value, str) else None
+            except ValueError:
+                return None
+
+        def restore_timestamps(instance, data: dict) -> None:
+            # An example without them keeps the time it was imported.
+            for key in ("created_on", "updated_on"):
+                if not as_examples:
+                    setattr(instance, key, parse_datetime(data[key]))
+                elif value := parsed_time(data.get(key)):
+                    setattr(instance, key, value)
+
+        def is_well_formed_message(message) -> bool:
+            return (
+                isinstance(message, dict)
+                and message.get("role") in AgentMessage.Role.values
+                and isinstance(message.get("content"), str)
+                and message.get("status") in (None, *AgentReplyStatus.values)
+                and isinstance(message.get("error_code") or "", str)
+            )
+
+        def is_example(data: dict) -> bool:
+            # The same rule as the export, also for a file written by hand, which
+            # skips an example it can't read instead of failing the whole import.
+            return (
+                isinstance(data, dict)
+                and data.get("shared", False) is True
+                and data.get("pinned", False) is True
+                and not data.get("started_by_trigger", False)
+                and not data.get("is_test", False)
+                and isinstance(data.get("title"), str)
+                and isinstance(data.get("messages"), list)
+                and all(is_well_formed_message(m) for m in data["messages"])
+            )
+
+        def is_retained(data: dict) -> bool:
+            if as_examples:
+                return is_example(data)
+            return data["shared"] or bool(
+                existing_user_ids.intersection(participant_ids(data))
+            )
+
+        retained_data = [data for data in serialized_conversations if is_retained(data)]
         trigger_ids = id_mapping.get("agent_triggers", {})
         conversations = [
             AgentConversation(
                 agent=agent,
                 uuid=uuid4(),
-                title=data["title"],
+                title=data["title"][:250],
                 pinned=data.get("pinned", False),
                 is_test=data.get("is_test", False),
-                owner_user_id=existing(data["owner_user_id"]),
+                owner_user_id=existing(data, "owner_user_id"),
                 shared=data["shared"],
-                started_by_trigger=data["started_by_trigger"],
+                started_by_trigger=data.get("started_by_trigger", False),
+                is_example=as_examples or data.get("is_example", False),
                 trigger_id=trigger_ids.get(data.get("trigger_id")),
             )
             for data in retained_data
@@ -2390,16 +2469,15 @@ class AgentHandler:
             [
                 Participant(agentconversation_id=conversation.id, user_id=user_id)
                 for conversation, data in zip(conversations, retained_data)
-                for user_id in existing_user_ids.intersection(data["participant_ids"])
+                for user_id in existing_user_ids.intersection(participant_ids(data))
             ],
             batch_size=1000,
         )
         for conversation, data in zip(conversations, retained_data):
-            conversation.created_on = parse_datetime(data["created_on"])
-            conversation.updated_on = parse_datetime(data["updated_on"])
+            restore_timestamps(conversation, data)
             for serialized_message in data["messages"]:
-                status = serialized_message["status"]
-                error_code = serialized_message["error_code"]
+                status = serialized_message.get("status")
+                error_code = serialized_message.get("error_code") or ""
                 # Approvals are not copied, so a waiting reply could never resume.
                 if (
                     status in ACTIVE_CHAT_RUN_STATUSES
@@ -2412,12 +2490,14 @@ class AgentHandler:
                         conversation=conversation,
                         uuid=uuid4(),
                         role=serialized_message["role"],
-                        sender_id=existing(serialized_message["sender_id"]),
-                        unattended=serialized_message["unattended"],
+                        sender_id=existing(serialized_message, "sender_id"),
+                        unattended=serialized_message.get("unattended", False),
                         content=serialized_message["content"],
                         status=status,
                         error_code=error_code,
-                        steps=stop_running_steps(serialized_message.get("steps") or [])
+                        steps=None
+                        if as_examples
+                        else stop_running_steps(serialized_message.get("steps") or [])
                         or None,
                     )
                 )
@@ -2429,8 +2509,7 @@ class AgentHandler:
         )
         AgentMessage.objects.bulk_create(messages, batch_size=1000)
         for message, data in zip(messages, message_data):
-            message.created_on = parse_datetime(data["created_on"])
-            message.updated_on = parse_datetime(data["updated_on"])
+            restore_timestamps(message, data)
         AgentMessage.objects.bulk_update(
             messages, ["created_on", "updated_on"], batch_size=1000
         )

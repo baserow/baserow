@@ -23,6 +23,11 @@ ERROR_AGENT_BUSY = (
     429,
     "Too many Agent replies are in progress. Try again shortly.",
 )
+ERROR_AGENT_CONVERSATION_IS_EXAMPLE = (
+    "ERROR_AGENT_CONVERSATION_IS_EXAMPLE",
+    409,
+    "This conversation is an example. Start a new conversation to chat with the agent.",
+)
 ERROR_AGENT_CONVERSATION_WAITING_FOR_APPROVAL = (
     "ERROR_AGENT_CONVERSATION_WAITING_FOR_APPROVAL",
     409,

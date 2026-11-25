@@ -47,7 +47,10 @@
       class="chat-message__bubble chat-message__bubble--peer"
     >
       <div class="chat-message__sender">
-        {{ message.sender?.name || $t('agent.deletedSender') }}
+        {{
+          message.sender?.name ||
+          $t(example ? 'agent.exampleSender' : 'agent.deletedSender')
+        }}
       </div>
       <div class="chat-message__text">{{ message.content }}</div>
     </div>
@@ -124,6 +127,8 @@ const props = defineProps({
   triggerType: { type: String, default: null },
   /** The current name of the trigger that started the conversation. */
   triggerName: { type: String, default: null },
+  /** Whether the message is part of an example, sent by nobody of this instance. */
+  example: { type: Boolean, default: false },
 })
 defineEmits(['decide'])
 

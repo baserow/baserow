@@ -1986,12 +1986,12 @@ describe('Agent configuration', () => {
     const inputs = [...modalInputs('allow'), ...modalInputs('ask-first')]
     expect(inputs).toHaveLength(6)
     expect(inputs.every((input) => input.disabled)).toBe(true)
-    const done = inModal(
-      '.agent-tool-permissions__actions button',
-      'agent.toolsDone'
-    )
-    expect(done.disabled).toBe(true)
-    done.click()
+    // Only a way to close it is left.
+    expect(
+      [
+        ...document.querySelectorAll('.agent-tool-permissions__actions button'),
+      ].map((button) => button.textContent.trim())
+    ).toEqual(['agent.toolsClose'])
     expect(savedValues(testApp)).toEqual([])
   })
 

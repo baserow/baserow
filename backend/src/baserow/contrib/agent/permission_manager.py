@@ -3,6 +3,7 @@ from typing import Optional
 from baserow.contrib.agent.operations import (
     ContinueAgentTriggeredConversationOperationType,
     ReadAgentConfigurationOperationType,
+    ReadAgentConversationsOperationType,
 )
 from baserow.core.exceptions import PermissionDenied
 from baserow.core.models import Workspace
@@ -17,11 +18,13 @@ from baserow.core.types import Actor, PermissionCheck
 class AllowIfTemplatePermissionManagerType(CoreAllowIfTemplatePermissionManagerType):
     """
     Lets a template preview show an Agent's configuration, its triggers and its
-    actions. Its conversations stay private to the template's workspace.
+    actions, and its conversations. A template only gets conversations as the
+    examples its content came with: shared, pinned and belonging to nobody.
     """
 
     AGENT_OPERATION_ALLOWED_ON_TEMPLATES = [
         ReadAgentConfigurationOperationType.type,
+        ReadAgentConversationsOperationType.type,
     ]
 
     @property

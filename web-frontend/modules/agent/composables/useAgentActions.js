@@ -32,11 +32,15 @@ const isCallable = (action) =>
  *   depends on whether it has one.
  * @param {Function} getRunAs Returns the Agent's run identity, whose change
  *   changes what an action that acts as it can choose and whether it's ready.
+ * @param {object} options
+ * @param {boolean} options.loadTypes False to show the forms without choices,
+ *   for a template preview, which has no run identity to load them for.
  */
 export function useAgentActions(
   agent,
   onCallableChange = () => {},
-  getRunAs = () => null
+  getRunAs = () => null,
+  { loadTypes = true } = {}
 ) {
   const { $client, $registry } = useNuxtApp()
   const { t } = useI18n()
@@ -166,6 +170,10 @@ export function useAgentActions(
    */
   async function fetchActionTypes() {
     if (!agent.value?.id) return
+    if (!loadTypes) {
+      actionTypes.value = {}
+      return
+    }
     const currentScope = scope
     const currentRequest = ++typesRequest
     try {

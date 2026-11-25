@@ -194,6 +194,12 @@ class AgentConversation(
     )
     shared = models.BooleanField(default=False, db_default=False)
     started_by_trigger = models.BooleanField(default=False, db_default=False)
+    is_example = models.BooleanField(
+        default=False,
+        db_default=False,
+        help_text="Whether the conversation came with an import or a template as an "
+        "example. It belongs to nobody of this instance.",
+    )
     # Who sees a private conversation: its owner and whom they asked to approve.
     participants = models.ManyToManyField(
         settings.AUTH_USER_MODEL, related_name="participating_agent_conversations"

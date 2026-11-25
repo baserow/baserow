@@ -56,7 +56,10 @@ class AgentApplicationType(ApplicationType):
 
     @staticmethod
     def _includes_conversations(import_export_config: ImportExportConfig) -> bool:
-        """Conversations can quote private data: only full-data duplicates copy them."""
+        """
+        Conversations can quote private data: only full-data duplicates copy all of
+        them. Other copies carry the examples, see `_includes_examples`.
+        """
 
         return (
             import_export_config.is_duplicate
@@ -65,6 +68,17 @@ class AgentApplicationType(ApplicationType):
             and not import_export_config.only_structure
             and not import_export_config.exclude_sensitive_data
         )
+
+    @staticmethod
+    def _includes_examples(import_export_config: ImportExportConfig) -> bool:
+        """
+        Every other export and import carries the example conversations: the
+        shared, pinned ones a person started. That is how a template, an export
+        or a user template comes with examples. Only a structure-only copy leaves
+        them out.
+        """
+
+        return not import_export_config.only_structure
 
     @staticmethod
     def _imported_run_as(
@@ -344,7 +358,8 @@ class AgentApplicationType(ApplicationType):
         storage: Storage | None = None,
         progress_builder: ChildProgressBuilder | None = None,
     ) -> dict:
-        """Package the configuration, adding conversations only to internal copies."""
+        """Package the configuration, with every conversation for an internal copy
+        and only the examples for any other export."""
 
         if import_export_config.exported_by is not None:
             CoreHandler().check_permissions(
@@ -401,6 +416,10 @@ class AgentApplicationType(ApplicationType):
         if self._includes_conversations(import_export_config):
             serialized["conversations"] = AgentHandler().export_conversations(
                 application
+            )
+        elif self._includes_examples(import_export_config):
+            serialized["conversations"] = AgentHandler().export_conversations(
+                application, as_examples=True
             )
         return serialized
 
@@ -535,6 +554,13 @@ class AgentApplicationType(ApplicationType):
         if self._includes_conversations(import_export_config):
             AgentHandler().import_conversations(
                 application, serialized_values.get("conversations", []), id_mapping
+            )
+        elif self._includes_examples(import_export_config):
+            AgentHandler().import_conversations(
+                application,
+                serialized_values.get("conversations", []),
+                id_mapping,
+                as_examples=True,
             )
         if identity is not None and not application.run_as_subject_id:
             self._act_as_imported_identity(application, identity, import_export_config)

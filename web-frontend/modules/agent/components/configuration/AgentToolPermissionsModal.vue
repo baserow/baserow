@@ -99,12 +99,12 @@
       </div>
       <div class="agent-tool-permissions__actions">
         <Button type="secondary" button-type="button" @click="modal.hide()">
-          {{ $t('action.cancel') }}
+          {{ $t(editable ? 'action.cancel' : 'agent.toolsClose') }}
         </Button>
         <Button
+          v-if="editable"
           type="primary"
           button-type="button"
-          :disabled="!editable"
           @click="done"
         >
           {{ $t('agent.toolsDone') }}

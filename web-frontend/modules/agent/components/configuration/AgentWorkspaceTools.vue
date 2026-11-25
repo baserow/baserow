@@ -69,8 +69,10 @@
         :key="group.type"
         type="button"
         class="agent-workspace-tools__group"
-        :class="{ 'agent-workspace-tools__group--disabled': !editable }"
-        :disabled="!editable"
+        :class="{
+          'agent-workspace-tools__group--disabled': !editable && !viewable,
+        }"
+        :disabled="!editable && !viewable"
         aria-haspopup="dialog"
         @click="permissions.show()"
       >
@@ -132,6 +134,8 @@ const props = defineProps({
   availableTools: { type: Array, required: true },
   agentName: { type: String, required: true },
   editable: Boolean,
+  /** Whether the tools can be looked at, read-only, when they can't be edited. */
+  viewable: Boolean,
   disabledReason: { type: String, default: '' },
 })
 const emit = defineEmits(['update'])

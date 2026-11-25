@@ -26,6 +26,7 @@ from .api.serializers import AgentConversationUserSerializer
 from .constants import AgentReadinessState
 from .exceptions import (
     AgentConversationDoesNotExist,
+    AgentConversationIsExample,
     AgentConversationWaitingForApproval,
     AgentNotReady,
     AgentToolApprovalNotPending,
@@ -959,6 +960,9 @@ class AgentService:
         :raises AgentMessageConflict: When the uuid was accepted with other content.
         :raises AgentConversationWaitingForApproval: When the latest reply waits for
             the user to decide its held calls.
+        :raises AgentConversationIsExample: When the conversation is an example,
+            which stays as it came so that it can't carry this workspace's data out
+            through the next export.
         :raises AgentNotReady: When the agent isn't ready for a new message.
         :raises ChatRunAlreadyActive: When the agent is still replying in this
             conversation.
@@ -981,6 +985,8 @@ class AgentService:
         CoreHandler().check_permissions(
             user, operation.type, workspace=agent.workspace, context=agent
         )
+        if conversation.is_example:
+            raise AgentConversationIsExample
         validate_message_content(content)
         retry = self.handler.get_message_retry(conversation, uuid, content, user)
         if retry is not None:
