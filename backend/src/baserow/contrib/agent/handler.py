@@ -1788,7 +1788,8 @@ class AgentHandler:
                 bool(tools["allowed_tools"])
                 or bool(mcp_servers)
                 or bool(action_tools)
-                or web_fetch_enabled,
+                or web_fetch_enabled
+                or may_ask_person,
             )
             if agent.web_search_enabled
             and (transcript is None or transcript.paused_web_search)
