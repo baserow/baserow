@@ -1,5 +1,5 @@
 import json
-from unittest.mock import ANY, patch
+from unittest.mock import ANY, MagicMock, patch
 from zipfile import ZipFile
 
 from django.core.management import call_command
@@ -27,6 +27,7 @@ from baserow.core.identities.exceptions import IdentityCannotBeScoped
 from baserow.core.identities.handler import IdentityHandler
 from baserow.core.identities.import_export import IdentityExport, imported_identity
 from baserow.core.identities.service import IdentityService
+from baserow.core.identities.signals import identity_deleted
 from baserow.core.import_export.handler import MANIFEST_NAME, ImportExportHandler
 from baserow.core.job_types import InstallTemplateJobType
 from baserow.core.jobs.constants import JOB_FINISHED
@@ -1990,17 +1991,34 @@ def test_a_failed_file_import_leaves_no_identity_behind(
         users=[admin], custom_permissions=[(importer, importer_role)]
     )
 
+    deleted_receiver = MagicMock()
+    identity_deleted.connect(deleted_receiver, weak=False)
+
     # A file import has no transaction that would roll the identity back.
-    with (
-        patch.object(
-            AgentApplicationType, "import_serialized", side_effect=ValueError("boom")
-        ),
-        pytest.raises(ValueError),
-    ):
-        import_zip(importer, target, export_path)
+    try:
+        with (
+            patch.object(
+                AgentApplicationType,
+                "import_serialized",
+                side_effect=ValueError("boom"),
+            ),
+            patch.object(EnterpriseIdentityExtensionType, "before_delete") as before,
+            pytest.raises(ValueError),
+        ):
+            import_zip(importer, target, export_path)
+    finally:
+        identity_deleted.disconnect(deleted_receiver)
 
     # Trashed, like the applications of a failed import.
     assert not IdentityHandler().get_queryset(target).exists()
+    trashed = User.objects_and_identities.get(
+        first_name="Author", workspaceuser__workspace=target
+    )
+    # The extensions clean up after it, as for any deleted identity.
+    before.assert_called_once_with(trashed, importer)
+    deleted_receiver.assert_called_once_with(
+        signal=identity_deleted, sender=ANY, user=importer, identity=trashed
+    )
     assert User.objects_and_identities.filter(
         profile__trashed=True, first_name="Author", workspaceuser__workspace=target
     ).exists()

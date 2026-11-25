@@ -963,8 +963,8 @@ class ImportExportHandler:
             applications.
         :param import_tmp_path: The temporary path where the import files are stored.
         :param import_export_config: Configuration options for the import/export
-            process. The identities of the file are created for its
-            `imported_by`, not for `user`.
+            process. Its `imported_by` is set to `user`, who the identities
+            of the file are created for.
         :param zip_file: The ZipFile instance containing the applications to be
             imported.
         :param storage: The storage instance to use for file operations.
@@ -976,6 +976,9 @@ class ImportExportHandler:
         :return: A list of imported Application instances.
         """
 
+        import_export_config = dataclasses.replace(
+            import_export_config, imported_by=user
+        )
         imported_applications = []
         id_mapping: Dict[str, Any] = {}
         identity_import = IdentityImport(
@@ -1293,7 +1296,6 @@ class ImportExportHandler:
                     include_permission_data=False,
                     reduce_disk_space_usage=False,
                     only_structure=only_structure,
-                    imported_by=user,
                 )
 
                 imported_applications = self.import_multiple_applications(
