@@ -1143,6 +1143,7 @@
 }
 
 .agent-mcp-server-card__body {
+  container: mcp-server-card / inline-size;
   display: flex;
   flex-direction: column;
   gap: 12px;
@@ -1155,6 +1156,19 @@
 .agent-mcp-server-card__auth-group {
   padding-top: 12px;
   border-top: 1px solid $palette-neutral-200;
+}
+
+// In a narrow panel the segments move under the label instead of clipping.
+@container mcp-server-card (max-width: 360px) {
+  .agent-mcp-server-card__body
+    .agent-mcp-server-card__auth-group.control--horizontal {
+    flex-direction: column;
+    align-items: stretch;
+
+    > * {
+      flex-basis: auto;
+    }
+  }
 }
 
 .agent-mcp-server-card__account {
@@ -1171,23 +1185,20 @@
 }
 
 .agent-mcp-server-card__tools {
-  display: flex;
-  align-items: center;
-  gap: 12px;
   padding-top: 12px;
   border-top: 1px solid $palette-neutral-200;
 }
 
-.agent-mcp-server-card__tools-label {
-  flex: 0 0 30%;
-  font-size: 13px;
-  font-weight: 500;
-  color: $palette-neutral-1200;
+.agent-mcp-server-card__tools-summary {
+  @extend %ellipsis;
+
+  min-width: 0;
 }
 
 .agent-mcp-server-card__tools-button {
   display: flex;
-  flex: 1;
+  width: 100%;
+  gap: 8px;
   align-items: center;
   justify-content: space-between;
   min-width: 0;
@@ -1351,8 +1362,11 @@
 }
 
 .agent-connected-apps__auth {
+  width: 100%;
+
   .segment-control__button {
     flex: 1;
+    white-space: nowrap;
   }
 }
 

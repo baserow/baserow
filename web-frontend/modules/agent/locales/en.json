@@ -313,7 +313,7 @@
     "toolMCPDone": "Used {tool} in {server}",
     "toolMCPNamed": "{tool} in {server}",
     "connectedAppAuth": "Authentication",
-    "connectedAppAuthOAuth": "Sign in (OAuth)",
+    "connectedAppAuthOAuth": "Sign in",
     "connectedAppAuthHeader": "API key",
     "connectedAppAuthNone": "None",
     "connectedAppOAuthHelper": "Sign in with the app's account. Everyone who chats with this agent uses that account.",

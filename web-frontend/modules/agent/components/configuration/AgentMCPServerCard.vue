@@ -211,19 +211,24 @@
         {{ $t('agent.connectedAppNoAuthHelper') }}
       </p>
 
-      <div v-if="server && !needsAccount" class="agent-mcp-server-card__tools">
-        <span class="agent-mcp-server-card__tools-label">{{
-          $t('agent.connectedAppTools')
-        }}</span>
+      <FormGroup
+        v-if="server && !needsAccount"
+        class="agent-mcp-server-card__tools"
+        :label="$t('agent.connectedAppTools')"
+        small-label
+        horizontal
+      >
         <button
           type="button"
           class="agent-mcp-server-card__tools-button"
           @click="$emit('open-tools', server)"
         >
-          <span>{{ toolsSummary }}</span>
+          <span class="agent-mcp-server-card__tools-summary">{{
+            toolsSummary
+          }}</span>
           <Icon icon="iconoir-nav-arrow-right" aria-hidden="true" />
         </button>
-      </div>
+      </FormGroup>
 
       <Alert v-if="error" class="margin-top-2" type="error">
         <template #title>{{ error.title }}</template>
