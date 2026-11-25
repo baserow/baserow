@@ -10,6 +10,7 @@ from pydantic_ai.messages import ToolReturnPart
 from pydantic_ai.models.function import DeltaToolCall, FunctionModel
 
 from baserow.contrib.agent.actions import CreateAgentConversationActionType
+from baserow.contrib.agent.handler import AgentHandler
 from baserow.contrib.agent.models import AgentMessage
 from baserow.contrib.integrations.mcp.handler import MCPServerHandler, MCPToolSettings
 from baserow.core.action.registries import action_type_registry
@@ -251,3 +252,27 @@ def test_a_server_error_is_answered_to_the_model(
 
     # The server answered: the model can fix its arguments or explain the key.
     assert expected in returned[0]["error"]
+
+
+@pytest.mark.django_db
+def test_a_switched_off_app_offers_no_tools_and_is_not_contacted(
+    data_fixture, configured_agent, mocker
+):
+    serve(mocker, make_server())
+    _, agent, integration = agent_with_server(data_fixture, configured_agent, ["add"])
+    handler = AgentHandler()
+    assert handler.has_mcp_tools(agent) is True
+
+    integration.enabled = False
+    integration.save()
+    get_connection = mocker.spy(MCPServerHandler, "get_connection")
+
+    assert handler.get_mcp_servers(agent) == ()
+    assert handler.has_mcp_tools(agent) is False
+    get_connection.assert_not_called()
+
+    integration.enabled = True
+    integration.save()
+    assert [server.integration_id for server in handler.get_mcp_servers(agent)] == [
+        integration.id
+    ]

@@ -36,6 +36,12 @@ class MCPServerIntegration(Integration):
         max_length=2000,
         help_text="The Streamable HTTP endpoint of the MCP server.",
     )
+    enabled = models.BooleanField(
+        default=True,
+        db_default=True,
+        help_text="Whether the Agent may use the server's tools. Switching it off "
+        "keeps the tool choices and the connected account.",
+    )
     auth_header_name = models.CharField(
         max_length=255,
         blank=True,
