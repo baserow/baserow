@@ -4,7 +4,12 @@ from django.contrib.auth import hashers
 from django.db import models
 
 from baserow.contrib.agent.models import AgentChannel
-from baserow_enterprise.agent.constants import PUBLIC_CHAT_TITLE_MAX_LENGTH
+from baserow_enterprise.agent.constants import (
+    PUBLIC_CHAT_DEFAULT_FONT,
+    PUBLIC_CHAT_FONT_MAX_LENGTH,
+    PUBLIC_CHAT_TITLE_MAX_LENGTH,
+    PublicChatBackground,
+)
 
 
 class PublicChatAgentChannel(AgentChannel):
@@ -18,6 +23,25 @@ class PublicChatAgentChannel(AgentChannel):
         max_length=PUBLIC_CHAT_TITLE_MAX_LENGTH, blank=True, default="", db_default=""
     )
     welcome_text = models.TextField(blank=True, default="", db_default="")
+    # A `#rrggbb` colour; blank uses Baserow's blue.
+    accent_color = models.CharField(max_length=7, blank=True, default="", db_default="")
+    # A font type of the frontend; the page falls back to Inter for an unknown one.
+    font = models.CharField(
+        max_length=PUBLIC_CHAT_FONT_MAX_LENGTH,
+        default=PUBLIC_CHAT_DEFAULT_FONT,
+        db_default=PUBLIC_CHAT_DEFAULT_FONT,
+    )
+    background = models.CharField(
+        max_length=16,
+        choices=PublicChatBackground.choices,
+        default=PublicChatBackground.PLAIN,
+        db_default=PublicChatBackground.PLAIN,
+    )
+    # A `#rrggbb` colour for a plain background; blank keeps the page's own.
+    background_color = models.CharField(
+        max_length=7, blank=True, default="", db_default=""
+    )
+    show_powered_by = models.BooleanField(default=True, db_default=True)
 
     @property
     def has_password(self) -> bool:

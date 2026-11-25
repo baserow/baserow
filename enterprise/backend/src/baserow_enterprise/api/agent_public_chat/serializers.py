@@ -6,6 +6,7 @@ from baserow.contrib.agent.models import AgentMessage
 from baserow_enterprise.agent.constants import (
     PUBLIC_CHAT_PASSWORD_MAX_LENGTH,
     PUBLIC_CHAT_START_KEY_PATTERN,
+    PublicChatBackground,
 )
 
 
@@ -27,6 +28,22 @@ class PublicChatInfoSerializer(serializers.Serializer):
     has_access = serializers.BooleanField(
         help_text="Whether the request may talk in the chat: always without a "
         "password, otherwise only with a token of the current password."
+    )
+    accent_color = serializers.CharField(
+        help_text="The colour of buttons, links and the visitor's messages, as "
+        "`#rrggbb`; blank for the default."
+    )
+    font = serializers.CharField(help_text="A font of the application builder.")
+    background = serializers.ChoiceField(
+        choices=PublicChatBackground.choices,
+        help_text="How the page background is drawn.",
+    )
+    background_color = serializers.CharField(
+        help_text="The colour of a plain background, as `#rrggbb`; blank for the "
+        "default."
+    )
+    show_powered_by = serializers.BooleanField(
+        help_text="Whether the page says it's powered by Baserow."
     )
 
 

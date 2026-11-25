@@ -118,8 +118,30 @@ def chat(create_chat) -> PublicChatAgentChannel:
 def test_info_names_the_chat_and_hides_a_protected_one_without_a_token(
     api_client, chat, create_chat
 ):
-    protected = create_chat(password="secret", title="Support", welcome_text="Hello")
+    protected = create_chat(
+        password="secret",
+        title="Support",
+        welcome_text="Hello",
+        accent_color="#ff6600",
+        font="georgia",
+        background="gradient",
+        show_powered_by=False,
+    )
     AgentApplication.objects.update(suggested_messages=["What can you do?"])
+    default_appearance = {
+        "accent_color": "",
+        "font": "inter",
+        "background": "plain",
+        "background_color": "",
+        "show_powered_by": True,
+    }
+    appearance = {
+        **default_appearance,
+        "accent_color": "#ff6600",
+        "font": "georgia",
+        "background": "gradient",
+        "show_powered_by": False,
+    }
 
     assert api_client.get(url(chat.slug, "info")).json() == {
         "title": chat.agent.name,
@@ -127,6 +149,7 @@ def test_info_names_the_chat_and_hides_a_protected_one_without_a_token(
         "suggested_messages": ["What can you do?"],
         "password_protected": False,
         "has_access": True,
+        **default_appearance,
     }
     assert api_client.get(url(protected.slug, "info")).json() == {
         "title": "",
@@ -134,6 +157,7 @@ def test_info_names_the_chat_and_hides_a_protected_one_without_a_token(
         "suggested_messages": [],
         "password_protected": True,
         "has_access": False,
+        **appearance,
     }
     assert api_client.get(
         url(protected.slug, "info"), **bearer(encode_access_token(protected))
@@ -143,6 +167,7 @@ def test_info_names_the_chat_and_hides_a_protected_one_without_a_token(
         "suggested_messages": ["What can you do?"],
         "password_protected": True,
         "has_access": True,
+        **appearance,
     }
 
 

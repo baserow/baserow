@@ -1,18 +1,79 @@
 $public-agent-chat-width: 720px;
 $public-agent-chat-gutter: 16px;
+$public-agent-chat-password-width: 400px;
 
 .public-agent-chat {
+  --chat-accent: #{$palette-blue-500};
+  --chat-on-accent: #{$palette-neutral-0};
+  --chat-accent-hover: color-mix(
+    in srgb,
+    var(--chat-accent) 85%,
+    #{$palette-neutral-1300}
+  );
+  --chat-accent-soft: color-mix(
+    in srgb,
+    var(--chat-accent) 12%,
+    #{$palette-neutral-0}
+  );
+
   display: flex;
   flex-direction: column;
   height: 100dvh;
   background: $palette-neutral-0;
 }
 
+.public-agent-chat--plain {
+  background: var(--public-agent-chat-background-color);
+}
+
+.public-agent-chat--gradient {
+  background: linear-gradient(
+    160deg,
+    color-mix(in srgb, var(--chat-accent) 35%, #{$palette-neutral-0}),
+    $palette-neutral-0 75%
+  );
+}
+
+.public-agent-chat--card {
+  padding: 24px;
+}
+
+.public-agent-chat__column {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  width: 100%;
+  min-height: 0;
+}
+
+.public-agent-chat__column--password {
+  flex: none;
+  max-width: $public-agent-chat-password-width + 2 * $public-agent-chat-gutter;
+  margin: auto;
+}
+
+.public-agent-chat--card .public-agent-chat__column {
+  max-width: $public-agent-chat-width + 2 * $public-agent-chat-gutter;
+  margin: 0 auto;
+  overflow: hidden;
+  background: $palette-neutral-0;
+
+  @include rounded($rounded-2xl);
+  @include elevation($elevation-high);
+}
+
+.public-agent-chat--card .public-agent-chat__column--password {
+  max-width: $public-agent-chat-password-width + 2 * $public-agent-chat-gutter;
+  margin: auto;
+  padding-top: 32px;
+}
+
 .public-agent-chat__header,
 .public-agent-chat__composer,
 .public-agent-chat__unavailable,
 .public-agent-chat__restore-failed,
-.public-agent-chat__password {
+.public-agent-chat__password,
+.public-agent-chat__powered-by {
   width: 100%;
   max-width: $public-agent-chat-width + 2 * $public-agent-chat-gutter;
   margin: 0 auto;
@@ -59,6 +120,10 @@ $public-agent-chat-gutter: 16px;
   font-size: 14px;
   line-height: 22px;
   color: $palette-neutral-900;
+
+  a {
+    color: var(--chat-accent);
+  }
 }
 
 .public-agent-chat__composer {
@@ -77,8 +142,7 @@ $public-agent-chat-gutter: 16px;
 }
 
 .public-agent-chat__password {
-  max-width: 400px + 2 * $public-agent-chat-gutter;
-  margin: auto;
+  padding-bottom: 24px;
 }
 
 .public-agent-chat__password-title {
@@ -94,4 +158,43 @@ $public-agent-chat-gutter: 16px;
   font-size: 14px;
   line-height: 22px;
   color: $palette-neutral-900;
+}
+
+.public-agent-chat__enter {
+  @include button-style(
+    var(--chat-accent),
+    var(--chat-accent-hover),
+    var(--chat-accent-hover),
+    var(--chat-on-accent),
+    var(--chat-on-accent)
+  );
+}
+
+.public-agent-chat__powered-by {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding-bottom: 12px;
+  font-size: 12px;
+  line-height: 20px;
+  color: $palette-neutral-700;
+}
+
+.public-agent-chat__powered-by-logo {
+  display: block;
+  max-width: 72px;
+}
+
+@media (max-width: 767px) {
+  .public-agent-chat--card {
+    padding: 0;
+  }
+
+  .public-agent-chat--card .public-agent-chat__column {
+    max-width: none;
+    border-radius: 0;
+    box-shadow: none;
+  }
 }

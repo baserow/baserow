@@ -152,6 +152,112 @@
           }}</template>
         </FormGroup>
       </div>
+      <div class="agent-public-chat-card__section">
+        <FormSection :title="$t('agentChannels.appearance')">
+          <FormGroup
+            horizontal-narrow
+            small-label
+            required
+            class="margin-bottom-2"
+            :label="$t('agentChannels.font')"
+          >
+            <FontFamilySelector
+              class="agent-public-chat-card__font"
+              :model-value="channel.font"
+              :disabled="!canEdit"
+              @update:model-value="saveDraft('font', $event)"
+            />
+          </FormGroup>
+          <FormGroup
+            horizontal-narrow
+            small-label
+            required
+            class="margin-bottom-2"
+            :label="$t('agentChannels.accentColor')"
+          >
+            <div
+              class="agent-public-chat-card__color flex align-items-center"
+              :inert="!canEdit || null"
+            >
+              <ColorInput
+                :model-value="shownColor('accent_color')"
+                :allow-opacity="false"
+                small
+                @update:model-value="pickColor('accent_color', $event)"
+              />
+              <ButtonText
+                v-if="canEdit && channel.accent_color"
+                size="small"
+                button-type="button"
+                @click="resetColor('accent_color')"
+              >
+                {{ $t('agentChannels.resetColor') }}
+              </ButtonText>
+            </div>
+          </FormGroup>
+          <FormGroup
+            horizontal-narrow
+            small-label
+            required
+            class="margin-bottom-2"
+            :label="$t('agentChannels.background')"
+          >
+            <SegmentControl
+              class="agent-public-chat-card__background"
+              size="small"
+              :segments="backgroundSegments"
+              :active-index="BACKGROUNDS.indexOf(channel.background)"
+              :disabled="!canEdit"
+              @update:active-index="
+                saveDraft('background', BACKGROUNDS[$event])
+              "
+            />
+          </FormGroup>
+          <FormGroup
+            v-if="channel.background === PUBLIC_CHAT_BACKGROUND.PLAIN"
+            horizontal-narrow
+            small-label
+            required
+            class="margin-bottom-2"
+            :label="$t('agentChannels.backgroundColor')"
+          >
+            <div
+              class="agent-public-chat-card__color flex align-items-center"
+              :inert="!canEdit || null"
+            >
+              <ColorInput
+                :model-value="shownColor('background_color')"
+                :allow-opacity="false"
+                small
+                @update:model-value="pickColor('background_color', $event)"
+              />
+              <ButtonText
+                v-if="canEdit && channel.background_color"
+                size="small"
+                button-type="button"
+                @click="resetColor('background_color')"
+              >
+                {{ $t('agentChannels.resetColor') }}
+              </ButtonText>
+            </div>
+          </FormGroup>
+          <SwitchInput
+            class="agent-public-chat-card__powered-by"
+            small
+            role="switch"
+            :tabindex="canEdit ? 0 : -1"
+            :aria-checked="channel.show_powered_by"
+            :aria-disabled="!canEdit"
+            :model-value="channel.show_powered_by"
+            :disabled="!canEdit"
+            @update:model-value="saveDraft('show_powered_by', $event)"
+            @keydown.enter.prevent="togglePoweredBy"
+            @keydown.space.prevent="togglePoweredBy"
+          >
+            <span>{{ $t('agentChannels.showPoweredBy') }}</span>
+          </SwitchInput>
+        </FormSection>
+      </div>
     </div>
     <footer
       v-if="editable"
@@ -173,18 +279,26 @@
 </template>
 
 <script setup>
-import { computed, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { useNuxtApp } from '#app'
 import { useI18n } from 'vue-i18n'
+import debounce from 'lodash/debounce'
 import Icon from '@baserow/modules/core/components/Icon'
 import ButtonText from '@baserow/modules/core/components/ButtonText'
+import ColorInput from '@baserow/modules/core/components/ColorInput'
 import RichTextEditor from '@baserow/modules/core/components/editor/RichTextEditor'
+import FontFamilySelector from '@baserow/modules/builder/components/FontFamilySelector'
 import { copyToClipboard } from '@baserow/modules/core/utils/clipboard'
 import AgentPublicChatPasswordModal from '@baserow_enterprise/components/agent/AgentPublicChatPasswordModal'
 import AgentPublicChatDisablePasswordModal from '@baserow_enterprise/components/agent/AgentPublicChatDisablePasswordModal'
+import { PUBLIC_CHAT_BACKGROUND } from '@baserow_enterprise/composables/useAgentChannels'
 
 const TITLE_MAX_LENGTH = 160
 const WELCOME_TEXT_MAX_LENGTH = 2000
+const BACKGROUNDS = Object.values(PUBLIC_CHAT_BACKGROUND)
+const COLOR_SAVE_DELAY_MS = 400
+// What the public page shows for a blank colour: Baserow's blue and white.
+const DEFAULT_COLORS = { accent_color: '#5190ef', background_color: '#ffffff' }
 
 const props = defineProps({
   /** The public chat as the card shows it, edits included. */
@@ -260,6 +374,41 @@ function saveWelcomeText() {
   welcomeTextChanged = false
   saveDraft('welcome_text', markdown)
 }
+
+const backgroundSegments = computed(() => [
+  { label: t('agentChannels.backgroundPlain') },
+  { label: t('agentChannels.backgroundGradient') },
+])
+const colorDrafts = {
+  accent_color: draftOf('accent_color'),
+  background_color: draftOf('background_color'),
+}
+const colorSaves = Object.fromEntries(
+  Object.keys(colorDrafts).map((field) => [
+    field,
+    debounce((value) => saveDraft(field, value), COLOR_SAVE_DELAY_MS),
+  ])
+)
+
+const shownColor = (field) => colorDrafts[field].value || DEFAULT_COLORS[field]
+
+/** The picker reports every step of a drag; only where it stops is saved. */
+function pickColor(field, value) {
+  colorDrafts[field].value = value.toLowerCase()
+  colorSaves[field](colorDrafts[field].value)
+}
+
+function resetColor(field) {
+  colorSaves[field].cancel()
+  colorDrafts[field].value = ''
+  saveDraft(field, '')
+}
+
+function togglePoweredBy() {
+  saveDraft('show_powered_by', !props.channel.show_powered_by)
+}
+
+onBeforeUnmount(() => Object.values(colorSaves).forEach((save) => save.flush()))
 
 function copyLink() {
   copyToClipboard(publicUrl.value)
