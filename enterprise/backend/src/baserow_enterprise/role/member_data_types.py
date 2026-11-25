@@ -11,7 +11,6 @@ from baserow.core.handler import CoreHandler
 from baserow.core.models import Workspace
 from baserow.core.operations import ListWorkspaceUsersWorkspaceOperationType
 from baserow.core.registries import permission_manager_type_registry, plugin_registry
-from baserow.core.types import PermissionCheck
 from baserow_enterprise.api.role.serializers import (
     RoleField,
     TeamWorkspaceRoleSerializer,
@@ -22,7 +21,6 @@ from baserow_enterprise.role.constants import (
 )
 from baserow_enterprise.role.handler import RoleAssignmentHandler
 from baserow_enterprise.role.models import Role
-from baserow_enterprise.teams.operations import ListTeamSubjectsOperationType
 from baserow_premium.plugins import PremiumPlugin
 
 User = get_user_model()
@@ -235,17 +233,11 @@ class EnterpriseTeamWorkspaceRoleDataType(MemberDataType):
         if not effective_access:
             return serialized_data
 
-        teams = {team for access in effective_access for team in access.teams}
-        checks = {
-            team.id: PermissionCheck(user, ListTeamSubjectsOperationType.type, team)
-            for team in teams
-        }
-        results = CoreHandler().check_multiple_permissions(
-            list(checks.values()), workspace=workspace
+        visible_team_ids = (
+            RoleAssignmentHandler().get_visible_effective_access_team_ids(
+                user, workspace, effective_access
+            )
         )
-        visible_team_ids = {
-            team_id for team_id, check in checks.items() if results[check] is True
-        }
 
         team_workspace_role_per_user_id = {
             access.subject.id: {

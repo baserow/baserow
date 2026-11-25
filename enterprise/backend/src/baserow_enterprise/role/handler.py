@@ -1,5 +1,5 @@
 from collections import defaultdict
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, Dict, List, Optional, Set, Tuple, Union
 
 from django.conf import settings
 from django.contrib.auth.models import AbstractUser
@@ -58,6 +58,7 @@ from baserow_enterprise.signals import (
     role_assignment_updated,
 )
 from baserow_enterprise.teams.models import Team, TeamSubject
+from baserow_enterprise.teams.operations import ListTeamSubjectsOperationType
 from baserow_premium.license.handler import LicenseHandler
 
 from .constants import (
@@ -1553,6 +1554,34 @@ class RoleAssignmentHandler:
             result.append(EffectiveAccess(subject, role, source_scope, teams))
 
         return result
+
+    def get_visible_effective_access_team_ids(
+        self,
+        user: AbstractUser,
+        workspace: Workspace,
+        effective_access: List[EffectiveAccess],
+    ) -> Set[int]:
+        """
+        Which teams a subject belongs to is only shown to those who may list the
+        members of the team. Returns the ids of the teams of the given effective
+        access whose members the user may list.
+
+        :param user: The user the effective access is shown to.
+        :param workspace: The workspace the teams belong to.
+        :param effective_access: The effective access, as `get_effective_access`
+            returns it.
+        :return: The ids of the teams the user may see the members of.
+        """
+
+        teams = {team for access in effective_access for team in access.teams}
+        checks = {
+            team.id: PermissionCheck(user, ListTeamSubjectsOperationType.type, team)
+            for team in teams
+        }
+        results = CoreHandler().check_multiple_permissions(
+            list(checks.values()), workspace=workspace
+        )
+        return {team_id for team_id, check in checks.items() if results[check] is True}
 
     def get_subject_role_assignments(
         self, user: AbstractUser, workspace: Workspace, subjects: List[Subject]
