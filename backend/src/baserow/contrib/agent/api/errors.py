@@ -33,6 +33,11 @@ ERROR_AGENT_CONVERSATION_WAITING_FOR_APPROVAL = (
     409,
     "Approve or reject the agent's held steps before sending a new message.",
 )
+ERROR_AGENT_TOOL_REQUIREMENTS_MISSING = (
+    "ERROR_AGENT_TOOL_REQUIREMENTS_MISSING",
+    400,
+    "Allow the tools the allowed tools require: {e}.",
+)
 ERROR_AGENT_TOOL_APPROVAL_NOT_PENDING = (
     "ERROR_AGENT_TOOL_APPROVAL_NOT_PENDING",
     409,

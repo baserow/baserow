@@ -99,6 +99,10 @@ class AgentToolSerializer(serializers.Serializer):
     name = serializers.CharField()
     group = serializers.CharField()
     changes_data = serializers.BooleanField()
+    requires = serializers.ListField(
+        child=serializers.CharField(),
+        help_text="The tools an Agent must be allowed to be allowed this one.",
+    )
     deactivated = serializers.BooleanField(
         help_text="Whether the Agent's workspace can't use the tool, for lack of a "
         "licence for example. A deactivated tool can't be allowed."

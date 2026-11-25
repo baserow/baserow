@@ -42,6 +42,46 @@ export function groupAgentTools(availableTools, registry, t) {
 }
 
 /**
+ * @param {Array} availableTools Each tool's name and the tools it requires.
+ * @param {Iterable<string>} names The tools to start from.
+ * @returns {Set<string>} The tools these require, directly or through another.
+ */
+export function requiredAgentTools(availableTools, names) {
+  const requires = new Map(
+    availableTools.map((tool) => [tool.name, tool.requires ?? []])
+  )
+  const required = new Set()
+  const pending = [...names]
+  while (pending.length) {
+    for (const name of requires.get(pending.pop()) ?? []) {
+      if (!required.has(name)) {
+        required.add(name)
+        pending.push(name)
+      }
+    }
+  }
+  return required
+}
+
+/**
+ * @param {Array} availableTools Each tool's name and the tools it requires.
+ * @param {Set<string>} names The allowed tools.
+ * @returns {Map<string, Array<string>>} For each tool the allowed ones require,
+ *   the names of the allowed tools that require it, in `availableTools` order.
+ */
+export function agentToolsRequiring(availableTools, names) {
+  const requiring = new Map()
+  for (const tool of availableTools) {
+    if (!names.has(tool.name)) continue
+    for (const required of requiredAgentTools(availableTools, [tool.name])) {
+      if (!requiring.has(required)) requiring.set(required, [])
+      requiring.get(required).push(tool.name)
+    }
+  }
+  return requiring
+}
+
+/**
  * @param {Array} availableTools Each tool's name and whether it is deactivated.
  * @returns {Array} The tools the Agent's workspace can use.
  */

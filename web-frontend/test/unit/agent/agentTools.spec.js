@@ -1,6 +1,8 @@
 import { describe, expect, test } from 'vitest'
 import {
+  agentToolsRequiring,
   nextAskFirst,
+  requiredAgentTools,
   usableAgentTools,
 } from '@baserow/modules/agent/agentTools'
 
@@ -47,5 +49,45 @@ describe('usableAgentTools', () => {
     expect(usableAgentTools([...availableTools, locked])).toEqual(
       availableTools
     )
+  })
+})
+
+const toolsWithRequirements = [
+  { name: 'list_tables', requires: [] },
+  { name: 'get_table_schema', requires: ['list_tables'] },
+  { name: 'list_table_rows', requires: ['list_tables'] },
+  { name: 'create_rows', requires: ['get_table_schema'] },
+  { name: 'update_rows', requires: ['get_table_schema', 'list_table_rows'] },
+]
+
+describe('requiredAgentTools', () => {
+  test('follows the requirements through other tools', () => {
+    expect([
+      ...requiredAgentTools(toolsWithRequirements, ['create_rows']),
+    ]).toEqual(['get_table_schema', 'list_tables'])
+  })
+})
+
+describe('agentToolsRequiring', () => {
+  test('names every allowed tool that requires each tool', () => {
+    const allowed = new Set([
+      'list_tables',
+      'get_table_schema',
+      'list_table_rows',
+      'create_rows',
+      'update_rows',
+    ])
+    expect(
+      Object.fromEntries(agentToolsRequiring(toolsWithRequirements, allowed))
+    ).toEqual({
+      list_tables: [
+        'get_table_schema',
+        'list_table_rows',
+        'create_rows',
+        'update_rows',
+      ],
+      get_table_schema: ['create_rows', 'update_rows'],
+      list_table_rows: ['update_rows'],
+    })
   })
 })

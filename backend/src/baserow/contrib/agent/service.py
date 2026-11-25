@@ -30,6 +30,7 @@ from .exceptions import (
     AgentConversationWaitingForApproval,
     AgentNotReady,
     AgentToolApprovalNotPending,
+    AgentToolRequirementsMissing,
     AgentTriggerOff,
 )
 from .handler import AgentHandler
@@ -181,6 +182,8 @@ class AgentService:
         :raises rest_framework.exceptions.PermissionDenied: When an allowed tool is
             deactivated in the Agent's workspace, unless its type raises its own
             error.
+        :raises AgentToolRequirementsMissing: When the allowed tools leave out a
+            tool one of them requires.
         :return: The Agent, its original and new configuration values, and the
             resolved resulting configuration.
         """
@@ -196,8 +199,11 @@ class AgentService:
         current_run_as = [getattr(agent, field) for field in self.handler.run_as_fields]
         if any(run_as) and run_as != current_run_as:
             IdentityService().check_can_bind(user, agent.workspace)
-        for name in values.get("allowed_tools") or []:
+        allowed_tools = values.get("allowed_tools") or []
+        for name in allowed_tools:
             agent_tool_type_registry.get(name).raise_if_deactivated(agent.workspace)
+        if missing := agent_tool_type_registry.get_missing_requirements(allowed_tools):
+            raise AgentToolRequirementsMissing(missing)
         updated = self.handler.update_configuration(agent, **values)
         if updated.original_values != updated.new_values:
             # Open pages refresh readiness from this public application payload.

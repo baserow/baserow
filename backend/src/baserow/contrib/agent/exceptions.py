@@ -18,6 +18,23 @@ class AgentConversationWaitingForApproval(Exception):
     """The conversation's latest reply waits for decisions on its held calls."""
 
 
+class AgentToolRequirementsMissing(Exception):
+    """Allowed tools leave out tools they require."""
+
+    def __init__(self, missing: dict[str, list[str]]):
+        """
+        :param missing: The required tools left out, by the tool requiring them.
+        """
+
+        self.missing = missing
+        super().__init__(
+            "; ".join(
+                f"{name} requires {', '.join(required)}"
+                for name, required in missing.items()
+            )
+        )
+
+
 class AgentToolApprovalNotPending(Exception):
     """The approval is decided or isn't held by the conversation's waiting reply."""
 

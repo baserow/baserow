@@ -34,6 +34,7 @@ class RowCommentAgentToolType(RowCommentToolLicense, DatabaseAgentToolType):
 class ListRowCommentsAgentToolType(RowCommentAgentToolType):
     type = "list_row_comments"
     function = tools.list_row_comments
+    requires = ("list_table_rows",)
 
     def get_step_preview(
         self, ctx: ToolContext, arguments: dict[str, Any]
@@ -52,6 +53,7 @@ class ListRowCommentsAgentToolType(RowCommentAgentToolType):
 class SearchRowCommentsAgentToolType(RowCommentAgentToolType):
     type = "search_row_comments"
     function = tools.search_row_comments
+    requires = ("list_databases",)
 
     def get_step_preview(
         self, ctx: ToolContext, arguments: dict[str, Any]
@@ -84,6 +86,7 @@ class SearchRowCommentsAgentToolType(RowCommentAgentToolType):
 class CreateRowCommentsAgentToolType(RowCommentAgentToolType):
     type = "create_row_comments"
     function = tools.create_row_comments
+    requires = ("list_table_rows",)
     changes_data = True
     step_count_argument = "comments"
 

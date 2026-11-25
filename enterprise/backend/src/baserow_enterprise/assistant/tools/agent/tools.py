@@ -40,6 +40,7 @@ from baserow.contrib.agent.constants import AgentReadinessState
 from baserow.contrib.agent.exceptions import (
     AgentNotReady,
     AgentRunAsSubjectDoesNotExist,
+    AgentToolRequirementsMissing,
 )
 from baserow.contrib.agent.handler import AgentHandler
 from baserow.contrib.agent.models import (
@@ -987,6 +988,11 @@ def _checked_tools(
                 for name in tools
                 if name in waiting["ask_first_tools"] or _changes_data(name)
             ]
+    if tools and (missing := agent_tool_type_registry.get_missing_requirements(tools)):
+        raise ToolInputError(
+            f"Not applied: {AgentToolRequirementsMissing(missing)}.",
+            hint="Grant the tools each tool lists in requires, from list_agent_tools.",
+        )
     has_identity = bool(gets_identity or (current or {}).get("run_as"))
     if tools and not has_identity:
         raise ToolInputError(
@@ -1134,7 +1140,7 @@ def apply_agent_setup(
 
     WHEN to use: The user asks to build, change or revert an Agent. Put every part of the request in one call.
     ASK: Only when you can't tell which table a new Agent works on, ask the user that one question with ask_user. Otherwise build straight away: how the Agent reads its event or decides goes in its instructions, not in a question. For an Agent that exists, never ask what its setup already says: read it with get_agent.
-    HOW: Read list_agent_tools first; for an edit find the Agent with list_agents and read it with get_agent. Grant the read tools the Agent needs to find its data, such as list_tables and list_table_rows, next to any tool that changes it. Default to read-only tools. An Agent with tools needs an identity: run_as_identity_id, or new_identity when the user can create one. Never ask for API keys, passwords, SMTP credentials, recipients or URLs: actions are added turned off for the user to configure.
+    HOW: Read list_agent_tools first; for an edit find the Agent with list_agents and read it with get_agent. Grant the read tools the Agent needs to find its data, such as list_tables and list_table_rows, next to any tool that changes it, and every tool a granted tool lists in requires. Default to read-only tools. An Agent with tools needs an identity: run_as_identity_id, or new_identity when the user can create one. Never ask for API keys, passwords, SMTP credentials, recipients or URLs: actions are added turned off for the user to configure.
     LIMITS: You can't make an Agent run by itself. A trigger is added turned off and you can't turn one on: tell the user to turn it on in the Agent's Configuration once they've checked the Agent. A tool you grant that changes data asks first, every time it is called, and only the user turns that off or turns web fetch on, both in the Configuration. While a trigger is on, a change to the Agent's identity or, when it opens web pages or changes data without asking, its instructions is refused: ask the user whether to turn the triggers off in the same call with turn_off_triggers, or to make the change in the Configuration. When the user asks you to turn a trigger on, stop a tool asking first or turn on web fetch, don't ask a question about it: say you can't and that they do it in the Agent's Configuration.
     REVERT: To undo a change, call this tool with the revert.setup of that change's result, and tell the user what its revert.cannot_undo lists: a created Agent or identity stays, and what was deleted or turned off is the user's to bring back. A revert deletes the triggers and actions the change added: say so.
     SCHEDULE: To change when a periodic trigger runs, use change_schedules with its trigger_id: the trigger keeps its name and message.

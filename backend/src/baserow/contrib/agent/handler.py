@@ -330,8 +330,8 @@ class AgentHandler:
         List every tool an Agent can be allowed to call.
 
         :param deactivated_tools: The names of the tools the workspace can't use.
-        :return: Each registered tool's name, group, whether it changes data and
-            whether it's deactivated, in registration order.
+        :return: Each registered tool's name, group, whether it changes data, the
+            tools it requires and whether it's deactivated, in registration order.
         """
 
         return [
@@ -339,6 +339,7 @@ class AgentHandler:
                 "name": tool_type.type,
                 "group": tool_type.group,
                 "changes_data": tool_type.changes_data,
+                "requires": list(tool_type.requires),
                 "deactivated": tool_type.type in deactivated_tools,
             }
             for tool_type in agent_tool_type_registry.get_all()

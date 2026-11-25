@@ -44,6 +44,7 @@ from baserow.contrib.agent.exceptions import (
     AgentNotReady,
     AgentRunAsSubjectDoesNotExist,
     AgentToolApprovalNotPending,
+    AgentToolRequirementsMissing,
 )
 from baserow.contrib.agent.handler import AgentHandler
 from baserow.contrib.agent.models import AgentApplication, AgentConversation
@@ -69,6 +70,7 @@ from .errors import (
     ERROR_AGENT_NOT_READY,
     ERROR_AGENT_RUN_AS_SUBJECT_DOES_NOT_EXIST,
     ERROR_AGENT_TOOL_APPROVAL_NOT_PENDING,
+    ERROR_AGENT_TOOL_REQUIREMENTS_MISSING,
 )
 from .serializers import (
     AgentConfigurationSerializer,
@@ -108,6 +110,7 @@ AGENT_EXCEPTIONS = {
     AgentConversationWaitingForApproval: ERROR_AGENT_CONVERSATION_WAITING_FOR_APPROVAL,
     AgentConversationIsExample: ERROR_AGENT_CONVERSATION_IS_EXAMPLE,
     AgentToolApprovalNotPending: ERROR_AGENT_TOOL_APPROVAL_NOT_PENDING,
+    AgentToolRequirementsMissing: ERROR_AGENT_TOOL_REQUIREMENTS_MISSING,
     ChatRunAlreadyActive: ERROR_CHAT_RUN_IN_PROGRESS,
     ChatRunLimitReached: ERROR_AGENT_BUSY,
 }
@@ -293,6 +296,7 @@ class AgentConfigurationView(
                 [
                     "ERROR_REQUEST_BODY_VALIDATION",
                     "ERROR_AGENT_RUN_AS_SUBJECT_DOES_NOT_EXIST",
+                    "ERROR_AGENT_TOOL_REQUIREMENTS_MISSING",
                 ]
             ),
         },
