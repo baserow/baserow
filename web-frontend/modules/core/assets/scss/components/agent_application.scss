@@ -1283,12 +1283,15 @@
 }
 
 .agent-mcp-tools__description {
-  display: -webkit-box;
   margin: 4px 0 0;
-  overflow: hidden;
   font-size: 12px;
   line-height: 18px;
   color: $palette-neutral-900;
+}
+
+.agent-mcp-tools__description--clamped {
+  display: -webkit-box;
+  overflow: hidden;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
 }
@@ -1375,13 +1378,6 @@
   font-size: 12px;
   line-height: 18px;
   color: $palette-neutral-900;
-}
-
-.agent-connected-apps__oauth-status {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-top: 12px;
 }
 
 .agent-chat__shared {

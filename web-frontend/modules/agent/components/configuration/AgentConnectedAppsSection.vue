@@ -42,7 +42,8 @@
         :expanded="expandedIds.has(card.id)"
         :editable="editable"
         :save="(server, values) => saveServer(card, server, values)"
-        :remove="remove"
+        :remove="removeServer"
+        :switching="switching.has(card.id)"
         :connect="connect"
         :disconnect="disconnect"
         :refresh="refreshTools"
@@ -64,7 +65,7 @@
 </template>
 
 <script setup>
-import { computed, inject, nextTick, onMounted, ref } from 'vue'
+import { computed, inject, nextTick, onMounted, reactive, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useStore } from 'vuex'
 import ButtonText from '@baserow/modules/core/components/ButtonText'
@@ -155,9 +156,26 @@ function saved(server, { listTools, firstConnection = false }) {
   if (listTools) toolsModal.value.show(server, { firstConnection })
 }
 
+// One switch request per server at a time, so clicks can't race each other.
+const switching = reactive(new Set())
+
 async function switchServer(server, enabled) {
+  if (switching.has(server.id)) return
+  switching.add(server.id)
   try {
     await update(server, { enabled })
+  } catch (error) {
+    store.dispatch('toast/error', mcpErrorMessage(t, error))
+  } finally {
+    switching.delete(server.id)
+  }
+}
+
+// The store drops the card before the request ends and brings it back if the
+// request fails, so the failure is told here, not in the card.
+async function removeServer(server) {
+  try {
+    await remove(server)
   } catch (error) {
     store.dispatch('toast/error', mcpErrorMessage(t, error))
   }

@@ -73,11 +73,31 @@
               </div>
               <p
                 v-if="tool.description"
+                :id="`agent-mcp-tool-description-${tool.name}`"
                 class="agent-mcp-tools__description"
-                :title="tool.description"
+                :class="{
+                  'agent-mcp-tools__description--clamped':
+                    isLong(tool) && !isOpen(tool, 'description'),
+                }"
               >
                 {{ tool.description }}
               </p>
+              <ButtonText
+                v-if="isLong(tool)"
+                class="agent-mcp-tools__toggle"
+                size="small"
+                :aria-expanded="isOpen(tool, 'description')"
+                :aria-controls="`agent-mcp-tool-description-${tool.name}`"
+                @click="toggle(tool, 'description')"
+              >
+                {{
+                  $t(
+                    isOpen(tool, 'description')
+                      ? 'agent.connectedAppToolShowLess'
+                      : 'agent.connectedAppToolShowMore'
+                  )
+                }}
+              </ButtonText>
               <ButtonText
                 v-if="parameters(tool).length"
                 v-bind="disclosure(tool, 'parameters')"
@@ -248,6 +268,11 @@ function parameters(tool) {
 function hasSchema(tool) {
   return Object.keys(tool.input_schema ?? {}).some((key) => key !== 'type')
 }
+
+// About two lines in the modal; a longer description is cut until opened, so
+// nothing an editor approves stays hidden.
+const LONG_DESCRIPTION = 160
+const isLong = (tool) => (tool.description ?? '').length > LONG_DESCRIPTION
 
 const isOpen = (tool, part) => Boolean(expanded.value[`${tool.name}:${part}`])
 

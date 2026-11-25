@@ -300,6 +300,8 @@
     "connectedAppToolParameters": "1 parameter | {count} parameters",
     "connectedAppToolParameterRequired": "required",
     "connectedAppToolSchema": "Full input schema",
+    "connectedAppToolShowMore": "Show more",
+    "connectedAppToolShowLess": "Show less",
     "connectedAppToolsOnCount": "{count} of {total} tools on",
     "connectedAppToolsDescription": "Choose which tools {name} may use, then save your choices. A tool whose definition changes must be reviewed again.",
     "connectedAppRefresh": "Refresh",

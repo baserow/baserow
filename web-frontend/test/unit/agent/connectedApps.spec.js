@@ -716,6 +716,64 @@ describe('Agent connected apps', () => {
     expect(shown()).toEqual([false, false])
   })
 
+  test('a failed remove brings the app back and explains it', async () => {
+    testApp.mock.onGet(/application\/10\/integrations/).reply(200, [server()])
+    testApp.mock.onDelete('integration/5/').reply(500)
+    const wrapper = await mountSection()
+    await flushPromises()
+
+    await expand(wrapper)
+    buttonIn(card(wrapper), 'agent.connectedAppRemove').click()
+    await flushPromises()
+    buttonIn(card(wrapper), 'agent.connectedAppRemoveConfirm').click()
+    await flushPromises()
+
+    expect(cards(wrapper)).toHaveLength(1)
+    expect(testApp.store.state.toast.items).toHaveLength(1)
+  })
+
+  test('the switch ignores clicks while it saves', async () => {
+    testApp.mock
+      .onGet(/application\/10\/integrations/)
+      .reply(200, [server({ enabled: true })])
+    const saving = deferredReply()
+    testApp.mock.onPatch('integration/5/').reply(saving.reply)
+    const wrapper = await mountSection()
+    await flushPromises()
+
+    card(wrapper).querySelector('.switch').click()
+    await flushPromises()
+    card(wrapper).querySelector('.switch').click()
+    await flushPromises()
+    saving.resolve(200, server({ enabled: false }))
+    await flushPromises()
+
+    expect(testApp.mock.history.patch).toHaveLength(1)
+  })
+
+  test('a long tool description can be read in full', async () => {
+    const long = 'Lists issues. '.repeat(30).trim()
+    testApp.mock
+      .onGet(/application\/10\/integrations/)
+      .reply(200, [server({ tools: [tool('search', { description: long })] })])
+    const wrapper = await mountSection()
+    await flushPromises()
+
+    await openTools(wrapper)
+    const description = () =>
+      inBody('.modal__box .agent-mcp-tools__description')[0]
+    expect(description().classList).toContain(
+      'agent-mcp-tools__description--clamped'
+    )
+    buttonInBody('agent.connectedAppToolShowMore').click()
+    await flushPromises()
+
+    expect(description().classList).not.toContain(
+      'agent-mcp-tools__description--clamped'
+    )
+    expect(description().textContent.trim()).toBe(long)
+  })
+
   describe('signing in with OAuth', () => {
     let popup
 

@@ -18,6 +18,7 @@
           server?.name || $t('agent.connectedAppNew')
         }}</span>
         <Badge
+          tag="span"
           :color="status.color"
           size="small"
           class="agent-mcp-server-card__status"
@@ -32,6 +33,7 @@
         :aria-label="$t('agent.connectedAppEnabled', { name: server.name })"
         :aria-checked="server.enabled"
         :model-value="server.enabled"
+        :disabled="switching"
         @update:model-value="$emit('switch', $event)"
         @keydown.enter.prevent="$emit('switch', !server.enabled)"
         @keydown.space.prevent="$emit('switch', !server.enabled)"
@@ -236,7 +238,12 @@
       </Alert>
 
       <div v-if="editable && dirty" class="agent-mcp-server-card__actions">
-        <Button type="secondary" button-type="button" @click="cancel">
+        <Button
+          type="secondary"
+          button-type="button"
+          :disabled="saving"
+          @click="cancel"
+        >
           {{ $t('action.cancel') }}
         </Button>
         <Button type="primary" button-type="submit" :loading="saving">
@@ -251,6 +258,7 @@
         size="small"
         button-type="button"
         icon="iconoir-bin"
+        :disabled="saving"
         @click="startRemove"
         >{{ $t('agent.connectedAppRemove') }}</ButtonText
       >
@@ -295,6 +303,8 @@ const props = defineProps({
   server: { type: Object, default: null },
   expanded: Boolean,
   editable: Boolean,
+  // A switch request for this server is still running.
+  switching: Boolean,
   save: { type: Function, required: true },
   remove: { type: Function, required: true },
   connect: { type: Function, required: true },
