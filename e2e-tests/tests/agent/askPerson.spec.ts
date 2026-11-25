@@ -1,5 +1,10 @@
 import { getClient } from "../../client";
-import { Agent, createSupportAgent } from "../../fixtures/agent/agent";
+import {
+  Agent,
+  createAgentIdentity,
+  createSupportAgent,
+  setAgentRunIdentity,
+} from "../../fixtures/agent/agent";
 import { AgentPage } from "../../pages/agent/agentPage";
 import { expect, test } from "../baserowTest";
 
@@ -27,10 +32,11 @@ async function createTicketTrigger(agent: Agent) {
   return data;
 }
 
-async function fireTicketTrigger(trigger: { service: { uid: string } }) {
-  await getClient().post(`webhooks/${trigger.service.uid}/`, {
-    subject: SUBJECT,
-  });
+async function fireTicketTrigger(
+  trigger: { service: { uid: string } },
+  subject = SUBJECT
+) {
+  await getClient().post(`webhooks/${trigger.service.uid}/`, { subject });
 }
 
 async function lastReply(agent: Agent) {
@@ -122,5 +128,76 @@ test("a trigger switched off from asking never offers the question tool", async 
       content: "Nobody to ask.",
       status: "completed",
       approvals: [],
+    });
+});
+
+test("a triggered run waits for approval only while changes ask first", async ({
+  page,
+  goto,
+  workspacePage,
+}) => {
+  // The model stub calls create_database for exactly this message.
+  const subject = "Create a support database.";
+  const done = "The support database is ready.";
+  const { workspace } = workspacePage;
+  const agent = await createSupportAgent(workspace);
+  await setAgentRunIdentity(
+    agent,
+    await createAgentIdentity("Support assistant", workspace, "MEMBER")
+  );
+  const trigger = await createTicketTrigger(agent);
+  const agentPage = new AgentPage({ page, goto }, agent);
+  await agentPage.goto();
+  const section = await agentPage.openSection("Workspace access");
+  const saved = () =>
+    page.waitForResponse(
+      (response) =>
+        response.request().method() === "PATCH" &&
+        response.url().includes(`/api/agent/${agent.id}/configuration/`)
+    );
+
+  let response = saved();
+  await section.getByRole("switch", { name: "Workspace tools" }).click();
+  await response;
+  response = saved();
+  await section.getByText("Everything", { exact: true }).click();
+  await response;
+  const askFirst = section.getByRole("checkbox", {
+    name: "Ask me before making changes",
+  });
+  await expect(askFirst).toHaveAttribute("aria-checked", "true");
+  response = saved();
+  await askFirst.click();
+  expect(await (await response).json()).toMatchObject({ ask_first_tools: [] });
+
+  await fireTicketTrigger(trigger, subject);
+  await expect
+    .poll(() => lastReply(agent), { timeout: workerTimeout })
+    .toMatchObject({ content: done, status: "completed", approvals: [] });
+
+  response = saved();
+  await askFirst.click();
+  await response;
+  await expect(askFirst).toHaveAttribute("aria-checked", "true");
+  await fireTicketTrigger(trigger, subject);
+  await expect
+    .poll(() => lastReply(agent), { timeout: workerTimeout })
+    .toMatchObject({
+      status: "waiting",
+      approvals: [{ tool: "create_database", status: "pending" }],
+    });
+
+  await page
+    .locator(".agent-conversations__row", { hasText: subject })
+    .first()
+    .locator(".agent-conversations__item")
+    .click();
+  await page.getByRole("button", { name: "Approve", exact: true }).click();
+  await expect
+    .poll(() => lastReply(agent), { timeout: workerTimeout })
+    .toMatchObject({
+      content: done,
+      status: "completed",
+      approvals: [{ tool: "create_database", status: "approved" }],
     });
 });
