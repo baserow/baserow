@@ -41,7 +41,13 @@ and add `openid`, `profile`, `email`, `offline_access` and `User.Read`.
 
 Baserow asks for further permissions only when an action needs them, the first time a
 builder uses that action. Add those here too, so they appear on the consent screen your
-users and admins review.
+users and admins review:
+
+| Action                                    | Delegated permissions                                                                                      |
+| ----------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
+| Send Teams message (Advanced, Enterprise) | `ChannelMessage.Send`, `ChatMessage.Send`, `Team.ReadBasic.All`, `Channel.ReadBasic.All`, `Chat.ReadBasic` |
+
+The Teams action only works with work or school accounts.
 
 None of these permissions need admin consent by default, but your organisation may
 only let admins approve apps. Then either click **Grant admin consent** for your

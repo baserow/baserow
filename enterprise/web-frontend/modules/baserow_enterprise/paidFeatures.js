@@ -365,6 +365,32 @@ export class XLSFileReaderPaidFeature extends PaidFeature {
   }
 }
 
+export class MicrosoftTeamsPaidFeature extends PaidFeature {
+  static getType() {
+    return 'microsoft_teams'
+  }
+
+  getPlan() {
+    return 'Advanced'
+  }
+
+  getIconClass() {
+    return 'iconoir-chat-lines'
+  }
+
+  getName() {
+    return this.app.$i18n.t('enterpriseFeatures.microsoftTeams')
+  }
+
+  getImage() {
+    return null
+  }
+
+  getContent() {
+    return this.app.$i18n.t('enterpriseFeatures.microsoftTeamsContent')
+  }
+}
+
 export class SemanticSearchPaidFeature extends PaidFeature {
   static getType() {
     return 'semantic_search'

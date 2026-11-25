@@ -36,6 +36,7 @@ NODE_TYPES_NOT_HOSTED = {
     "csv_file_reader": "not hosted yet",
     "xls_file_reader": "not hosted yet",
     "code": "not hosted yet",
+    "microsoft_teams_write_message": "not hosted yet",
 }
 
 
