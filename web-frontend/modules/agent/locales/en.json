@@ -73,6 +73,7 @@
     "pendingApprovalsEmpty": "All approvals have been reviewed.",
     "pendingApprovalsLoadError": "The pending approvals couldn’t be loaded.",
     "toolsDone": "Done",
+    "toolsClose": "Close",
     "toolGroupDatabase": "Databases",
     "toolListDatabases": "List databases",
     "toolListDatabasesDescription": "See the databases in this workspace",

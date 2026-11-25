@@ -189,6 +189,32 @@ describe('Agent template preview', () => {
     expect(group).toContain('agent.toolsSummary')
     // Pending tools that change data ask first once installed.
     expect(group).toContain('agent.toolsAskCount')
+
+    // The tools can be looked at, but not changed.
+    await section.get('.agent-workspace-tools__group').trigger('click')
+    await flushPromises()
+    const modal = document
+      .querySelector('.agent-tool-permissions__actions')
+      .closest('.modal__box')
+    const checked = (kind) =>
+      [...modal.querySelectorAll(`.agent-tool-permissions__${kind} input`)]
+        .filter((input) => input.checked)
+        .map((input) => input.labels[0].textContent.trim())
+    expect(checked('allow')).toEqual([
+      'agent.toolListTables',
+      'agent.toolCreateRows',
+    ])
+    expect(checked('ask-first').length).toBe(1)
+    expect(
+      [...modal.querySelectorAll('.agent-tool-permissions__tool input')].every(
+        (input) => input.disabled
+      )
+    ).toBe(true)
+    expect(
+      [
+        ...modal.querySelectorAll('.agent-tool-permissions__actions .button'),
+      ].map((button) => button.textContent.trim())
+    ).toEqual(['agent.toolsClose'])
   })
 
   test('reads only what a template preview may read', async () => {

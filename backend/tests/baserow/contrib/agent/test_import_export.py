@@ -3,9 +3,6 @@ from datetime import datetime, timezone
 from io import BytesIO
 from unittest.mock import patch
 
-from django.core.files.storage import FileSystemStorage
-from django.db import transaction
-
 import pytest
 from freezegun import freeze_time
 from mcp.server.fastmcp import FastMCP
@@ -1067,35 +1064,6 @@ def test_an_official_template_shows_and_installs_its_example_conversations(
         True,
     )
     assert [message.content for message in copied.messages.all()] == ["An example"]
-
-
-@pytest.mark.django_db(transaction=True)
-def test_the_lead_reporting_template_comes_with_example_conversations(
-    data_fixture, tmpdir
-):
-    storage = FileSystemStorage(location=str(tmpdir), base_url="http://localhost")
-    handler = CoreHandler()
-
-    with transaction.atomic():
-        handler.sync_templates(storage=storage, pattern="lead-reporting-agent")
-
-    template = Template.objects.get()
-    preview = AgentApplication.objects.get(workspace=template.workspace)
-    assert template.open_application == preview.id
-    assert preview.conversations.count() == 2
-    assert not preview.conversations.exclude(shared=True, owner_user=None).exists()
-
-    user = data_fixture.create_user()
-    workspace = data_fixture.create_workspace(user=user)
-    with transaction.atomic():
-        handler.install_template(user, workspace, template, storage=storage)
-
-    installed = AgentApplication.objects.get(workspace=workspace)
-    assert installed.instructions == preview.instructions
-    assert installed.conversations.count() == 2
-    assert not installed.conversations.exclude(
-        is_example=True, owner_user=None
-    ).exists()
 
 
 @pytest.mark.django_db

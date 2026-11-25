@@ -63,6 +63,7 @@
     :available-tools="configuration.available_tools"
     :agent-name="agent.name"
     :editable="editable && identityAvailable"
+    :viewable="showsPendingTools"
     :disabled-reason="
       identityAvailable || showsPendingTools
         ? ''
