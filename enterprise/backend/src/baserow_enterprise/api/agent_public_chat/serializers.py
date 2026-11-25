@@ -16,6 +16,10 @@ class PublicChatInfoSerializer(serializers.Serializer):
         "chat until the request carries a valid token."
     )
     password_protected = serializers.BooleanField()
+    has_access = serializers.BooleanField(
+        help_text="Whether the request may talk in the chat: always without a "
+        "password, otherwise only with a token of the current password."
+    )
 
 
 class PublicChatAuthRequestSerializer(serializers.Serializer):

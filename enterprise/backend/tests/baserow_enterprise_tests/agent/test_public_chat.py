@@ -118,11 +118,13 @@ def test_info_names_the_chat_and_hides_a_protected_one_without_a_token(
         "title": chat.agent.name,
         "welcome_text": "Ask me anything",
         "password_protected": False,
+        "has_access": True,
     }
     assert api_client.get(url(protected.slug, "info")).json() == {
         "title": "",
         "welcome_text": "",
         "password_protected": True,
+        "has_access": False,
     }
     assert api_client.get(
         url(protected.slug, "info"), **bearer(encode_access_token(protected))
@@ -130,6 +132,7 @@ def test_info_names_the_chat_and_hides_a_protected_one_without_a_token(
         "title": "Support",
         "welcome_text": "Hello",
         "password_protected": True,
+        "has_access": True,
     }
 
 

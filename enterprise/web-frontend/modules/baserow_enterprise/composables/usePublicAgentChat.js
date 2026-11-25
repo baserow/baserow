@@ -73,9 +73,7 @@ export function usePublicAgentChat(slug, initialInfo) {
   let unmounted = false
 
   const token = () => tokens.conversationToken || tokens.accessToken
-  const needsPassword = computed(
-    () => Boolean(info.value.password_protected) && !token()
-  )
+  const needsPassword = computed(() => !info.value.has_access)
   const messages = computed(() => {
     const last = savedMessages.value.at(-1)
     if (!runId.value || last?.role !== MESSAGE_ROLE.ASSISTANT) {
@@ -242,12 +240,7 @@ export function usePublicAgentChat(slug, initialInfo) {
   async function reloadInfo() {
     try {
       await refreshInfo()
-      // A protected chat hides its title from a token it doesn't accept.
-      if (
-        !unavailable.value &&
-        info.value.password_protected &&
-        !info.value.title
-      ) {
+      if (!unavailable.value && !info.value.has_access) {
         setTokens({ accessToken: null })
       }
     } catch {}
@@ -356,7 +349,7 @@ export function usePublicAgentChat(slug, initialInfo) {
 
   onMounted(async () => {
     readTokens()
-    if (info.value.password_protected && token()) await reloadInfo()
+    if (!info.value.has_access && token()) await reloadInfo()
     if (tokens.conversationToken) await sync()
   })
 

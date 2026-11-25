@@ -252,13 +252,14 @@ class PublicChatInfoView(PublicChatView):
     @map_exceptions(PUBLIC_CHAT_EXCEPTIONS)
     def get(self, request: Request, slug: str) -> Response:
         chat = get_public_chat(slug)
-        shown = has_access(chat, request)
+        allowed = has_access(chat, request)
         return Response(
             PublicChatInfoSerializer(
                 {
-                    "title": (chat.title or chat.agent.name) if shown else "",
-                    "welcome_text": chat.welcome_text if shown else "",
+                    "title": (chat.title or chat.agent.name) if allowed else "",
+                    "welcome_text": chat.welcome_text if allowed else "",
                     "password_protected": chat.has_password,
+                    "has_access": allowed,
                 }
             ).data
         )

@@ -14,8 +14,18 @@ vi.mock('@baserow_enterprise/services/publicAgentChat', () => ({
 
 const SLUG = 'support'
 const STORAGE_KEY = `baserow-agent-public-chat:${SLUG}`
-const OPEN = { title: 'Support', welcome_text: 'Hi', password_protected: false }
-const PROTECTED = { title: '', welcome_text: '', password_protected: true }
+const OPEN = {
+  title: 'Support',
+  welcome_text: 'Hi',
+  password_protected: false,
+  has_access: true,
+}
+const PROTECTED = {
+  title: '',
+  welcome_text: '',
+  password_protected: true,
+  has_access: false,
+}
 
 const visitor = { id: 'm1', role: 'visitor', content: 'Hello', status: null }
 const reply = (status, content = '') => ({
@@ -85,7 +95,7 @@ describe('usePublicAgentChat', () => {
     expect(mocks.service.getConversation).not.toHaveBeenCalled()
   })
 
-  test('a protected chat asks for the password and keeps the right one', async () => {
+  test('a protected chat asks for the password until its info loads with the right one', async () => {
     const { chat } = await mountChat(PROTECTED)
     expect(chat.needsPassword.value).toBe(true)
 
@@ -94,9 +104,13 @@ describe('usePublicAgentChat', () => {
     expect(chat.passwordError.value).toBe(true)
     expect(chat.needsPassword.value).toBe(true)
 
-    mocks.service.authorize.mockResolvedValueOnce({
+    mocks.service.authorize.mockResolvedValue({
       data: { access_token: 'access' },
     })
+    mocks.service.getInfo.mockRejectedValueOnce(refused(502))
+    await expect(chat.authorize('right')).rejects.toThrow()
+    expect(chat.needsPassword.value).toBe(true)
+
     mocks.service.getInfo.mockResolvedValueOnce({
       data: { ...OPEN, password_protected: true },
     })
@@ -107,6 +121,20 @@ describe('usePublicAgentChat', () => {
     expect(chat.info.value.title).toBe('Support')
     expect(mocks.service.getInfo).toHaveBeenCalledWith(SLUG, 'access')
     expect(storedTokens().accessToken).toBe('access')
+  })
+
+  test('a stored token opens a protected chat only once its info loads with it', async () => {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ accessToken: 'access' }))
+    mocks.service.getInfo.mockRejectedValueOnce(refused(502))
+    const { chat: failed } = await mountChat(PROTECTED)
+    expect(failed.needsPassword.value).toBe(true)
+
+    mocks.service.getInfo.mockResolvedValueOnce({
+      data: { ...OPEN, password_protected: true },
+    })
+    const { chat } = await mountChat(PROTECTED)
+    expect(mocks.service.getInfo).toHaveBeenLastCalledWith(SLUG, 'access')
+    expect(chat.needsPassword.value).toBe(false)
   })
 
   test('send shows the message, then the streamed reply, then the saved reply', async () => {
