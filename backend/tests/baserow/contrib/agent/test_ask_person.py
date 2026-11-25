@@ -17,7 +17,6 @@ from baserow.contrib.agent.constants import (
     ASK_PERSON_DISMISSED_NOTE,
     ASK_PERSON_QUESTION_MAX_LENGTH,
     ASK_PERSON_TOOL_NAME,
-    DISALLOWED_TOOL_CALL_NOTE,
     TRIGGER_CONVERSATION_INSTRUCTIONS,
     UNATTENDED_ASK_PERSON_INSTRUCTIONS,
     UNATTENDED_NO_PERSON_INSTRUCTIONS,
@@ -239,7 +238,7 @@ def test_a_follow_up_in_a_triggered_conversation_is_still_told_its_opening_messa
 
 
 @pytest.mark.django_db
-def test_a_question_turned_off_while_waiting_is_denied_as_no_longer_allowed(
+def test_a_question_turned_off_while_waiting_still_gets_its_answer(
     data_fixture, configured_agent, mocker
 ):
     agent = configured_agent()
@@ -253,7 +252,7 @@ def test_a_question_turned_off_while_waiting_is_denied_as_no_longer_allowed(
     run_reply(answer(member, reply, approved=True, answer="Acme"))
 
     assert reply_state(reply.id) == ("completed", "", "Done.")
-    assert told_about_question(received[-1]) == [DISALLOWED_TOOL_CALL_NOTE]
+    assert told_about_question(received[-1]) == ["Acme"]
 
 
 @pytest.mark.django_db

@@ -76,7 +76,6 @@ from .action_tools.tools import BoundActionTool
 from .constants import (
     AGENT_RUN_LIMIT_REACHED,
     AGENT_RUN_TYPE,
-    ASK_PERSON_ANSWER_METADATA_KEY,
     ASK_PERSON_DISMISSED_NOTE,
     ASK_PERSON_TOOL_NAME,
     DEACTIVATED_TOOLS_INSTRUCTIONS,
@@ -1761,7 +1760,6 @@ class AgentHandler:
                         for name, tool in server.model_tool_names().items()
                     },
                     **{tool.type: tool.approval_key for tool in action_tools},
-                    **({ASK_PERSON_TOOL_NAME: ""} if may_ask_person else {}),
                 },
                 DISALLOWED_TOOL_CALL_NOTE
                 if acting_subject
@@ -2022,7 +2020,7 @@ class AgentHandler:
         """
 
         held = paused_conversation.deferred_tool_requests
-        held_ids = {call.tool_call_id for call in held.approvals}
+        held_ids = {call.tool_call_id for call in [*held.approvals, *held.calls]}
         # Providers may reuse a call id in a later response, so the newest row holds it.
         approvals = {
             approval.tool_call_id: approval
@@ -2030,31 +2028,30 @@ class AgentHandler:
             if approval.tool_call_id in held_ids
         }
         # An undecided call gets no result, so the run fails instead of guessing.
-        results = {
-            tool_call_id: self._get_approval_result(
-                approval, callable_tools, disallowed_note, identity_action_names
-            )
+        decided = {
+            tool_call_id: approval
             for tool_call_id, approval in approvals.items()
             if approval.status != AgentToolApproval.Status.PENDING
-        }
-        answers = {
-            tool_call_id: {ASK_PERSON_ANSWER_METADATA_KEY: approval.answer}
-            for tool_call_id, approval in approvals.items()
-            if approval.is_question
-            and approval.status == AgentToolApproval.Status.APPROVED
-        }
-        # A held action call sends the values kept when it was held.
-        metadata = {
-            tool_call_id: {
-                **held.metadata.get(tool_call_id, {}),
-                **answers.get(tool_call_id, {}),
-            }
-            for tool_call_id in held.metadata.keys() | answers.keys()
         }
         return AgentReplyResume(
             paused_conversation=paused_conversation,
             deferred_tool_results=held.build_results(
-                approvals=results, metadata=metadata
+                approvals={
+                    tool_call_id: self._get_approval_result(
+                        approval, callable_tools, disallowed_note, identity_action_names
+                    )
+                    for tool_call_id, approval in decided.items()
+                    if not approval.is_question
+                },
+                calls={
+                    tool_call_id: approval.answer
+                    if approval.status == AgentToolApproval.Status.APPROVED
+                    else ASK_PERSON_DISMISSED_NOTE
+                    for tool_call_id, approval in decided.items()
+                    if approval.is_question
+                },
+                # A held action call sends the values kept when it was held.
+                metadata=held.metadata,
             ),
             saved_steps=reply.steps or [],
             held_step_ids={
@@ -2076,11 +2073,10 @@ class AgentHandler:
         identity_action_names: set[str],
     ) -> ToolApproved | ToolDenied:
         """
-        Tell the model what the owner decided about a held call, and that nobody
-        will answer a dismissed question. An approved call to a tool the reply may
-        no longer call, or to an MCP tool or action that changed since it was held,
-        is denied instead, and its step then shows a permission failure rather than
-        a rejection.
+        Tell the model what the owner decided about a held call. An approved call
+        to a tool the reply may no longer call, or to an MCP tool or action that
+        changed since it was held, is denied instead, and its step then shows a
+        permission failure rather than a rejection.
 
         :param approval: The decided approval of the call.
         :param callable_tools: The tools the reply may call now, with the
@@ -2091,11 +2087,6 @@ class AgentHandler:
         :return: Whether the call runs, or why it doesn't.
         """
 
-        if (
-            approval.status == AgentToolApproval.Status.REJECTED
-            and approval.is_question
-        ):
-            return ToolDenied(ASK_PERSON_DISMISSED_NOTE)
         if approval.status == AgentToolApproval.Status.REJECTED:
             return ToolDenied(
                 f"{REJECTED_TOOL_CALL_NOTE} Their reason: {approval.reason}"
@@ -2103,12 +2094,12 @@ class AgentHandler:
                 else REJECTED_TOOL_CALL_NOTE
             )
         if approval.tool_name not in callable_tools:
-            # A question, an MCP tool or another action doesn't act as the identity.
-            acts_as_identity = not approval.is_question and (
-                not approval.tool_key or approval.tool_name in identity_action_names
-            )
+            # An MCP tool or other action doesn't act as the Agent's identity, so
+            # losing it isn't why.
             return ToolDenied(
-                disallowed_note if acts_as_identity else DISALLOWED_TOOL_CALL_NOTE
+                DISALLOWED_TOOL_CALL_NOTE
+                if approval.tool_key and approval.tool_name not in identity_action_names
+                else disallowed_note
             )
         if callable_tools[approval.tool_name] != approval.tool_key:
             return ToolDenied(TOOL_CHANGED_CALL_NOTE)

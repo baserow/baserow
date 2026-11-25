@@ -142,11 +142,12 @@ timezone (the service's own, or UTC when its type has none), so a daily digest's
 
 An unattended reply may pause to ask a person: the built-in `ask_person` tool is held
 like an ask-first call, so the question shows where approvals show, counts as going for
-the overlap rule, and is answered by those who may approve tool calls. The answer
-reaches the resumed tool through the held call's metadata; a dismissal tells the agent
-nobody will answer. Later replies replay a decided question and its answer, or the
-dismissal, as plain turns in their history. A trigger's `may_ask_person` turns this
-off, and the agent is then told to finish or explain what is missing.
+the overlap rule, and is answered by those who may approve tool calls. The answer, or a
+note that nobody will answer, comes back as the call's result, like a deferred tool
+call. Later replies replay a decided question and its answer, or the dismissal, as
+plain turns in their history. A trigger's `may_ask_person` stops new questions, and the
+agent is then told to finish or explain what is missing; a question already waiting
+still gets its answer.
 
 The dispatcher resolves the payload of every matched trigger before filtering, so a
 disabled trigger still advances its schedule and never fires a backlog when enabled
