@@ -106,7 +106,7 @@ export function pendingApprovals(reply) {
 }
 
 export function isQuestionStep(step) {
-  return (step?.presentation_type || step?.tool) === ASK_PERSON_TOOL
+  return step?.tool === ASK_PERSON_TOOL
 }
 
 export function approvalItem(step, approval, registry, t) {

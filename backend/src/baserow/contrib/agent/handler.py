@@ -1721,12 +1721,7 @@ class AgentHandler:
             for tool in all_action_tools
             if acting_subject is not None or tool.type not in identity_action_names
         ]
-        # An action saved before this name was reserved keeps its tool name.
-        may_ask_person = (
-            trigger is not None
-            and trigger.may_ask_person
-            and all(tool.type != ASK_PERSON_TOOL_NAME for tool in action_tools)
-        )
+        may_ask_person = trigger is not None and trigger.may_ask_person
         if conversation.is_test:
             # A test Kuma started can't change anything without the owner's say-so.
             tools = {
@@ -1988,9 +1983,7 @@ class AgentHandler:
         """
 
         questions = (
-            AgentToolApproval.objects.filter(
-                tool_name=ASK_PERSON_TOOL_NAME, tool_key=""
-            )
+            AgentToolApproval.objects.filter(tool_name=ASK_PERSON_TOOL_NAME)
             .exclude(status=AgentToolApproval.Status.PENDING)
             .select_related("decided_by")
             .order_by("pause", "id")

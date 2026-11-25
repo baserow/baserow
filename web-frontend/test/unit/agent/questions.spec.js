@@ -99,18 +99,6 @@ describe('Agent questions', () => {
     expect(wrapper.find('.chat-step-group').exists()).toBe(false)
   })
 
-  test('a custom action named ask_person still shows a tool approval', async () => {
-    const actionStep = {
-      ...createStep(1),
-      tool: 'ask_person',
-      presentation_type: 'smtp_email',
-    }
-    const wrapper = await openReply(reply([approval(1)], [actionStep]))
-
-    expect(wrapper.find('.agent-approval').exists()).toBe(true)
-    expect(wrapper.find('.agent-question').exists()).toBe(false)
-  })
-
   test('sending an answer decides the question with it', async () => {
     mockApprovals(
       testApp,

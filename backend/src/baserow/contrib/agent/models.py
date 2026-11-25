@@ -354,9 +354,9 @@ class AgentToolApproval(BigAutoFieldMixin, models.Model):
 
     @property
     def is_question(self) -> bool:
-        """A built-in question has no tool key, unlike a custom action."""
+        """Whether the held call is a question to a person."""
 
-        return self.tool_name == ASK_PERSON_TOOL_NAME and not self.tool_key
+        return self.tool_name == ASK_PERSON_TOOL_NAME
 
     class Meta:
         ordering = ("id",)
