@@ -64,7 +64,7 @@
           <ButtonIcon
             v-if="canPromote"
             v-tooltip="$t('promoteIntegration.action')"
-            icon="iconoir-community"
+            icon="iconoir-share-android"
             @click="showPromoteModal(integration)"
           />
           <ButtonIcon

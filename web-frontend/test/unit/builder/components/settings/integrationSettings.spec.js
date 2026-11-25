@@ -60,7 +60,7 @@ describe('Builder IntegrationSettings', () => {
     await testApp.afterEach()
   })
 
-  const promoteButtons = (wrapper) => wrapper.findAll('.iconoir-community')
+  const promoteButtons = (wrapper) => wrapper.findAll('.iconoir-share-android')
 
   const mountSettings = async ({
     permissions,
