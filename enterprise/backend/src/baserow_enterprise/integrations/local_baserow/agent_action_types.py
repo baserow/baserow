@@ -1,11 +1,10 @@
 from typing import Any
 from uuid import uuid4
 
-from baserow.contrib.agent.action_tools.formulas import reads_only_inputs
-from baserow.contrib.agent.action_tools.registries import (
-    AgentActionDefaults,
-    AgentActionType,
+from baserow.contrib.agent.action_tools.action_types import (
+    LocalBaserowAgentActionType,
 )
+from baserow.contrib.agent.action_tools.registries import AgentActionDefaults
 from baserow.contrib.agent.constants import ACTION_MAX_RESULT_CHARACTERS
 from baserow.contrib.agent.models import AgentAction
 from baserow.core.formula.types import BaserowFormulaObject
@@ -21,7 +20,7 @@ from baserow_enterprise.integrations.local_baserow.models import (
 from baserow_enterprise.integrations.local_baserow.service_types import ROW_PROPERTY
 
 
-class LocalBaserowSemanticSearchAgentActionType(AgentActionType):
+class LocalBaserowSemanticSearchAgentActionType(LocalBaserowAgentActionType):
     """
     Finds the rows of a table that match the meaning of what the model looks for,
     as the Agent's run identity.
@@ -29,7 +28,6 @@ class LocalBaserowSemanticSearchAgentActionType(AgentActionType):
 
     type = "local_baserow_semantic_search"
     changes_data = False
-    acts_as_run_identity = True
 
     def get_defaults(self) -> AgentActionDefaults:
         input_id = str(uuid4())
@@ -89,44 +87,6 @@ class LocalBaserowSemanticSearchAgentActionType(AgentActionType):
             space -= size
         return {**result.data, "results": results}
 
-    def get_configuration_errors(
-        self, action: AgentAction, identity: Subject | None = None
-    ) -> dict[str, str]:
-        """
-        Also require a table the run identity can read, with a field that can be
-        searched, and fixed filter values, as filters are resolved when the call
-        is sent, without its inputs.
-
-        :param action: The action, with its agent and workspace.
-        :param identity: The Agent's run identity, or None when it has none it can
-            act as.
-        :return: An error code by field, empty when the action can be called.
-        """
-
-        return self.get_configuration_errors_by_action([action], identity)[action.id]
-
-    def get_configuration_errors_by_action(
-        self, actions: list[AgentAction], identity: Subject | None = None
-    ) -> dict[int, dict[str, str]]:
-        """
-        Check whether the identity can read the actions' tables in one permission
-        check, so that it doesn't cost a query per action.
-        """
-
-        if not actions:
-            return {}
-        readable_table_ids = self.service_type.get_subject_readable_table_ids(
-            [action.service.specific for action in actions],
-            identity,
-            actions[0].agent.workspace,
-        )
-        return {
-            action.id: self._get_configuration_errors(
-                action, identity, readable_table_ids
-            )
-            for action in actions
-        }
-
     def _get_configuration_errors(
         self,
         action: AgentAction,
@@ -134,46 +94,14 @@ class LocalBaserowSemanticSearchAgentActionType(AgentActionType):
         readable_table_ids: set[int],
     ) -> dict[str, str]:
         """
-        :param action: The action, with its agent and workspace.
-        :param identity: The Agent's run identity, or None.
-        :param readable_table_ids: The ids of the tables the identity may read.
-        :return: An error code by field, empty when the action can be called.
+        Also require a field that can be searched, so that an action that would
+        always fail isn't offered to the model.
         """
 
-        errors = super().get_configuration_errors(action, identity)
-        service = action.service.specific
-        if not service.table_id:
-            errors["table_id"] = "required"
-        elif identity is not None:
-            if service.table_id not in readable_table_ids:
-                errors["table_id"] = "unavailable"
-            elif not self._has_fields_to_search(service):
+        errors = super()._get_configuration_errors(action, identity, readable_table_ids)
+        if "table_id" not in errors and identity is not None:
+            try:
+                self.service_type.get_fields_to_search(action.service.specific)
+            except ServiceImproperlyConfiguredDispatchException:
                 errors["search_field_ids"] = "unavailable"
-        if not self._are_filters_fixed(service):
-            errors["filters"] = "fixed_value"
         return errors
-
-    def _has_fields_to_search(self, service: LocalBaserowSemanticSearch) -> bool:
-        """
-        :param service: The action's service, with a table in reach.
-        :return: Whether a call would find a field to search in, so that an action
-            that would always fail isn't offered to the model.
-        """
-
-        try:
-            self.service_type.get_fields_to_search(service)
-        except ServiceImproperlyConfiguredDispatchException:
-            return False
-        return True
-
-    def _are_filters_fixed(self, service: LocalBaserowSemanticSearch) -> bool:
-        """
-        :param service: The action's service.
-        :return: Whether every filter value can be resolved without reading
-            anything, so not even the call's inputs.
-        """
-
-        return all(
-            reads_only_inputs(BaserowFormulaObject.to_formula(service_filter.value), [])
-            for service_filter in service.service_filters_with_untrashed_fields
-        )

@@ -62,6 +62,11 @@ export default {
   components: { IntegrationDropdown, InjectedFormulaInput },
   mixins: [form],
   props: {
+    // Hosts without an integrations page can offer editing in the dropdown.
+    allowIntegrationEditing: {
+      type: Boolean,
+      default: false,
+    },
     application: {
       type: Object,
       required: true,
@@ -91,7 +96,9 @@ export default {
      * `application.type === 'automation'` the same way.
      */
     editableFromHere() {
-      return this.application?.type === 'database'
+      return (
+        this.allowIntegrationEditing || this.application?.type === 'database'
+      )
     },
     integrationType() {
       return this.$registry.get(

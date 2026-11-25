@@ -14,7 +14,6 @@ from baserow.contrib.agent.models import (
     AgentTrigger,
 )
 from baserow.core.services.handler import ServiceHandler
-from baserow.core.services.registries import service_type_registry
 
 
 class AgentApplicationFixtures:
@@ -38,16 +37,19 @@ class AgentApplicationFixtures:
 
         kwargs.setdefault("ask_first", False)
         agent = agent or self.create_agent_application()
-        defaults = agent_action_type_registry.get(action_type).get_defaults()
+        registered_type = agent_action_type_registry.get(action_type)
+        defaults = registered_type.get_defaults()
         service_values = defaults.pop("service")
         service = kwargs.pop("service", None)
         if service is None:
             service = ServiceHandler().create_service(
-                service_type_registry.get(action_type), **service_values
+                registered_type.service_type, **service_values
             )
         defaults.update(kwargs)
         defaults["name"] = AgentActionHandler().unique_name(agent, defaults["name"])
-        return AgentAction.objects.create(agent=agent, service=service, **defaults)
+        return AgentAction.objects.create(
+            agent=agent, service=service, type=action_type, **defaults
+        )
 
     def create_agent_conversation(
         self, user: AbstractUser | None = None, **kwargs

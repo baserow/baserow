@@ -122,6 +122,7 @@ from baserow.contrib.integrations.local_baserow.utils import (
 )
 from baserow.core.action.handler import is_replaying_action
 from baserow.core.cache import global_cache, local_cache
+from baserow.core.db import specific_queryset
 from baserow.core.formula.serializers import FormulaSerializerField
 from baserow.core.formula.types import BaserowFormulaObject
 from baserow.core.formula.validator import (
@@ -282,6 +283,153 @@ class LocalBaserowServiceType(ServiceType):
                 "title": self.get_schema_name(service),
                 "type": "object",
             }
+
+
+class LocalBaserowSubjectReadableTablesMixin:
+    """
+    Lists and checks the tables a subject may read through a service type, for
+    consumers that act as a subject of their own rather than through an
+    integration, like an Agent with its run identity.
+    """
+
+    read_operations = (ListRowsDatabaseTableOperationType.type,)
+    # Whether the form choices hold the views of each table, for a form with a
+    # view picker.
+    form_choices_with_views = False
+
+    def can_subject_read(
+        self,
+        service: LocalBaserowTableService,
+        subject: Optional[Subject],
+        workspace: Workspace,
+    ) -> bool:
+        """
+        A subject needs the type's read permissions on the whole table, in the
+        consumer's workspace. Without a selected table there is nothing to read.
+
+        :param service: The specific service.
+        :param subject: The subject the consumer acts as, or None for none.
+        :param workspace: The workspace the consumer acts in.
+        :return: Whether the subject may read what the service reads.
+        """
+
+        if service.table_id is None:
+            return True
+        return service.table_id in self.get_subject_readable_table_ids(
+            [service], subject, workspace
+        )
+
+    def get_subject_readable_table_ids(
+        self,
+        services: List[LocalBaserowTableService],
+        subject: Optional[Subject],
+        workspace: Workspace,
+        operations: Optional[Tuple[str, ...]] = None,
+    ) -> Set[int]:
+        """
+        Like `can_subject_read`, for many services in one permission check.
+
+        :param services: The specific services, with their tables.
+        :param subject: The subject the consumer acts as, or None for none.
+        :param workspace: The workspace the consumer acts in.
+        :param operations: The operations the subject needs on a table instead of
+            the type's read operations, for a consumer that does more than read.
+        :return: The ids of the services' tables the subject may read.
+        """
+
+        if subject is None:
+            return set()
+        tables = {
+            service.table_id: service.table
+            for service in services
+            if service.table_id is not None
+        }
+        checks_by_table_id = {
+            table_id: [
+                PermissionCheck(subject, operation, table)
+                for operation in operations or self.read_operations
+            ]
+            for table_id, table in tables.items()
+            if table.database.workspace_id == workspace.id
+            and not TrashHandler.item_has_a_trashed_parent(table, check_item_also=True)
+        }
+        if not checks_by_table_id:
+            return set()
+        allowed = CoreHandler().check_multiple_permissions(
+            [check for checks in checks_by_table_id.values() for check in checks],
+            workspace=workspace,
+        )
+        return {
+            table_id
+            for table_id, checks in checks_by_table_id.items()
+            if all(allowed[check] is True for check in checks)
+        }
+
+    def get_form_choices(
+        self, subject: Optional[Subject], workspace: Workspace
+    ) -> Dict[str, List[Dict]]:
+        """
+        The databases and tables readable by the subject, shared by types
+        requiring the same permissions.
+
+        :param subject: The subject the consumer acts as, or None for none.
+        :param workspace: The workspace the consumer acts in.
+        :return: ``databases`` for the table selector, empty without a subject.
+        """
+
+        if subject is None:
+            return {"databases": []}
+        subject_type = subject_type_registry.get_by_model(subject).type
+        return local_cache.get(
+            f"local_baserow_form_choices_{subject_type}_{subject.pk}_"
+            f"{workspace.id}_{self.read_operations}_{self.form_choices_with_views}",
+            lambda: {"databases": self._list_readable_databases(subject, workspace)},
+        )
+
+    def _list_readable_databases(
+        self, subject: Subject, workspace: Workspace
+    ) -> List[Dict]:
+        """
+        :param subject: The subject the tables are listed for.
+        :param workspace: The workspace the tables are in.
+        :return: The serialized databases holding a table whose rows the subject
+            may list, with only those tables, and their views when the form
+            picks one.
+        """
+
+        databases = LocalBaserowIntegrationType.get_local_baserow_databases_for(
+            subject, workspace, with_views=self.form_choices_with_views
+        )
+        checks = [
+            PermissionCheck(subject, operation, table)
+            for database in databases
+            for table in database.tables
+            for operation in self.read_operations
+        ]
+        allowed = CoreHandler().check_multiple_permissions(checks, workspace=workspace)
+        unreadable_ids = {
+            check.context.id for check in checks if allowed[check] is not True
+        }
+        serialized = LocalBaserowDatabaseSerializer(databases, many=True).data
+        return [
+            {
+                **database,
+                "tables": tables,
+                "views": [
+                    view
+                    for view in database["views"]
+                    if view["table_id"] not in unreadable_ids
+                ],
+            }
+            for database in serialized
+            if (
+                tables := [
+                    table
+                    for table in database["tables"]
+                    if table["id"] not in unreadable_ids
+                ]
+            )
+        ]
 
 
 class LocalBaserowTableServiceType(LocalBaserowServiceType):
@@ -1344,6 +1492,7 @@ class LocalBaserowTableRowsListServiceTypeMixin(ListServiceTypeMixin):
 
 
 class LocalBaserowListRowsUserServiceType(
+    LocalBaserowSubjectReadableTablesMixin,
     LocalBaserowTableRowsListServiceTypeMixin,
     LocalBaserowTableServiceSearchableMixin,
     LocalBaserowTableServiceFilterableMixin,
@@ -1356,6 +1505,7 @@ class LocalBaserowListRowsUserServiceType(
     """
 
     type = "local_baserow_list_rows"
+    form_choices_with_views = True
     model_class = LocalBaserowListRows
     dispatch_types = [
         DispatchTypes.DATA,
@@ -1532,6 +1682,7 @@ class LocalBaserowListRowsUserServiceType(
 
 
 class LocalBaserowAggregateRowsUserServiceType(
+    LocalBaserowSubjectReadableTablesMixin,
     LocalBaserowTableServiceSearchableMixin,
     LocalBaserowTableServiceFilterableMixin,
     LocalBaserowViewServiceType,
@@ -1541,9 +1692,20 @@ class LocalBaserowAggregateRowsUserServiceType(
     """
 
     type = "local_baserow_aggregate_rows"
+    form_choices_with_views = True
     model_class = LocalBaserowAggregateRows
     # The aggregations the service can compute.
     aggregation_registry = field_aggregation_registry
+
+    def get_configuration_errors(
+        self, service: LocalBaserowAggregateRows
+    ) -> dict[str, str]:
+        return {
+            field: "required"
+            for field in ("field_id", "aggregation_type")
+            if not getattr(service, field)
+        }
+
     dispatch_types = [
         DispatchTypes.DATA,
         DispatchTypes.ACTION,
@@ -1652,7 +1814,17 @@ class LocalBaserowAggregateRowsUserServiceType(
         return (
             super()
             .enhance_queryset(queryset)
-            .prefetch_related("field__table__database")
+            .prefetch_related(
+                # The context data serializes the field in its specific form,
+                # which reads its constraints.
+                Prefetch(
+                    "field",
+                    queryset=specific_queryset(
+                        Field.objects_and_trash.prefetch_related("field_constraints")
+                    ),
+                ),
+                "field__table__database",
+            )
         )
 
     @property
@@ -1970,6 +2142,7 @@ class LocalBaserowAggregateRowsUserServiceType(
 
 
 class LocalBaserowGetRowUserServiceType(
+    LocalBaserowSubjectReadableTablesMixin,
     LocalBaserowTableServiceSearchableMixin,
     LocalBaserowTableServiceFilterableMixin,
     LocalBaserowTableServiceSortableMixin,
@@ -1982,6 +2155,7 @@ class LocalBaserowGetRowUserServiceType(
     """
 
     type = "local_baserow_get_row"
+    form_choices_with_views = True
     model_class = LocalBaserowGetRow
     dispatch_types = [
         DispatchTypes.DATA,
@@ -2156,7 +2330,9 @@ class LocalBaserowGetRowUserServiceType(
 
 
 class LocalBaserowUpsertRowServiceType(
-    LocalBaserowTableServiceSpecificRowMixin, LocalBaserowTableServiceType
+    LocalBaserowSubjectReadableTablesMixin,
+    LocalBaserowTableServiceSpecificRowMixin,
+    LocalBaserowTableServiceType,
 ):
     """
     A `LocalBaserow` service type which will create or update rows in
@@ -2382,7 +2558,8 @@ class LocalBaserowUpsertRowServiceType(
                     "value": m.value,
                     "enabled": m.enabled,
                 }
-                for m in service.field_mappings.all()
+                # Ordered, so that two exports of the same service are equal.
+                for m in sorted(service.field_mappings.all(), key=lambda m: m.field_id)
             ]
 
         return super().serialize_property(
@@ -2539,7 +2716,9 @@ class LocalBaserowUpsertRowServiceType(
         for field_mapping in field_mappings:
             formulas.append(
                 FormulaToResolve(
-                    field_mapping.id,
+                    # Named after the field, which, unlike the mapping's id,
+                    # survives a save of the mappings and a JSON round trip.
+                    f"field_{field_mapping.field_id}",
                     field_mapping.value,
                     lambda x: x,
                     f'field "{field_mapping.field.name}"',
@@ -2643,7 +2822,7 @@ class LocalBaserowUpsertRowServiceType(
 
         validated_values = {}
         for field_mapping in writable_field_mappings:
-            if field_mapping.id not in resolved_values:
+            if f"field_{field_mapping.field_id}" not in resolved_values:
                 continue
 
             field = field_mapping.field
@@ -2656,7 +2835,7 @@ class LocalBaserowUpsertRowServiceType(
             if field_type.read_only:
                 continue
 
-            resolved_value = resolved_values[field_mapping.id]
+            resolved_value = resolved_values[f"field_{field_mapping.field_id}"]
 
             # Transform and validate the resolved value with the field type's DRF field.
             serializer_field = field_type.get_serializer_field(field.specific)
@@ -3121,7 +3300,9 @@ class LocalBaserowUpdateRowsServiceType(LocalBaserowUpsertRowsServiceType):
 
 
 class LocalBaserowDeleteRowServiceType(
-    LocalBaserowTableServiceSpecificRowMixin, LocalBaserowTableServiceType
+    LocalBaserowSubjectReadableTablesMixin,
+    LocalBaserowTableServiceSpecificRowMixin,
+    LocalBaserowTableServiceType,
 ):
     type = "local_baserow_delete_row"
     model_class = LocalBaserowDeleteRow
@@ -3257,150 +3438,6 @@ class LocalBaserowDeleteRowServiceType(
         """
 
         return DispatchResult(data=dispatch_data["data"], status=204)
-
-
-class LocalBaserowSubjectReadableTablesMixin:
-    """
-    Lists and checks the tables a subject may read through a service type, for
-    consumers that act as a subject of their own rather than through an
-    integration, like an Agent with its run identity.
-    """
-
-    read_operations = (ListRowsDatabaseTableOperationType.type,)
-    # Whether the form choices hold the views of each table, for a form with a
-    # view picker.
-    form_choices_with_views = False
-
-    def can_subject_read(
-        self,
-        service: LocalBaserowTableService,
-        subject: Optional[Subject],
-        workspace: Workspace,
-    ) -> bool:
-        """
-        A subject needs the type's read permissions on the whole table, in the
-        consumer's workspace. Without a selected table there is nothing to read.
-
-        :param service: The specific service.
-        :param subject: The subject the consumer acts as, or None for none.
-        :param workspace: The workspace the consumer acts in.
-        :return: Whether the subject may read what the service reads.
-        """
-
-        if service.table_id is None:
-            return True
-        return service.table_id in self.get_subject_readable_table_ids(
-            [service], subject, workspace
-        )
-
-    def get_subject_readable_table_ids(
-        self,
-        services: List[LocalBaserowTableService],
-        subject: Optional[Subject],
-        workspace: Workspace,
-    ) -> Set[int]:
-        """
-        Like `can_subject_read`, for many services in one permission check.
-
-        :param services: The specific services, with their tables.
-        :param subject: The subject the consumer acts as, or None for none.
-        :param workspace: The workspace the consumer acts in.
-        :return: The ids of the services' tables the subject may read.
-        """
-
-        if subject is None:
-            return set()
-        tables = {
-            service.table_id: service.table
-            for service in services
-            if service.table_id is not None
-        }
-        checks_by_table_id = {
-            table_id: [
-                PermissionCheck(subject, operation, table)
-                for operation in self.read_operations
-            ]
-            for table_id, table in tables.items()
-            if table.database.workspace_id == workspace.id
-            and not TrashHandler.item_has_a_trashed_parent(table, check_item_also=True)
-        }
-        if not checks_by_table_id:
-            return set()
-        allowed = CoreHandler().check_multiple_permissions(
-            [check for checks in checks_by_table_id.values() for check in checks],
-            workspace=workspace,
-        )
-        return {
-            table_id
-            for table_id, checks in checks_by_table_id.items()
-            if all(allowed[check] is True for check in checks)
-        }
-
-    def get_form_choices(
-        self, subject: Optional[Subject], workspace: Workspace
-    ) -> Dict[str, List[Dict]]:
-        """
-        The databases and tables readable by the subject, shared by types
-        requiring the same permissions.
-
-        :param subject: The subject the consumer acts as, or None for none.
-        :param workspace: The workspace the consumer acts in.
-        :return: ``databases`` for the table selector, empty without a subject.
-        """
-
-        if subject is None:
-            return {"databases": []}
-        subject_type = subject_type_registry.get_by_model(subject).type
-        return local_cache.get(
-            f"local_baserow_form_choices_{subject_type}_{subject.pk}_"
-            f"{workspace.id}_{self.read_operations}_{self.form_choices_with_views}",
-            lambda: {"databases": self._list_readable_databases(subject, workspace)},
-        )
-
-    def _list_readable_databases(
-        self, subject: Subject, workspace: Workspace
-    ) -> List[Dict]:
-        """
-        :param subject: The subject the tables are listed for.
-        :param workspace: The workspace the tables are in.
-        :return: The serialized databases holding a table whose rows the subject
-            may list, with only those tables, and their views when the form
-            picks one.
-        """
-
-        databases = LocalBaserowIntegrationType.get_local_baserow_databases_for(
-            subject, workspace, with_views=self.form_choices_with_views
-        )
-        checks = [
-            PermissionCheck(subject, operation, table)
-            for database in databases
-            for table in database.tables
-            for operation in self.read_operations
-        ]
-        allowed = CoreHandler().check_multiple_permissions(checks, workspace=workspace)
-        unreadable_ids = {
-            check.context.id for check in checks if allowed[check] is not True
-        }
-        serialized = LocalBaserowDatabaseSerializer(databases, many=True).data
-        return [
-            {
-                **database,
-                "tables": tables,
-                "views": [
-                    view
-                    for view in database["views"]
-                    if view["table_id"] not in unreadable_ids
-                ],
-            }
-            for database in serialized
-            if (
-                tables := [
-                    table
-                    for table in database["tables"]
-                    if table["id"] not in unreadable_ids
-                ]
-            )
-        ]
 
 
 class LocalBaserowTableSignalTriggerServiceType(

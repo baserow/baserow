@@ -75,6 +75,13 @@ describe('Agent tool presentations', () => {
               'ask_person',
               'smtp_email',
               'http_request',
+              'local_baserow_create_row',
+              'local_baserow_update_row',
+              'local_baserow_delete_row',
+              'local_baserow_get_row',
+              'local_baserow_list_rows',
+              'local_baserow_aggregate_rows',
+              'slack_write_message',
             ].includes(type)
         )
         .sort()
@@ -143,6 +150,48 @@ describe('Agent tool presentations', () => {
         t
       ).title
     ).toBe('Email sent')
+  })
+
+  test('a row action is worded by its own type and labels its request', () => {
+    const activity = (status) =>
+      toolActivity(
+        step('add_lead', status, {
+          presentation_type: 'local_baserow_create_row',
+          input: {
+            values: { fields: { Name: 'Ada' }, table: 'Leads', row_id: '' },
+          },
+        }),
+        registry,
+        t
+      )
+    expect(activity('waiting').title).toBe('Create a row')
+    expect(activity('running').title).toBe('Creating a row…')
+    expect(activity('done').title).toBe('Row created')
+    expect(Object.entries(activity('waiting').input.values)).toEqual([
+      ['Table', 'Leads'],
+      ['Values', { Name: 'Ada' }],
+    ])
+  })
+
+  test('every hosted action type has a presentation of its own', () => {
+    for (const type of [
+      'local_baserow_create_row',
+      'local_baserow_update_row',
+      'local_baserow_delete_row',
+      'local_baserow_get_row',
+      'local_baserow_list_rows',
+      'local_baserow_aggregate_rows',
+      'slack_write_message',
+    ]) {
+      const presenter = registry.get('toolPresentation', type)
+      expect(presenter.getLabel(t)).not.toMatch(/^agent\./)
+      for (const status of ['running', 'done', 'waiting']) {
+        expect(presenter.getActivity({ status }, t)).not.toMatch(/^agent\./)
+      }
+      for (const key of Object.values(presenter.fieldLabels)) {
+        expect(t(key)).not.toBe(key)
+      }
+    }
   })
 
   test('a question to a person is described by the question', () => {

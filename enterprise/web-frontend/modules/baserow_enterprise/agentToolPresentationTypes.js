@@ -15,6 +15,7 @@ export class LocalBaserowSemanticSearchToolPresentationType extends ActionToolPr
       table: 'localBaserowTableSelector.tableFieldLabel',
       search_query: 'localBaserowSemanticSearchForm.searchQuery',
       max_results: 'localBaserowSemanticSearchForm.maxResults',
+      inputs: 'agent.actionInputs',
       table_id: 'localBaserowTableSelector.tableFieldLabel',
       search_field_ids: 'localBaserowSemanticSearchForm.fields',
       filters: 'agentSemanticSearch.filters',

@@ -524,6 +524,183 @@ export class HTTPRequestToolPresentationType extends ActionToolPresentationType 
   }
 }
 
+/**
+ * How the calls of an action on the rows of a table look. Each type names its
+ * activity texts by one translation key, which `Running` and `Done` follow.
+ */
+class RowActionToolPresentationType extends ActionToolPresentationType {
+  get labelKey() {
+    throw new Error('Must be set on the row action type.')
+  }
+
+  getLabel(t) {
+    return t(this.labelKey)
+  }
+
+  getActivity({ status }, t) {
+    return t(
+      status === STEP_STATUS.RUNNING
+        ? `${this.labelKey}Running`
+        : status === STEP_STATUS.DONE
+          ? `${this.labelKey}Done`
+          : this.labelKey
+    )
+  }
+}
+
+export class CreateRowToolPresentationType extends RowActionToolPresentationType {
+  static getType() {
+    return 'local_baserow_create_row'
+  }
+
+  get labelKey() {
+    return 'agent.toolCreateRow'
+  }
+
+  get fieldLabels() {
+    return {
+      table: 'localBaserowTableSelector.tableFieldLabel',
+      fields: 'agent.actionFieldValues',
+      inputs: 'agent.actionInputs',
+      table_id: 'localBaserowTableSelector.tableFieldLabel',
+    }
+  }
+}
+
+export class UpdateRowToolPresentationType extends RowActionToolPresentationType {
+  static getType() {
+    return 'local_baserow_update_row'
+  }
+
+  get labelKey() {
+    return 'agent.toolUpdateRow'
+  }
+
+  get fieldLabels() {
+    return {
+      table: 'localBaserowTableSelector.tableFieldLabel',
+      row_id: 'localBaserowServiceForm.rowIdLabel',
+      fields: 'agent.actionFieldValues',
+      inputs: 'agent.actionInputs',
+      table_id: 'localBaserowTableSelector.tableFieldLabel',
+    }
+  }
+}
+
+export class DeleteRowToolPresentationType extends RowActionToolPresentationType {
+  static getType() {
+    return 'local_baserow_delete_row'
+  }
+
+  get labelKey() {
+    return 'agent.toolDeleteRow'
+  }
+
+  get fieldLabels() {
+    return {
+      table: 'localBaserowTableSelector.tableFieldLabel',
+      row_id: 'localBaserowServiceForm.rowIdLabel',
+      inputs: 'agent.actionInputs',
+      table_id: 'localBaserowTableSelector.tableFieldLabel',
+    }
+  }
+}
+
+export class GetRowToolPresentationType extends RowActionToolPresentationType {
+  static getType() {
+    return 'local_baserow_get_row'
+  }
+
+  get labelKey() {
+    return 'agent.toolGetRow'
+  }
+
+  get fieldLabels() {
+    return {
+      table: 'localBaserowTableSelector.tableFieldLabel',
+      view: 'localBaserowTableSelector.viewFieldLabel',
+      row_id: 'localBaserowServiceForm.rowIdLabel',
+      inputs: 'agent.actionInputs',
+      table_id: 'localBaserowTableSelector.tableFieldLabel',
+      filters: 'agent.actionFieldFilters',
+      search_query: 'agent.actionFieldSearch',
+    }
+  }
+}
+
+export class ListRowsToolPresentationType extends RowActionToolPresentationType {
+  static getType() {
+    return 'local_baserow_list_rows'
+  }
+
+  get labelKey() {
+    return 'agent.toolListRows'
+  }
+
+  get fieldLabels() {
+    return {
+      table: 'localBaserowTableSelector.tableFieldLabel',
+      view: 'localBaserowTableSelector.viewFieldLabel',
+      inputs: 'agent.actionInputs',
+      table_id: 'localBaserowTableSelector.tableFieldLabel',
+      filters: 'agent.actionFieldFilters',
+      search_query: 'agent.actionFieldSearch',
+    }
+  }
+}
+
+export class AggregateRowsToolPresentationType extends RowActionToolPresentationType {
+  static getType() {
+    return 'local_baserow_aggregate_rows'
+  }
+
+  get labelKey() {
+    return 'agent.toolAggregateRows'
+  }
+
+  get fieldLabels() {
+    return {
+      table: 'localBaserowTableSelector.tableFieldLabel',
+      view: 'localBaserowTableSelector.viewFieldLabel',
+      field: 'localBaserowAggregateRowsForm.aggregationFieldLabel',
+      aggregation_type: 'localBaserowAggregateRowsForm.aggregationTypeLabel',
+      inputs: 'agent.actionInputs',
+      table_id: 'localBaserowTableSelector.tableFieldLabel',
+      field_id: 'localBaserowAggregateRowsForm.aggregationFieldLabel',
+      filters: 'agent.actionFieldFilters',
+      search_query: 'agent.actionFieldSearch',
+    }
+  }
+}
+
+export class SlackWriteMessageToolPresentationType extends ActionToolPresentationType {
+  static getType() {
+    return 'slack_write_message'
+  }
+
+  get fieldLabels() {
+    return {
+      channel: 'slackWriteMessageServiceForm.channelLabel',
+      text: 'slackWriteMessageServiceForm.messageLabel',
+      integration_id: 'slackWriteMessageServiceForm.integrationLabel',
+    }
+  }
+
+  getLabel(t) {
+    return t('agent.toolSlackMessage')
+  }
+
+  getActivity({ status }, t) {
+    return t(
+      status === STEP_STATUS.RUNNING
+        ? 'agent.toolSlackMessageRunning'
+        : status === STEP_STATUS.DONE
+          ? 'agent.toolSlackMessageDone'
+          : 'agent.toolSlackMessage'
+    )
+  }
+}
+
 export const agentToolPresentationTypes = [
   SMTPEmailToolPresentationType,
   HTTPRequestToolPresentationType,
@@ -547,4 +724,11 @@ export const agentToolPresentationTypes = [
   UpdateRowsToolPresentationType,
   DeleteRowsToolPresentationType,
   MCPServerToolPresentationType,
+  CreateRowToolPresentationType,
+  UpdateRowToolPresentationType,
+  DeleteRowToolPresentationType,
+  GetRowToolPresentationType,
+  ListRowsToolPresentationType,
+  AggregateRowsToolPresentationType,
+  SlackWriteMessageToolPresentationType,
 ]

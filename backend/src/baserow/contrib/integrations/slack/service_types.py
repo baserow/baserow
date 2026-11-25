@@ -42,6 +42,11 @@ class SlackWriteMessageServiceType(ServiceType):
     public_serializer_field_names = ["integration_id", "channel", "text"]
     simple_formula_fields = ["text"]
 
+    def get_configuration_errors(
+        self, service: SlackWriteMessageService
+    ) -> dict[str, str]:
+        return {} if service.channel else {"channel": "required"}
+
     class SerializedDict(ServiceDict):
         channel: str
         text: BaserowFormulaObject

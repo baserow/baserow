@@ -274,7 +274,7 @@ def _read_setup(user: AbstractUser, agent: AgentApplication) -> dict[str, Any]:
         "actions": [
             {
                 "action_id": action.id,
-                "type": action.service.get_type().type,
+                "type": action.get_type_name(),
                 "name": action.name,
                 "enabled": action.enabled,
                 "ask_first": action.ask_first,

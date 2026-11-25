@@ -502,7 +502,7 @@ def test_runtime_shows_the_adapter_preview_and_dispatches_the_arguments(
         def get_preview(self, action, resolved_values, arguments):
             return preview
 
-        def dispatch(self, action, resolved_values, identity=None):
+        def dispatch(self, action, resolved_values, identity=None, arguments=None):
             dispatched.append(resolved_values)
             return DispatchResult(data={"queued": True})
 
@@ -565,7 +565,7 @@ def test_an_action_acting_as_the_identity_runs_only_for_a_run_held_as_it(
         def prepare(self, action, arguments):
             return {"payload": arguments["payload"]}
 
-        def dispatch(self, action, resolved_values, identity=None):
+        def dispatch(self, action, resolved_values, identity=None, arguments=None):
             dispatched_as.append(identity.pk)
             return DispatchResult(data={"done": True})
 
