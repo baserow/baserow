@@ -92,6 +92,7 @@
     "chart.js": "3.9.1",
     "chartjs-adapter-moment": "1.0.1",
     "decamelize": "^6.0.1",
+    "dompurify": "3.4.17",
     "entities": "7.0.1",
     "eslint": "^9.39.3",
     "flush-promises": "^1.0.2",

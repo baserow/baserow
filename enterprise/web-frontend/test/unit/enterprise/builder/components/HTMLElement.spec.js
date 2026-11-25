@@ -1,3 +1,4 @@
+import '../../../../fixtures/happyDomNodeName'
 import { mountSuspended } from '@nuxt/test-utils/runtime'
 import { reactive, nextTick } from 'vue'
 import { enableAutoUnmount } from '@vue/test-utils'

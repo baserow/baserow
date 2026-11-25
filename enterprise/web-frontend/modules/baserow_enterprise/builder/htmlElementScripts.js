@@ -1,3 +1,5 @@
+import DOMPurify from 'dompurify'
+
 /**
  * Scripts inserted through `innerHTML` never run. Replaces each script in
  * `host` with a fresh copy so the browser runs it, in document order. A
@@ -42,35 +44,6 @@ export async function runInsertedScripts(host, isCurrent = () => true) {
   }
 }
 
-// Elements that run code or load a document able to run it.
-const UNSAFE_ELEMENTS = new Set([
-  'script',
-  'object',
-  'embed',
-  'applet',
-  'frame',
-  'frameset',
-  'portal',
-  'base',
-  'meta',
-  // SVG animations can set a link's `href` to a `javascript:` URL.
-  'animate',
-  'animatemotion',
-  'animatetransform',
-  'set',
-])
-
-const SCRIPT_URL = /^(javascript|vbscript):/i
-
-// The URL parser skips leading control characters and spaces, and removes
-// tabs and newlines anywhere, so `" java\tscript:"` still runs code.
-function isScriptURL(value) {
-  return SCRIPT_URL.test(
-    // eslint-disable-next-line no-control-regex
-    value.replace(/[\t\n\r]/g, '').replace(/^[\u0000-\u0020]+/, '')
-  )
-}
-
 const DEFAULT_FRAME_SANDBOX = [
   'allow-forms',
   'allow-popups',
@@ -79,57 +52,58 @@ const DEFAULT_FRAME_SANDBOX = [
   'allow-scripts',
 ]
 
-function cleanElement(element) {
-  for (const { name, value } of Array.from(element.attributes)) {
-    if (
-      name.toLowerCase().startsWith('on') ||
-      name.toLowerCase() === 'srcdoc' ||
-      isScriptURL(value)
-    ) {
-      element.removeAttribute(name)
-    }
+// Without `allow-same-origin` a framed page, even one served from the editor's
+// hostname, gets an opaque origin and no access to its cookies.
+function sandboxFrame(node) {
+  if (node.localName !== 'iframe') {
+    return
   }
-  if (element.localName === 'iframe') {
-    // Without `allow-same-origin` a framed page, even one served from the
-    // editor's hostname, gets an opaque origin and no access to its cookies.
-    const tokens = element.hasAttribute('sandbox')
-      ? element.getAttribute('sandbox').split(/\s+/).filter(Boolean)
-      : DEFAULT_FRAME_SANDBOX
-    element.setAttribute(
-      'sandbox',
-      tokens
-        .filter((token) => token.toLowerCase() !== 'allow-same-origin')
-        .join(' ')
-    )
-  }
+  const tokens = node.hasAttribute('sandbox')
+    ? node.getAttribute('sandbox').split(/\s+/).filter(Boolean)
+    : DEFAULT_FRAME_SANDBOX
+  node.setAttribute(
+    'sandbox',
+    tokens
+      .filter((token) => token.toLowerCase() !== 'allow-same-origin')
+      .join(' ')
+  )
 }
 
-function cleanTree(root) {
-  for (const element of Array.from(root.querySelectorAll('*'))) {
-    if (UNSAFE_ELEMENTS.has(element.localName.toLowerCase())) {
-      element.remove()
-      continue
-    }
-    cleanElement(element)
-    if (element.localName === 'template') {
-      cleanTree(element.content)
-    }
+const PURIFY_CONFIG = {
+  // Keeps a leading `<style>`, which would otherwise be moved to the head.
+  FORCE_BODY: true,
+  ADD_TAGS: ['iframe'],
+  ADD_ATTR: [
+    'allow',
+    'allowfullscreen',
+    'frameborder',
+    'loading',
+    'referrerpolicy',
+    'sandbox',
+    'target',
+  ],
+  // Nodes are inserted as they are, so the cleaned HTML is never parsed again.
+  RETURN_DOM_FRAGMENT: true,
+}
+
+let purify = null
+
+// Created on first use: DOMPurify needs a window, which only the client has.
+function getPurify() {
+  if (!purify) {
+    purify = DOMPurify(window)
+    purify.addHook('afterSanitizeAttributes', sandboxFrame)
   }
+  return purify
 }
 
 /**
  * Parses `html` into a fragment without anything that would run JavaScript
  * once inserted: scripts, plugins, event handler attributes like `onerror`,
- * `javascript:` URLs and `srcdoc` frames. Markup, styles and embeds stay.
- * Used in Preview on the editor's hostname, where code would share the
- * editor's cookies.
- *
- * The HTML is parsed in an inert template and the cleaned nodes are inserted
- * as they are, so the browser never parses the cleaned HTML a second time.
+ * `javascript:` URLs and `srcdoc` frames. Markup, styles, forms and embeds
+ * stay, and frames are sandboxed away from the page's origin. Used in Preview
+ * on the editor's hostname, where code would share the editor's cookies.
  */
 export function parseWithoutScripts(html) {
-  const template = document.createElement('template')
-  template.innerHTML = html
-  cleanTree(template.content)
-  return template.content
+  return getPurify().sanitize(html, PURIFY_CONFIG)
 }
