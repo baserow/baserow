@@ -1,4 +1,5 @@
 from django.conf import settings
+from django.contrib.contenttypes.models import ContentType
 from django.db import models
 from django.db.models import Q
 
@@ -11,6 +12,7 @@ from baserow.core.formula.field import FormulaField
 from baserow.core.mixins import (
     BigAutoFieldMixin,
     CreatedAndUpdatedOnMixin,
+    PolymorphicContentTypeMixin,
     TrashableModelMixin,
 )
 from baserow.core.models import Application, IdentityDefinition
@@ -166,12 +168,37 @@ class AgentTrigger(TrashableModelMixin, CreatedAndUpdatedOnMixin, models.Model):
         ordering = ("id",)
 
 
+class AgentChannel(
+    PolymorphicContentTypeMixin,
+    TrashableModelMixin,
+    CreatedAndUpdatedOnMixin,
+    models.Model,
+):
+    """
+    A place outside the agent's own page where people talk to it: their messages
+    arrive from there and its replies go back there. Each type keeps what it needs
+    in its own subclass.
+    """
+
+    agent = models.ForeignKey(
+        AgentApplication, on_delete=models.CASCADE, related_name="channels"
+    )
+    content_type = models.ForeignKey(
+        ContentType, on_delete=models.CASCADE, related_name="agent_channels"
+    )
+    enabled = models.BooleanField(default=True, db_default=True)
+
+    class Meta:
+        ordering = ("id",)
+
+
 class AgentConversation(
     TrashableModelMixin, BigAutoFieldMixin, CreatedAndUpdatedOnMixin, models.Model
 ):
     """
     A conversation with an agent: private to its participants, or shared with
-    everyone who may read the agent's conversations. A trigger's always is.
+    everyone who may read the agent's conversations. A trigger's or a channel's
+    always is.
     """
 
     agent = models.ForeignKey(
@@ -194,6 +221,13 @@ class AgentConversation(
         on_delete=models.SET_NULL,
         related_name="conversations",
     )
+    channel = models.ForeignKey(
+        AgentChannel,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="conversations",
+    )
     # The list indexes lead with the agent, so reads never need one on trashed.
     trashed = models.BooleanField(default=False, db_default=False)
     pinned = models.BooleanField(default=False, db_default=False)
@@ -211,6 +245,7 @@ class AgentConversation(
         help_text="Whether the conversation came with an import or a template as an "
         "example. It belongs to nobody of this instance.",
     )
+    started_by_channel = models.BooleanField(default=False, db_default=False)
     # Who sees a private conversation: its owner and whom they asked to approve.
     participants = models.ManyToManyField(
         settings.AUTH_USER_MODEL, related_name="participating_agent_conversations"
@@ -267,6 +302,7 @@ class AgentMessage(BigAutoFieldMixin, CreatedAndUpdatedOnMixin, models.Model):
         USER = "user", "User"
         ASSISTANT = "assistant", "Assistant"
         TRIGGER = "trigger", "Trigger"
+        VISITOR = "visitor", "Visitor"
 
     conversation = models.ForeignKey(
         AgentConversation, on_delete=models.CASCADE, related_name="messages"
@@ -284,7 +320,7 @@ class AgentMessage(BigAutoFieldMixin, CreatedAndUpdatedOnMixin, models.Model):
     stopped_by = models.ForeignKey(
         settings.AUTH_USER_MODEL, null=True, on_delete=models.SET_NULL, related_name="+"
     )
-    # Whether a trigger asked for the reply, which a deleted sender can't tell.
+    # No member is behind the reply: a trigger or a visitor asked for it.
     unattended = models.BooleanField(default=False, db_default=False)
     # Only the agent's replies have one.
     status = models.CharField(
@@ -313,6 +349,9 @@ class AgentMessage(BigAutoFieldMixin, CreatedAndUpdatedOnMixin, models.Model):
                 fields=["conversation", "uuid"], name="unique_agent_message_uuid"
             ),
         ]
+
+
+UNATTENDED_ROLES = (AgentMessage.Role.TRIGGER, AgentMessage.Role.VISITOR)
 
 
 class AgentToolApproval(BigAutoFieldMixin, models.Model):

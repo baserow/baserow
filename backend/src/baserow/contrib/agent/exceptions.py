@@ -49,3 +49,7 @@ class AgentTriggerOff(Exception):
 
 class AgentConversationIsExample(Exception):
     """Raised when a message is sent to an example conversation, which is read-only."""
+
+
+class AgentChannelOff(Exception):
+    """The channel of a conversation is off or gone, so its reply stops."""

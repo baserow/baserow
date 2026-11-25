@@ -19,12 +19,18 @@ from baserow.core.signals import application_pending_count_updated
 
 from .api.serializers import AgentMessageSerializer
 from .constants import (
+    AGENT_CHANNEL_OFF,
     AGENT_NOT_ALLOWED,
     AGENT_NOT_READY,
     AGENT_RUN_TYPE,
     AGENT_TRIGGER_OFF,
 )
-from .exceptions import AgentConversationDoesNotExist, AgentNotReady, AgentTriggerOff
+from .exceptions import (
+    AgentChannelOff,
+    AgentConversationDoesNotExist,
+    AgentNotReady,
+    AgentTriggerOff,
+)
 from .handler import AgentHandler
 from .models import AgentMessage, AgentReplyStatus
 from .replies import AgentResponder, create_reply_model
@@ -97,6 +103,8 @@ class AgentChatRunType(ChatRunType):
             return ChatRunOutcome(ChatRunStatus.FAILED, AGENT_NOT_READY)
         except AgentTriggerOff:
             return ChatRunOutcome(ChatRunStatus.FAILED, AGENT_TRIGGER_OFF)
+        except AgentChannelOff:
+            return ChatRunOutcome(ChatRunStatus.FAILED, AGENT_CHANNEL_OFF)
         except PermissionException:
             return ChatRunOutcome(ChatRunStatus.FAILED, AGENT_NOT_ALLOWED)
         return await AgentResponder(request, journal, model, model_settings).answer()

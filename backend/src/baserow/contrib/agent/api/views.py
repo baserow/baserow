@@ -425,6 +425,12 @@ class AgentConversationsView(
                 "both.",
             ),
             OpenApiParameter(
+                "started_by_channel",
+                OpenApiTypes.BOOL,
+                description="Only conversations a channel started or not. Omit for "
+                "both.",
+            ),
+            OpenApiParameter(
                 "last_reply_failed",
                 OpenApiTypes.BOOL,
                 description="Only conversations whose latest reply failed or not. "
@@ -466,6 +472,7 @@ class AgentConversationsView(
                 has_pending_approvals=query_params.get("has_pending_approvals"),
                 shared=query_params.get("shared"),
                 started_by_trigger=query_params.get("started_by_trigger"),
+                started_by_channel=query_params.get("started_by_channel"),
                 last_reply_failed=query_params.get("last_reply_failed"),
             )[: limit + 1]
         )

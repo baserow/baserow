@@ -379,6 +379,11 @@ class AgentConversationSerializer(serializers.ModelSerializer):
         help_text="Whether the conversation came with an import or a template as an "
         "example, so nobody of this instance started it or sent its messages.",
     )
+    started_by_channel = serializers.BooleanField(
+        read_only=True,
+        help_text="Whether a visitor started this shared conversation through a "
+        "channel, so nobody in the workspace sends messages in it.",
+    )
     participants = serializers.SerializerMethodField(
         help_text="Who sees this private conversation: its owner and the people "
         "asked to approve its tool calls. Empty when it's shared."
@@ -420,6 +425,7 @@ class AgentConversationSerializer(serializers.ModelSerializer):
             "shared",
             "started_by_trigger",
             "is_example",
+            "started_by_channel",
             "owner",
             "participants",
             "trigger_id",
@@ -742,6 +748,7 @@ class AgentConversationsQuerySerializer(serializers.Serializer):
     has_pending_approvals = serializers.BooleanField(required=False)
     shared = serializers.BooleanField(required=False)
     started_by_trigger = serializers.BooleanField(required=False)
+    started_by_channel = serializers.BooleanField(required=False)
     last_reply_failed = serializers.BooleanField(required=False)
     limit = serializers.IntegerField(
         default=20,

@@ -25,6 +25,7 @@ from .action_tools.signals import agent_action_updated
 from .api.serializers import AgentConversationUserSerializer
 from .constants import AgentReadinessState
 from .exceptions import (
+    AgentChannelOff,
     AgentConversationDoesNotExist,
     AgentConversationIsExample,
     AgentConversationWaitingForApproval,
@@ -219,6 +220,7 @@ class AgentService:
         has_pending_approvals: bool | None = None,
         shared: bool | None = None,
         started_by_trigger: bool | None = None,
+        started_by_channel: bool | None = None,
         last_reply_failed: bool | None = None,
     ) -> QuerySet[AgentConversation]:
         """
@@ -234,6 +236,8 @@ class AgentService:
         :param has_pending_approvals: Only conversations with or without pending calls.
         :param shared: Only shared or private conversations, or both when omitted.
         :param started_by_trigger: Only conversations a trigger started or not, or
+            both when omitted.
+        :param started_by_channel: Only conversations a channel started or not, or
             both when omitted.
         :param last_reply_failed: Only conversations whose latest reply failed or
             not, or both when omitted.
@@ -251,6 +255,7 @@ class AgentService:
             has_pending_approvals,
             shared,
             started_by_trigger,
+            started_by_channel,
             last_reply_failed,
         )
 
@@ -803,15 +808,22 @@ class AgentService:
         )
         return all(allowed.values())
 
-    def _require_live_trigger(self, conversation: AgentConversation) -> None:
+    def _require_live_origin(self, conversation: AgentConversation) -> None:
         """
-        An unattended reply runs on its trigger's authority, so it stops once the
-        trigger is gone, trashed or disabled.
+        An unattended reply runs on the authority of the channel or the trigger
+        that started its conversation, so it stops once that is gone, trashed or
+        disabled.
 
-        :param conversation: The conversation the trigger started, with its trigger.
+        :param conversation: The conversation, with its channel and trigger.
+        :raises AgentChannelOff: When the channel is off, trashed or deleted.
         :raises AgentTriggerOff: When the trigger is off, trashed or deleted.
         """
 
+        if conversation.started_by_channel:
+            channel = conversation.channel
+            if channel is None or channel.trashed or not channel.enabled:
+                raise AgentChannelOff
+            return
         trigger = conversation.trigger
         if trigger is None or trigger.trashed or not trigger.enabled:
             raise AgentTriggerOff
@@ -842,10 +854,11 @@ class AgentService:
         """
         Load what a reply answers, or the paused run it continues, checking again
         that it may still be written: access and configuration can change while
-        the reply waits. An unattended reply needs its trigger alive and enabled.
-        The person whose decision resumes the reply must still see the
-        conversation and approve tool calls; otherwise the person it answers must
-        still see it and send messages, or continue it when a trigger started it.
+        the reply waits. An unattended reply needs its channel or trigger alive
+        and enabled. The person whose decision resumes the reply must still see
+        the conversation and approve tool calls; otherwise the person it answers
+        must still see it and send messages, or continue it when a trigger
+        started it.
 
         :param reply_id: The id of the reply.
         :param approver_id: The id of the person whose decision resumes the reply.
@@ -854,6 +867,8 @@ class AgentService:
         :raises PermissionException: When the agent or its workspace is trashed, or
             the person checked was deleted, no longer sees the conversation or
             lost the permission.
+        :raises AgentChannelOff: When the channel that started the conversation is
+            off, trashed or deleted.
         :raises AgentTriggerOff: When the trigger that started the conversation is
             off, trashed or deleted.
         :raises AgentNotReady: When the agent's configuration is no longer ready.
@@ -868,7 +883,7 @@ class AgentService:
         if agent.trashed or agent.workspace is None or agent.workspace.trashed:
             raise PermissionDenied
         if reply.unattended:
-            self._require_live_trigger(conversation)
+            self._require_live_origin(conversation)
         checked = self._get_reply_actor(reply, approver_id)
         if checked is not None:
             actor, operation = checked
@@ -959,7 +974,8 @@ class AgentService:
         :raises FeatureDisabledException: When Agents are disabled, so an imported
             Agent can't call its provider.
         :raises PermissionException: When the user may not send messages to the
-            agent, or may not continue conversations a trigger started.
+            agent, may not continue conversations a trigger started, or the
+            conversation was started by a channel, where only its visitor writes.
         :raises AgentConversationDoesNotExist: When the user sees no conversation
             with this uuid in the agent.
         :raises ValidationError: When the content is blank or too long.
@@ -983,6 +999,8 @@ class AgentService:
         conversation = self.handler.get_conversation(
             agent, user, conversation_uuid, for_update=True
         )
+        if conversation.started_by_channel:
+            raise PermissionDenied()
         operation = (
             ContinueAgentTriggeredConversationOperationType
             if conversation.started_by_trigger
