@@ -1174,7 +1174,9 @@ def test_local_baserow_upsert_row_service_dispatch_data_incompatible_value(
     field_mapping = service.field_mappings.create(field=boolean_field, value="'Horse'")
     with pytest.raises(InvalidContextContentDispatchException) as exc:
         service_type.dispatch_data(
-            service, {"table": table, field_mapping.id: "Horse"}, dispatch_context
+            service,
+            {"table": table, f"field_{field_mapping.field_id}": "Horse"},
+            dispatch_context,
         )
 
     assert (
@@ -1190,7 +1192,9 @@ def test_local_baserow_upsert_row_service_dispatch_data_incompatible_value(
     )
     with pytest.raises(InvalidContextContentDispatchException) as exc:
         service_type.dispatch_data(
-            service, {"table": table, field_mapping.id: "99999999999"}, dispatch_context
+            service,
+            {"table": table, f"field_{field_mapping.field_id}": "99999999999"},
+            dispatch_context,
         )
 
     assert exc.value.args[0] == (
@@ -1309,12 +1313,12 @@ def test_local_baserow_upsert_row_service_dispatch_data_with_serialized_select_o
     dispatch_data = service_type.dispatch_data(
         service,
         {
-            single_select_mapping.id: {
+            f"field_{single_select_mapping.field_id}": {
                 "id": single_select_option.id,
                 "color": single_select_option.color,
                 "value": single_select_option.value,
             },
-            multiple_select_mapping.id: [
+            f"field_{multiple_select_mapping.field_id}": [
                 {
                     "id": bread_option.id,
                     "color": bread_option.color,
@@ -1388,14 +1392,16 @@ def test_local_baserow_upsert_row_service_dispatch_data_with_serialized_relation
     dispatch_data = service_type.dispatch_data(
         service,
         {
-            link_row_mapping.id: [
+            f"field_{link_row_mapping.field_id}": [
                 {
                     "id": related_row.id,
                     "value": "Bakery",
                     "order": str(related_row.order),
                 }
             ],
-            collaborator_mapping.id: [{"id": user.id, "name": user.first_name}],
+            f"field_{collaborator_mapping.field_id}": [
+                {"id": user.id, "name": user.first_name}
+            ],
         },
         FakeDispatchContext(),
     )

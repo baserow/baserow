@@ -1,4 +1,4 @@
-from baserow.core.tools.results import fit_values, json_length
+from baserow.core.tools.results import fit_result, fit_values, json_length
 
 
 def skeleton_length(values):
@@ -39,3 +39,37 @@ def test_fit_values_gives_up_when_even_the_keys_dont_fit():
     values = {"title": "Refunds", "body": "Text"}
 
     assert fit_values(values, skeleton_length(values) - 1) is None
+
+
+def test_fit_result_leaves_a_result_that_fits_as_it_is():
+    result = {"results": [{"id": 1}], "has_next_page": False}
+
+    assert fit_result(result, 1000) is result
+
+
+def test_fit_result_keeps_the_first_items_whole_and_leaves_the_others_out():
+    rows = [{"id": index, "name": "x" * 50} for index in range(10)]
+    result = {"results": rows, "has_next_page": False}
+
+    fitted = fit_result(result, 300)
+
+    assert fitted["results"] == rows[: len(fitted["results"])]
+    assert 0 < len(fitted["results"]) < 10
+    assert fitted["truncated"] is True
+    assert fitted["has_next_page"] is False
+    assert json_length(fitted) <= 300
+
+
+def test_fit_result_cuts_the_first_item_when_not_even_it_fits():
+    result = {"results": [{"id": 1, "body": "x" * 500}]}
+
+    fitted = fit_result(result, 200)
+
+    assert fitted["results"][0]["id"] == 1
+    assert fitted["results"][0]["body"].endswith("…")
+    assert json_length(fitted) <= 200
+
+
+def test_fit_result_cuts_the_values_of_another_object_and_any_other_value():
+    assert fit_result({"result": "x" * 500}, 100)["truncated"] is True
+    assert fit_result("x" * 500, 100) == "x" * 99 + "…"

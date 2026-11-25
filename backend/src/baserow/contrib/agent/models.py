@@ -79,6 +79,7 @@ class AgentAction(TrashableModelMixin, CreatedAndUpdatedOnMixin, models.Model):
     service = models.OneToOneField(
         Service, on_delete=models.CASCADE, related_name="agent_action"
     )
+    type = models.CharField(max_length=255, null=True)
     name = models.CharField(max_length=64)
     description = models.TextField(blank=True, default="")
     inputs = models.JSONField(default=list, blank=True)
@@ -95,6 +96,14 @@ class AgentAction(TrashableModelMixin, CreatedAndUpdatedOnMixin, models.Model):
                 name="agent_action_unique_live_name",
             )
         ]
+
+    def get_type_name(self) -> str:
+        """
+        :return: The name of the action's type, which is its service's type
+            unless several action types share that service type.
+        """
+
+        return self.type or self.service.get_type().type
 
 
 class AgentTrigger(TrashableModelMixin, CreatedAndUpdatedOnMixin, models.Model):

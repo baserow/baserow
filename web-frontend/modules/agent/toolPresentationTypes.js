@@ -422,6 +422,38 @@ export class ActionToolPresentationType extends ToolPresentationType {
   }
 }
 
+/**
+ * Presents the calls of every action type that has no presentation of its own,
+ * under the name of its service type. A field it has no label for shows as the
+ * service names it.
+ */
+export class GenericActionToolPresentationType extends ActionToolPresentationType {
+  static getType() {
+    return 'agent_action'
+  }
+
+  matchesTool(name) {
+    return this.app.$registry.exists('service', name)
+  }
+
+  get fieldLabels() {
+    return {
+      table: 'localBaserowTableSelector.tableFieldLabel',
+      row_id: 'localBaserowServiceForm.rowIdLabel',
+      fields: 'agent.actionFieldValues',
+      workflow: 'coreStartWorkflowServiceForm.workflow',
+      channel: 'slackWriteMessageServiceForm.channelLabel',
+      text: 'slackWriteMessageServiceForm.messageLabel',
+      ai_prompt: 'aiAgentServiceForm.promptLabel',
+      inputs: 'agent.actionInputs',
+    }
+  }
+
+  getActivity({ presentation_type: type }) {
+    return this.app.$registry.get('service', type).name
+  }
+}
+
 export class SMTPEmailToolPresentationType extends ActionToolPresentationType {
   static getType() {
     return 'smtp_email'
@@ -517,4 +549,5 @@ export const agentToolPresentationTypes = [
   UpdateRowsToolPresentationType,
   DeleteRowsToolPresentationType,
   MCPServerToolPresentationType,
+  GenericActionToolPresentationType,
 ]

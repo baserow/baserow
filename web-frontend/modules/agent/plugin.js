@@ -9,6 +9,7 @@ import {
 } from '@baserow/modules/agent/dataProviderTypes'
 import {
   HTTPAgentTriggerType,
+  InboundEmailAgentTriggerType,
   RowsCreatedAgentTriggerType,
   RowsDeletedAgentTriggerType,
   RowsUpdatedAgentTriggerType,
@@ -45,6 +46,7 @@ export default defineNuxtPlugin({
     nuxtApp.$registry.registerNamespace('agentTriggerType')
     for (const TriggerType of [
       HTTPAgentTriggerType,
+      InboundEmailAgentTriggerType,
       RowsCreatedAgentTriggerType,
       RowsUpdatedAgentTriggerType,
       RowsDeletedAgentTriggerType,

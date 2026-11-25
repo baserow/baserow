@@ -489,10 +489,29 @@ watch(
   }
 )
 
-function onServiceValuesChanged(values) {
-  if (!canEdit.value) return
-  if (form.value?.isFormValid && !form.value.isFormValid()) return
+// A form that waits for its own save, like a new email address, is told once
+// the card's save ended.
+let onServiceSettled = null
+watch(
+  () => props.saving,
+  (saving) => {
+    if (!saving) {
+      onServiceSettled?.()
+      onServiceSettled = null
+    }
+  }
+)
+
+function onServiceValuesChanged(values, { onSettled } = {}) {
+  if (
+    !canEdit.value ||
+    (form.value?.isFormValid && !form.value.isFormValid())
+  ) {
+    onSettled?.()
+    return
+  }
   emit('update', { service: values })
+  if (onSettled) onServiceSettled = onSettled
 }
 
 /**

@@ -104,7 +104,8 @@ class AgentTriggerHandler:
     def available_trigger_types(self) -> list[str]:
         """
         List the trigger types an Agent's trigger can have on this instance, in
-        registry order, including the ones a workspace's license locks.
+        registry order, including the ones a workspace's license locks. A type
+        the instance can't run is left out.
 
         :return: The names of the registered trigger service types the picker
             offers.
@@ -115,6 +116,9 @@ class AgentTriggerHandler:
             for service_type in service_type_registry.get_all()
             if isinstance(service_type, TriggerServiceTypeMixin)
             and service_type.type in AGENT_TRIGGER_TYPES_ENABLED
+            and agent_trigger_type_registry.get_for_service_type(
+                service_type.type
+            ).is_offered()
         ]
 
     def is_type_usable(self, agent: AgentApplication, type_name: str) -> bool:

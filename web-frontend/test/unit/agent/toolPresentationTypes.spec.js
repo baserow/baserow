@@ -75,6 +75,7 @@ describe('Agent tool presentations', () => {
               'web_fetch',
               'smtp_email',
               'http_request',
+              'agent_action',
             ].includes(type)
         )
         .sort()
@@ -143,6 +144,26 @@ describe('Agent tool presentations', () => {
         t
       ).title
     ).toBe('Email sent')
+  })
+
+  test('an action without a presentation of its own is named after its service type and shows its request', () => {
+    const activity = toolActivity(
+      step('add_lead', 'waiting', {
+        presentation_type: 'local_baserow_create_row',
+        input: {
+          values: { fields: { Name: 'Ada' }, table: 'Leads', row_id: '' },
+        },
+      }),
+      registry,
+      t
+    )
+    expect(activity.title).toBe(
+      registry.get('service', 'local_baserow_create_row').name
+    )
+    expect(Object.entries(activity.input.values)).toEqual([
+      ['Table', 'Leads'],
+      ['Values', { Name: 'Ada' }],
+    ])
   })
 
   test('an HTTP request reads in the order of its form, with hidden values kept', () => {

@@ -5,7 +5,7 @@
     small-label
     required
   >
-    <FormGroup class="margin-bottom-2">
+    <FormGroup v-if="hasTestAddress" class="margin-bottom-2">
       <RadioGroup
         v-model="isPublishedAddress"
         :options="addressVersions"
@@ -94,8 +94,15 @@ export default {
     }
   },
   computed: {
+    /**
+     * The test address starts a test run of a draft, which only a host with
+     * drafts has. Another host hides it and only shows the real address.
+     */
+    hasTestAddress() {
+      return !this.isFormFieldHidden('test_email_address')
+    },
     emailAddress() {
-      return this.isPublishedAddress
+      return this.isPublishedAddress || !this.hasTestAddress
         ? this.defaultValues.email_address
         : this.defaultValues.test_email_address
     },

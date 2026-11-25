@@ -60,6 +60,27 @@ export class HTTPAgentTriggerType extends AgentTriggerType {
   }
 }
 
+export class InboundEmailAgentTriggerType extends AgentTriggerType {
+  static getType() {
+    return 'email_trigger'
+  }
+
+  // An Agent has no draft that a test address could start a test run of.
+  get hiddenFormFields() {
+    return ['test_email_address']
+  }
+
+  getDefaultMessage() {
+    return sentenceWithTriggerData(
+      this.app.$i18n.t('agent.emailTriggerDefaultMessage', {
+        sender: '{from.address}',
+        subject: '{subject}',
+        body: '{body_text}',
+      })
+    )
+  }
+}
+
 /**
  * Opens a new row trigger with how many rows changed in which table, then the
  * rows.

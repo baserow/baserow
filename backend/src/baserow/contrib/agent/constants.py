@@ -42,6 +42,7 @@ AGENT_TRIGGER_OFF = "trigger_off"
 AGENT_TRIGGER_TYPES_ENABLED = (
     "periodic",
     "http_trigger",
+    "email_trigger",
     "local_baserow_rows_created",
     "local_baserow_rows_updated",
     "local_baserow_rows_deleted",

@@ -1,5 +1,8 @@
 from typing import Any
 
+from baserow.contrib.integrations.core.inbound_email import (
+    is_inbound_email_configured,
+)
 from baserow.contrib.integrations.core.models import CoreHTTPTriggerService
 from baserow.core.services.models import Service
 
@@ -31,6 +34,31 @@ class HTTPAgentTriggerType(AgentTriggerType):
         """
 
         return event_payload.get("raw_body") or None
+
+
+class InboundEmailAgentTriggerType(AgentTriggerType):
+    type = "email_trigger"
+
+    def is_offered(self) -> bool:
+        return is_inbound_email_configured()
+
+    def get_event_text(
+        self, service: Service, event_payload: dict[str, Any]
+    ) -> str | None:
+        """
+        :param service: The inbound email trigger service that received the email.
+        :param event_payload: The email as the receiver normalized it.
+        :return: Who sent the email, its subject and its text. What the mail
+            servers added stays out, as an Agent has no use for it.
+        """
+
+        return trigger_data_as_text(
+            {
+                "from": event_payload.get("from"),
+                "subject": event_payload.get("subject"),
+                "body": event_payload.get("body_text"),
+            }
+        )
 
 
 class RowsAgentTriggerType(AgentTriggerType):

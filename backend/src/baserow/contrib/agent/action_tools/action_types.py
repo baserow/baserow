@@ -16,6 +16,10 @@ from baserow.contrib.integrations.core.models import (
     CoreHTTPRequestService,
     CoreSMTPEmailService,
 )
+from baserow.contrib.integrations.local_baserow.mixins import (
+    LocalBaserowTableServiceFilterableMixin,
+    LocalBaserowTableServiceSearchableMixin,
+)
 from baserow.core.formula import resolve_formula
 from baserow.core.formula.registries import formula_runtime_function_registry
 from baserow.core.formula.types import BASEROW_FORMULA_MODE_RAW, BaserowFormulaObject
@@ -26,11 +30,14 @@ from baserow.core.services.exceptions import (
     ResponseTooLargeDispatchException,
     RuntimeDispatchException,
 )
+from baserow.core.services.models import Service
 from baserow.core.services.types import DispatchResult
 from baserow.core.tools.errors import ToolFailedError, ToolInputError
 from baserow.core.types import Subject
 
 from .data_providers import AgentActionDispatchContext
+from .formulas import reads_only_inputs
+from .inputs import AgentActionInput
 from .registries import AgentActionDefaults, AgentActionType
 
 HTTP_ACTION_MAX_REQUEST_BYTES = 64 * 1024
@@ -51,6 +58,37 @@ _HTTP_ROWS = (
 
 _SINGLE_INPUT = re.compile(r"""^get\(\s*(['"])tool_input\.([^'"]+)\1\s*\)$""")
 _LINE_BREAK = re.compile(r"[\r\n]")
+
+
+def bound_input(
+    name: str, input_type: str, description: str, required: bool = True
+) -> tuple[AgentActionInput, BaserowFormulaObject]:
+    """
+    Make an input for the starter of a new action, together with the formula
+    that reads it. The starter lists the input under ``inputs`` and gives the
+    formula to the service field the model should fill, so a new action works
+    without its builder binding anything. Each call makes an input with an ID
+    of its own, as formulas refer to an input by ID.
+
+    :param name: The name the model fills the input by.
+    :param input_type: One of the input types.
+    :param description: What the model is told to fill in.
+    :param required: Whether the model must fill it in.
+    :return: A new input of a starter, and the formula of a service field that
+        is exactly that input.
+    """
+
+    input_id = str(uuid4())
+    return (
+        {
+            "id": input_id,
+            "name": name,
+            "type": input_type,
+            "description": description,
+            "required": required,
+        },
+        BaserowFormulaObject.create(f"get('tool_input.{input_id}')", mode="simple"),
+    )
 
 
 class SMTPEmailAgentActionType(AgentActionType):
@@ -458,6 +496,7 @@ class HTTPRequestAgentActionType(AgentActionType):
         action: AgentAction,
         resolved_values: dict[str, Any],
         identity: Subject | None = None,
+        arguments: dict[str, Any] | None = None,
     ) -> DispatchResult:
         """
         Send the request, with each row's value given to the row now at its
@@ -478,7 +517,7 @@ class HTTPRequestAgentActionType(AgentActionType):
                         f"{field}.{position}"
                     ]
         try:
-            result = super().dispatch(action, values, identity)
+            result = super().dispatch(action, values, identity, arguments)
         except AddressNotAllowedDispatchException as exc:
             raise ToolInputError(
                 "This address can't be called from this Baserow instance."
@@ -543,6 +582,344 @@ class HTTPRequestAgentActionType(AgentActionType):
             answer["body"] = text[:ACTION_MAX_RESULT_CHARACTERS]
             answer["body_truncated"] = True
         return answer
+
+
+class LocalBaserowAgentActionType(AgentActionType):
+    """
+    Hosts a Local Baserow service type whose service works on a table, as the
+    Agent's run identity.
+    """
+
+    acts_as_run_identity = True
+    filters_read_inputs = True
+
+    def get_preview_values(
+        self, service: Service, resolved_values: dict[str, Any]
+    ) -> dict[str, Any]:
+        return {
+            "table": service.table.name if service.table_id else None,
+            **resolved_values,
+        }
+
+    def get_preview(
+        self,
+        action: AgentAction,
+        resolved_values: dict[str, Any],
+        arguments: dict[str, Any],
+    ) -> dict[str, Any]:
+        """
+        Adds the call's inputs when the service has formulas that are only
+        resolved while the call is sent, so that the approver reads what they use.
+        """
+
+        preview = super().get_preview(action, resolved_values, arguments)
+        if arguments and self._get_late_formulas(action.service.specific):
+            preview["values"]["inputs"] = arguments
+        return preview
+
+    def _get_late_formulas(
+        self, service: Service
+    ) -> dict[str, list[BaserowFormulaObject]]:
+        """
+        :param service: The action's specific service.
+        :return: The formulas the service only resolves while a call is sent, by
+            the field they are of: its filter values and its search query, when
+            it has them.
+        """
+
+        formulas = {}
+        if isinstance(self.service_type, LocalBaserowTableServiceFilterableMixin):
+            formulas["filters"] = [
+                BaserowFormulaObject.to_formula(service_filter.value)
+                for service_filter in service.service_filters_with_untrashed_fields
+            ]
+        if isinstance(self.service_type, LocalBaserowTableServiceSearchableMixin):
+            formulas["search_query"] = [
+                BaserowFormulaObject.to_formula(service.search_query)
+            ]
+        written = {
+            field: [formula for formula in field_formulas if formula["formula"]]
+            for field, field_formulas in formulas.items()
+        }
+        return {field: used for field, used in written.items() if used}
+
+    def get_configuration_errors(
+        self, action: AgentAction, identity: Subject | None = None
+    ) -> dict[str, str]:
+        return self.get_configuration_errors_by_action([action], identity)[action.id]
+
+    def get_configuration_errors_by_action(
+        self, actions: list[AgentAction], identity: Subject | None = None
+    ) -> dict[int, dict[str, str]]:
+        """
+        Check whether the identity can read the actions' tables in one permission
+        check, so that it doesn't cost a query per action.
+        """
+
+        if not actions:
+            return {}
+        readable_table_ids = self.service_type.get_subject_readable_table_ids(
+            [action.service.specific for action in actions],
+            identity,
+            actions[0].agent.workspace,
+        )
+        return {
+            action.id: self._get_configuration_errors(
+                action, identity, readable_table_ids
+            )
+            for action in actions
+        }
+
+    def _get_configuration_errors(
+        self,
+        action: AgentAction,
+        identity: Subject | None,
+        readable_table_ids: set[int],
+    ) -> dict[str, str]:
+        """
+        Also require a table the run identity can read, and filters and a search
+        query that only read the action's inputs.
+
+        :param action: The action, with its agent and workspace.
+        :param identity: The Agent's run identity, or None.
+        :param readable_table_ids: The ids of the tables the identity may read.
+        :return: An error code by field, empty when the action can be called.
+        """
+
+        errors = super().get_configuration_errors(action, identity)
+        service = action.service.specific
+        if not service.table_id:
+            errors["table_id"] = "required"
+        elif identity is not None and service.table_id not in readable_table_ids:
+            errors["table_id"] = "unavailable"
+        for field, formulas in self._get_late_formulas(service).items():
+            if not all(
+                reads_only_inputs(formula, action.inputs) for formula in formulas
+            ):
+                errors[field] = "invalid"
+        return errors
+
+
+class LocalBaserowCreateRowAgentActionType(LocalBaserowAgentActionType):
+    type = "local_baserow_create_row"
+    service_type_name = "local_baserow_upsert_row"
+
+    def get_defaults(self) -> AgentActionDefaults:
+        return {
+            "name": "create_row",
+            "description": "Create a row in the table when the user asks to add "
+            "or record something there.",
+            "inputs": [],
+            "service": {},
+        }
+
+    def get_formulas(self, service: Service) -> dict[str, BaserowFormulaObject]:
+        """
+        Read the formulas from the mappings the action was loaded with, as the
+        service type would query them again for each action that is checked.
+        """
+
+        formulas = {
+            f"field_{mapping.field_id}": BaserowFormulaObject.to_formula(mapping.value)
+            for mapping in service.field_mappings.all()
+            if not mapping.field.trashed
+        }
+        if service.row_id["formula"]:
+            formulas["row_id"] = service.row_id
+        return formulas
+
+    def get_preview_values(
+        self, service: Service, resolved_values: dict[str, Any]
+    ) -> dict[str, Any]:
+        """
+        :return: The values written under the name of their field, apart from the
+            rest of the request, which a field could be named like.
+        """
+
+        field_names = {
+            f"field_{mapping.field_id}": mapping.field.name
+            for mapping in service.field_mappings.select_related("field")
+        }
+        values = {
+            key: value
+            for key, value in resolved_values.items()
+            if key not in field_names
+        }
+        values["fields"] = {
+            name: resolved_values[key]
+            for key, name in field_names.items()
+            if key in resolved_values
+        }
+        return super().get_preview_values(service, values)
+
+
+class LocalBaserowUpdateRowAgentActionType(LocalBaserowCreateRowAgentActionType):
+    type = "local_baserow_update_row"
+
+    def get_defaults(self) -> AgentActionDefaults:
+        row_id, formula = bound_input(
+            "row_id", "number", "The id of the row to update."
+        )
+        return {
+            "name": "update_row",
+            "description": "Update a row of the table when the user asks to "
+            "change something there. You need the id of the row.",
+            "inputs": [row_id],
+            "service": {"row_id": formula},
+        }
+
+    def _get_configuration_errors(
+        self,
+        action: AgentAction,
+        identity: Subject | None,
+        readable_table_ids: set[int],
+    ) -> dict[str, str]:
+        errors = super()._get_configuration_errors(action, identity, readable_table_ids)
+        # Without a row, the service would create one.
+        if not action.service.specific.row_id["formula"]:
+            errors["row_id"] = "required"
+        return errors
+
+
+class LocalBaserowDeleteRowAgentActionType(LocalBaserowAgentActionType):
+    type = "local_baserow_delete_row"
+
+    def get_defaults(self) -> AgentActionDefaults:
+        row_id, formula = bound_input(
+            "row_id", "number", "The id of the row to delete."
+        )
+        return {
+            "name": "delete_row",
+            "description": "Delete a row of the table when the user asks to "
+            "remove it. You need the id of the row.",
+            "inputs": [row_id],
+            "service": {"row_id": formula},
+        }
+
+    def get_tool_result(self, action: AgentAction, result: DispatchResult) -> Any:
+        # The service answers nothing once the row is gone.
+        return {"deleted": True}
+
+
+class LocalBaserowGetRowAgentActionType(LocalBaserowAgentActionType):
+    type = "local_baserow_get_row"
+    changes_data = False
+
+    def get_defaults(self) -> AgentActionDefaults:
+        row_id, formula = bound_input("row_id", "number", "The id of the row to read.")
+        return {
+            "name": "get_row",
+            "description": "Read one row of the table by its id.",
+            "inputs": [row_id],
+            "service": {"row_id": formula},
+        }
+
+
+class LocalBaserowListRowsAgentActionType(LocalBaserowAgentActionType):
+    type = "local_baserow_list_rows"
+    changes_data = False
+
+    def get_defaults(self) -> AgentActionDefaults:
+        search, formula = bound_input(
+            "search",
+            "string",
+            "Words the rows must contain. Leave it out to list the first rows.",
+            required=False,
+        )
+        return {
+            "name": "list_rows",
+            "description": "List rows of the table, optionally only the ones "
+            "that contain what you search for.",
+            "inputs": [search],
+            "service": {"search_query": formula},
+        }
+
+
+class LocalBaserowAggregateRowsAgentActionType(LocalBaserowAgentActionType):
+    type = "local_baserow_aggregate_rows"
+    changes_data = False
+
+    def get_defaults(self) -> AgentActionDefaults:
+        return {
+            "name": "aggregate_rows",
+            "description": "Calculate a summary of a field over the rows of the "
+            "table, such as a count or a sum.",
+            "inputs": [],
+            "service": {},
+        }
+
+
+class SlackWriteMessageAgentActionType(AgentActionType):
+    type = "slack_write_message"
+
+    def get_defaults(self) -> AgentActionDefaults:
+        text, formula = bound_input(
+            "text", "string", "The complete message, ready to post as it is."
+        )
+        return {
+            "name": "send_slack_message",
+            "description": "Post a message to the Slack channel when the user "
+            "asks to tell or notify the people there.",
+            "inputs": [text],
+            "service": {"text": formula},
+        }
+
+    def get_preview_values(
+        self, service: Service, resolved_values: dict[str, Any]
+    ) -> dict[str, Any]:
+        return {"channel": service.channel, **resolved_values}
+
+
+class AIAgentAgentActionType(AgentActionType):
+    type = "ai_agent"
+    changes_data = False
+
+    def get_defaults(self) -> AgentActionDefaults:
+        prompt, formula = bound_input(
+            "prompt", "string", "The complete prompt for the other AI model."
+        )
+        return {
+            "name": "ask_ai_model",
+            "description": "Ask another AI model and read its answer.",
+            "inputs": [prompt],
+            "service": {"ai_prompt": formula},
+        }
+
+
+class StartWorkflowAgentActionType(AgentActionType):
+    type = "start_workflow"
+
+    def get_defaults(self) -> AgentActionDefaults:
+        return {
+            "name": "start_workflow",
+            "description": "Start the automation workflow when the user asks "
+            "for what it does.",
+            "inputs": [],
+            "service": {},
+        }
+
+    def get_preview_values(
+        self, service: Service, resolved_values: dict[str, Any]
+    ) -> dict[str, Any]:
+        return {"workflow": service.workflow.name if service.workflow_id else None}
+
+    def get_configuration_errors(
+        self, action: AgentAction, identity: Subject | None = None
+    ) -> dict[str, str]:
+        """
+        Also require a workflow of the Agent's workspace, which the service only
+        checks when a call is sent.
+        """
+
+        errors = super().get_configuration_errors(action, identity)
+        workflow = action.service.specific.workflow
+        if workflow is not None and (
+            workflow.trashed
+            or workflow.automation.trashed
+            or workflow.automation.workspace_id != action.agent.workspace_id
+        ):
+            errors["workflow_id"] = "unavailable"
+        return errors
 
 
 def _reads_tool_input(value: dict[str, Any]) -> bool:

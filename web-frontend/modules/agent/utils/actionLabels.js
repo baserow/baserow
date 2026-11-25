@@ -6,6 +6,16 @@ const ACTION_FIELD_LABELS = {
   type: 'agent.actionFieldType',
   integration_id: 'agent.actionFieldIntegration',
   run_as: 'agent.workspaceAccess',
+  table_id: 'localBaserowTableSelector.tableFieldLabel',
+  row_id: 'localBaserowServiceForm.rowIdLabel',
+  workflow_id: 'coreStartWorkflowServiceForm.workflow',
+  filters: 'agent.actionFieldFilters',
+  search_query: 'agent.actionFieldSearch',
+  field_id: 'localBaserowAggregateRowsForm.aggregationFieldLabel',
+  aggregation_type: 'localBaserowAggregateRowsForm.aggregationTypeLabel',
+  channel: 'slackWriteMessageServiceForm.channelLabel',
+  ai_generative_ai_type: 'aiAgentServiceForm.providerLabel',
+  ai_generative_ai_model: 'aiAgentServiceForm.modelLabel',
 }
 
 export const ACTION_ERROR_LABELS = {
