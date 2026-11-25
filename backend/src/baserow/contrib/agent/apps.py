@@ -18,7 +18,6 @@ class AgentConfig(AppConfig):
         from baserow.core.trash.registries import trash_item_type_registry
 
         from .action_tools.action_types import (
-            AIAgentAgentActionType,
             HTTPRequestAgentActionType,
             LocalBaserowAggregateRowsAgentActionType,
             LocalBaserowCreateRowAgentActionType,
@@ -28,7 +27,6 @@ class AgentConfig(AppConfig):
             LocalBaserowUpdateRowAgentActionType,
             SlackWriteMessageAgentActionType,
             SMTPEmailAgentActionType,
-            StartWorkflowAgentActionType,
         )
         from .action_tools.actions import (
             CreateAgentActionActionType,
@@ -157,8 +155,6 @@ class AgentConfig(AppConfig):
         agent_action_type_registry.register(LocalBaserowListRowsAgentActionType())
         agent_action_type_registry.register(LocalBaserowAggregateRowsAgentActionType())
         agent_action_type_registry.register(SlackWriteMessageAgentActionType())
-        agent_action_type_registry.register(AIAgentAgentActionType())
-        agent_action_type_registry.register(StartWorkflowAgentActionType())
         agent_trigger_type_registry.register(HTTPAgentTriggerType())
         agent_trigger_type_registry.register(InboundEmailAgentTriggerType())
         for type_name in ROWS_TRIGGER_TYPES:

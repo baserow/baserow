@@ -895,58 +895,6 @@ class SlackWriteMessageAgentActionType(AgentActionType):
         return {"channel": service.channel, **resolved_values}
 
 
-class AIAgentAgentActionType(AgentActionType):
-    type = "ai_agent"
-    changes_data = False
-
-    def get_defaults(self) -> AgentActionDefaults:
-        prompt, formula = bound_input(
-            "prompt", "string", "The complete prompt for the other AI model."
-        )
-        return {
-            "name": "ask_ai_model",
-            "description": "Ask another AI model and read its answer.",
-            "inputs": [prompt],
-            "service": {"ai_prompt": formula},
-        }
-
-
-class StartWorkflowAgentActionType(AgentActionType):
-    type = "start_workflow"
-
-    def get_defaults(self) -> AgentActionDefaults:
-        return {
-            "name": "start_workflow",
-            "description": "Start the automation workflow when the user asks "
-            "for what it does.",
-            "inputs": [],
-            "service": {},
-        }
-
-    def get_preview_values(
-        self, service: Service, resolved_values: dict[str, Any]
-    ) -> dict[str, Any]:
-        return {"workflow": service.workflow.name if service.workflow_id else None}
-
-    def get_configuration_errors(
-        self, action: AgentAction, identity: Subject | None = None
-    ) -> dict[str, str]:
-        """
-        Also require a workflow of the Agent's workspace, which the service only
-        checks when a call is sent.
-        """
-
-        errors = super().get_configuration_errors(action, identity)
-        workflow = action.service.specific.workflow
-        if workflow is not None and (
-            workflow.trashed
-            or workflow.automation.trashed
-            or workflow.automation.workspace_id != action.agent.workspace_id
-        ):
-            errors["workflow_id"] = "unavailable"
-        return errors
-
-
 def _reads_tool_input(value: dict[str, Any]) -> bool:
     """
     :param value: A stored formula.

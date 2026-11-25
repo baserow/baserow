@@ -107,13 +107,6 @@ class AIAgentServiceType(ServiceType):
 
     simple_formula_fields = ["ai_prompt"]
 
-    def get_configuration_errors(self, service: AIAgentService) -> dict[str, str]:
-        return {
-            field: "required"
-            for field in ("ai_generative_ai_type", "ai_generative_ai_model")
-            if not getattr(service, field)
-        }
-
     class SerializedDict(ServiceDict):
         integration_id: int
         ai_generative_ai_type: str

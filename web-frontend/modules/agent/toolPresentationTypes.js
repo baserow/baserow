@@ -470,10 +470,8 @@ export class GenericActionToolPresentationType extends ActionToolPresentationTyp
       table: 'localBaserowTableSelector.tableFieldLabel',
       row_id: 'localBaserowServiceForm.rowIdLabel',
       fields: 'agent.actionFieldValues',
-      workflow: 'coreStartWorkflowServiceForm.workflow',
       channel: 'slackWriteMessageServiceForm.channelLabel',
       text: 'slackWriteMessageServiceForm.messageLabel',
-      ai_prompt: 'aiAgentServiceForm.promptLabel',
       inputs: 'agent.actionInputs',
     }
   }

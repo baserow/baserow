@@ -4197,14 +4197,6 @@ class CoreStartWorkflowServiceType(CoreServiceType):
     class SerializedDict(ServiceDict):
         workflow_id: int
 
-    def enhance_queryset(self, queryset):
-        return super().enhance_queryset(queryset).select_related("workflow__automation")
-
-    def get_configuration_errors(
-        self, service: CoreStartWorkflowService
-    ) -> dict[str, str]:
-        return {} if service.workflow_id else {"workflow_id": "required"}
-
     def get_schema_name(self, service: CoreStartWorkflowService) -> str:
         return f"StartWorkflow{service.id}Schema"
 

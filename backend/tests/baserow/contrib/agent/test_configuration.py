@@ -1115,8 +1115,6 @@ def test_configuration_is_served_only_by_the_agent_endpoints(
             "local_baserow_list_rows",
             "local_baserow_aggregate_rows",
             "slack_write_message",
-            "ai_agent",
-            "start_workflow",
             "local_baserow_semantic_search",
         ],
         "max_actions": None,

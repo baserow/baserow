@@ -3,9 +3,10 @@
 An agent's **Actions** section holds tools its builder configures: a named tool,
 the inputs the model fills in, and an existing service whose fields use those
 inputs. The action types are the actions an automation offers: send email, HTTP
-request, Slack message, AI prompt, start workflow, the Local Baserow row actions
-(create, update and delete a row, get a row, list rows, aggregate rows) and, in the enterprise edition, semantic search. This page is the
-contract the shared code keeps, and what the next action type has to add.
+request, Slack message, the Local Baserow row actions (create, update and delete
+a row, get a row, list rows, aggregate rows) and, in the enterprise edition,
+semantic search. This page is the contract the shared code keeps, and what the
+next action type has to add.
 
 ## What owns what
 
@@ -40,9 +41,8 @@ workspace tools, triggers and actions all read and write as the same identity.
 - Everyone who chats with the agent reaches what the identity can read.
 
 An action that calls another service keeps its integration, like Send email with
-its SMTP integration, Slack message with its bot and AI prompt with its AI
-integration: it needs that connection, not an identity, and works with or without
-workspace access.
+its SMTP integration and Slack message with its bot: it needs that connection,
+not an identity, and works with or without workspace access.
 
 In code, the type of an action on Baserow data sets `acts_as_run_identity = True`.
 The row actions extend `LocalBaserowAgentActionType`, which also checks the table
@@ -234,5 +234,6 @@ validation, approvals and the cap on an agent's actions are shared and need noth
 `test_every_automation_node_type_is_hosted_or_left_out_on_purpose` fails when an
 automation node type is neither an action or trigger type of agents nor listed
 there as left out. Router, goto, iterator, wait, response and the manual trigger
-only mean something inside a workflow. Create rows and update rows, the CSV and
-XLS readers, run code and the fields updated trigger aren't hosted yet.
+only mean something inside a workflow. Create rows and update rows, start
+workflow, AI prompt, the CSV and XLS readers, run code and the fields updated
+trigger aren't hosted yet.

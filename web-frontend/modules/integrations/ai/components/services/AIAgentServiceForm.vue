@@ -11,7 +11,6 @@
         :application="application"
         :integrations="integrations"
         :integration-type="integrationType"
-        :allow-editing="allowIntegrationEditing"
       />
     </FormGroup>
 
@@ -173,11 +172,6 @@ export default {
   },
   mixins: [form],
   props: {
-    // Hosts without an integrations page can offer editing in the dropdown.
-    allowIntegrationEditing: {
-      type: Boolean,
-      default: false,
-    },
     application: {
       type: Object,
       required: true,

@@ -1,6 +1,6 @@
 {
     "type": "feature",
-    "message": "Agents can use the row, Slack, AI prompt and start workflow actions and the email trigger of automations.",
+    "message": "Agents can use the row and Slack actions and the email trigger of automations.",
     "issue_origin": "github",
     "issue_number": 6259,
     "domain": "core",

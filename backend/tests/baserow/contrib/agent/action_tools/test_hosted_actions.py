@@ -31,6 +31,8 @@ NODE_TYPES_NOT_HOSTED = {
     "local_baserow_fields_updated": "not hosted yet",
     "local_baserow_create_rows": "not hosted yet",
     "local_baserow_update_rows": "not hosted yet",
+    "start_workflow": "not hosted yet",
+    "ai_agent": "not hosted yet",
     "csv_file_reader": "not hosted yet",
     "xls_file_reader": "not hosted yet",
     "code": "not hosted yet",
@@ -346,24 +348,16 @@ def test_row_action_forms_choose_from_the_tables_the_identity_reads(
 @pytest.mark.django_db
 @pytest.mark.parametrize(
     "type_name",
-    ["local_baserow_create_row", "local_baserow_list_rows", "start_workflow"],
+    ["local_baserow_create_row", "local_baserow_list_rows"],
 )
 def test_listing_more_actions_of_a_type_costs_no_more_queries(
     api_client, api_user, data_fixture, people, type_name
 ):
     agent, table, fields, rows = people
-    automation = data_fixture.create_automation_application(workspace=agent.workspace)
-    workflow = data_fixture.create_automation_workflow(
-        user=api_user, automation=automation
-    )
 
     def add():
         action = AgentActionService().create_action(api_user, agent.id, type_name)
         service = action.service.specific
-        if type_name == "start_workflow":
-            service.workflow = workflow
-            service.save()
-            return
         service_values = {"table_id": table.id}
         if type_name == "local_baserow_create_row":
             service_values["field_mappings"] = [
@@ -411,33 +405,6 @@ def test_actions_that_call_another_service_keep_their_integration(
     )
     assert response.status_code == 200, response.json()
     assert response.json()["errors"] == {}
-
-    asked = add_action(api_client, agent, "ai_agent")
-    assert asked["ask_first"] is False
-    assert asked["errors"] == {
-        "integration_id": "required",
-        "ai_generative_ai_type": "required",
-        "ai_generative_ai_model": "required",
-    }
-
-
-@pytest.mark.django_db
-def test_start_workflow_needs_a_workflow_of_the_agents_workspace(
-    api_client, api_user, data_fixture, people
-):
-    agent, table, fields, rows = people
-    started = add_action(api_client, agent, "start_workflow")
-    assert started["errors"] == {"workflow_id": "required"}
-
-    elsewhere = data_fixture.create_automation_workflow(user=api_user)
-    action = AgentActionHandler().get_action(started["id"])
-    service = action.service.specific
-    service.workflow = elsewhere
-    service.save()
-
-    assert AgentActionHandler().get_configuration_errors(
-        AgentActionHandler().get_action(started["id"])
-    ) == {"workflow_id": "unavailable"}
 
 
 @pytest.mark.django_db
