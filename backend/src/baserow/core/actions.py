@@ -759,6 +759,7 @@ class InstallTemplateActionType(UndoableActionType):
         "installed_application_ids",
         "template_type",
         "template_slug",
+        "is_own",
     ]
 
     @dataclasses.dataclass
@@ -770,6 +771,7 @@ class InstallTemplateActionType(UndoableActionType):
         installed_application_ids: List[int]
         template_type: Optional[str] = None
         template_slug: Optional[str] = None
+        is_own: Optional[bool] = None
 
     @classmethod
     def do(
@@ -821,8 +823,7 @@ class InstallTemplateActionType(UndoableActionType):
             template.family_id,
             template.name,
             [app.id for app in installed_applications],
-            template.type or Template.Type.OFFICIAL,
-            template.get_root().slug,
+            **UserTemplateHandler().get_install_analytics_properties(template, user),
         )
         cls.register_action(
             user, params, scope=cls.scope(workspace.id), workspace=workspace

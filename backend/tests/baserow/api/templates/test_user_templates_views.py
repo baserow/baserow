@@ -217,7 +217,6 @@ def test_list_templates_hides_the_state_from_others(api_client, data_fixture):
         "can_make_public",
         "make_public_needs_review",
         "update_needs_review",
-        "listed",
         "source_workspace_id",
         "source_application_ids",
         "install_count",
@@ -234,6 +233,7 @@ def test_list_templates_hides_the_state_from_others(api_client, data_fixture):
         assert {tuple(t[key] for key in owner_only) for t in results} == {
             (None,) * len(owner_only)
         }
+        assert {t["listed"] for t in results} == {None, True}
 
     response = list_templates(api_client, owner_token, type="user")
     result = response.json()["results"][0]
@@ -457,8 +457,8 @@ def test_get_user_template_shows_others_its_public_revision(
         )
 
     for token_used, shown_state, listed in [
-        (None, None, None),
-        (other_token, None, None),
+        (None, None, True),
+        (other_token, None, True),
         (staff_token, "public", True),
     ]:
         headers = {"HTTP_AUTHORIZATION": f"JWT {token_used}"} if token_used else {}
@@ -548,6 +548,7 @@ def test_template_detail_for_link_holder(api_client, data_fixture):
         response = get_with_link(api_client, url, user_token, link_token)
         assert response.status_code == HTTP_200_OK
         assert response.json()["revision_id"] == latest.id
+        assert response.json()["listed"] is False
         assert get_with_link(
             api_client, content_url, user_token, link_token
         ).status_code == (HTTP_200_OK)
@@ -561,6 +562,7 @@ def test_template_detail_for_link_holder(api_client, data_fixture):
     data_fixture.set_user_template_state(template, "public", public)
     response = get_with_link(api_client, url, holder_token, link_token)
     assert response.json()["revision_id"] == public.id
+    assert response.json()["listed"] is True
 
 
 def test_lists_leave_out_templates_opened_through_private_link(

@@ -131,7 +131,10 @@ const tab = ref('official')
 const userTemplatesAllowed = computed(() =>
   Boolean($store.getters['settings/get'].allow_user_templates)
 )
-const pickedTab = ref(null)
+const leavesForTemplatePage = isPrivateLinkPage(route)
+const carriedTab = useState('template-picked-tab', () => null)
+const pickedTab = ref(carriedTab.value)
+carriedTab.value = null
 const tabs = computed(() => [
   {
     value: 'official',
@@ -170,7 +173,7 @@ watch(
   () => route.params.slug,
   (newSlug) => {
     // Ignores leaving the page, which would show the list until it's unmounted.
-    if (route.name === 'template') {
+    if (route.name === 'template' && !leavesForTemplatePage) {
       if (newSlug !== currentSlug.value) {
         pickedTab.value = null
       }
@@ -208,8 +211,12 @@ provide(
 
 function selectTemplate(template) {
   pickedTab.value = tab.value
-  currentSlug.value = template.slug
-  showList.value = false
+  if (leavesForTemplatePage) {
+    carriedTab.value = tab.value
+  } else {
+    currentSlug.value = template.slug
+    showList.value = false
+  }
   router.push({ name: 'template', params: { slug: template.slug } })
 }
 

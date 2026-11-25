@@ -59,26 +59,32 @@ export function getPrivateLinkUrl(template, router, baseUrl) {
 }
 
 /**
- * 'sharing', 'private' or null. Only the author and admins know `listed`; anyone
- * else sees a listed template, unless they came through a private link.
+ * Whether a template is listed for everybody: an official one, or a user template
+ * the server says is listed.
  */
-export function getCopyLinkKind(
-  template,
-  { isPrivateLinkPage = false, userTemplatesAllowed = true } = {}
-) {
+export function isListedTemplate(template) {
+  return (
+    (template?.type || 'official') === 'official' || template.listed === true
+  )
+}
+
+/**
+ * 'sharing', 'private' or null. Nothing for a user template while user templates
+ * are turned off.
+ */
+export function getCopyLinkKind(template, { userTemplatesAllowed = true } = {}) {
   if (template?.state === 'blocked') {
     return null
   }
-  if (typeof template?.listed === 'boolean') {
-    if (!userTemplatesAllowed) {
-      return null
-    }
-    if (template.listed) {
-      return 'sharing'
-    }
-    return template.private_link_token ? 'private' : null
+  if ((template?.type || 'official') !== 'official' && !userTemplatesAllowed) {
+    return null
   }
-  return isPrivateLinkPage ? null : 'sharing'
+  if (isListedTemplate(template)) {
+    return 'sharing'
+  }
+  return template?.listed === false && template.private_link_token
+    ? 'private'
+    : null
 }
 
 export function getTemplateLinkUrl(template, router, baseUrl) {

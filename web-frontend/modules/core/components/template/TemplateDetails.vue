@@ -85,8 +85,8 @@
               :key="application.id"
               :application="application"
               :page="page"
-              @selected="navigate(selectApplication, $event)"
-              @selected-page="navigate(selectPage, $event)"
+              @selected="selectApplication"
+              @selected-page="navigate(selectPage, $event, page)"
             ></component>
           </ul>
         </div>
@@ -98,6 +98,7 @@
               :applications="applications"
               :copy-link-kind="copyLinkKind"
               :latest="ownerActions || isOwner"
+              :tracked="!!source"
               @installed="installed"
               @outdated="emit('outdated')"
             >
@@ -219,7 +220,7 @@ import {
   onMounted,
   ref,
 } from 'vue'
-import { useNuxtApp, useRoute } from '#app'
+import { useNuxtApp } from '#app'
 import { useStore } from 'vuex'
 
 import {
@@ -229,7 +230,6 @@ import {
   isOwnTemplate,
   makePublicResubmits,
 } from '@baserow/modules/core/utils/userTemplate'
-import { isPrivateLinkPage } from '@baserow/modules/core/utils/templatePrivateLink'
 import { notifyIf } from '@baserow/modules/core/utils/error'
 import { captureTemplateEvent } from '@baserow/modules/core/utils/templateAnalytics'
 import {
@@ -282,7 +282,7 @@ const props = defineProps({
   source: {
     type: String,
     required: false,
-    default: 'browser',
+    default: null,
   },
   tab: {
     type: String,
@@ -305,10 +305,8 @@ const emit = defineEmits([
 const { $registry, $i18n, $posthog } = useNuxtApp()
 const store = useStore()
 
-const isPrivateLink = isPrivateLinkPage(useRoute())
 const copyLinkKind = computed(() =>
   getCopyLinkKind(props.template, {
-    isPrivateLinkPage: isPrivateLink,
     userTemplatesAllowed: Boolean(
       store.getters['settings/get'].allow_user_templates
     ),
@@ -415,25 +413,36 @@ const openedAt = Date.now()
 let pagesViewed = 1
 let exit = 'closed'
 
+function capture(name, properties) {
+  if (props.source) {
+    captureTemplateEvent($posthog, name, props.template, properties)
+  }
+}
+
 onMounted(() => {
-  captureTemplateEvent($posthog, 'previewed', props.template, {
+  capture('previewed', {
     source: props.source,
     tab: props.tab,
   })
 })
 
 onBeforeUnmount(() => {
-  captureTemplateEvent($posthog, 'preview_closed', props.template, {
+  capture('preview_closed', {
     exit,
     pages_viewed: pagesViewed,
     seconds_in_preview: Math.round((Date.now() - openedAt) / 1000),
   })
 })
 
-function navigate(select, value) {
-  pagesViewed++
-  captureTemplateEvent($posthog, 'preview_navigated', props.template)
-  select(value)
+function navigate(select, next, shown) {
+  const same =
+    next.application === shown?.application &&
+    Object.keys(next.value).every((key) => next.value[key] === shown.value[key])
+  if (!same) {
+    pagesViewed++
+    capture('preview_navigated')
+  }
+  select(next)
 }
 
 function back() {

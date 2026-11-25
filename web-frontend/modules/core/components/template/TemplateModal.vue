@@ -21,7 +21,7 @@
         :owner-actions="selectedOwnerActions"
         :delete-only="!userTemplatesAllowed"
         :source="previewSource"
-        :tab="previewSource === 'browser' ? tab : null"
+        :tab="['browser', 'admin'].includes(previewSource) ? tab : null"
         show-back
         class="templates__body"
         @back="selectTemplate(null)"
@@ -462,7 +462,7 @@ export default {
       }
     },
     browseTemplate(template, own = false) {
-      this.previewSource = 'browser'
+      this.previewSource = this.source === 'admin' ? 'admin' : 'browser'
       this.selectTemplate(template, own)
     },
     selectTemplate(template, own = false) {

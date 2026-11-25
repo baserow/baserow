@@ -164,6 +164,11 @@ const props = defineProps({
     required: false,
     default: () => [],
   },
+  tracked: {
+    type: Boolean,
+    required: false,
+    default: true,
+  },
 })
 
 // `outdated` tells that the template was updated since it was shown, and must
@@ -308,11 +313,10 @@ async function goToLogin() {
   await router.push({ name: 'login', query: { original } })
 }
 
-function capture(name, properties) {
-  captureTemplateEvent($posthog, name, props.template, properties)
-}
-
 async function use() {
+  const template = props.template
+  const capture = (name, properties) =>
+    props.tracked && captureTemplateEvent($posthog, name, template, properties)
   capture('install_clicked', { signed_in: isAuthenticated.value })
   if (!isAuthenticated.value) {
     await goToLogin()
@@ -366,10 +370,10 @@ function workspaceCreated(workspace) {
   chooseWorkspace(workspace.id)
 }
 
-async function copyTemplateLink() {
-  if (await copyLink(copyLinkItem.value.url, copiedRef.value)) {
-    capture('link_copied')
-  }
+function copyTemplateLink() {
+  return copyLink(copyLinkItem.value.url, copiedRef.value, props.template, {
+    tracked: props.tracked,
+  })
 }
 
 function hideContext() {
@@ -387,8 +391,7 @@ async function downloadTemplate() {
   }
   const template = props.template
   const onOutdated = () => emit('outdated')
-  const onStarted = () => capture('downloaded')
-  if (await download(template, { onOutdated, onStarted })) {
+  if (await download(template, { onOutdated, tracked: props.tracked })) {
     hideContext()
   }
 }

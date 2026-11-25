@@ -159,7 +159,8 @@ const ACTIONS = {
         router,
         config.public.publicWebFrontendUrl
       ),
-      copied
+      copied,
+      props.template
     )
   },
   async download() {

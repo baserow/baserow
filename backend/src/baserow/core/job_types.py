@@ -312,8 +312,9 @@ class InstallTemplateJobType(JobType):
                 "stage": "job",
                 "error_code": job.error_code or "unknown",
                 "template_id": template.family_id,
-                "template_type": template.type or Template.Type.OFFICIAL,
-                "template_slug": template.get_root().slug,
+                **UserTemplateHandler().get_install_analytics_properties(
+                    template, job.user
+                ),
             },
             session=job.user_session_id,
             workspace=job.workspace,

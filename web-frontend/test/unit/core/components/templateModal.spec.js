@@ -116,6 +116,8 @@ describe('TemplateModal navigation', () => {
         'showBack',
         'ownerActions',
         'deleteOnly',
+        'source',
+        'tab',
       ],
       emits: [
         'back',
@@ -302,6 +304,27 @@ describe('TemplateModal navigation', () => {
       { type: 'error', title: 'templateModal.unavailableTitle' },
     ])
   })
+
+  it.each([
+    [null, 'browser'],
+    ['admin', 'admin'],
+  ])(
+    'previews a template picked in the list opened from %s as %s',
+    async (source, previewSource) => {
+      const wrapper = await testApp.mount(TemplateModal, {
+        props: { workspace: { id: 1 }, source },
+        global: { stubs, mocks },
+      })
+      await wrapper.vm.show()
+      await flushPromises()
+
+      await wrapper.find('.list__recipe-book').trigger('click')
+
+      expect(
+        wrapper.findComponent({ name: 'TemplateDetails' }).props()
+      ).toMatchObject({ source: previewSource, tab: 'official' })
+    }
+  )
 
   it('captures the opening only once the list is loaded', async () => {
     const posthog = providePosthog(testApp.nuxtApp)

@@ -346,19 +346,44 @@ def test_install_user_template_events_name_the_template(
     _block({"root": root, "data_fixture": data_fixture})
     run_job(job)
 
-    template = {
-        "template_id": root.id,
-        "template_type": "user",
-        "template_slug": root.slug,
-    }
+    template = {"template_id": root.id, "template_type": "user", "is_own": True}
     events = _posthog_events(mock_capture_user_event)
-    assert events["install_template"].items() >= template.items()
+    assert (
+        events["install_template"].items()
+        >= {**template, "template_slug": root.slug}.items()
+    )
     assert (
         events["template_install_failed"].items()
         >= {
             **template,
+            "template_slug": None,
             "stage": "job",
             "error_code": "TemplateBlocked",
+        }.items()
+    )
+
+
+@install_marks
+@pytest.mark.parametrize("state,slug_sent", [("public", True), ("shared", False)])
+@patch("baserow.core.posthog.capture_user_event")
+def test_install_user_template_event_names_only_a_listed_template(
+    mock_capture_user_event, state, slug_sent, data_fixture
+):
+    root = data_fixture.create_user_template()
+    data_fixture.create_template_table(root.workspace, "First", "First row")
+    root = data_fixture.set_user_template_state(root, state)
+    installer = data_fixture.create_user()
+    target = data_fixture.create_workspace(user=installer)
+
+    with private_link_token(root.private_link_token):
+        install(installer, target, root)
+
+    assert (
+        _posthog_events(mock_capture_user_event)["install_template"].items()
+        >= {
+            "template_id": root.id,
+            "template_slug": root.slug if slug_sent else None,
+            "is_own": False,
         }.items()
     )
 

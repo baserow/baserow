@@ -1,12 +1,4 @@
-import {
-  afterEach,
-  beforeEach,
-  describe,
-  expect,
-  onTestFinished,
-  test,
-  vi,
-} from 'vitest'
+import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 import { flushPromises } from '@vue/test-utils'
 import { ref } from 'vue'
 
@@ -327,7 +319,7 @@ describe('TemplateInstall', () => {
 
     const shown = {
       template_id: template.id,
-      template_slug: 'project-tracker',
+      template_slug: null,
       template_type: 'user',
     }
     expect(posthog.capture.mock.calls).toEqual([
@@ -422,26 +414,20 @@ describe('TemplateInstall', () => {
     const menuTexts = (wrapper) =>
       wrapper.findAll('.context__menu-item-link').map((link) => link.text())
 
-    const menuLink = (wrapper, text) =>
+    const downloadLink = (wrapper) =>
       wrapper
         .findAll('.context__menu-item-link')
-        .find((link) => link.text() === text)
-
-    const downloadLink = (wrapper) =>
-      menuLink(wrapper, 'templateInstall.download')
+        .find((link) => link.text() === 'templateInstall.download')
 
     // The click doesn't bubble, so that only the item handles it. In the tests the
     // menu is rendered again with a new element, which its check of the clicks
     // outside of it would take as one.
-    const clickMenuLink = async (wrapper, text) => {
-      menuLink(wrapper, text).element.dispatchEvent(
+    const clickDownload = async (wrapper) => {
+      downloadLink(wrapper).element.dispatchEvent(
         new MouseEvent('click', { bubbles: false, cancelable: true })
       )
       await flushPromises()
     }
-
-    const clickDownload = (wrapper) =>
-      clickMenuLink(wrapper, 'templateInstall.download')
 
     const menuIsOpen = (wrapper) =>
       wrapper.findComponent({ name: 'Context' }).vm.isOpen()
@@ -510,12 +496,8 @@ describe('TemplateInstall', () => {
       expect(menuIsOpen(wrapper)).toBe(false)
       expect(posthog.capture.mock.calls).toEqual([
         [
-          'template_downloaded',
-          {
-            template_id: 5,
-            template_slug: 'crm-a1b2c3',
-            template_type: 'user',
-          },
+          'template_download_requested',
+          { template_id: 5, template_slug: null, template_type: 'user' },
         ],
       ])
     })
@@ -538,30 +520,6 @@ describe('TemplateInstall', () => {
       expect(posthog.capture).toHaveBeenCalledTimes(1)
     })
 
-    test('captures no refused copy of the link or download', async () => {
-      const posthog = providePosthog(testApp.nuxtApp)
-      signIn()
-      testApp.dontFailOnErrorResponses()
-      const writeText = vi
-        .spyOn(navigator.clipboard, 'writeText')
-        .mockRejectedValue(new Error())
-      onTestFinished(() => writeText.mockRestore())
-      testApp.mock.onPost(downloadUrl).reply(400, {
-        error: 'ERROR_TEMPLATE_BLOCKED',
-        detail: 'The template is blocked.',
-      })
-      const wrapper = await mountWithMenu({ template: userTemplate })
-
-      await clickMenuLink(wrapper, 'templateInstall.copyLink')
-      await clickDownload(wrapper)
-
-      expect(errorToasts().map((toast) => toast.title)).toStrictEqual([
-        'clientHandler.templateBlockedTitle',
-        'copied.linkFailedTitle',
-      ])
-      expect(posthog.capture).not.toHaveBeenCalled()
-    })
-
     test('asks to reload when the shown revision is no longer public', async () => {
       signIn()
       testApp.dontFailOnErrorResponses()
@@ -581,6 +539,7 @@ describe('TemplateInstall', () => {
     })
 
     test('shows why a template is not downloaded', async () => {
+      const posthog = providePosthog(testApp.nuxtApp)
       signIn()
       testApp.dontFailOnErrorResponses()
       testApp.mock.onPost(downloadUrl).reply(400, {
@@ -599,6 +558,7 @@ describe('TemplateInstall', () => {
       expect(downloadLink(wrapper).classes()).not.toContain(
         'context__menu-item-link--loading'
       )
+      expect(posthog.capture).not.toHaveBeenCalled()
     })
 
     test('shows nothing when the answer comes after a logout', async () => {

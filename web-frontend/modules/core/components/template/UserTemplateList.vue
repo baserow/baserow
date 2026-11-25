@@ -250,7 +250,9 @@
               >
                 <a
                   class="context__menu-item-link"
-                  @click.prevent="copyLink(focusedCopyLinkItem.url, copied)"
+                  @click.prevent="
+                    copyLink(focusedCopyLinkItem.url, copied, focusedTemplate)
+                  "
                 >
                   <i class="context__menu-item-icon iconoir-link"></i>
                   {{ $t(focusedCopyLinkItem.label) }}

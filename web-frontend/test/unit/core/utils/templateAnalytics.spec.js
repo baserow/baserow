@@ -23,6 +23,20 @@ describe('templateAnalytics', () => {
     ).not.toThrow()
   })
 
+  test.each([
+    [{ type: undefined }, 'crm'],
+    [{ type: 'user', listed: true }, 'crm'],
+    [{ type: 'user', listed: false }, null],
+  ])('names only an official or listed template: %o', (values, slug) => {
+    captureTemplateEvent(posthog, 'previewed', {
+      id: 1,
+      slug: 'crm',
+      ...values,
+    })
+
+    expect(posthog.capture.mock.calls[0][1].template_slug).toBe(slug)
+  })
+
   test('captures a search once the user stopped typing, or a template is opened', () => {
     const track = createTemplateSearchTracker(posthog, 'public')
 

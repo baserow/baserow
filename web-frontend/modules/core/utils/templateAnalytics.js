@@ -1,8 +1,10 @@
 import debounce from 'lodash/debounce'
 
+import { isListedTemplate } from '@baserow/modules/core/utils/userTemplate'
+
 export const getTemplateProperties = (template) => ({
   template_id: template.id,
-  template_slug: template.slug,
+  template_slug: isListedTemplate(template) ? template.slug : null,
   template_type: template.type || 'official',
 })
 

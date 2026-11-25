@@ -108,3 +108,4 @@ def test_install_template_event_names_the_official_template(
     assert properties["template_id"] == template.id
     assert properties["template_type"] == "official"
     assert properties["template_slug"] == "example-template"
+    assert properties["is_own"] is False
