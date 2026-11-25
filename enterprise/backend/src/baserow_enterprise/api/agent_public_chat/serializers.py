@@ -1,7 +1,9 @@
 from rest_framework import serializers
 
 from baserow.api.chat_runs.serializers import ChatRunStreamQuerySerializer
+from baserow.contrib.agent.api.serializers import AgentMessageContentSerializer
 from baserow.contrib.agent.models import AgentMessage
+from baserow_enterprise.agent.constants import PUBLIC_CHAT_START_KEY_PATTERN
 
 
 class PublicChatInfoSerializer(serializers.Serializer):
@@ -17,7 +19,16 @@ class PublicChatInfoSerializer(serializers.Serializer):
 
 
 class PublicChatAuthRequestSerializer(serializers.Serializer):
-    password = serializers.CharField()
+    password = serializers.CharField(trim_whitespace=False)
+
+
+class PublicChatConversationStartSerializer(AgentMessageContentSerializer):
+    key = serializers.RegexField(
+        PUBLIC_CHAT_START_KEY_PATTERN,
+        help_text="A secret the page generates for this first message, 32 to 128 "
+        "lowercase hexadecimal digits or hyphens. Sending it again with the same "
+        "content returns the conversation it started.",
+    )
 
 
 class PublicChatAuthResponseSerializer(serializers.Serializer):

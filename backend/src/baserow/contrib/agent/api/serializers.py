@@ -662,8 +662,9 @@ class AgentToolDecisionSerializer(
         required=False,
         allow_blank=True,
         max_length=AGENT_REJECTION_REASON_MAX_LENGTH,
-        help_text="Why the call is rejected, passed on to the agent. Only accepted "
-        "with a rejection, and refused when dismissing a question.",
+        help_text="Why the call is rejected. The agent reads it and, in a "
+        "conversation a channel started, may pass it on to the visitor. Only "
+        "accepted with a rejection, and refused when dismissing a question.",
     )
     answer = serializers.CharField(
         required=False,

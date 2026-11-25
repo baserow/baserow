@@ -1,9 +1,17 @@
+import asyncio
+from collections.abc import Iterator
 from uuid import uuid4
 
 from django.contrib.auth.models import AbstractUser
 
 import pytest
+from pydantic_ai.exceptions import ModelHTTPError
+from pydantic_ai.models.function import FunctionModel
 
+from baserow.contrib.agent.channels.registries import (
+    AgentChannelType,
+    agent_channel_type_registry,
+)
 from baserow.contrib.agent.constants import (
     TRIGGER_CONVERSATION_INSTRUCTIONS,
     UNATTENDED_REPLY_INSTRUCTIONS,
@@ -12,6 +20,8 @@ from baserow.contrib.agent.constants import (
 from baserow.contrib.agent.handler import AgentHandler
 from baserow.contrib.agent.models import AgentChannel, AgentMessage
 from baserow.contrib.agent.service import AgentService
+from baserow.contrib.agent.types import AgentMessageCreated
+from baserow.core.chat_runs.constants import ChatRunStopReason
 from baserow.core.chat_runs.journal import ChatRunJournal
 from baserow.core.chat_runs.models import ChatRun
 from baserow.core.exceptions import PermissionDenied
@@ -29,19 +39,38 @@ from ..test_replies import (
 from ..utils import run_reply
 
 
+class BaseAgentChannelType(AgentChannelType):
+    type = "base"
+    model_class = AgentChannel
+
+
+@pytest.fixture
+def channel_type() -> Iterator[AgentChannelType]:
+    channel_type = BaseAgentChannelType()
+    agent_channel_type_registry.register(channel_type)
+    agent_channel_type_registry.get_for_class.cache_clear()
+    yield channel_type
+    agent_channel_type_registry.unregister(channel_type)
+    agent_channel_type_registry.get_for_class.cache_clear()
+
+
 @pytest.fixture
 def member(data_fixture) -> AbstractUser:
     return data_fixture.create_user()
 
 
 @pytest.fixture
-def channel(data_fixture, configured_agent, member) -> AgentChannel:
+def channel(data_fixture, configured_agent, member, channel_type) -> AgentChannel:
     return data_fixture.create_agent_channel(agent=configured_agent(user=member))
+
+
+def start(channel: AgentChannel, content: str = "Hi") -> AgentMessageCreated:
+    return AgentHandler().start_channel_conversation(channel, uuid4(), content)
 
 
 @pytest.mark.django_db
 def test_a_channel_starts_a_shared_conversation_with_no_member_behind_it(channel):
-    created = AgentHandler().start_channel_conversation(channel, "Hi")
+    created = start(channel)
 
     conversation = created.conversation
     assert (
@@ -64,7 +93,7 @@ def test_a_visitor_reply_is_read_as_it_is_written_and_told_who_it_talks_to(
     received = respond(mocker)
     requested = mocker.spy(AgentHandler, "get_reply_request")
 
-    created = AgentHandler().start_channel_conversation(channel, "Hi")
+    created = start(channel)
     run_reply(run_of(created.conversation))
 
     request = requested.spy_return
@@ -92,7 +121,7 @@ def test_a_visitor_reply_that_can_call_tools_streams_no_text(
     respond(mocker)
     streamed = mocker.spy(ChatRunJournal, "emit_text")
 
-    created = AgentHandler().start_channel_conversation(channel, "Hi")
+    created = start(channel)
     run_reply(run_of(created.conversation))
 
     assert bool(streamed.call_count) is not can_call_tools
@@ -100,10 +129,49 @@ def test_a_visitor_reply_that_can_call_tools_streams_no_text(
 
 
 @pytest.mark.django_db
-@pytest.mark.parametrize("change", ["disable", "trash", "delete"])
-def test_a_visitor_reply_stops_once_its_channel_is_off(channel, change):
-    conversation = AgentHandler().start_channel_conversation(channel, "Hi").conversation
-    if change == "disable":
+@pytest.mark.parametrize(
+    "ending,state",
+    [
+        ("failure", ("failed", "provider_rate_limited", "")),
+        ("stop", ("cancelled", "", "")),
+        ("pause", ("waiting", "", "")),
+    ],
+)
+def test_a_visitor_reply_that_can_call_tools_saves_no_draft(
+    data_fixture, channel, mocker, ending, state
+):
+    table = allow_tools(data_fixture, channel.agent, ask_first=("create_rows",))
+    stop_waits = mocker.spy(ChatRunJournal, "wait_for_stop")
+
+    async def stream(messages, info):
+        yield "Let me add it."
+        if ending == "failure":
+            raise ModelHTTPError(429, "m")
+        if ending == "stop":
+            stop_waits.call_args.args[0].request_stop(ChatRunStopReason.CANCELLED)
+            await asyncio.Event().wait()
+        yield {1: add_row(table)}
+
+    mocker.patch(
+        "baserow.contrib.agent.chat_run_type.create_reply_model",
+        return_value=(FunctionModel(stream_function=stream), {}),
+    )
+    created = start(channel)
+
+    run_reply(run_of(created.conversation))
+
+    assert reply_state(created.reply.id) == state
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("change", ["disable", "trash", "delete", "deactivate"])
+def test_a_visitor_reply_stops_once_its_channel_is_off(
+    channel, channel_type, mocker, change
+):
+    conversation = start(channel).conversation
+    if change == "deactivate":
+        mocker.patch.object(channel_type, "is_deactivated", return_value=True)
+    elif change == "disable":
         channel.enabled = False
         channel.save(update_fields=["enabled"])
     elif change == "trash":
@@ -121,11 +189,10 @@ def test_a_visitor_reply_stops_once_its_channel_is_off(channel, change):
 @pytest.mark.django_db
 def test_a_visitor_message_stays_a_prompt_in_the_next_reply(channel, mocker):
     received = respond(mocker)
-    handler = AgentHandler()
-    conversation = handler.start_channel_conversation(channel, "Hi").conversation
+    conversation = start(channel).conversation
     run_reply(run_of(conversation))
 
-    created = handler.create_visitor_message(conversation, "And now?")
+    created = AgentHandler().create_visitor_message(conversation, uuid4(), "And now?")
     run_reply(ChatRun.objects.get(id=created.run_id))
 
     assert turns(received[-1]) == [
@@ -153,7 +220,7 @@ def test_a_member_decides_a_held_call_and_the_visitor_reply_resumes(
 ):
     table = allow_tools(data_fixture, channel.agent, ask_first=("create_rows",))
     respond(mocker, ({0: add_row(table)},))
-    created = AgentHandler().start_channel_conversation(channel, "Add a plan")
+    created = start(channel, "Add a plan")
     run_reply(run_of(created.conversation))
     assert reply_state(created.reply.id) == ("waiting", "", "")
 

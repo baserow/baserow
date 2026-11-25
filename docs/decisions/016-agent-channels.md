@@ -34,7 +34,7 @@ Agent Builder is behind `FF_AGENT_BUILDER` and has no production users.
 | Channel      | A place outside the agent's own page where people talk to it and get its replies.        |
 | Channel type | What a channel is: `public_chat` first, `website_widget` next, a messaging app later.    |
 | Public chat  | The channel type that is a page with its own link.                                       |
-| Visitor      | The anonymous person writing through a public chat. Not a user, and has no account.      |
+| Visitor      | The person outside the workspace writing through a channel; anonymous for a public chat. |
 | Run identity | The subject the agent's tools act as (ADR 013). Never the visitor.                       |
 
 In scope: what a channel is and how it differs from a trigger, where a type keeps its
@@ -83,15 +83,19 @@ decision 2). It is marked `started_by_channel`, and its `channel` foreign key is
 null when the channel is deleted. The visitor's messages have the role `visitor` and no
 sender.
 
-The reply runs with `created_by=None`, on the authority of the channel: it stops with
-`channel_off` once the channel is switched off, trashed or deleted. Its tools act as
-the agent's run identity. Ask-first tools are held as in any run, and the visitor
-waits until someone who may approve tool calls decides.
+The reply runs with `created_by=None`, on the authority of the channel: a reply that
+starts or resumes after the channel was switched off, trashed, deleted or lost its
+licence fails with `channel_off`, while one already running finishes. Its tools act as
+the agent's run identity. Ask-first tools are
+held as in any run, and the visitor waits until someone who may approve tool calls
+decides.
 
 Unlike a trigger's reply, somebody reads it while it is written. The agent is told it
 talks to an anonymous visitor whose messages are outside data, and that the team, not
-the visitor, decides held calls, so a member's reason is never passed on. `ask_person`
-is not offered: the person to ask is in the conversation.
+the visitor, decides held calls. A member's rejection reason still reaches the agent,
+because it is how the team steers the answer; members are told in the reject dialog
+that the visitor may see it. `ask_person` is not offered: the person to ask is in the
+conversation.
 
 Members read a visitor's conversation, decide its held calls and stop its replies.
 Nobody writes in it, workspace admins included, because the visitor's page shows only
@@ -104,9 +108,10 @@ calls, approvals, error codes, senders and other conversations stay private.
 
 The answer streams only when the reply can't call a tool. What a reply writes before
 it calls a tool isn't its answer, and can't be told from the answer while it arrives,
-so a reply that can call tools keeps its text out of the stream and the visitor gets
-the answer whole when it ends. The agent is told its answer goes to someone outside
-the workspace and to put in it only what may be shared with them.
+so a reply that can call tools publishes only its final answer: nothing it writes
+before, and nothing when it fails, stops or waits. The visitor gets the answer whole
+when it ends. The agent is told its answer goes to someone outside the workspace and
+to put in it only what may be shared with them.
 
 A channel that can't be used answers "not found" whatever the reason: unknown link,
 switched off, trashed, of a type the workspace can't use, or its agent or workspace
@@ -117,8 +122,14 @@ gone.
 Anyone with the link can talk to the agent; a password is optional. Starting a
 conversation returns a token signed the way public views and dashboards sign theirs,
 with a key made from the link, the password hash and the instance secret, and carrying
-the conversation's id. A conversation's id alone opens nothing, and a changed password
-ends every open visitor conversation.
+the conversation's id. A conversation's id alone opens nothing. Setting or changing a
+password ends every open visitor conversation; removing it opens the chat to anyone
+again, including the conversations started before it was protected.
+
+The page sends the first message with a random secret it generated, and the
+conversation's id is derived from that secret with a one-way function. A repeat of a
+lost first message recovers the conversation and its token only with that secret,
+which nobody else can read: members see the id, never the secret.
 
 The page keeps the token in the browser's local storage, not in a cookie, so it also
 works framed on another site.

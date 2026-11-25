@@ -92,6 +92,7 @@ from .constants import (
 from .exceptions import (
     AgentConversationDoesNotExist,
     AgentMessageConflict,
+    AgentNotReady,
     AgentRunAsSubjectDoesNotExist,
     AgentToolApprovalNotPending,
     AgentToolDecisionInvalid,
@@ -316,6 +317,17 @@ class AgentHandler:
         else:
             readiness = AgentReadinessState.READY
         return readiness, errors
+
+    def require_ready(self, agent: AgentApplication) -> None:
+        """
+        :param agent: The agent, with its workspace.
+        :raises AgentNotReady: When its configuration isn't ready, without saying
+            why, so no privileged setting diagnostic leaks.
+        """
+
+        readiness, _ = self.get_configuration_readiness(agent)
+        if readiness != AgentReadinessState.READY:
+            raise AgentNotReady
 
     def get_deactivated_tools(self, workspace: Workspace) -> list[str]:
         """
@@ -963,21 +975,24 @@ class AgentHandler:
     def get_creation_retry(
         self,
         agent: AgentApplication,
-        owner: AbstractUser,
+        owner: AbstractUser | None,
         uuid: UUID,
-        message_uuid: UUID,
+        message_uuid: UUID | None,
         content: str,
+        channel: AgentChannel | None = None,
     ) -> AgentMessageCreated | None:
         """
         Return the first message already accepted for a conversation uuid.
 
         :param agent: The agent the conversation is created in.
-        :param owner: The user creating the conversation.
+        :param owner: The user creating the conversation, or None for a channel's.
         :param uuid: The uuid of the conversation.
-        :param message_uuid: The uuid of the first message.
+        :param message_uuid: The uuid of the first message, or None when the
+            server picked it.
         :param content: The content of the first message.
+        :param channel: The channel a visitor creates the conversation through.
         :raises AgentConversationDoesNotExist: When the uuid belongs to another
-            owner's or agent's conversation, or to a deleted one.
+            owner's, channel's or agent's conversation, or to a deleted one.
         :raises AgentMessageConflict: When the conversation was created with another
             first message.
         :return: The conversation, its first message, its reply and the run writing
@@ -988,30 +1003,35 @@ class AgentHandler:
         if conversation is None:
             return None
         return self._get_first_message_retry(
-            conversation, agent, owner, message_uuid, content
+            conversation, agent, owner, message_uuid, content, channel
         )
 
     def _get_first_message_retry(
         self,
         conversation: AgentConversation,
         agent: AgentApplication,
-        owner: AbstractUser,
-        message_uuid: UUID,
+        owner: AbstractUser | None,
+        message_uuid: UUID | None,
         content: str,
+        channel: AgentChannel | None = None,
     ) -> AgentMessageCreated:
         """Validate an existing identifier, also one a racing request just created."""
 
         if (
             conversation.trashed
             or conversation.agent_id != agent.id
-            or conversation.owner_user_id != owner.id
-            or not conversation.participants.filter(id=owner.id).exists()
+            or conversation.owner_user_id != (owner.id if owner else None)
+            or conversation.channel_id != (channel.id if channel else None)
+            or (
+                owner is not None
+                and not conversation.participants.filter(id=owner.id).exists()
+            )
         ):
             raise AgentConversationDoesNotExist
         message = conversation.messages.order_by("id").first()
         if (
             message is None
-            or message.uuid != message_uuid
+            or (message_uuid is not None and message.uuid != message_uuid)
             or message.content != content
         ):
             raise AgentMessageConflict
@@ -1146,7 +1166,7 @@ class AgentHandler:
         conversation: AgentConversation,
         uuid: UUID,
         content: str,
-        sender: AbstractUser,
+        sender: AbstractUser | None,
     ) -> AgentMessageCreated | None:
         """
         Return the message already accepted for a message uuid.
@@ -1154,7 +1174,7 @@ class AgentHandler:
         :param conversation: The conversation the message is sent to.
         :param uuid: The uuid of the message.
         :param content: The content of the message.
-        :param sender: The user sending the message.
+        :param sender: The user sending the message, or None for a visitor.
         :raises AgentMessageConflict: When the uuid was accepted with other content
             or from another sender.
         :return: The conversation, the accepted message, its reply and the run
@@ -1164,7 +1184,9 @@ class AgentHandler:
         message = conversation.messages.filter(uuid=uuid).first()
         if message is None:
             return None
-        if message.content != content or message.sender_id != sender.id:
+        if message.content != content or message.sender_id != (
+            sender.id if sender else None
+        ):
             raise AgentMessageConflict
         return self._accepted(conversation, message)
 
@@ -1193,7 +1215,7 @@ class AgentHandler:
         return self._add_message(conversation, content, uuid=uuid, sender=sender)
 
     def start_channel_conversation(
-        self, channel: AgentChannel, content: str
+        self, channel: AgentChannel, uuid: UUID, content: str
     ) -> AgentMessageCreated:
         """
         Start a shared conversation from a visitor's first message through a
@@ -1201,25 +1223,42 @@ class AgentHandler:
         behind. Call it in a transaction, so a refused reply saves nothing.
 
         :param channel: The channel the visitor writes through, with its agent.
+        :param uuid: The uuid of the conversation.
         :param content: The visitor's first message.
+        :raises AgentConversationDoesNotExist: When a concurrent request created a
+            conversation with this uuid elsewhere.
+        :raises AgentMessageConflict: When a concurrent request created it with
+            another first message.
         :raises ChatRunLimitReached: When a reply limit is reached; the visitor
             can send the message again.
-        :return: The new conversation, the visitor's message, its reply and the
-            run writing it.
+        :return: The conversation, the visitor's message, its reply and the run
+            writing it, and whether they are new.
         """
 
-        conversation = AgentConversation.objects.create(
-            uuid=uuid4(),
-            agent=channel.agent,
-            shared=True,
-            started_by_channel=True,
-            channel=channel,
-            title=normalize_title(content),
-        )
+        try:
+            with transaction.atomic():
+                conversation = AgentConversation.objects.create(
+                    uuid=uuid,
+                    agent=channel.agent,
+                    shared=True,
+                    started_by_channel=True,
+                    channel=channel,
+                    title=normalize_title(content),
+                )
+        except IntegrityError:
+            # A concurrent request created this uuid after the retry check.
+            return self._get_first_message_retry(
+                AgentConversation.objects_and_trash.get(uuid=uuid),
+                channel.agent,
+                None,
+                None,
+                content,
+                channel,
+            )
         return self._add_message(conversation, content, role=AgentMessage.Role.VISITOR)
 
     def create_visitor_message(
-        self, conversation: AgentConversation, content: str
+        self, conversation: AgentConversation, uuid: UUID, content: str
     ) -> AgentMessageCreated:
         """
         Add another visitor message with an empty reply, and start the run
@@ -1229,6 +1268,7 @@ class AgentHandler:
         reply saves nothing.
 
         :param conversation: The conversation a channel started, with its agent.
+        :param uuid: The uuid of the message.
         :param content: The content of the message.
         :raises ChatRunAlreadyActive: When the agent is still replying in this
             conversation.
@@ -1238,7 +1278,9 @@ class AgentHandler:
         """
 
         conversation.save(update_fields=["updated_on"])
-        return self._add_message(conversation, content, role=AgentMessage.Role.VISITOR)
+        return self._add_message(
+            conversation, content, role=AgentMessage.Role.VISITOR, uuid=uuid
+        )
 
     def _add_message(
         self,
@@ -2417,7 +2459,7 @@ class AgentHandler:
 
         :param agent: The agent whose conversations are exported.
         :param as_examples: Export them as the examples an export or a template
-            carries: only the shared, pinned ones a person started, so that
+            carries: only the shared, pinned ones a member started, so that
             sharing and pinning a conversation is what picks it, without the people
             who own them or sent their messages, and without the tool steps of the
             replies, which hold the inputs and results of the calls and the ids of
@@ -2429,9 +2471,13 @@ class AgentHandler:
         conversations = AgentConversation.objects.filter(agent=agent)
         if as_examples:
             # Never a private conversation, which whoever exports may not even
-            # see, one a trigger started, nor one that only tested the Agent.
+            # see, a visitor's, one a trigger started, nor a test of the Agent.
             conversations = conversations.filter(
-                shared=True, pinned=True, started_by_trigger=False, is_test=False
+                shared=True,
+                pinned=True,
+                started_by_trigger=False,
+                started_by_channel=False,
+                is_test=False,
             )
         messages = AgentMessage.objects.order_by("id")
         # Examples leave out the steps, and the approvals are only read to end them.
@@ -2570,6 +2616,7 @@ class AgentHandler:
                 and data.get("shared", False) is True
                 and data.get("pinned", False) is True
                 and not data.get("started_by_trigger", False)
+                and not data.get("started_by_channel", False)
                 and not data.get("is_test", False)
                 and isinstance(data.get("title"), str)
                 and isinstance(data.get("messages"), list)

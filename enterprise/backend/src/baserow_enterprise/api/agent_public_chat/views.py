@@ -6,6 +6,8 @@ from uuid import UUID
 
 from django.conf import settings
 from django.http import StreamingHttpResponse
+from django.utils.decorators import method_decorator
+from django.views.decorators.cache import never_cache
 
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import OpenApiParameter, extend_schema
@@ -32,14 +34,16 @@ from baserow.contrib.agent.api.errors import (
     ERROR_AGENT_BUSY,
     ERROR_AGENT_CONVERSATION_DOES_NOT_EXIST,
     ERROR_AGENT_CONVERSATION_WAITING_FOR_APPROVAL,
+    ERROR_AGENT_MESSAGE_CONFLICT,
     ERROR_AGENT_NOT_READY,
 )
-from baserow.contrib.agent.api.serializers import AgentMessageContentSerializer
+from baserow.contrib.agent.api.serializers import AgentMessageCreateSerializer
 from baserow.contrib.agent.channels.exceptions import AgentChannelDoesNotExist
 from baserow.contrib.agent.channels.visitors import AgentVisitorService
 from baserow.contrib.agent.exceptions import (
     AgentConversationDoesNotExist,
     AgentConversationWaitingForApproval,
+    AgentMessageConflict,
     AgentNotReady,
 )
 from baserow.contrib.agent.types import AgentMessageCreated
@@ -66,6 +70,7 @@ from .serializers import (
     PublicChatAuthResponseSerializer,
     PublicChatConversationSerializer,
     PublicChatConversationStartedSerializer,
+    PublicChatConversationStartSerializer,
     PublicChatInfoSerializer,
     PublicChatMessageSerializer,
     PublicChatStopSerializer,
@@ -85,6 +90,7 @@ PUBLIC_CHAT_EXCEPTIONS = {
     AgentConversationDoesNotExist: ERROR_AGENT_CONVERSATION_DOES_NOT_EXIST,
     AgentNotReady: ERROR_AGENT_NOT_READY,
     AgentConversationWaitingForApproval: ERROR_AGENT_CONVERSATION_WAITING_FOR_APPROVAL,
+    AgentMessageConflict: ERROR_AGENT_MESSAGE_CONFLICT,
     ChatRunAlreadyActive: ERROR_CHAT_RUN_IN_PROGRESS,
     ChatRunLimitReached: ERROR_AGENT_BUSY,
     ChatRunDoesNotExist: ERROR_CHAT_RUN_DOES_NOT_EXIST,
@@ -228,9 +234,14 @@ async def encode_visitor_records(
                 yield json.dumps(shown) + "\n\n"
 
 
-class PublicChatInfoView(APIView):
+@method_decorator(never_cache, name="dispatch")
+class PublicChatView(APIView):
+    """Anonymous, and never cached: the answer depends on the visitor's token."""
+
     permission_classes = (AllowAny,)
 
+
+class PublicChatInfoView(PublicChatView):
     @extend_schema(
         parameters=[SLUG_PARAMETER],
         tags=["Agent public chat"],
@@ -253,9 +264,7 @@ class PublicChatInfoView(APIView):
         )
 
 
-class PublicChatAuthView(APIView):
-    permission_classes = (AllowAny,)
-
+class PublicChatAuthView(PublicChatView):
     @extend_schema(
         parameters=[SLUG_PARAMETER],
         tags=["Agent public chat"],
@@ -284,36 +293,38 @@ class PublicChatAuthView(APIView):
         )
 
 
-class PublicChatConversationsView(APIView):
-    permission_classes = (AllowAny,)
-
+class PublicChatConversationsView(PublicChatView):
     @extend_schema(
         parameters=[SLUG_PARAMETER],
         tags=["Agent public chat"],
         operation_id="start_agent_public_chat_conversation",
         description=(
             "Starts a conversation with the visitor's first message and returns the "
-            "token that opens it. A password protected chat needs the token from "
-            "its auth endpoint."
+            "token that opens it, also when the same key and content are sent "
+            "again. A password protected chat needs the token from its auth "
+            "endpoint."
         ),
-        request=AgentMessageContentSerializer,
+        request=PublicChatConversationStartSerializer,
         responses={
             200: PublicChatConversationStartedSerializer,
             401: {
                 "description": "The chat is password protected and no valid "
                 "token was sent."
             },
-            **CHAT_ERRORS,
+            404: CONVERSATION_ERRORS[404],
+            409: get_error_schema(["ERROR_AGENT_MESSAGE_CONFLICT"]),
             **WRITE_ERRORS,
         },
     )
     @map_exceptions(PUBLIC_CHAT_EXCEPTIONS)
-    @validate_body(AgentMessageContentSerializer, return_validated=True)
-    def post(self, request: Request, slug: str, data: dict[str, str]) -> Response:
+    @validate_body(PublicChatConversationStartSerializer, return_validated=True)
+    def post(self, request: Request, slug: str, data: dict[str, Any]) -> Response:
         chat = get_public_chat(slug)
         if not has_access(chat, request):
             raise AuthenticationFailed()
-        result = AgentVisitorService().start_conversation(chat, data["content"])
+        result = AgentVisitorService().start_conversation(
+            chat, data["key"], data["content"]
+        )
         return Response(
             PublicChatConversationStartedSerializer(
                 {
@@ -324,9 +335,7 @@ class PublicChatConversationsView(APIView):
         )
 
 
-class PublicChatConversationView(APIView):
-    permission_classes = (AllowAny,)
-
+class PublicChatConversationView(PublicChatView):
     @extend_schema(
         parameters=[SLUG_PARAMETER],
         tags=["Agent public chat"],
@@ -346,15 +355,16 @@ class PublicChatConversationView(APIView):
         return Response(PublicChatConversationSerializer(conversation).data)
 
 
-class PublicChatMessagesView(APIView):
-    permission_classes = (AllowAny,)
-
+class PublicChatMessagesView(PublicChatView):
     @extend_schema(
         parameters=[SLUG_PARAMETER],
         tags=["Agent public chat"],
         operation_id="create_agent_public_chat_message",
-        description="Adds the visitor's next message to their conversation.",
-        request=AgentMessageContentSerializer,
+        description=(
+            "Adds the visitor's next message to their conversation, or returns it "
+            "when the same uuid is sent again."
+        ),
+        request=AgentMessageCreateSerializer,
         responses={
             200: PublicChatConversationSerializer,
             **CONVERSATION_ERRORS,
@@ -362,26 +372,25 @@ class PublicChatMessagesView(APIView):
             409: get_error_schema(
                 [
                     "ERROR_AGENT_CONVERSATION_WAITING_FOR_APPROVAL",
+                    "ERROR_AGENT_MESSAGE_CONFLICT",
                     "ERROR_CHAT_RUN_IN_PROGRESS",
                 ]
             ),
         },
     )
     @map_exceptions(PUBLIC_CHAT_EXCEPTIONS)
-    @validate_body(AgentMessageContentSerializer, return_validated=True)
-    def post(self, request: Request, slug: str, data: dict[str, str]) -> Response:
+    @validate_body(AgentMessageCreateSerializer, return_validated=True)
+    def post(self, request: Request, slug: str, data: dict[str, Any]) -> Response:
         chat = get_public_chat(slug)
         result = AgentVisitorService().send_message(
-            chat, get_conversation_uuid(chat, request), data["content"]
+            chat, get_conversation_uuid(chat, request), data["uuid"], data["content"]
         )
         return Response(
             PublicChatConversationSerializer(serialize_accepted(result)).data
         )
 
 
-class PublicChatStopView(APIView):
-    permission_classes = (AllowAny,)
-
+class PublicChatStopView(PublicChatView):
     @extend_schema(
         parameters=[SLUG_PARAMETER],
         tags=["Agent public chat"],
@@ -399,8 +408,7 @@ class PublicChatStopView(APIView):
         return Response(PublicChatStopSerializer({"status": status}).data)
 
 
-class PublicChatStreamView(APIView):
-    permission_classes = (AllowAny,)
+class PublicChatStreamView(PublicChatView):
     # Django serves HEAD with get, which the stream router wouldn't cap.
     http_method_names = ["get", "options"]
 
@@ -440,6 +448,5 @@ class PublicChatStreamView(APIView):
             encode_visitor_records(run, query_params.get("cursor"), serialize_run(run)),
             content_type="text/event-stream",
         )
-        response["Cache-Control"] = "no-cache"
         response["X-Accel-Buffering"] = "no"
         return response

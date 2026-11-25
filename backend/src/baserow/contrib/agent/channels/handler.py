@@ -10,7 +10,7 @@ from baserow.core.models import Workspace
 from baserow.core.trash.handler import TrashHandler
 from baserow.core.utils import extract_allowed
 
-from .exceptions import AgentChannelDoesNotExist
+from .exceptions import AgentChannelDoesNotExist, AgentChannelTypeNotAvailable
 from .registries import AgentChannelType, agent_channel_type_registry
 
 
@@ -59,6 +59,21 @@ class AgentChannelHandler:
         return agent_channel_type_registry.get_for_channel(channel).is_deactivated(
             workspace
         )
+
+    def is_available(self, channel: AgentChannel, workspace: Workspace) -> bool:
+        """
+        :param channel: The channel, of any type.
+        :param workspace: The workspace of the channel's agent.
+        :return: Whether the channel can be used now: it's on, not trashed, and
+            of a registered type the workspace can use.
+        """
+
+        if not channel.enabled or channel.trashed:
+            return False
+        try:
+            return not self.is_type_locked(channel, workspace)
+        except AgentChannelTypeNotAvailable:
+            return False
 
     def create_channel(
         self, agent: AgentApplication, channel_type: AgentChannelType, **values: Any

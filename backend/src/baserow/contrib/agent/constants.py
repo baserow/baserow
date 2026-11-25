@@ -1,4 +1,5 @@
 from enum import StrEnum
+from uuid import UUID
 
 from baserow.core.generative_ai.constants import WEB_SEARCH_MAX_PER_REPLY
 from baserow.core.subjects import UserSubjectType
@@ -34,6 +35,8 @@ RUN_AS_SUBJECT_TYPES = [UserSubjectType.type]
 HISTORY_MESSAGE_LIMIT = 20
 REPLY_REQUEST_LIMIT = 20
 AGENT_VISITOR_HISTORY_SIZE = 100
+# Never change it: the uuids of visitor conversations already started derive from it.
+AGENT_VISITOR_KEY_NAMESPACE = UUID("926c2501-7a4d-4df4-8c0b-3f8529a03f7a")
 AGENT_NOT_READY = "not_ready"
 AGENT_NOT_ALLOWED = "not_allowed"
 AGENT_RUN_LIMIT_REACHED = "chat_run_limit_reached"

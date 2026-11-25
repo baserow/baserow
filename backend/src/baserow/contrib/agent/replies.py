@@ -899,7 +899,8 @@ class AgentResponder:
         """
         Collect what the reply produced: its text, the provider and model, and once
         the model finished or paused, its messages and usage. A paused reply keeps
-        the text the owner saw, the held calls and the run to resume.
+        the text the owner saw, the held calls and the run to resume. A reply
+        holding its text keeps only its final answer.
 
         :return: The text and the execution details of the reply.
         """
@@ -909,15 +910,18 @@ class AgentResponder:
         )
         steps = self._steps.finish() or None
         waiting_calls = self._steps.waiting_calls() if paused else []
+        unfinished_text = "" if self._holds_text else self._text
         if self._result is None:
             return AgentReplyResult(
-                text=self._text,
+                text=unfinished_text,
                 provider_type=self._request.provider_type,
                 model_identifier=self._request.model_identifier,
                 steps=steps,
             )
         return AgentReplyResult(
-            text=self._text if paused else remove_null_characters(self._result.output),
+            text=unfinished_text
+            if paused
+            else remove_null_characters(self._result.output),
             provider_type=self._request.provider_type,
             model_identifier=self._request.model_identifier,
             model_messages=ModelMessagesTypeAdapter.dump_python(

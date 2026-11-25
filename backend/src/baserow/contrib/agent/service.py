@@ -23,13 +23,12 @@ from baserow.core.types import PermissionCheck
 from .action_tools.handler import AgentActionHandler
 from .action_tools.signals import agent_action_updated
 from .api.serializers import AgentConversationUserSerializer
-from .constants import AgentReadinessState
+from .channels.handler import AgentChannelHandler
 from .exceptions import (
     AgentChannelOff,
     AgentConversationDoesNotExist,
     AgentConversationIsExample,
     AgentConversationWaitingForApproval,
-    AgentNotReady,
     AgentToolApprovalNotPending,
     AgentToolRequirementsMissing,
     AgentTriggerOff,
@@ -694,13 +693,6 @@ class AgentService:
             values={"participants": participants},
         )
 
-    def _require_ready(self, agent: AgentApplication) -> None:
-        """Reject new content without leaking privileged setting diagnostics."""
-
-        readiness, _ = self.handler.get_configuration_readiness(agent)
-        if readiness != AgentReadinessState.READY:
-            raise AgentNotReady
-
     def _get_accessible_conversation(
         self, user: AbstractUser, conversation_id: int, using: str | None = None
     ) -> AgentConversation | None:
@@ -812,16 +804,19 @@ class AgentService:
         """
         An unattended reply runs on the authority of the channel or the trigger
         that started its conversation, so it stops once that is gone, trashed or
-        disabled.
+        disabled, or once the channel can't be used.
 
-        :param conversation: The conversation, with its channel and trigger.
-        :raises AgentChannelOff: When the channel is off, trashed or deleted.
+        :param conversation: The conversation, with its agent's workspace, channel
+            and trigger.
+        :raises AgentChannelOff: When the channel is deleted or can't be used.
         :raises AgentTriggerOff: When the trigger is off, trashed or deleted.
         """
 
         if conversation.started_by_channel:
             channel = conversation.channel
-            if channel is None or channel.trashed or not channel.enabled:
+            if channel is None or not AgentChannelHandler().is_available(
+                channel, conversation.agent.workspace
+            ):
                 raise AgentChannelOff
             return
         trigger = conversation.trigger
@@ -868,7 +863,7 @@ class AgentService:
             the person checked was deleted, no longer sees the conversation or
             lost the permission.
         :raises AgentChannelOff: When the channel that started the conversation is
-            off, trashed or deleted.
+            deleted or can't be used.
         :raises AgentTriggerOff: When the trigger that started the conversation is
             off, trashed or deleted.
         :raises AgentNotReady: When the agent's configuration is no longer ready.
@@ -892,7 +887,7 @@ class AgentService:
             CoreHandler().check_permissions(
                 actor, operation, workspace=agent.workspace, context=agent
             )
-        self._require_ready(agent)
+        self.handler.require_ready(agent)
         return self.handler.get_reply_request(reply)
 
     @transaction.atomic
@@ -944,7 +939,7 @@ class AgentService:
         )
         if retry is not None:
             return retry
-        self._require_ready(agent)
+        self.handler.require_ready(agent)
         result = self.handler.create_conversation(
             agent, user, uuid, message_uuid, content, is_test=is_test, title=title
         )
@@ -1019,7 +1014,7 @@ class AgentService:
             raise AgentConversationWaitingForApproval
         # Configuration may have changed while waiting for the conversation lock.
         agent = self.handler.get_agent(agent_id)
-        self._require_ready(agent)
+        self.handler.require_ready(agent)
         result = self.handler.create_message(conversation, uuid, content, user)
         if result.created:
             agent_conversation_activity.send(
@@ -1100,7 +1095,7 @@ class AgentService:
         )
         run_id = None
         if all_decided:
-            self._require_ready(self.handler.get_agent(agent_id))
+            self.handler.require_ready(self.handler.get_agent(agent_id))
             run_id = self.handler.resume_reply(reply, user).id
         agent_conversation_activity.send(
             self, conversation=conversation, user=user, run_id=run_id

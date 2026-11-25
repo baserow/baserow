@@ -111,6 +111,26 @@ def test_an_empty_password_removes_it_and_a_short_one_is_refused(
 
 
 @pytest.mark.django_db
+@pytest.mark.parametrize(
+    "password,near_miss", [("  open sesame  ", "open sesame"), (" " * 8, " " * 9)]
+)
+def test_a_password_is_taken_exactly_as_typed(
+    api_client, agent, create_chat, password, near_miss
+):
+    chat = create_chat()
+
+    changed = api_client.patch(channels_url(agent, chat["id"]), {"password": password})
+
+    auth_url = reverse(
+        "api:enterprise:agent_public_chat:auth", kwargs={"slug": chat["slug"]}
+    )
+    assert changed.json()["has_password"] is True
+    for typed, status_code in ((password, 200), (near_miss, 401)):
+        response = api_client.post(auth_url, {"password": typed}, format="json")
+        assert response.status_code == status_code
+
+
+@pytest.mark.django_db
 def test_a_locked_type_is_refused_but_its_chat_switches_off_and_deletes(
     api_client, agent, create_chat
 ):

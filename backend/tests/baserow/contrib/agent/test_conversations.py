@@ -496,13 +496,13 @@ def test_independent_conversations_accept_messages_concurrently(
         data_fixture.create_agent_conversation(user=user, agent=agent) for _ in range(2)
     ]
     barrier = Barrier(2)
-    original = AgentService._require_ready
+    original = AgentHandler.require_ready
 
-    def both_reach_readiness(service, target):
-        original(service, target)
+    def both_reach_readiness(handler, target):
+        original(handler, target)
         barrier.wait(timeout=5)
 
-    mocker.patch.object(AgentService, "_require_ready", both_reach_readiness)
+    mocker.patch.object(AgentHandler, "require_ready", both_reach_readiness)
     # An eager reply would also check readiness and wait at the barrier.
     mocker.patch.object(ChatRunHandler, "_enqueue")
 
@@ -548,13 +548,13 @@ def test_concurrent_retries_accept_one_message(
     # An eager reply would wait at the barrier and notify again when it ends.
     mocker.patch.object(ChatRunHandler, "_enqueue")
     if view == "conversations":
-        original = AgentService._require_ready
+        original = AgentHandler.require_ready
 
-        def both_reach_creation(service, target):
-            original(service, target)
+        def both_reach_creation(handler, target):
+            original(handler, target)
             barrier.wait(timeout=5)
 
-        mocker.patch.object(AgentService, "_require_ready", both_reach_creation)
+        mocker.patch.object(AgentHandler, "require_ready", both_reach_creation)
 
     def send(index):
         close_old_connections()

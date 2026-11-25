@@ -1,6 +1,7 @@
 import json
 from collections.abc import Callable
 from typing import Any
+from uuid import UUID, uuid4
 
 from django.http import StreamingHttpResponse
 from django.test.utils import override_settings
@@ -36,10 +37,17 @@ def bearer(token: str) -> dict[str, str]:
 
 
 def start(
-    api_client: APIClient, chat: PublicChatAgentChannel, content: str = "Hi", **headers
+    api_client: APIClient,
+    chat: PublicChatAgentChannel,
+    content: str = "Hi",
+    key: str | None = None,
+    **headers,
 ) -> Response:
     return api_client.post(
-        url(chat.slug, "conversations"), {"content": content}, format="json", **headers
+        url(chat.slug, "conversations"),
+        {"key": key or str(uuid4()), "content": content},
+        format="json",
+        **headers,
     )
 
 
@@ -47,9 +55,18 @@ def read(api_client: APIClient, chat: PublicChatAgentChannel, token: str) -> Res
     return api_client.get(url(chat.slug, "conversation"), **bearer(token))
 
 
-def send(api_client: APIClient, chat: PublicChatAgentChannel, token: str) -> Response:
+def send(
+    api_client: APIClient,
+    chat: PublicChatAgentChannel,
+    token: str,
+    content: str = "More",
+    uuid: UUID | None = None,
+) -> Response:
     return api_client.post(
-        url(chat.slug, "messages"), {"content": "More"}, format="json", **bearer(token)
+        url(chat.slug, "messages"),
+        {"uuid": str(uuid or uuid4()), "content": content},
+        format="json",
+        **bearer(token),
     )
 
 
@@ -156,9 +173,13 @@ def test_a_chat_that_cant_be_used_is_not_found(api_client, chat, make_unusable):
     [
         ("get", "info", None),
         ("post", "auth", {"password": "secret"}),
-        ("post", "conversations", {"content": "Hi"}),
+        (
+            "post",
+            "conversations",
+            {"key": str(uuid4()), "content": "Hi"},
+        ),
         ("get", "conversation", None),
-        ("post", "messages", {"content": "Hi"}),
+        ("post", "messages", {"uuid": str(uuid4()), "content": "Hi"}),
         ("post", "stop", None),
     ],
 )
@@ -195,6 +216,74 @@ def test_an_open_chat_starts_a_conversation_without_a_token(api_client, chat):
         "messages": started["messages"],
         "run_id": str(run.id),
     }
+
+
+@pytest.mark.django_db
+def test_a_repeated_first_message_returns_its_conversation_and_starts_nothing(
+    api_client, chat
+):
+    key = str(uuid4())
+    first = start(api_client, chat, key=key).json()
+
+    repeated = start(api_client, chat, key=key).json()
+
+    conversation = AgentConversation.objects.get(channel=chat)
+    assert (repeated["messages"], repeated["run_id"]) == (
+        first["messages"],
+        first["run_id"],
+    )
+    assert (
+        read(api_client, chat, repeated["token"]).json()["messages"]
+        == (first["messages"])
+    )
+    assert ChatRun.objects.filter(chat_id=conversation.id).count() == 1
+
+
+@pytest.mark.django_db
+def test_the_uuid_members_read_never_recovers_a_visitor_conversation(api_client, chat):
+    first = start(api_client, chat).json()
+    conversation = AgentConversation.objects.get(channel=chat)
+
+    taken = start(api_client, chat, key=str(conversation.uuid)).json()
+
+    assert taken["token"] != first["token"]
+    assert AgentConversation.objects.filter(channel=chat).count() == 2
+
+
+@pytest.mark.django_db
+def test_a_repeated_message_returns_it_and_starts_nothing(
+    api_client, data_fixture, chat
+):
+    conversation = data_fixture.create_channel_conversation(channel=chat)
+    token = encode_conversation_token(chat, conversation)
+    uuid = uuid4()
+    first = send(api_client, chat, token, uuid=uuid).json()
+
+    repeated = send(api_client, chat, token, uuid=uuid)
+
+    assert (repeated.status_code, repeated.json()) == (200, first)
+    assert ChatRun.objects.filter(chat_id=conversation.id).count() == 1
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("view", ["conversations", "messages"])
+def test_a_uuid_sent_again_with_other_content_conflicts(
+    api_client, data_fixture, chat, view
+):
+    uuid = uuid4()
+    if view == "conversations":
+        start(api_client, chat, key=str(uuid))
+        response = start(api_client, chat, "Other", key=str(uuid))
+    else:
+        conversation = data_fixture.create_channel_conversation(channel=chat)
+        token = encode_conversation_token(chat, conversation)
+        send(api_client, chat, token, uuid=uuid)
+        response = send(api_client, chat, token, "Other", uuid=uuid)
+
+    assert (response.status_code, response.json()["error"]) == (
+        409,
+        "ERROR_AGENT_MESSAGE_CONFLICT",
+    )
 
 
 @pytest.mark.django_db
@@ -301,6 +390,21 @@ def test_a_visitor_cant_send_while_a_reply_runs_or_waits(
     response = send(api_client, chat, token)
 
     assert (response.status_code, response.json()["error"]) == (409, error)
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("view", ["info", "conversation", "stream"])
+def test_a_visitor_response_is_never_cached(api_client, chat, view):
+    started = start(api_client, chat).json()
+    token = bearer(started["token"])
+    api_client.post(url(chat.slug, "stop"), **token)
+
+    if view == "stream":
+        response = stream(api_client, chat, started["run_id"], **token)
+    else:
+        response = api_client.get(url(chat.slug, view), **token)
+
+    assert "no-store" in response["Cache-Control"]
 
 
 @pytest.mark.django_db
