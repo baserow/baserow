@@ -61,6 +61,7 @@ class MCPServerIntegrationType(IntegrationType):
     # OAuth tokens are left out: an imported server must be connected again.
     class SerializedDict(IntegrationDict):
         url: str
+        enabled: bool
         auth_type: str
         auth_header_name: str
         auth_header_value: str
@@ -71,6 +72,7 @@ class MCPServerIntegrationType(IntegrationType):
 
     serializer_field_names = [
         "url",
+        "enabled",
         "auth_type",
         "auth_header_name",
         "auth_header_value",
@@ -99,6 +101,7 @@ class MCPServerIntegrationType(IntegrationType):
     }
     request_serializer_field_names = [
         "url",
+        "enabled",
         "auth_type",
         "auth_header_name",
         "auth_header_value",
@@ -108,6 +111,7 @@ class MCPServerIntegrationType(IntegrationType):
     request_serializer_field_overrides = {}
     allowed_fields = [
         "url",
+        "enabled",
         "auth_type",
         "auth_header_name",
         "auth_header_value",

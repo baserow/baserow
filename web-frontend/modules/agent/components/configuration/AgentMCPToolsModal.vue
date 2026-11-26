@@ -71,18 +71,33 @@
                   {{ $t('agent.connectedAppToolRemoved') }}
                 </Badge>
               </div>
-              <ButtonText
-                v-if="tool.description"
-                v-bind="disclosure(tool, 'description')"
-              >
-                {{ $t('agent.toolDescription') }}
-              </ButtonText>
               <p
-                v-if="tool.description && isOpen(tool, 'description')"
+                v-if="tool.description"
+                :id="`agent-mcp-tool-description-${tool.name}`"
                 class="agent-mcp-tools__description"
+                :class="{
+                  'agent-mcp-tools__description--clamped':
+                    isLong(tool) && !isOpen(tool, 'description'),
+                }"
               >
                 {{ tool.description }}
               </p>
+              <ButtonText
+                v-if="isLong(tool)"
+                class="agent-mcp-tools__toggle"
+                size="small"
+                :aria-expanded="isOpen(tool, 'description')"
+                :aria-controls="`agent-mcp-tool-description-${tool.name}`"
+                @click="toggle(tool, 'description')"
+              >
+                {{
+                  $t(
+                    isOpen(tool, 'description')
+                      ? 'agent.connectedAppToolShowLess'
+                      : 'agent.connectedAppToolShowMore'
+                  )
+                }}
+              </ButtonText>
               <ButtonText
                 v-if="parameters(tool).length"
                 v-bind="disclosure(tool, 'parameters')"
@@ -95,42 +110,47 @@
                   )
                 }}
               </ButtonText>
-              <ul
-                v-if="parameters(tool).length && isOpen(tool, 'parameters')"
-                class="agent-mcp-tools__parameters"
+              <div
+                v-if="
+                  hasSchema(tool) &&
+                  (!parameters(tool).length || isOpen(tool, 'parameters'))
+                "
+                class="agent-mcp-tools__details"
               >
-                <li
-                  v-for="parameter in parameters(tool)"
-                  :key="parameter.name"
-                  class="agent-mcp-tools__parameter"
+                <ul
+                  v-if="parameters(tool).length"
+                  class="agent-mcp-tools__parameters"
                 >
-                  <code>{{ parameter.name }}</code>
-                  <span class="agent-mcp-tools__parameter-type">{{
-                    parameter.type
-                  }}</span>
-                  <span
-                    v-if="parameter.required"
-                    class="agent-mcp-tools__parameter-required"
-                    >{{ $t('agent.connectedAppToolParameterRequired') }}</span
+                  <li
+                    v-for="parameter in parameters(tool)"
+                    :key="parameter.name"
+                    class="agent-mcp-tools__parameter"
                   >
-                  <span
-                    v-if="parameter.description"
-                    class="agent-mcp-tools__parameter-description"
-                    >{{ parameter.description }}</span
-                  >
-                </li>
-              </ul>
-              <ButtonText
-                v-if="hasSchema(tool)"
-                v-bind="disclosure(tool, 'schema')"
-              >
-                {{ $t('agent.connectedAppToolSchema') }}
-              </ButtonText>
-              <pre
-                v-if="hasSchema(tool) && isOpen(tool, 'schema')"
-                class="agent-mcp-tools__schema"
-                >{{ JSON.stringify(tool.input_schema, null, 2) }}</pre
-              >
+                    <code>{{ parameter.name }}</code>
+                    <span class="agent-mcp-tools__parameter-type">{{
+                      parameter.type
+                    }}</span>
+                    <span
+                      v-if="parameter.required"
+                      class="agent-mcp-tools__parameter-required"
+                      >{{ $t('agent.connectedAppToolParameterRequired') }}</span
+                    >
+                    <span
+                      v-if="parameter.description"
+                      class="agent-mcp-tools__parameter-description"
+                      >{{ parameter.description }}</span
+                    >
+                  </li>
+                </ul>
+                <ButtonText v-bind="disclosure(tool, 'schema')">
+                  {{ $t('agent.connectedAppToolSchema') }}
+                </ButtonText>
+                <pre
+                  v-if="isOpen(tool, 'schema')"
+                  class="agent-mcp-tools__schema"
+                  >{{ JSON.stringify(tool.input_schema, null, 2) }}</pre
+                >
+              </div>
             </div>
             <span class="agent-mcp-tools__columns">
               <Checkbox
@@ -161,6 +181,20 @@
           </div>
         </div>
         <div class="agent-tool-permissions__actions">
+          <i18n-t
+            v-if="tools.length"
+            scope="global"
+            keypath="agent.connectedAppToolsOnCount"
+            tag="span"
+            class="agent-mcp-tools__count"
+          >
+            <template #count
+              ><strong>{{ enabledCount }}</strong></template
+            >
+            <template #total
+              ><strong>{{ availableTools.length }}</strong></template
+            >
+          </i18n-t>
           <Button type="secondary" @click="modal.hide()">
             {{ $t('action.cancel') }}
           </Button>
@@ -235,6 +269,11 @@ function hasSchema(tool) {
   return Object.keys(tool.input_schema ?? {}).some((key) => key !== 'type')
 }
 
+// About two lines in the modal; a longer description is cut until opened, so
+// nothing an editor approves stays hidden.
+const LONG_DESCRIPTION = 160
+const isLong = (tool) => (tool.description ?? '').length > LONG_DESCRIPTION
+
 const isOpen = (tool, part) => Boolean(expanded.value[`${tool.name}:${part}`])
 
 function toggle(tool, part) {
@@ -296,6 +335,9 @@ function set(tool, key, value) {
 
 const availableTools = computed(() =>
   tools.value.filter((tool) => !tool.removed)
+)
+const enabledCount = computed(
+  () => availableTools.value.filter((tool) => choice(tool).enabled).length
 )
 const allSelected = computed(() =>
   availableTools.value.every((tool) => choice(tool).enabled)

@@ -12,3 +12,11 @@
   line-height: 18px;
   color: $palette-neutral-700;
 }
+
+// Expanding cards only changes what a viewer sees, so it stays usable on a
+// read-only form.
+.read-only-form .agent-card-list-header .agent-card-list-header__toggle-all {
+  pointer-events: auto;
+  user-select: auto;
+  opacity: 1;
+}

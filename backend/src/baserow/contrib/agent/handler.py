@@ -1823,9 +1823,10 @@ class AgentHandler:
 
     def has_mcp_tools(self, agent: AgentApplication) -> bool:
         """
-        Whether a reply may offer MCP tools: one of the Agent's servers has a
-        tool turned on and, if it uses OAuth, an account connected. Unlike
-        `get_mcp_servers` it doesn't refresh a token, so it suits reads.
+        Whether a reply may offer MCP tools: one of the Agent's switched-on
+        servers has a tool turned on and, if it uses OAuth, an account
+        connected. Unlike `get_mcp_servers` it doesn't refresh a token, so it
+        suits reads.
 
         :param agent: The Agent.
         :return: True when a server offers a tool.
@@ -1835,6 +1836,7 @@ class AgentHandler:
             MCPServerTool.objects.filter(
                 integration__application_id=agent.id,
                 integration__trashed=False,
+                integration__enabled=True,
                 enabled=True,
                 removed=False,
             )
@@ -1847,9 +1849,9 @@ class AgentHandler:
 
     def get_mcp_servers(self, agent: AgentApplication) -> tuple[MCPServerSnapshot, ...]:
         """
-        Read the Agent's MCP servers that have tools turned on. They don't depend
-        on the Agent's workspace identity: their tools act with the server's own
-        credential, not in the workspace.
+        Read the Agent's switched-on MCP servers that have tools turned on. They
+        don't depend on the Agent's workspace identity: their tools act with the
+        server's own credential, not in the workspace.
 
         :param agent: The Agent.
         :return: One snapshot per server, in the integrations' order.
@@ -1861,7 +1863,7 @@ class AgentHandler:
             to_attr="enabled_tools",
         )
         servers = MCPServerIntegration.objects.filter(
-            application_id=agent.id, trashed=False
+            application_id=agent.id, trashed=False, enabled=True
         ).prefetch_related(enabled_tools)
         snapshots = []
         for server in servers:

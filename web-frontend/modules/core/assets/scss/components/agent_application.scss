@@ -1125,6 +1125,7 @@
 
 .agent-tool-permissions__actions {
   display: flex;
+  align-items: center;
   justify-content: flex-end;
   gap: 8px;
   margin-top: 20px;
@@ -1137,56 +1138,95 @@
   color: $palette-neutral-900;
 }
 
-.agent-connected-apps__server {
+.agent-mcp-server-card__status {
+  flex-shrink: 0;
+}
+
+.agent-mcp-server-card__body {
+  container: mcp-server-card / inline-size;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+
+  > .control {
+    margin-bottom: 0;
+  }
+}
+
+.agent-mcp-server-card__auth-group {
+  padding-top: 12px;
+  border-top: 1px solid $palette-neutral-200;
+}
+
+// In a narrow panel the segments move under the label instead of clipping.
+@container mcp-server-card (max-width: 360px) {
+  .agent-mcp-server-card__body
+    .agent-mcp-server-card__auth-group.control--horizontal {
+    flex-direction: column;
+    align-items: stretch;
+
+    > * {
+      flex-basis: auto;
+    }
+  }
+}
+
+.agent-mcp-server-card__account {
   display: flex;
   align-items: center;
   gap: 8px;
-  margin-bottom: 8px;
-  padding: 10px 12px;
-  border: 1px solid $palette-neutral-200;
-  border-radius: 6px;
+  font-size: 13px;
+  color: $palette-neutral-1200;
 }
 
-.agent-connected-apps__server-icon {
-  color: $palette-neutral-900;
-}
-
-.agent-connected-apps__server-content {
+.agent-mcp-server-card__account-text {
   flex: 1;
   min-width: 0;
 }
 
-.agent-connected-apps__server-name {
-  overflow: hidden;
-  font-size: 13px;
-  font-weight: 500;
-  color: $palette-neutral-1200;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+.agent-mcp-server-card__tools {
+  padding-top: 12px;
+  border-top: 1px solid $palette-neutral-200;
 }
 
-.agent-connected-apps__server-meta {
+.agent-mcp-server-card__tools-summary {
+  @extend %ellipsis;
+
+  min-width: 0;
+}
+
+.agent-mcp-server-card__tools-button {
   display: flex;
-  align-items: center;
-  gap: 4px;
-  margin-top: 2px;
-  font-size: 12px;
-  color: $palette-neutral-900;
-}
-
-.agent-connected-apps__add {
-  margin-top: 4px;
-}
-
-.agent-connected-apps__modal-actions {
-  display: flex;
-  align-items: center;
+  width: 100%;
   gap: 8px;
-  margin-top: 20px;
+  align-items: center;
+  justify-content: space-between;
+  min-width: 0;
+  height: 36px;
+  padding: 0 12px;
+  border: 1px solid $palette-neutral-400;
+  background: $palette-neutral-0;
+  color: $palette-neutral-1200;
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+
+  @include rounded($rounded-md);
+
+  &:hover {
+    background: $palette-neutral-25;
+  }
+
+  &:focus-visible {
+    outline: 2px solid $palette-blue-500;
+    outline-offset: 2px;
+  }
 }
 
-.agent-connected-apps__modal-spacer {
-  flex: 1;
+.agent-mcp-server-card__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
 }
 
 .agent-mcp-tools__select-all,
@@ -1249,15 +1289,42 @@
   color: $palette-neutral-900;
 }
 
-.agent-mcp-tools__parameters {
+.agent-mcp-tools__description--clamped {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.agent-mcp-tools__details {
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  margin: 4px 0 0;
+  align-items: flex-start;
+  margin-top: 4px;
   padding: 8px 12px;
-  list-style: none;
   border-radius: 6px;
   background-color: $palette-neutral-50;
+}
+
+.agent-mcp-tools__count {
+  margin-right: auto;
+  font-size: 13px;
+  color: $palette-neutral-900;
+
+  strong {
+    font-weight: 500;
+    color: $palette-neutral-1200;
+  }
+}
+
+.agent-mcp-tools__parameters {
+  display: flex;
+  align-self: stretch;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
   font-size: 12px;
   line-height: 18px;
 }
@@ -1286,12 +1353,11 @@
 }
 
 .agent-mcp-tools__schema {
+  align-self: stretch;
   max-height: 240px;
   margin: 4px 0 0;
-  padding: 8px 12px;
+  padding: 0;
   overflow: auto;
-  border-radius: 6px;
-  background-color: $palette-neutral-50;
   font-size: 12px;
   color: $palette-neutral-900;
   white-space: pre-wrap;
@@ -1299,23 +1365,19 @@
 }
 
 .agent-connected-apps__auth {
+  width: 100%;
+
   .segment-control__button {
     flex: 1;
+    white-space: nowrap;
   }
 }
 
 .agent-connected-apps__auth-help {
-  margin-top: 8px;
+  margin: 0;
   font-size: 12px;
   line-height: 18px;
   color: $palette-neutral-900;
-}
-
-.agent-connected-apps__oauth-status {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-top: 12px;
 }
 
 .agent-chat__shared {

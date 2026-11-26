@@ -558,3 +558,45 @@ def test_a_compressed_response_isnt_accepted(mocker):
                 200, stream=Body(b"x"), headers={"Content-Encoding": "gzip"}
             ),
         )
+
+
+@pytest.mark.django_db
+def test_an_app_is_switched_on_by_default(data_fixture, api_client):
+    user, token = data_fixture.create_user_and_token()
+    integration = data_fixture.create_mcp_server_integration(user=user)
+
+    response = api_client.get(
+        reverse(
+            "api:integrations:list",
+            kwargs={"application_id": integration.application_id},
+        ),
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert integration.enabled is True
+    assert response.status_code == 200, response.json()
+    assert [server["enabled"] for server in response.json()] == [True]
+
+
+@pytest.mark.django_db
+def test_an_app_can_be_switched_off_without_losing_its_key(data_fixture, api_client):
+    user, token = data_fixture.create_user_and_token()
+    integration = data_fixture.create_mcp_server_integration(
+        user=user,
+        auth_header_name="Authorization",
+        auth_header_value="Bearer s3cr3t-value",
+    )
+
+    response = api_client.patch(
+        reverse("api:integrations:item", kwargs={"integration_id": integration.id}),
+        {"enabled": False},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert response.status_code == 200, response.json()
+    assert response.json()["enabled"] is False
+    assert response.json()["has_auth_header_value"] is True
+    integration.refresh_from_db()
+    assert integration.enabled is False
+    assert integration.auth_header_value == "Bearer s3cr3t-value"

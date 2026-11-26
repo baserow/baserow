@@ -13,6 +13,7 @@
     <button
       v-for="(segment, index) in segments"
       :key="index"
+      type="button"
       :class="{
         'segment-control__button--active': index === currentActiveIndex,
       }"

@@ -1613,3 +1613,35 @@ def test_importing_examples_keeps_only_what_the_export_picks(
         True,
         None,
     )
+
+
+@pytest.mark.django_db
+def test_copies_keep_an_app_switched_off(data_fixture):
+    user = data_fixture.create_user()
+    server = data_fixture.create_mcp_server_integration(user=user, enabled=False)
+    agent = server.application.specific
+
+    duplicate = CoreHandler().duplicate_application(user, agent).specific
+    portable = AgentApplicationType().export_serialized(
+        agent, ImportExportConfig(include_permission_data=False)
+    )
+    imported = AgentApplicationType().import_serialized(
+        data_fixture.create_workspace(user=user),
+        json.loads(json.dumps(portable)),
+        ImportExportConfig(include_permission_data=False),
+        {},
+    )
+    # A file from before the switch existed imports switched on.
+    serialized = json.loads(json.dumps(portable))
+    for integration in serialized["integrations"]:
+        integration.pop("enabled", None)
+    older = AgentApplicationType().import_serialized(
+        data_fixture.create_workspace(user=user),
+        serialized,
+        ImportExportConfig(include_permission_data=False),
+        {},
+    )
+
+    assert MCPServerIntegration.objects.get(application=duplicate).enabled is False
+    assert MCPServerIntegration.objects.get(application=imported).enabled is False
+    assert MCPServerIntegration.objects.get(application=older).enabled is True
