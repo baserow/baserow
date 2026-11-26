@@ -1,5 +1,4 @@
 import base64
-from copy import copy
 from email.message import EmailMessage
 from email.policy import SMTP
 
@@ -40,7 +39,6 @@ class GoogleGmailSendEmailServiceType(OAuthAccountServiceTypeMixin, ServiceType)
     integration_type = "google"
     required_scopes = [GMAIL_SEND_SCOPE]
     permission_description = "send Gmail messages"
-    is_external = True
     simple_formula_fields = ["to_emails", "cc_emails", "bcc_emails", "subject", "body"]
     sensitive_fields = simple_formula_fields
     allowed_fields = ["integration_id", *simple_formula_fields, "body_type"]
@@ -75,16 +73,6 @@ class GoogleGmailSendEmailServiceType(OAuthAccountServiceTypeMixin, ServiceType)
             )
             for name in self.simple_formula_fields
         ]
-
-    def requires_autocommit(self, service):
-        # Builder actions must not wrap token refresh and sending in one transaction.
-        return True
-
-    def dispatch(self, service, dispatch_context):
-        """Keep refreshed credentials committed even when sending subsequently fails."""
-        context = copy(dispatch_context)
-        context.sends_external_calls_outside_transaction = True
-        return super().dispatch(service, context)
 
     def dispatch_data(self, service, resolved_values, dispatch_context):
         """Send once: an ambiguous network failure must never resend automatically."""
