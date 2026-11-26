@@ -1,6 +1,6 @@
 import { clone } from '@baserow/modules/core/utils/object'
 
-const formParentKey = Symbol('formParentKey')
+import { formParentKey } from '@baserow/modules/core/composables/useForm'
 
 /**
  * This mixin introduces some helper functions for form components where the
