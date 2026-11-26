@@ -237,9 +237,9 @@ describe('Agent tool approvals', () => {
       await flushPromises()
 
       if (status === 'approved') {
-        await itemButtons(items(wrapper)[0])[2].trigger('click')
+        await itemButtons(items(wrapper)[0]).at(-1).trigger('click')
       } else {
-        await itemButtons(items(wrapper)[0])[1].trigger('click')
+        await itemButtons(items(wrapper)[0]).at(-2).trigger('click')
         await flushPromises()
         modalButton('agent.reject').click()
       }
@@ -455,8 +455,8 @@ describe('Agent tool approvals', () => {
       'agent.approveAll',
     ])
     expect(items(wrapper).map((item) => texts(itemButtons(item)))).toEqual([
-      ['agent.alwaysAllow', 'agent.reject', 'agent.approve'],
-      ['agent.alwaysAllow', 'agent.reject', 'agent.approve'],
+      ['agent.reject', 'agent.approve'],
+      ['agent.reject', 'agent.approve'],
     ])
     expect(activity(wrapper).text()).toBe('agent.waitingForApprovalSteps - 2')
     expect(composer(wrapper).element.disabled).toBe(true)
@@ -551,11 +551,10 @@ describe('Agent tool approvals', () => {
       const failure = items(wrapper)[0].get('.chat-tool-failure')
       expect(failure.text()).toBe('toolPresentation.statusFailed')
       expect(items(wrapper)[0].text()).not.toContain(diagnosis)
-      await failure.trigger('focus')
-      expect(document.querySelector('.tooltip__content').textContent).toBe(
+      await failure.trigger('click')
+      expect(wrapper.get('.chat-tool-failure__reason').text()).toBe(
         builder ? diagnosis : 'Internal error.'
       )
-      await failure.trigger('keydown.esc')
     }
   )
 
@@ -596,7 +595,7 @@ describe('Agent tool approvals', () => {
       card(wrapper)
         .findAll('button:not(.agent-approval__details-toggle)')
         .map((button) => button.element.disabled)
-    ).toEqual(Array(9).fill(true))
+    ).toEqual(Array(7).fill(true))
     expect(
       card(wrapper).get('.agent-approval__saving').attributes('role')
     ).toBe('status')
@@ -673,30 +672,30 @@ describe('Agent tool approvals', () => {
     expect(alwaysAllow(wrapper).exists()).toBe(false)
   })
 
-  test.each(['approved', 'pending'])(
-    'always approving a row submits only that call when its sibling is %s',
-    async (status) => {
-      mockApprovals(
-        testApp,
-        chat.uuid,
-        reply('running', [approval(1, 'approved'), approval(2, 'approved')])
-      )
-      const wrapper = await openWaitingReply([approval(1, status), approval(2)])
-      const [sibling, pending] = items(wrapper)
-      expect(itemButtons(sibling)).toHaveLength(status === 'approved' ? 0 : 3)
-      expect(alwaysAllow(wrapper).text()).toBe('agent.alwaysApproveAll')
-      expect(itemButtons(pending)[0].text()).toBe('agent.alwaysAllow')
-      expect(texts(headerButtons(wrapper))).toEqual([
-        'agent.rejectAll',
-        'agent.approveAll',
-      ])
-      await itemButtons(pending)[0].trigger('click')
-      await flushPromises()
-      expect(sentBodies(testApp)).toEqual([
-        { decisions: [{ id: 2, approved: true }], always_allow: true },
-      ])
-    }
-  )
+  test('always approving the last pending row submits only that call', async () => {
+    mockApprovals(
+      testApp,
+      chat.uuid,
+      reply('running', [approval(1, 'approved'), approval(2, 'approved')])
+    )
+    const wrapper = await openWaitingReply([
+      approval(1, 'approved'),
+      approval(2),
+    ])
+    const [reviewed, pending] = items(wrapper)
+    expect(itemButtons(reviewed)).toHaveLength(0)
+    expect(alwaysAllow(wrapper).text()).toBe('agent.alwaysApproveAll')
+    expect(texts(itemButtons(pending))).toEqual([
+      'agent.alwaysAllow',
+      'agent.reject',
+      'agent.approve',
+    ])
+    await itemButtons(pending)[0].trigger('click')
+    await flushPromises()
+    expect(sentBodies(testApp)).toEqual([
+      { decisions: [{ id: 2, approved: true }], always_allow: true },
+    ])
+  })
 
   test('always allow summarizes multiple tools and names only distinct pending tools on hover', async () => {
     const wrapper = await openWaitingReply([
@@ -819,7 +818,7 @@ describe('Agent tool approvals', () => {
     expect(inModal('.box__title').textContent).toBe('agent.rejectStepsTitle')
     modalButton('action.cancel').click()
     await flushPromises()
-    await itemButtons(items(wrapper)[0])[1].trigger('click')
+    await itemButtons(items(wrapper)[0]).at(-2).trigger('click')
     expect(inModal('.box__title').textContent).toBe('agent.rejectStepTitle')
     const reason = inModal('.agent-reject-modal textarea')
     expect(reason.maxLength).toBe(1000)
@@ -989,7 +988,7 @@ describe('Agent tool approvals', () => {
       [approval(1), approval(2)],
       page([prompt, latest])
     )
-    await itemButtons(items(wrapper)[0])[2].trigger('click')
+    await itemButtons(items(wrapper)[0]).at(-1).trigger('click')
     await flushPromises()
     await updatedElsewhere(chat, 0)
     expect(waitingDot(wrapper)).toBe(false)
@@ -1241,7 +1240,7 @@ describe('Agent tool approvals', () => {
       const pendingCount = () =>
         testApp.store.getters['application/get'](agentData.id).pending_count
 
-      await itemButtons(items(wrapper)[0])[2].trigger('click')
+      await itemButtons(items(wrapper)[0]).at(-1).trigger('click')
       expect(pendingCount()).toBe(3)
       await flushPromises()
       if (committed) {
@@ -1338,13 +1337,13 @@ describe('Agent tool approvals', () => {
       })
     )
     const wrapper = await openWaitingReply([approval(1), approval(2)])
-    const approveFirst = itemButtons(items(wrapper)[0])[2]
+    const approveFirst = itemButtons(items(wrapper)[0]).at(-1)
 
     approveFirst.element.focus()
     await approveFirst.trigger('click')
     await flushPromises()
     expect(document.activeElement).toBe(
-      itemButtons(items(wrapper)[1])[2].element
+      itemButtons(items(wrapper)[1]).at(-1).element
     )
     expect(announcement(wrapper)).toBe('agent.approved')
 

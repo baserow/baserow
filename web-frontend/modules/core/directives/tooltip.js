@@ -76,7 +76,7 @@ export default {
 
     el.updatePositionEvent = (event) => {
       const rect = el.getBoundingClientRect()
-      let position = el.getAttribute('tooltip-position') || 'bottom'
+      const position = el.getAttribute('tooltip-position') || 'bottom'
       const topValue = parseInt(el.getAttribute('tooltip-top-value') || '2')
       const rectTooltip = el.tooltipElement.getBoundingClientRect()
       // The arrow is drawn inside an 8px padding of the tooltip element. Without the
@@ -84,15 +84,6 @@ export default {
       // target to keep a similar visible gap.
       const noArrow = el.getAttribute('tooltip-no-arrow') !== null
       const gap = noArrow ? 6 : 4
-
-      if (position === 'auto') {
-        const below = window.innerHeight - rect.bottom
-        position =
-          below < rectTooltip.height + gap && rect.top > below
-            ? 'top'
-            : 'bottom'
-        el.tooltipElement.classList.toggle('tooltip--top', position === 'top')
-      }
 
       switch (position) {
         case 'top':
@@ -221,7 +212,7 @@ export default {
           classes.push('tooltip--no-arrow')
         }
 
-        if (['auto', 'top', 'bottom'].includes(position)) {
+        if (position === 'top' || position === 'bottom') {
           classes.push('tooltip--center')
         }
 
@@ -341,7 +332,13 @@ export default {
    * be destroyed if it wasn't already and all the events can be removed.
    */
   terminate(el) {
-    el.tooltipClose?.()
+    if (el.removeShowTimeout) {
+      el.removeShowTimeout()
+    }
+
+    if (el.tooltipElement && el.tooltipElement.parentNode) {
+      el.tooltipElement.parentNode.removeChild(el.tooltipElement)
+    }
 
     if (el._tooltipEventsAdded) {
       el.removeEventListener('mouseenter', el.tooltipMouseEnterEvent)
@@ -351,7 +348,12 @@ export default {
       el._tooltipEventsAdded = false
     }
 
-    if (currentTooltip === el) currentTooltip = null
+    el.tooltipElement = null
+    el.tooltipContentElement = null
+    el._tooltipContentEventsAdded = false
+
+    window.removeEventListener('scroll', el.updatePositionEvent, true)
+    window.removeEventListener('resize', el.updatePositionEvent)
   },
   beforeMount(el, binding) {
     el.tooltipElement = null

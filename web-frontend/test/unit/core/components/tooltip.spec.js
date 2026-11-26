@@ -97,33 +97,6 @@ describe('Tooltip directive', () => {
     expect(element.classList.contains('tooltip--no-arrow')).toBe(true)
   })
 
-  it('places an automatic tooltip above a low trigger and below it after scrolling', async () => {
-    const wrapper = shallowMount(Component, {
-      attrs: { 'tooltip-position': 'auto' },
-    })
-    let top = window.innerHeight - 24
-    const rectangles = vi
-      .spyOn(Element.prototype, 'getBoundingClientRect')
-      .mockImplementation(function () {
-        return this.classList.contains('tooltip')
-          ? { width: 160, height: 48 }
-          : { top, bottom: top + 24, left: 20, width: 64 }
-      })
-    try {
-      await wrapper.findComponent(ButtonText).trigger('mouseenter')
-      const element = document.querySelector('.tooltip')
-      expect(element.classList.contains('tooltip--top')).toBe(true)
-      expect(parseFloat(element.style.top) + 48).toBeLessThan(top)
-      top = 10
-      window.dispatchEvent(new Event('scroll'))
-      expect(element.classList.contains('tooltip--top')).toBe(false)
-      expect(parseFloat(element.style.top)).toBeGreaterThan(top + 24)
-    } finally {
-      wrapper.unmount()
-      rectangles.mockRestore()
-    }
-  })
-
   it.each(['top', 'bottom'])(
     'keeps a %s tooltip inside either viewport edge with its arrow on the target',
     async (position) => {

@@ -493,6 +493,10 @@
   }
 }
 
+.agent-approval__item-actions--batch::before {
+  content: '';
+}
+
 .agent-approval__summary {
   display: flex;
   gap: 8px;

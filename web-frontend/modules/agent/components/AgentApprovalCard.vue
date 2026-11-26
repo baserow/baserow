@@ -150,9 +150,13 @@
         <div
           v-if="item.status === APPROVAL_STATUS.PENDING"
           class="agent-approval__item-actions"
+          :class="{
+            'agent-approval__item-actions--batch':
+              canAlwaysAllow && pending.length > 1,
+          }"
         >
           <Button
-            v-if="canAlwaysAllow"
+            v-if="canAlwaysAllow && pending.length === 1"
             type="secondary"
             size="small"
             :disabled="locked"

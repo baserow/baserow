@@ -42,7 +42,7 @@
         </button>
         <Context
           ref="misconfiguredContext"
-          class="agent-action-card__misconfigured-context"
+          class="context--error-message"
           role="dialog"
           :aria-label="$t('agent.actionMisconfigured')"
         >

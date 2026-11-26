@@ -400,7 +400,7 @@ $chat-ease: cubic-bezier(0.22, 1, 0.36, 1);
   padding: 0 7px;
   border: 0;
   border-radius: 6px;
-  background: $palette-red-50;
+  background: transparent;
   color: $palette-red-900;
   font: inherit;
   font-size: 12px;
@@ -409,7 +409,7 @@ $chat-ease: cubic-bezier(0.22, 1, 0.36, 1);
 
   &:hover,
   &:focus-visible {
-    background: $palette-red-100;
+    background: $palette-red-50;
   }
 
   &:focus-visible {
@@ -418,8 +418,13 @@ $chat-ease: cubic-bezier(0.22, 1, 0.36, 1);
   }
 }
 
-.chat-tool-failure__tooltip {
-  max-height: min(320px, 45dvh);
+.chat-tool-failure__reason {
+  max-height: min(280px, 40dvh);
+  margin: 0;
+  overflow-y: auto;
+  line-height: inherit;
+  color: inherit;
+  white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
 

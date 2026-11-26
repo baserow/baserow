@@ -1,7 +1,12 @@
 import { describe, expect, test } from 'vitest'
 import { mount } from '@vue/test-utils'
+import autoOverflowScroll from '@baserow/modules/core/directives/autoOverflowScroll'
 import ChatStepGroup from '@baserow/modules/core/components/chat/ChatStepGroup'
-import tooltip from '@baserow/modules/core/directives/tooltip'
+
+const global = {
+  directives: { autoOverflowScroll },
+  mocks: { $t: (key) => key },
+}
 
 describe('ChatStepGroup', () => {
   test('shows grouped details by default and can collapse and expand them', async () => {
@@ -14,7 +19,7 @@ describe('ChatStepGroup', () => {
           { id: 'b', title: 'Read 22 rows from Projects', status: 'done' },
         ],
       },
-      global: { directives: { tooltip }, mocks: { $t: (key) => key } },
+      global,
     })
 
     expect(wrapper.get('li').text()).toContain('Read rows')
@@ -54,7 +59,7 @@ describe('ChatStepGroup', () => {
           status,
           lines: [{ id: 'a', title: 'Read rows', status }],
         },
-        global: { directives: { tooltip }, mocks: { $t: (key) => key } },
+        global,
       })
 
       expect(wrapper.get(`li ${icon}`).attributes('aria-hidden')).toBe('true')
@@ -77,7 +82,7 @@ describe('ChatStepGroup', () => {
     const card = (changesData) =>
       mount(ChatStepGroup, {
         props: { title: 'Create rows', status: 'stopped', changesData },
-        global: { directives: { tooltip }, mocks: { $t: (key) => key } },
+        global,
       })
 
     expect(card(true).get('.chat-step-group__status--visible').text()).toBe(
@@ -99,7 +104,7 @@ describe('ChatStepGroup', () => {
         status: 'running',
         input: { values, truncated: true },
       },
-      global: { directives: { tooltip }, mocks: { $t: (key) => key } },
+      global,
     })
 
     expect(wrapper.get('button').attributes('aria-expanded')).toBe('false')
@@ -135,7 +140,7 @@ describe('ChatStepGroup', () => {
   test('does not add a toggle without input', () => {
     const wrapper = mount(ChatStepGroup, {
       props: { title: 'Added rows', status: 'done', input: null },
-      global: { directives: { tooltip }, mocks: { $t: (key) => key } },
+      global,
     })
 
     expect(wrapper.find('button').exists()).toBe(false)
@@ -143,94 +148,101 @@ describe('ChatStepGroup', () => {
   })
 
   test.each([false, true])(
-    'shows the failure reason on hover, focus or tap, expandable: %s',
+    'opens the failure context on activation, expandable: %s',
     async (expandable) => {
       const failureHint = 'Tool failed: <img src=x onerror=alert(1)>'
       const wrapper = mount(ChatStepGroup, {
+        attachTo: document.body,
         props: {
           title: 'Create rows',
           status: 'failed',
           failureHint,
           input: expandable ? { values: { table_id: 42 } } : null,
         },
-        global: { directives: { tooltip }, mocks: { $t: (key) => key } },
+        global,
       })
-
       try {
-        expect(wrapper.find('button button').exists()).toBe(false)
         const badge = wrapper.get('.chat-tool-failure')
-        expect(badge.text()).toBe('toolPresentation.statusFailed')
+        expect(wrapper.find('button button').exists()).toBe(false)
+        await badge.trigger('mouseenter')
+        await badge.trigger('focus')
+        expect(badge.attributes('aria-expanded')).toBe('false')
         expect(wrapper.text()).not.toContain(failureHint)
-        expect(badge.attributes('aria-description')).toBe(failureHint)
-        for (const event of ['mouseenter', 'focus', 'click']) {
-          await badge.trigger(event)
-          expect(document.querySelector('.tooltip__content').textContent).toBe(
-            failureHint
-          )
-          expect(document.querySelector('.tooltip img')).toBeNull()
-          await badge.trigger('keydown.esc')
-          expect(document.querySelector('.tooltip')).toBeNull()
-        }
+        await badge.trigger('click')
+        const panel = wrapper.get('[role="dialog"]')
+        expect(panel.attributes('id')).toBe(badge.attributes('aria-controls'))
+        expect(badge.attributes('aria-expanded')).toBe('true')
+        expect(panel.text()).toBe(failureHint)
+        expect(panel.find('img').exists()).toBe(false)
         if (expandable) {
           expect(
-            wrapper.get('[aria-controls]').attributes('aria-expanded')
+            wrapper.get('.chat-step-group__header').attributes('aria-expanded')
           ).toBe('false')
         }
-        await badge.trigger('focus')
         await wrapper.setProps({ failureHint: 'Public error' })
-        expect(document.querySelector('.tooltip')).toBeNull()
-        await wrapper.get('.chat-tool-failure').trigger('focus')
-        expect(document.querySelector('.tooltip__content').textContent).toBe(
-          'Public error'
-        )
-        await wrapper.setProps({ status: 'done' })
-        expect(document.querySelector('.tooltip')).toBeNull()
-      } finally {
+        expect(badge.attributes('aria-expanded')).toBe('false')
+        expect(wrapper.text()).not.toContain(failureHint)
+        await badge.trigger('click')
+        const currentPanel = wrapper.get('[role="dialog"]')
+        expect(currentPanel.text()).toBe('Public error')
+        await currentPanel.trigger('keydown.esc')
+        expect(badge.attributes('aria-expanded')).toBe('false')
+        expect(document.activeElement).toBe(badge.element)
+        await badge.trigger('click')
         document.body.click()
+        await wrapper.vm.$nextTick()
+        expect(badge.attributes('aria-expanded')).toBe('false')
+        await wrapper.setProps({ status: 'done' })
+        expect(wrapper.find('[role="dialog"]').exists()).toBe(false)
+      } finally {
         wrapper.unmount()
       }
     }
   )
 
-  test('uses a generic failure hint when history has no reason', async () => {
+  test('uses a generic explanation when history has no reason', async () => {
     const wrapper = mount(ChatStepGroup, {
       props: { title: 'Read rows', status: 'failed' },
-      global: { directives: { tooltip }, mocks: { $t: (key) => key } },
+      global,
     })
-
     try {
-      await wrapper.get('.chat-tool-failure').trigger('mouseenter')
-      expect(document.querySelector('.tooltip__content').textContent).toBe(
+      await wrapper.get('.chat-tool-failure').trigger('click')
+      expect(wrapper.get('[role="dialog"]').text()).toBe(
         'toolPresentation.failureFailed'
       )
-      expect(
-        wrapper.get('.chat-tool-failure').attributes('aria-description')
-      ).toBe('toolPresentation.failureFailed')
     } finally {
-      document.body.click()
       wrapper.unmount()
     }
   })
 
-  test.each(['running', 'done', 'stopped', 'waiting', 'rejected'])(
-    'does not show a failure tooltip for a %s call',
-    async (status) => {
-      const wrapper = mount(ChatStepGroup, {
-        props: { title: 'Read rows', status, failureHint: 'Old failure' },
-        global: { directives: { tooltip }, mocks: { $t: (key) => key } },
-      })
-
-      try {
-        await wrapper.get('.chat-step-group__icon').trigger('mouseenter')
-        expect(document.querySelector('.tooltip')).toBeNull()
-        expect(wrapper.get('.chat-step-group__status').text()).not.toContain(
-          'Old failure'
-        )
-      } finally {
-        wrapper.unmount()
-      }
+  test('opening another failed call dismisses the previous error', async () => {
+    const wrapper = mount(ChatStepGroup, {
+      attachTo: document.body,
+      props: {
+        title: 'Read rows',
+        status: 'failed',
+        failureHint: 'Last call failed',
+        lines: [
+          {
+            id: 'a',
+            title: 'Read schema',
+            status: 'failed',
+            failureHint: 'Schema missing',
+          },
+        ],
+      },
+      global,
+    })
+    try {
+      const [summary, line] = wrapper.findAll('.chat-tool-failure')
+      await summary.trigger('click')
+      await line.trigger('click')
+      expect(summary.attributes('aria-expanded')).toBe('false')
+      expect(line.attributes('aria-expanded')).toBe('true')
+    } finally {
+      wrapper.unmount()
     }
-  )
+  })
 
   test('explains an earlier failed call without attaching its hint to a successful summary', async () => {
     const failureHint = 'The requested table was not found in this workspace.'
@@ -243,20 +255,19 @@ describe('ChatStepGroup', () => {
           { id: 'b', title: 'Read 22 rows', status: 'done' },
         ],
       },
-      global: { directives: { tooltip }, mocks: { $t: (key) => key } },
+      global,
     })
 
     try {
-      await wrapper.get('button .chat-step-group__icon').trigger('mouseenter')
-      expect(document.querySelector('.tooltip')).toBeNull()
       expect(
-        wrapper.get('button .chat-step-group__status').text()
-      ).not.toContain(failureHint)
-      await wrapper.get('li .chat-tool-failure').trigger('mouseenter')
-      expect(document.querySelector('.tooltip__content').textContent).toBe(
-        failureHint
-      )
-      expect(wrapper.get('li').text()).not.toContain(failureHint)
+        wrapper
+          .get('.chat-step-group__heading')
+          .find('.chat-tool-failure')
+          .exists()
+      ).toBe(false)
+      const failed = wrapper.get('li .chat-tool-failure')
+      await failed.trigger('click')
+      expect(wrapper.get('.chat-tool-failure__reason').text()).toBe(failureHint)
     } finally {
       document.body.click()
       wrapper.unmount()
@@ -273,7 +284,7 @@ describe('ChatStepGroup', () => {
   ])('shows %s for a standalone action', (status, icon, label) => {
     const wrapper = mount(ChatStepGroup, {
       props: { title: 'Sending an email', status },
-      global: { directives: { tooltip }, mocks: { $t: (key) => key } },
+      global,
     })
 
     expect(wrapper.find('.chat-step-group__header--toggle').exists()).toBe(
@@ -294,7 +305,7 @@ describe('ChatStepGroup', () => {
           { item: '', message: 'Unnamed item failed.' },
         ],
       },
-      global: { directives: { tooltip }, mocks: { $t: (key) => key } },
+      global,
     })
 
     expect(wrapper.find('button .iconoir-warning-circle').exists()).toBe(true)
