@@ -364,6 +364,20 @@ export const colorRecommendation = (hexColor) => {
 }
 
 /**
+ * @param {string} hexColor The hex string of the color.
+ * @returns {string} `#000000` or `#ffffff`, whichever text reads better on it.
+ */
+export const readableTextColor = (hexColor) => {
+  const { r, g, b } = convertHexToRgb(hexColor)
+  const luminance =
+    0.2126 * linearizeRgbChannel(r) +
+    0.7152 * linearizeRgbChannel(g) +
+    0.0722 * linearizeRgbChannel(b)
+  // Where the contrast with black and with white is the same.
+  return luminance > 0.179 ? '#000000' : '#ffffff'
+}
+
+/**
  * Return the color lighten or darken depending on the initial color.
  * @param {string} hexColor The hex string of the color.
  * @returns The contrasted color.

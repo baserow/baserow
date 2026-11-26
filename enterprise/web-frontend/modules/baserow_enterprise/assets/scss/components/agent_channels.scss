@@ -173,6 +173,10 @@
   }
 }
 
+.agent-public-chat-card__color[inert] {
+  opacity: 0.6;
+}
+
 .agent-public-chat-card__footer {
   display: flex;
   padding: 8px 12px;

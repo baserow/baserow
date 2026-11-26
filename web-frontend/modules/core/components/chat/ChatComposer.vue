@@ -135,5 +135,11 @@ function sendOnEnter(event) {
   }
 }
 
-defineExpose({ focus: () => input.value?.focus() })
+function focus() {
+  input.value?.focus()
+  const textarea = input.value?.$el
+  textarea?.setSelectionRange(textarea.value.length, textarea.value.length)
+}
+
+defineExpose({ focus })
 </script>

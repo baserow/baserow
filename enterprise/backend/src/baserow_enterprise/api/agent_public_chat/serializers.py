@@ -6,6 +6,7 @@ from baserow.contrib.agent.models import AgentMessage
 from baserow_enterprise.agent.constants import (
     PUBLIC_CHAT_PASSWORD_MAX_LENGTH,
     PUBLIC_CHAT_START_KEY_PATTERN,
+    PublicChatBackground,
 )
 
 
@@ -18,10 +19,27 @@ class PublicChatInfoSerializer(serializers.Serializer):
         help_text="Shown before the first message. Empty for a password protected "
         "chat until the request carries a valid token."
     )
+    suggested_messages = serializers.ListField(
+        child=serializers.CharField(),
+        help_text="Messages offered before the first one, in display order. Empty "
+        "for a password protected chat until the request carries a valid token.",
+    )
     password_protected = serializers.BooleanField()
     has_access = serializers.BooleanField(
         help_text="Whether the request may talk in the chat: always without a "
         "password, otherwise only with a token of the current password."
+    )
+    accent_color = serializers.CharField(
+        help_text="The colour of buttons and the visitor's messages, as "
+        "`#rrggbb`; blank for the default."
+    )
+    background = serializers.ChoiceField(
+        choices=PublicChatBackground.choices,
+        help_text="How the page background is drawn.",
+    )
+    background_color = serializers.CharField(
+        help_text="The solid background colour or gradient tint, as `#rrggbb`; blank for the "
+        "default."
     )
 
 

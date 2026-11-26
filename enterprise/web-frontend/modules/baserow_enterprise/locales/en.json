@@ -1268,7 +1268,8 @@
     "failed": "Something went wrong. Send your message again.",
     "unavailable": "This chat is no longer available.",
     "restoreFailed": "Couldn't load your conversation. Trying again…",
-    "stopped": "Stopped."
+    "stopped": "Stopped.",
+    "poweredBy": "Powered by"
   },
   "agentChannels": {
     "section": "Channels",
@@ -1296,6 +1297,14 @@
     "title": "Title",
     "welcomeText": "Welcome text",
     "welcomeTextTooLong": "The welcome text can be at most {max} characters.",
-    "deletePublicChat": "Delete public chat"
+    "deletePublicChat": "Delete public chat",
+    "appearance": "Appearance",
+    "accentColor": "Accent color",
+    "background": "Background",
+    "backgroundPlain": "Plain",
+    "backgroundGradient": "Gradient",
+    "backgroundColor": "Background color",
+    "resetColor": "Reset",
+    "automatic": "Automatic"
   }
 }

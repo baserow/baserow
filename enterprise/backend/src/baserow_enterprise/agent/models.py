@@ -4,7 +4,10 @@ from django.contrib.auth import hashers
 from django.db import models
 
 from baserow.contrib.agent.models import AgentChannel
-from baserow_enterprise.agent.constants import PUBLIC_CHAT_TITLE_MAX_LENGTH
+from baserow_enterprise.agent.constants import (
+    PUBLIC_CHAT_TITLE_MAX_LENGTH,
+    PublicChatBackground,
+)
 
 
 class PublicChatAgentChannel(AgentChannel):
@@ -18,6 +21,18 @@ class PublicChatAgentChannel(AgentChannel):
         max_length=PUBLIC_CHAT_TITLE_MAX_LENGTH, blank=True, default="", db_default=""
     )
     welcome_text = models.TextField(blank=True, default="", db_default="")
+    # A `#rrggbb` colour; blank uses the standard chat colours.
+    accent_color = models.CharField(max_length=7, blank=True, default="", db_default="")
+    background = models.CharField(
+        max_length=16,
+        choices=PublicChatBackground.choices,
+        default=PublicChatBackground.GRADIENT,
+        db_default=PublicChatBackground.GRADIENT,
+    )
+    # A `#rrggbb` colour for the backdrop; blank uses the page default.
+    background_color = models.CharField(
+        max_length=7, blank=True, default="", db_default=""
+    )
 
     @property
     def has_password(self) -> bool:

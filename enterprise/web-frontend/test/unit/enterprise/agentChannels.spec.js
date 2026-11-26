@@ -19,6 +19,9 @@ const publicChat = (values = {}) => ({
   has_password: false,
   title: 'Support',
   welcome_text: '',
+  accent_color: '',
+  background: 'gradient',
+  background_color: '',
   ...values,
 })
 
@@ -276,6 +279,35 @@ describe('agent channels', () => {
       [8, 1, { enabled: true }],
     ])
     expect(enabled().classes()).not.toContain('switch--active')
+  })
+
+  test('starts on Gradient and lets the builder choose Plain', async () => {
+    const wrapper = await mountSection()
+    const [gradient, plain] = wrapper.findAll(
+      '.agent-public-chat-card__background .segment-control__button'
+    )
+    expect(gradient.classes()).toContain('segment-control__button--active')
+    expect(gradient.text()).toBe('agentChannels.backgroundGradient')
+    expect(wrapper.findAll('.agent-public-chat-card__color')).toHaveLength(2)
+    await plain.trigger('click')
+    await flushPromises()
+    expect(mocks.service.update.mock.calls).toEqual([
+      [8, 1, { background: 'plain' }],
+    ])
+  })
+
+  test('without Advanced or Enterprise, the appearance cannot be changed', async () => {
+    const wrapper = await mountSection({ licensed: false })
+    const card = wrapper.get('.agent-public-chat-card')
+
+    expect(
+      card.get('.agent-public-chat-card__color').attributes()
+    ).toHaveProperty('inert')
+    expect(
+      card
+        .findAll('.agent-public-chat-card__background .segment-control__button')
+        .every((button) => button.attributes('disabled') !== undefined)
+    ).toBe(true)
   })
 
   test('a user who cannot update the agent gets no add button and disabled fields', async () => {

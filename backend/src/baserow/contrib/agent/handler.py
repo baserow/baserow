@@ -141,7 +141,12 @@ class AgentHandler:
     configuration_fields = ["instructions", "provider_type", "model_identifier"]
     conversation_fields = ["title", "pinned"]
     run_as_fields = ["run_as_subject_type", "run_as_subject_id"]
-    option_fields = ["web_search_enabled", "web_fetch_enabled", "reasoning_effort"]
+    option_fields = [
+        "web_search_enabled",
+        "web_fetch_enabled",
+        "reasoning_effort",
+        "suggested_messages",
+    ]
 
     def get_agent(self, agent_id: int, for_update: bool = False) -> AgentApplication:
         """
@@ -202,6 +207,7 @@ class AgentHandler:
         return AgentConfiguration(
             readiness=readiness,
             instructions=agent.instructions,
+            suggested_messages=agent.suggested_messages,
             provider_type=agent.provider_type,
             model_identifier=agent.model_identifier,
             reasoning_effort=agent.reasoning_effort,

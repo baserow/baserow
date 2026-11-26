@@ -2,6 +2,7 @@ import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { useStore } from 'vuex'
 import { onBeforeRouteLeave, onBeforeRouteUpdate } from 'vue-router'
 import { useNuxtApp } from '#app'
+import isEqual from 'lodash/isEqual'
 import debounce from 'lodash/debounce'
 import { getEnabledModelsForAIProviderFeature } from '@baserow/modules/core/aiProviderModelFeatureTypes'
 import { notifyIf } from '@baserow/modules/core/utils/error'
@@ -40,6 +41,7 @@ const LINKED_FIELDS = [MODEL_FIELDS, TOOL_FIELDS]
 // The tools an Agent can be allowed to call are listed with its configuration.
 const CONFIGURATION_FIELDS = [
   ...REQUIRED_FIELDS,
+  CONFIGURATION_FIELD.SUGGESTED_MESSAGES,
   CONFIGURATION_FIELD.REASONING_EFFORT,
   CONFIGURATION_FIELD.APPLIED_REASONING_EFFORT,
   CONFIGURATION_FIELD.RUN_AS,
@@ -60,6 +62,7 @@ const CONFIGURATION_FIELDS = [
 
 const emptyConfiguration = () => ({
   instructions: '',
+  suggested_messages: [],
   provider_type: null,
   model_identifier: null,
   reasoning_effort: null,
@@ -81,12 +84,15 @@ const emptyConfiguration = () => ({
   max_parallel_trigger_runs: null,
 })
 
-/** Identities match by type and id, and tool lists by their names. */
+/** Identities match by type and id, tools by name, suggested messages in order. */
 const isSameValue = (field, a, b) => {
   if (field === CONFIGURATION_FIELD.RUN_AS)
     return a?.type === b?.type && a?.id === b?.id
   if (TOOL_FIELDS.includes(field)) {
     return a?.length === b?.length && a.every((name) => b.includes(name))
+  }
+  if (field === CONFIGURATION_FIELD.SUGGESTED_MESSAGES) {
+    return isEqual(a, b)
   }
   return a === b
 }
@@ -332,7 +338,10 @@ export function useAgentConfiguration(agent) {
     ++readinessRequest
     readinessError.value = false
     // Keep only public metadata in the shared application store.
-    updateApplication({ readiness: data.readiness })
+    updateApplication({
+      readiness: data.readiness,
+      suggested_messages: saved.suggested_messages,
+    })
   }
 
   async function fetchConfiguration(realtimeRecovery = false) {

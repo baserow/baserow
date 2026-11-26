@@ -59,6 +59,7 @@ from baserow.core.chat_runs.models import ChatRun
 from baserow.core.chat_runs.service import serialize_run
 from baserow.core.chat_runs.stream import follow_run
 from baserow.core.exceptions import ApplicationDoesNotExist
+from baserow_enterprise.agent.channel_types import APPEARANCE_FIELDS
 from baserow_enterprise.agent.constants import PUBLIC_CHAT_CONVERSATION_CLAIM
 from baserow_enterprise.agent.models import PublicChatAgentChannel
 from baserow_enterprise.agent.public_chat_tokens import (
@@ -262,8 +263,12 @@ class PublicChatInfoView(PublicChatView):
                 {
                     "title": (chat.title or chat.agent.name) if allowed else "",
                     "welcome_text": chat.welcome_text if allowed else "",
+                    "suggested_messages": (
+                        chat.agent.suggested_messages if allowed else []
+                    ),
                     "password_protected": chat.has_password,
                     "has_access": allowed,
+                    **{name: getattr(chat, name) for name in APPEARANCE_FIELDS},
                 }
             ).data
         )

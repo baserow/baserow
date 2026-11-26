@@ -152,6 +152,68 @@
           }}</template>
         </FormGroup>
       </div>
+      <div class="agent-public-chat-card__section">
+        <FormSection :title="$t('agentChannels.appearance')">
+          <FormGroup
+            horizontal-narrow
+            small-label
+            required
+            class="margin-bottom-2"
+            :label="$t('agentChannels.background')"
+          >
+            <SegmentControl
+              class="agent-public-chat-card__background"
+              size="small"
+              :segments="backgroundSegments"
+              :active-index="
+                backgroundSegments.findIndex(
+                  (option) => option.value === channel.background
+                )
+              "
+              :disabled="!canEdit"
+              @update:active-index="
+                saveDraft('background', backgroundSegments[$event].value)
+              "
+            />
+          </FormGroup>
+          <FormGroup
+            v-for="field in colorFields"
+            :key="field.name"
+            horizontal-narrow
+            small-label
+            required
+            class="margin-bottom-2"
+            :label="field.label"
+          >
+            <div
+              class="agent-public-chat-card__color flex align-items-center"
+              :inert="!canEdit || null"
+            >
+              <ColorInput
+                :model-value="colorDrafts[field.name].value || 'automatic'"
+                :color-variables="[
+                  {
+                    value: 'automatic',
+                    color: field.swatch,
+                    name: t('agentChannels.automatic'),
+                  },
+                ]"
+                :allow-opacity="false"
+                small
+                @update:model-value="pickColor(field.name, $event)"
+              />
+              <ButtonText
+                v-if="canEdit && colorDrafts[field.name].value"
+                size="small"
+                button-type="button"
+                @click="resetColor(field.name)"
+              >
+                {{ $t('agentChannels.resetColor') }}
+              </ButtonText>
+            </div>
+          </FormGroup>
+        </FormSection>
+      </div>
     </div>
     <footer
       v-if="editable"
@@ -173,11 +235,13 @@
 </template>
 
 <script setup>
-import { computed, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { useNuxtApp } from '#app'
 import { useI18n } from 'vue-i18n'
+import debounce from 'lodash/debounce'
 import Icon from '@baserow/modules/core/components/Icon'
 import ButtonText from '@baserow/modules/core/components/ButtonText'
+import ColorInput from '@baserow/modules/core/components/ColorInput'
 import RichTextEditor from '@baserow/modules/core/components/editor/RichTextEditor'
 import { copyToClipboard } from '@baserow/modules/core/utils/clipboard'
 import AgentPublicChatPasswordModal from '@baserow_enterprise/components/agent/AgentPublicChatPasswordModal'
@@ -185,6 +249,7 @@ import AgentPublicChatDisablePasswordModal from '@baserow_enterprise/components/
 
 const TITLE_MAX_LENGTH = 160
 const WELCOME_TEXT_MAX_LENGTH = 2000
+const COLOR_SAVE_DELAY_MS = 400
 
 const props = defineProps({
   /** The public chat as the card shows it, edits included. */
@@ -260,6 +325,48 @@ function saveWelcomeText() {
   welcomeTextChanged = false
   saveDraft('welcome_text', markdown)
 }
+
+const backgroundSegments = computed(() => [
+  { value: 'gradient', label: t('agentChannels.backgroundGradient') },
+  { value: 'plain', label: t('agentChannels.backgroundPlain') },
+])
+const colorFields = computed(() => [
+  {
+    name: 'background_color',
+    label: t('agentChannels.backgroundColor'),
+    swatch: props.channel.background === 'gradient' ? '#fafafa' : '#ffffff',
+  },
+  {
+    name: 'accent_color',
+    label: t('agentChannels.accentColor'),
+    swatch: '#202128',
+  },
+])
+const colorDrafts = {
+  accent_color: draftOf('accent_color'),
+  background_color: draftOf('background_color'),
+}
+const colorSaves = Object.fromEntries(
+  Object.keys(colorDrafts).map((field) => [
+    field,
+    debounce((value) => saveDraft(field, value), COLOR_SAVE_DELAY_MS),
+  ])
+)
+
+/** The picker reports every step of a drag; only where it stops is saved. */
+function pickColor(field, value) {
+  if (value === 'automatic') return resetColor(field)
+  colorDrafts[field].value = value.toLowerCase()
+  colorSaves[field](colorDrafts[field].value)
+}
+
+function resetColor(field) {
+  colorSaves[field].cancel()
+  colorDrafts[field].value = ''
+  saveDraft(field, '')
+}
+
+onBeforeUnmount(() => Object.values(colorSaves).forEach((save) => save.flush()))
 
 function copyLink() {
   copyToClipboard(publicUrl.value)

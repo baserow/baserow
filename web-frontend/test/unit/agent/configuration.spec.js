@@ -409,6 +409,27 @@ describe('Agent configuration', () => {
     expect(warning(wrapper).exists()).toBe(false)
   })
 
+  test('a saved suggested message reaches the agent shown on the page', async () => {
+    mockSaves(
+      testApp,
+      completeConfiguration({ suggested_messages: ['Where is my order?'] })
+    )
+    const wrapper = await mount()
+    await openSection(wrapper, 'agent.instructions')
+    await wrapper.get('.agent-suggested-messages__add').trigger('click')
+    const input = wrapper.get('.agent-suggested-messages__input input')
+    await input.setValue('Where is my order?')
+    await input.trigger('blur')
+    await flushPromises()
+
+    expect(savedValues(testApp)).toEqual([
+      { suggested_messages: ['Where is my order?'] },
+    ])
+    expect(
+      testApp.store.getters['application/get'](agent.id).suggested_messages
+    ).toEqual(['Where is my order?'])
+  })
+
   test('queues an edit made during a save, even back to the saved value', async () => {
     const first = deferredReply()
     mockSaves(testApp, first.reply, completeConfiguration())

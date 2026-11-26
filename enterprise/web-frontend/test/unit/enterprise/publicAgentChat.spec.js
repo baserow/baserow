@@ -12,11 +12,16 @@ vi.mock('@baserow_enterprise/services/publicAgentChat', () => ({
   default: () => mocks.service,
 }))
 
+vi.mock('@baserow/modules/core/services/settings', () => ({
+  default: () => ({ get: async () => ({ data: {} }) }),
+}))
+
 const SLUG = 'support'
 const STORAGE_KEY = `baserow-agent-public-chat:${SLUG}`
 const OPEN = {
   title: 'Support',
   welcome_text: 'Hi',
+  background: 'gradient',
   password_protected: false,
   has_access: true,
 }
@@ -274,6 +279,100 @@ describe('usePublicAgentChat', () => {
     wrapper.unmount()
   })
 
+  test('an empty chat introduces itself and fills the draft from a picked suggested message', async () => {
+    mocks.service.getInfo.mockResolvedValue({
+      data: {
+        ...OPEN,
+        welcome_text: 'Ask about **orders**.',
+        suggested_messages: ['What can you do?'],
+      },
+    })
+    const wrapper = await mountSuspended(PublicAgentChatPage, {
+      route: `/public/agent-chat/${SLUG}`,
+      attachTo: document.body,
+    })
+    await flushPromises()
+
+    expect(wrapper.find('.public-agent-chat__header').exists()).toBe(false)
+    expect(wrapper.get('.public-agent-chat__intro-title').text()).toBe(
+      'Support'
+    )
+    expect(wrapper.get('.public-agent-chat__welcome').html()).toContain(
+      '<strong>orders</strong>'
+    )
+
+    await wrapper.get('.chat-suggestions__item').trigger('click')
+    await flushPromises()
+
+    const input = wrapper.get('.public-agent-chat__composer textarea').element
+    expect(input.value).toBe('What can you do?')
+    expect(document.activeElement).toBe(input)
+    expect(mocks.service.startConversation).not.toHaveBeenCalled()
+    wrapper.unmount()
+  })
+
+  test('hides suggestions while the first message is being sent', async () => {
+    mocks.service.getInfo.mockResolvedValue({
+      data: { ...OPEN, suggested_messages: ['Where is my order?'] },
+    })
+    let rejectSend
+    mocks.service.startConversation.mockImplementation(
+      () =>
+        new Promise((resolve, reject) => {
+          rejectSend = reject
+        })
+    )
+    const wrapper = await mountSuspended(PublicAgentChatPage, {
+      route: `/public/agent-chat/${SLUG}`,
+    })
+    await wrapper.get('.chat-suggestions__item').trigger('click')
+    await wrapper.get('form.chat-composer').trigger('submit')
+    expect(wrapper.find('.chat-suggestions__item').exists()).toBe(false)
+    rejectSend(refused(503))
+    await flushPromises()
+    expect(wrapper.get('.chat-suggestions__item').exists()).toBe(true)
+    wrapper.unmount()
+  })
+
+  test.each([
+    ['#ffeb3b', '#000000'],
+    ['#134d44', '#ffffff'],
+  ])(
+    'keeps the wordmark and readable text on a protected chat with accent %s',
+    async (accent, foreground) => {
+      mocks.service.getInfo.mockResolvedValue({
+        data: {
+          ...PROTECTED,
+          accent_color: accent,
+          background: 'gradient',
+          background_color: '#779988',
+        },
+      })
+      const wrapper = await mountSuspended(PublicAgentChatPage, {
+        route: `/public/agent-chat/${SLUG}`,
+      })
+      await flushPromises()
+
+      const page = wrapper.get('.public-agent-chat')
+      expect(page.classes()).toContain('public-agent-chat--gradient')
+      expect(page.element.style.getPropertyValue('--chat-on-accent')).toBe(
+        foreground
+      )
+      expect(
+        page.element.style.getPropertyValue(
+          '--public-agent-chat-background-color'
+        )
+      ).toBe('#779988')
+      expect(
+        wrapper.get('.public-agent-chat__password input').element.required
+      ).toBe(true)
+      expect(
+        wrapper.get('.public-agent-chat__powered-by img').attributes('alt')
+      ).toBe('Baserow')
+      wrapper.unmount()
+    }
+  )
+
   test('a stored access token shows neither the password nor the chat until its check ends', async () => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify({ accessToken: 'access' }))
     let answerInfo
@@ -297,7 +396,7 @@ describe('usePublicAgentChat', () => {
     wrapper.unmount()
   })
 
-  test('the page shows a stopped reply without text as stopped', async () => {
+  test('a conversation shows the title in a header and a stopped reply without text as stopped', async () => {
     localStorage.setItem(
       STORAGE_KEY,
       JSON.stringify({ conversationToken: 'conversation' })
@@ -313,6 +412,8 @@ describe('usePublicAgentChat', () => {
     expect(
       wrapper.findAll('.chat-message__bubble').map((bubble) => bubble.text())
     ).toEqual(['Hello', 'publicAgentChat.stopped'])
+    expect(wrapper.get('.public-agent-chat__title').text()).toBe('Support')
+    expect(wrapper.find('.public-agent-chat__intro').exists()).toBe(false)
     wrapper.unmount()
   })
 

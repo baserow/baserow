@@ -115,7 +115,9 @@ def test_agent_copy_keeps_configuration_and_only_internal_copies_keep_conversati
     configuration,
 ):
     user = data_fixture.create_user()
-    agent = configured_agent(user=user, **configuration)
+    agent = configured_agent(
+        user=user, suggested_messages=["Hi", "What's new?"], **configuration
+    )
     data_fixture.create_agent_message(user=user, agent=agent)
 
     copied = copy_agent(data_fixture, user, agent).specific
@@ -128,6 +130,7 @@ def test_agent_copy_keeps_configuration_and_only_internal_copies_keep_conversati
         agent.provider_type,
         agent.model_identifier,
     )
+    assert copied.suggested_messages == ["Hi", "What's new?"]
     assert copied.conversations.count() == int(keeps_conversations)
 
 
