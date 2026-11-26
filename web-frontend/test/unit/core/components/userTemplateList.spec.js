@@ -517,7 +517,10 @@ describe('UserTemplateList', () => {
     expect(posthog.capture.mock.calls).toEqual([
       [
         'template_download_requested',
-        expect.objectContaining({ template_id: templates[1].id }),
+        expect.objectContaining({
+          template_id: templates[1].id,
+          source: 'browser',
+        }),
       ],
     ])
   })

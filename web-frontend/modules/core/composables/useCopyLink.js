@@ -17,9 +17,10 @@ export function useCopyLink() {
    * @param {object} copied The `Copied` component shown once the link is copied.
    * @param {object} template The template the link opens.
    * @param {object} [options]
-   * @param {boolean} [options.tracked] Whether the copy is captured.
+   * @param {string} [options.source] Where the link was copied from. The copy is
+   *   captured only with a source.
    */
-  async function copyLink(url, copied, template, { tracked = true } = {}) {
+  async function copyLink(url, copied, template, { source = null } = {}) {
     try {
       await copyToClipboard(url)
     } catch {
@@ -30,8 +31,8 @@ export function useCopyLink() {
       return
     }
     copied?.show()
-    if (tracked) {
-      captureTemplateEvent($posthog, 'link_copied', template)
+    if (source) {
+      captureTemplateEvent($posthog, 'link_copied', template, { source })
     }
   }
 

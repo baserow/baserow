@@ -313,7 +313,11 @@ describe('TemplateInstall', () => {
       .reply(400, { error: 'ERROR_TEMPLATE_BLOCKED', detail: 'Blocked' })
 
     const wrapper = await testApp.mount(TemplateInstall, {
-      props: { template: { ...template, type: 'user' }, workspace: { id: 1 } },
+      props: {
+        template: { ...template, type: 'user' },
+        workspace: { id: 1 },
+        source: 'admin',
+      },
     })
     await clickUse(wrapper)
 
@@ -321,6 +325,7 @@ describe('TemplateInstall', () => {
       template_id: template.id,
       template_slug: null,
       template_type: 'user',
+      source: 'admin',
     }
     expect(posthog.capture.mock.calls).toEqual([
       ['template_install_clicked', { ...shown, signed_in: true }],
@@ -468,7 +473,10 @@ describe('TemplateInstall', () => {
       signIn()
       const { reply, send } = heldBack()
       testApp.mock.onPost(downloadUrl).reply(reply)
-      const wrapper = await mountWithMenu({ template: userTemplate })
+      const wrapper = await mountWithMenu({
+        template: userTemplate,
+        source: 'browser',
+      })
 
       await clickDownload(wrapper)
 
@@ -497,7 +505,12 @@ describe('TemplateInstall', () => {
       expect(posthog.capture.mock.calls).toEqual([
         [
           'template_download_requested',
-          { template_id: 5, template_slug: null, template_type: 'user' },
+          {
+            template_id: 5,
+            template_slug: null,
+            template_type: 'user',
+            source: 'browser',
+          },
         ],
       ])
     })
@@ -506,7 +519,10 @@ describe('TemplateInstall', () => {
       const posthog = providePosthog(testApp.nuxtApp)
       signIn()
       testApp.mock.onPost(downloadUrl).reply(202, runningJob())
-      const wrapper = await mountWithMenu({ template: userTemplate })
+      const wrapper = await mountWithMenu({
+        template: userTemplate,
+        source: 'browser',
+      })
 
       await clickDownload(wrapper)
       await wrapper

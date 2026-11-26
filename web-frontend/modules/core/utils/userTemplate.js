@@ -72,7 +72,10 @@ export function isListedTemplate(template) {
  * 'sharing', 'private' or null. Nothing for a user template while user templates
  * are turned off.
  */
-export function getCopyLinkKind(template, { userTemplatesAllowed = true } = {}) {
+export function getCopyLinkKind(
+  template,
+  { userTemplatesAllowed = true } = {}
+) {
   if (template?.state === 'blocked') {
     return null
   }

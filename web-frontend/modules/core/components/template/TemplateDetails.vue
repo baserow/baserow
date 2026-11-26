@@ -98,7 +98,7 @@
               :applications="applications"
               :copy-link-kind="copyLinkKind"
               :latest="ownerActions || isOwner"
-              :tracked="!!source"
+              :source="source"
               @installed="installed"
               @outdated="emit('outdated')"
             >

@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 
 import { TestApp } from '@baserow/test/helpers/testApp'
 import { heldBack } from '@baserow/test/helpers/heldBack'
+import { providePosthog } from '@baserow/test/helpers/posthog'
 import { TemplatesAdminType } from '@baserow/modules/core/adminTypes'
 import { FF_USER_TEMPLATES } from '@baserow/modules/core/plugins/featureFlags'
 import TemplateNameField from '@baserow/modules/core/components/admin/templates/fields/TemplateNameField'
@@ -1053,7 +1054,8 @@ describe('TemplatesAdminTable', () => {
     }
   )
 
-  test('copies the link everybody opens', async () => {
+  test('copies the link everybody opens, captured as an admin copy', async () => {
+    const posthog = providePosthog(testApp.nuxtApp)
     vi.stubGlobal('navigator', { clipboard: { writeText: vi.fn() } })
     try {
       const wrapper = await mountTable([row('public', true)])
@@ -1064,6 +1066,12 @@ describe('TemplatesAdminTable', () => {
       const url = new URL(navigator.clipboard.writeText.mock.calls[0][0])
       expect(url.pathname).toBe('/template/sprint-a1b2c3')
       expect(url.search).toBe('')
+      expect(posthog.capture.mock.calls).toEqual([
+        [
+          'template_link_copied',
+          expect.objectContaining({ template_id: 3, source: 'admin' }),
+        ],
+      ])
     } finally {
       vi.unstubAllGlobals()
     }

@@ -30,14 +30,12 @@ export function useUserTemplateDownload() {
    * @param {object} options
    * @param {Function} [options.onOutdated] Called when another revision was made
    *   public since the template was shown, so that the latest one is shown.
-   * @param {boolean} [options.tracked] Whether a started download is captured.
+   * @param {string} [options.source] Where the download was requested from. A
+   *   started download is captured only with a source.
    * @returns {Promise<boolean>} False only for a repeat click while requesting,
    *   so that the menu stays open.
    */
-  async function download(
-    template,
-    { onOutdated = null, tracked = true } = {}
-  ) {
+  async function download(template, { onOutdated = null, source = null } = {}) {
     if (isDownloading(template)) {
       return false
     }
@@ -54,8 +52,10 @@ export function useUserTemplateDownload() {
       const started = await $registry
         .get('job', 'download_user_template')
         .startDownload(response, template)
-      if (started && tracked) {
-        captureTemplateEvent($posthog, 'download_requested', template)
+      if (started && source) {
+        captureTemplateEvent($posthog, 'download_requested', template, {
+          source,
+        })
       }
     } catch (error) {
       if (isSameUser()) {

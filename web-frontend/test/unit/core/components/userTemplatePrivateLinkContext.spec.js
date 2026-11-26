@@ -85,7 +85,11 @@ describe('UserTemplatePrivateLinkContext', () => {
     expect(posthog.capture.mock.calls).toEqual([
       [
         'template_link_copied',
-        expect.objectContaining({ template_id: 3, template_type: 'user' }),
+        expect.objectContaining({
+          template_id: 3,
+          template_type: 'user',
+          source: 'browser',
+        }),
       ],
     ])
   })

@@ -164,10 +164,10 @@ const props = defineProps({
     required: false,
     default: () => [],
   },
-  tracked: {
-    type: Boolean,
+  source: {
+    type: String,
     required: false,
-    default: true,
+    default: null,
   },
 })
 
@@ -315,8 +315,10 @@ async function goToLogin() {
 
 async function use() {
   const template = props.template
+  const source = props.source
   const capture = (name, properties) =>
-    props.tracked && captureTemplateEvent($posthog, name, template, properties)
+    source &&
+    captureTemplateEvent($posthog, name, template, { ...properties, source })
   capture('install_clicked', { signed_in: isAuthenticated.value })
   if (!isAuthenticated.value) {
     await goToLogin()
@@ -372,7 +374,7 @@ function workspaceCreated(workspace) {
 
 function copyTemplateLink() {
   return copyLink(copyLinkItem.value.url, copiedRef.value, props.template, {
-    tracked: props.tracked,
+    source: props.source,
   })
 }
 
@@ -391,7 +393,7 @@ async function downloadTemplate() {
   }
   const template = props.template
   const onOutdated = () => emit('outdated')
-  if (await download(template, { onOutdated, tracked: props.tracked })) {
+  if (await download(template, { onOutdated, source: props.source })) {
     hideContext()
   }
 }

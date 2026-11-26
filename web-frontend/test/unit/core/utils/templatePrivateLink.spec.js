@@ -5,7 +5,7 @@ import { createMemoryHistory, createRouter } from 'vue-router'
 import {
   addPrivateLinkTokenHeader,
   addReplayOutsidePrivateLinks,
-  redactPrivateLinkTokens,
+  redactPrivateLinks,
 } from '@baserow/modules/core/utils/templatePrivateLink'
 
 const TOKEN = 'a'.repeat(64)
@@ -43,12 +43,12 @@ describe('addPrivateLinkTokenHeader', () => {
   })
 })
 
-describe('redactPrivateLinkTokens', () => {
-  test('replaces the token in the URLs of an event', () => {
+describe('redactPrivateLinks', () => {
+  test('replaces the token and the slug in the URLs of an event', () => {
     const link = `https://baserow.io/template/crm/private-link/${TOKEN}`
     const login = `https://baserow.io/login?original=%2Ftemplate%2Fcrm%2Fprivate-link%2F${TOKEN}`
 
-    const event = redactPrivateLinkTokens({
+    const event = redactPrivateLinks({
       event: '$identify',
       properties: {
         $current_url: link,
@@ -59,26 +59,28 @@ describe('redactPrivateLinkTokens', () => {
     })
 
     expect(event.properties).toEqual({
-      $current_url: 'https://baserow.io/template/crm/private-link/[redacted]',
+      $current_url:
+        'https://baserow.io/template/[redacted]/private-link/[redacted]',
       $pathname: '/dashboard',
       list: [
-        'https://baserow.io/login?original=%2Ftemplate%2Fcrm%2Fprivate-link%2F[redacted]',
+        'https://baserow.io/login?original=%2Ftemplate%2F[redacted]%2Fprivate-link%2F[redacted]',
       ],
     })
     expect(event.$set_once.$initial_current_url).not.toContain(TOKEN)
+    expect(JSON.stringify(event)).not.toContain('crm')
   })
 
-  test('replaces the token anywhere in an error report', () => {
+  test('replaces the token and the slug anywhere in an error report', () => {
     const timestamp = new Date()
 
-    const event = redactPrivateLinkTokens({
+    const event = redactPrivateLinks({
       request: { url: `https://baserow.io/template/crm/private-link/${TOKEN}` },
       breadcrumbs: [{ data: { to: `/template/crm/private-link/${TOKEN}` } }],
       timestamp,
       level: null,
     })
 
-    expect(JSON.stringify(event)).not.toContain(TOKEN)
+    expect(JSON.stringify(event)).not.toMatch(new RegExp(`${TOKEN}|crm`))
     expect(event.timestamp).toBe(timestamp)
   })
 
@@ -93,7 +95,7 @@ describe('redactPrivateLinkTokens', () => {
       `https://baserow.io/?next=%252Flogin%253Foriginal%253D%25252Fprivate-link%25252F${'%252561'.repeat(64)}`,
     ],
   ])('replaces an encoded token in %s', (url) => {
-    const event = redactPrivateLinkTokens({ request: { url } })
+    const event = redactPrivateLinks({ request: { url } })
 
     expect(event.request.url).toMatch(/private-link(\/|%(25)*2F)\[redacted\]$/)
   })

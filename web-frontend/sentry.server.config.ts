@@ -2,7 +2,7 @@ import { useRuntimeConfig } from '#imports'
 import * as Sentry from '@sentry/nuxt'
 import { makeFakeTransport } from './modules/core/utils/sentryFakeTransport'
 import { SILENCED_API_ERRORS } from './modules/core/utils/sentryErrors'
-import { redactPrivateLinkTokens } from './modules/core/utils/templatePrivateLink'
+import { redactPrivateLinks } from './modules/core/utils/templatePrivateLink'
 import { dropRouteParams } from './modules/core/utils/sentryTransactions'
 
 const config = useRuntimeConfig()
@@ -39,10 +39,10 @@ if (dsn && dsn !== '') {
         console.error('[Sentry captured error]', err)
         return null
       } else {
-        return redactPrivateLinkTokens(event)
+        return redactPrivateLinks(event)
       }
     },
     beforeSendTransaction: (event) =>
-      redactPrivateLinkTokens(dropRouteParams(event)),
+      redactPrivateLinks(dropRouteParams(event)),
   })
 }
