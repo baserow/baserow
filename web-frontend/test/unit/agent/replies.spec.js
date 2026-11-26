@@ -194,15 +194,23 @@ describe('Agent replies', () => {
     expect(card.get('table').text()).toContain('Planning')
   })
 
-  test('keeps workspace reads active between calls until the reply starts writing', async () => {
+  test('shows workspace reads as completed while the agent considers its next call', async () => {
     const wrapper = await startReply()
     const read = toolStep('read-1', 'list_tables', 'running')
     await receive('run-1', 'step', read)
     await receive('run-1', 'step', { ...read, status: 'done' })
-    expect(wrapper.get('.chat-step-group').attributes('aria-busy')).toBe('true')
+    expect(wrapper.get('.chat-step-group').attributes('aria-busy')).toBe(
+      'false'
+    )
+    expect(
+      wrapper
+        .get('.chat-step-group__header .chat-step-group__status--visible')
+        .text()
+    ).toBe('toolPresentation.statusDone')
     expect(typing(wrapper)).toBe(false)
     await receive('run-1', 'step', toolStep('read-2', 'list_views', 'running'))
     expect(wrapper.findAll('.chat-step-group__line')).toHaveLength(2)
+    expect(wrapper.get('.chat-step-group').attributes('aria-busy')).toBe('true')
     await receive('run-1', 'step', toolStep('read-2', 'list_views', 'done'))
     await streamText('run-1', 'Here are the results')
     expect(wrapper.get('.chat-step-group').attributes('aria-busy')).toBe(

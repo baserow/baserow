@@ -300,7 +300,9 @@ describe('Agent tool approvals', () => {
       await flushPromises()
 
       expect(cards(wrapper)).toHaveLength(2)
-      expect(decisions(wrapper)).toEqual(['agent.approved'])
+      expect(card(wrapper).get('.agent-approval__step-status').text()).toBe(
+        'toolPresentation.statusDone'
+      )
       expect(activity(wrapper).text()).toBe('agent.waitingForApproval')
       expect(composer(wrapper).element.disabled).toBe(true)
       await wrapper.findAll(batchDecisions)[1].trigger('click')
@@ -373,7 +375,9 @@ describe('Agent tool approvals', () => {
     await flushPromises()
 
     expect(cards(wrapper)).toHaveLength(2)
-    expect(decisions(wrapper)).toEqual(['agent.approved'])
+    expect(card(wrapper).get('.agent-approval__step-status').text()).toBe(
+      'toolPresentation.statusDone'
+    )
     expect(texts(wrapper.findAll(batchDecisions))).toEqual([
       'agent.rejectAll',
       'agent.approveAll',
@@ -522,9 +526,7 @@ describe('Agent tool approvals', () => {
       expect(item.get('.agent-approval__item-title').text()).toBe(
         'agent.toolCreateRowsRequestedCount - 3'
       )
-      expect(decisions(wrapper)).toEqual(
-        stepStatus === 'failed' ? [] : ['agent.approved']
-      )
+      expect(decisions(wrapper)).toEqual([])
     }
   )
 
@@ -582,10 +584,10 @@ describe('Agent tool approvals', () => {
       texts(card(wrapper).findAll('.agent-approval__summary span'))
     ).toEqual([
       'agent.approvalFailedCount - 1',
-      'agent.approvalApprovedCount - 1',
+      'agent.approvalCompletedCount - 1',
       'agent.approvalRejectedCount - 1',
     ])
-    expect(decisions(wrapper)).toEqual(['agent.approved', 'agent.rejected'])
+    expect(decisions(wrapper)).toEqual(['agent.rejected'])
   })
 
   test('an approved step that partly failed lists the items it missed', async () => {
@@ -656,17 +658,28 @@ describe('Agent tool approvals', () => {
     expect(activity(wrapper).text()).toBe('agent.thinking')
     expect(composer(wrapper).element.disabled).toBe(false)
 
+    expect(decisions(wrapper)).toEqual(['agent.approved', 'agent.approved'])
     for (const step of [read, heldStep(1, 'done'), heldStep(2, 'running')]) {
       await receive('run-2', 'step', step)
     }
-    expect(title(wrapper)).toBe('agent.approvalReviewed')
-    await finish('run-2', reply('completed', approved, { stepStatus: 'done' }))
+    const statuses = () =>
+      texts(card(wrapper).findAll('.agent-approval__step-status'))
+    expect(statuses()).toEqual([
+      'toolPresentation.statusDone',
+      'toolPresentation.statusRunning',
+    ])
+    expect(card(wrapper).findAll('.chat-step-group__spinner')).toHaveLength(1)
+    expect(decisions(wrapper)).toEqual([])
 
-    expect(title(wrapper)).toBe('agent.approvalReviewed')
+    await finish('run-2', reply('completed', approved, { stepStatus: 'done' }))
+    expect(statuses()).toEqual([
+      'toolPresentation.statusDone',
+      'toolPresentation.statusDone',
+    ])
+    expect(card(wrapper).find('.chat-step-group__spinner').exists()).toBe(false)
     expect(card(wrapper).get('.agent-approval__summary').text()).toBe(
-      'agent.approvalApprovedCount - 2'
+      'agent.approvalCompletedCount - 2'
     )
-    expect(decisions(wrapper)).toEqual(['agent.approved', 'agent.approved'])
     expect(headerButtons(wrapper)).toHaveLength(0)
   })
 

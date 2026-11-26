@@ -63,14 +63,8 @@
         </Button>
       </div>
       <div v-else class="agent-approval__summary">
-        <span v-if="failedCount">
-          {{ $t('agent.approvalFailedCount', { count: failedCount }) }}
-        </span>
-        <span v-if="approvedCount">
-          {{ $t('agent.approvalApprovedCount', { count: approvedCount }) }}
-        </span>
-        <span v-if="rejectedCount">
-          {{ $t('agent.approvalRejectedCount', { count: rejectedCount }) }}
+        <span v-for="(count, label) in summary" :key="label">
+          {{ $t(label, { count }) }}
         </span>
       </div>
     </div>
@@ -89,11 +83,16 @@
               <span
                 v-if="outcomeIcon(item)"
                 class="agent-approval__step-status"
+                :class="{
+                  'agent-approval__step-status--running':
+                    item.stepStatus === STEP_STATUS.RUNNING,
+                }"
               >
                 <i :class="outcomeIcon(item)" aria-hidden="true" />
                 {{ outcomeLabel(item, $t) }}
               </span>
               <span
+                v-else
                 class="agent-approval__decision agent-approval__decision--approved"
               >
                 <i class="iconoir-check-circle" aria-hidden="true" />
@@ -261,21 +260,40 @@ const alwaysAllowTitle = computed(() =>
     ...new Set(pending.value.map(toolLabel)),
   ])
 )
-const displayStatus = (item) =>
-  item.status === APPROVAL_STATUS.APPROVED &&
-  item.stepStatus === STEP_STATUS.FAILED
-    ? STEP_STATUS.FAILED
-    : item.status
-const countOf = (status) =>
-  props.items.filter((item) => displayStatus(item) === status).length
-const failedCount = computed(() => countOf(STEP_STATUS.FAILED))
-const approvedCount = computed(() => countOf(APPROVAL_STATUS.APPROVED))
-const rejectedCount = computed(() => countOf(APPROVAL_STATUS.REJECTED))
 const OUTCOME_ICONS = {
+  [STEP_STATUS.RUNNING]: 'chat-step-group__spinner',
+  [STEP_STATUS.DONE]: 'iconoir-check-circle chat-step-group__icon--done',
   [STEP_STATUS.STOPPED]: 'iconoir-minus-circle',
 }
 const outcomeIcon = (item) =>
-  item.partial ? 'iconoir-warning-circle' : OUTCOME_ICONS[item.stepStatus]
+  item.partial
+    ? 'iconoir-warning-circle chat-step-group__icon--partial'
+    : OUTCOME_ICONS[item.stepStatus]
+function displayStatus(item) {
+  if (item.status !== APPROVAL_STATUS.APPROVED) return item.status
+  if (item.partial) return 'partial'
+  return item.stepStatus === STEP_STATUS.FAILED ||
+    OUTCOME_ICONS[item.stepStatus]
+    ? item.stepStatus
+    : item.status
+}
+const COUNT_LABELS = {
+  [APPROVAL_STATUS.APPROVED]: 'agent.approvalApprovedCount',
+  [APPROVAL_STATUS.REJECTED]: 'agent.approvalRejectedCount',
+  [STEP_STATUS.FAILED]: 'agent.approvalFailedCount',
+  [STEP_STATUS.RUNNING]: 'agent.approvalRunningCount',
+  [STEP_STATUS.DONE]: 'agent.approvalCompletedCount',
+  [STEP_STATUS.STOPPED]: 'agent.approvalInterruptedCount',
+  partial: 'agent.approvalPartialCount',
+}
+const summary = computed(() => {
+  const counts = {}
+  for (const item of props.items) {
+    const label = COUNT_LABELS[displayStatus(item)]
+    if (label) counts[label] = (counts[label] || 0) + 1
+  }
+  return counts
+})
 const outcomeLabel = ({ stepStatus, changesData, partial }, t) =>
   stepStatusLabel({ status: stepStatus, changesData, partial }, t)
 const itemTitleId = (item) => `${titleId}-${item.id}-title`

@@ -23,7 +23,7 @@
         <span
           v-if="status !== STEP_STATUS.FAILED"
           class="chat-step-group__status"
-          :class="statusClass"
+          :class="statusClass({ status, changesData })"
         >
           {{ stepStatusLabel({ status, changesData, partial }, $t) }}
         </span>
@@ -46,7 +46,7 @@
         <span
           v-if="status !== STEP_STATUS.FAILED"
           class="chat-step-group__status"
-          :class="statusClass"
+          :class="statusClass({ status, changesData })"
         >
           {{ stepStatusLabel({ status, changesData, partial }, $t) }}
         </span>
@@ -82,7 +82,11 @@
             v-if="line.status === STEP_STATUS.FAILED"
             :reason="line.failureHint || $t('toolPresentation.failureFailed')"
           />
-          <span v-else class="chat-step-group__status">
+          <span
+            v-else
+            class="chat-step-group__status"
+            :class="statusClass(line)"
+          >
             {{ stepStatusLabel(line, $t) }}
           </span>
         </li>
@@ -142,11 +146,13 @@ const hasDetails = computed(
 const partial = computed(
   () => props.status === STEP_STATUS.DONE && props.itemErrors.length > 0
 )
-const statusClass = computed(() => ({
+const statusClass = ({ status, changesData }) => ({
   'chat-step-group__status--visible':
-    (props.status === STEP_STATUS.STOPPED && props.changesData) ||
-    partial.value,
-}))
+    status === STEP_STATUS.RUNNING ||
+    status === STEP_STATUS.DONE ||
+    (status === STEP_STATUS.STOPPED && changesData),
+  'chat-step-group__status--running': status === STEP_STATUS.RUNNING,
+})
 const statusIcons = {
   [STEP_STATUS.WAITING]: 'iconoir-clock chat-step-group__icon--waiting',
   [STEP_STATUS.DONE]: 'iconoir-check-circle chat-step-group__icon--done',

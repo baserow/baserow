@@ -313,6 +313,10 @@ $chat-ease: cubic-bezier(0.22, 1, 0.36, 1);
   color: $palette-neutral-900;
 }
 
+.chat-step-group__status--running {
+  color: $palette-blue-800;
+}
+
 .chat-step-group__icon {
   flex-shrink: 0;
   width: 16px;

@@ -506,7 +506,8 @@
 
 .agent-approval__summary {
   display: flex;
-  gap: 8px;
+  gap: 4px 8px;
+  flex-wrap: wrap;
   font-size: 12px;
   color: $palette-neutral-700;
 }
@@ -562,7 +563,11 @@
   align-items: center;
   gap: 4px;
   font-size: 12px;
-  color: $palette-neutral-700;
+  color: $palette-neutral-900;
+
+  &--running {
+    color: $palette-blue-800;
+  }
 }
 
 .agent-approval__item-note {

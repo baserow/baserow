@@ -78,6 +78,37 @@ describe('ChatStepGroup', () => {
     }
   )
 
+  test('running and completed labels stay visible on grouped calls and their header', async () => {
+    const wrapper = mount(ChatStepGroup, {
+      props: {
+        title: 'Read the workspace',
+        status: 'running',
+        lines: [
+          { id: 'a', title: 'List tables', status: 'done' },
+          { id: 'b', title: 'Read rows', status: 'running' },
+        ],
+      },
+      global,
+    })
+    expect(
+      wrapper
+        .findAll('.chat-step-group__status--visible')
+        .map((label) => label.text())
+    ).toEqual([
+      'toolPresentation.statusRunning',
+      'toolPresentation.statusDone',
+      'toolPresentation.statusRunning',
+    ])
+    await wrapper.setProps({
+      title: 'Updated a row',
+      status: 'done',
+      lines: [],
+    })
+    expect(wrapper.get('.chat-step-group__status--visible').text()).toBe(
+      'toolPresentation.statusDone'
+    )
+  })
+
   test('says that an interrupted change may have completed', () => {
     const card = (changesData) =>
       mount(ChatStepGroup, {
