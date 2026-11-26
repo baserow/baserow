@@ -253,13 +253,20 @@ $chat-ease: cubic-bezier(0.22, 1, 0.36, 1);
   color: $palette-neutral-700;
 }
 
+.chat-step-group__heading {
+  display: flex;
+  align-items: center;
+  padding: 0 8px;
+}
+
 .chat-step-group__header {
+  min-width: 0;
   display: flex;
   align-items: center;
   gap: 8px;
   width: 100%;
   min-height: 28px;
-  padding: 4px 8px;
+  padding: 4px 0;
   border: 0;
   background: none;
   font: inherit;
@@ -326,10 +333,6 @@ $chat-ease: cubic-bezier(0.22, 1, 0.36, 1);
   color: $palette-green-800;
 }
 
-.chat-step-group__icon--failed {
-  color: $palette-yellow-600;
-}
-
 .chat-step-group__icon--partial {
   color: $palette-yellow-600;
 }
@@ -388,7 +391,35 @@ $chat-ease: cubic-bezier(0.22, 1, 0.36, 1);
   min-width: 0;
 }
 
-.chat-step-group__failure-tooltip {
+.chat-tool-failure {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 4px;
+  min-height: 24px;
+  padding: 0 7px;
+  border: 0;
+  border-radius: 6px;
+  background: $palette-red-50;
+  color: $palette-red-900;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+
+  &:hover,
+  &:focus-visible {
+    background: $palette-red-100;
+  }
+
+  &:focus-visible {
+    outline: 2px solid $palette-blue-700;
+    outline-offset: 2px;
+  }
+}
+
+.chat-tool-failure__tooltip {
+  max-height: min(320px, 45dvh);
   overflow-wrap: anywhere;
 }
 

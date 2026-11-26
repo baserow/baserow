@@ -22,9 +22,11 @@ describe('ChatStepGroup', () => {
     expect(wrapper.find('li .iconoir-warning-triangle').exists()).toBe(true)
     expect(wrapper.find('li .iconoir-check-circle').exists()).toBe(true)
     expect(wrapper.find('button .iconoir-check-circle').exists()).toBe(true)
-    expect(wrapper.find('button .iconoir-warning-triangle').exists()).toBe(
-      false
-    )
+    expect(
+      wrapper
+        .find('.chat-step-group__header .iconoir-warning-triangle')
+        .exists()
+    ).toBe(false)
     expect(wrapper.get('button').attributes('aria-expanded')).toBe('true')
     expect(wrapper.get('button .iconoir-nav-arrow-down').exists()).toBe(true)
     await wrapper.get('button').trigger('click')
@@ -56,7 +58,15 @@ describe('ChatStepGroup', () => {
       })
 
       expect(wrapper.get(`li ${icon}`).attributes('aria-hidden')).toBe('true')
-      expect(wrapper.get('li .chat-step-group__status').text()).toContain(label)
+      expect(
+        wrapper
+          .get(
+            status === 'failed'
+              ? 'li .chat-tool-failure'
+              : 'li .chat-step-group__status'
+          )
+          .text()
+      ).toContain(label)
       expect(wrapper.get('.chat-step-group__line-title').text()).toBe(
         'Read rows'
       )
@@ -133,7 +143,7 @@ describe('ChatStepGroup', () => {
   })
 
   test.each([false, true])(
-    'shows an escaped failure hint on a header icon, expandable: %s',
+    'shows the failure reason on hover, focus or tap, expandable: %s',
     async (expandable) => {
       const failureHint = 'Tool failed: <img src=x onerror=alert(1)>'
       const wrapper = mount(ChatStepGroup, {
@@ -148,20 +158,33 @@ describe('ChatStepGroup', () => {
 
       try {
         expect(wrapper.find('button button').exists()).toBe(false)
-        expect(wrapper.get('.chat-step-group__status').text()).toContain(
-          failureHint
-        )
-        await wrapper.get('.iconoir-warning-triangle').trigger('mouseenter')
+        const badge = wrapper.get('.chat-tool-failure')
+        expect(badge.text()).toBe('toolPresentation.statusFailed')
+        expect(wrapper.text()).not.toContain(failureHint)
+        expect(badge.attributes('aria-description')).toBe(failureHint)
+        for (const event of ['mouseenter', 'focus', 'click']) {
+          await badge.trigger(event)
+          expect(document.querySelector('.tooltip__content').textContent).toBe(
+            failureHint
+          )
+          expect(document.querySelector('.tooltip img')).toBeNull()
+          await badge.trigger('keydown.esc')
+          expect(document.querySelector('.tooltip')).toBeNull()
+        }
+        if (expandable) {
+          expect(
+            wrapper.get('[aria-controls]').attributes('aria-expanded')
+          ).toBe('false')
+        }
+        await badge.trigger('focus')
+        await wrapper.setProps({ failureHint: 'Public error' })
+        expect(document.querySelector('.tooltip')).toBeNull()
+        await wrapper.get('.chat-tool-failure').trigger('focus')
         expect(document.querySelector('.tooltip__content').textContent).toBe(
-          failureHint
+          'Public error'
         )
-        expect(document.querySelector('.tooltip img')).toBeNull()
-
         await wrapper.setProps({ status: 'done' })
         expect(document.querySelector('.tooltip')).toBeNull()
-        expect(wrapper.get('.chat-step-group__status').text()).not.toContain(
-          failureHint
-        )
       } finally {
         document.body.click()
         wrapper.unmount()
@@ -176,13 +199,13 @@ describe('ChatStepGroup', () => {
     })
 
     try {
-      await wrapper.get('.iconoir-warning-triangle').trigger('mouseenter')
+      await wrapper.get('.chat-tool-failure').trigger('mouseenter')
       expect(document.querySelector('.tooltip__content').textContent).toBe(
         'toolPresentation.failureFailed'
       )
-      expect(wrapper.get('.chat-step-group__status').text()).toContain(
-        'toolPresentation.failureFailed'
-      )
+      expect(
+        wrapper.get('.chat-tool-failure').attributes('aria-description')
+      ).toBe('toolPresentation.failureFailed')
     } finally {
       document.body.click()
       wrapper.unmount()
@@ -229,13 +252,11 @@ describe('ChatStepGroup', () => {
       expect(
         wrapper.get('button .chat-step-group__status').text()
       ).not.toContain(failureHint)
-      await wrapper.get('li .iconoir-warning-triangle').trigger('mouseenter')
+      await wrapper.get('li .chat-tool-failure').trigger('mouseenter')
       expect(document.querySelector('.tooltip__content').textContent).toBe(
         failureHint
       )
-      expect(wrapper.get('li .chat-step-group__status').text()).toContain(
-        failureHint
-      )
+      expect(wrapper.get('li').text()).not.toContain(failureHint)
     } finally {
       document.body.click()
       wrapper.unmount()
@@ -255,7 +276,9 @@ describe('ChatStepGroup', () => {
       global: { directives: { tooltip }, mocks: { $t: (key) => key } },
     })
 
-    expect(wrapper.find('button').exists()).toBe(false)
+    expect(wrapper.find('.chat-step-group__header--toggle').exists()).toBe(
+      false
+    )
     expect(wrapper.find(icon).exists()).toBe(true)
     expect(wrapper.text()).toContain(label)
     expect(wrapper.attributes('aria-busy')).toBe(String(status === 'running'))

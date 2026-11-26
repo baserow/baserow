@@ -79,8 +79,14 @@
               {{ item.title }}
             </span>
             <template v-if="item.status === APPROVAL_STATUS.APPROVED">
+              <ChatToolFailure
+                v-if="item.stepStatus === STEP_STATUS.FAILED"
+                :reason="
+                  item.failureHint || $t('toolPresentation.failureFailed')
+                "
+              />
               <span
-                v-if="outcomeIcon(item)"
+                v-else-if="outcomeIcon(item)"
                 class="agent-approval__step-status"
               >
                 <i :class="outcomeIcon(item)" aria-hidden="true" />
@@ -106,9 +112,6 @@
               link.label
             }}</NuxtLink>
           </div>
-          <p v-if="item.failureHint" class="agent-approval__item-note">
-            {{ item.failureHint }}
-          </p>
           <p
             v-for="(error, index) in item.itemErrors"
             :key="index"
@@ -206,6 +209,7 @@ import { useI18n } from 'vue-i18n'
 import { useNuxtApp } from '#app'
 import { agentToolLabel } from '@baserow/modules/agent/agentTools'
 import AgentRejectModal from '@baserow/modules/agent/components/AgentRejectModal'
+import ChatToolFailure from '@baserow/modules/core/components/chat/ChatToolFailure'
 import ChatToolInput from '@baserow/modules/core/components/chat/ChatToolInput'
 import { STEP_STATUS } from '@baserow/modules/core/chatRuns/constants'
 import { stepStatusLabel } from '@baserow/modules/core/toolPresentationTypes'
@@ -256,7 +260,6 @@ const countOf = (status) =>
 const approvedCount = computed(() => countOf(APPROVAL_STATUS.APPROVED))
 const rejectedCount = computed(() => countOf(APPROVAL_STATUS.REJECTED))
 const OUTCOME_ICONS = {
-  [STEP_STATUS.FAILED]: 'iconoir-warning-triangle',
   [STEP_STATUS.STOPPED]: 'iconoir-minus-circle',
 }
 const outcomeIcon = (item) =>

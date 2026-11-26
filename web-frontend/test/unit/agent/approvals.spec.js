@@ -512,7 +512,11 @@ describe('Agent tool approvals', () => {
       )
 
       const item = items(wrapper)[0]
-      const status = item.get('.agent-approval__step-status')
+      const status = item.get(
+        stepStatus === 'failed'
+          ? '.chat-tool-failure'
+          : '.agent-approval__step-status'
+      )
       expect(status.text()).toBe(`toolPresentation.${label}`)
       expect(status.find(`.${icon}`).exists()).toBe(true)
       expect(item.get('.agent-approval__item-title').text()).toBe(
@@ -544,9 +548,14 @@ describe('Agent tool approvals', () => {
       )
       await finish('run-2', ended)
       expect(messageReads()).toHaveLength(builder ? 2 : 1)
-      expect(items(wrapper)[0].get('.agent-approval__item-note').text()).toBe(
+      const failure = items(wrapper)[0].get('.chat-tool-failure')
+      expect(failure.text()).toBe('toolPresentation.statusFailed')
+      expect(items(wrapper)[0].text()).not.toContain(diagnosis)
+      await failure.trigger('focus')
+      expect(document.querySelector('.tooltip__content').textContent).toBe(
         builder ? diagnosis : 'Internal error.'
       )
+      await failure.trigger('keydown.esc')
     }
   )
 

@@ -4,63 +4,49 @@
     :class="{ 'chat-step-group--running': status === STEP_STATUS.RUNNING }"
     :aria-busy="status === STEP_STATUS.RUNNING"
   >
-    <button
-      v-if="hasDetails"
-      class="chat-step-group__header chat-step-group__header--toggle"
-      type="button"
-      :aria-expanded="expanded"
-      :aria-controls="detailsId"
-      @click="expanded = !expanded"
-    >
-      <span
-        v-tooltip:[failureTooltipOptions]="
-          status === STEP_STATUS.FAILED
-            ? failureHint || $t('toolPresentation.failureFailed')
-            : null
-        "
-        :class="
-          status === STEP_STATUS.RUNNING
-            ? 'chat-step-group__spinner'
-            : partial
-              ? 'iconoir-warning-circle chat-step-group__icon--partial'
-              : statusIcons[status]
-        "
-        class="chat-step-group__icon"
-        tooltip-position="bottom-right"
-        aria-hidden="true"
+    <div class="chat-step-group__heading">
+      <component
+        :is="hasDetails ? 'button' : 'div'"
+        class="chat-step-group__header"
+        :class="{ 'chat-step-group__header--toggle': hasDetails }"
+        :type="hasDetails ? 'button' : undefined"
+        :aria-expanded="hasDetails ? expanded : undefined"
+        :aria-controls="hasDetails ? detailsId : undefined"
+        @click="hasDetails && (expanded = !expanded)"
+      >
+        <span
+          v-if="status !== STEP_STATUS.FAILED"
+          :class="
+            status === STEP_STATUS.RUNNING
+              ? 'chat-step-group__spinner'
+              : partial
+                ? 'iconoir-warning-circle chat-step-group__icon--partial'
+                : statusIcons[status]
+          "
+          class="chat-step-group__icon"
+          aria-hidden="true"
+        />
+        <span class="chat-step-group__title">{{ title }}</span>
+        <span
+          v-if="status !== STEP_STATUS.FAILED"
+          class="chat-step-group__status"
+          :class="statusClass"
+        >
+          {{ stepStatusLabel({ status, changesData, partial }, $t) }}
+        </span>
+        <i
+          v-if="hasDetails"
+          class="chat-step-group__chevron"
+          :class="
+            expanded ? 'iconoir-nav-arrow-down' : 'iconoir-nav-arrow-right'
+          "
+          aria-hidden="true"
+        />
+      </component>
+      <ChatToolFailure
+        v-if="status === STEP_STATUS.FAILED"
+        :reason="failureHint || $t('toolPresentation.failureFailed')"
       />
-      <span class="chat-step-group__title">{{ title }}</span>
-      <span class="chat-step-group__status" :class="statusClass">
-        {{ stepStatusText({ status, changesData, failureHint, partial }, $t) }}
-      </span>
-      <i
-        class="chat-step-group__chevron"
-        :class="expanded ? 'iconoir-nav-arrow-down' : 'iconoir-nav-arrow-right'"
-        aria-hidden="true"
-      />
-    </button>
-    <div v-else class="chat-step-group__header">
-      <span
-        v-tooltip:[failureTooltipOptions]="
-          status === STEP_STATUS.FAILED
-            ? failureHint || $t('toolPresentation.failureFailed')
-            : null
-        "
-        :class="
-          status === STEP_STATUS.RUNNING
-            ? 'chat-step-group__spinner'
-            : partial
-              ? 'iconoir-warning-circle chat-step-group__icon--partial'
-              : statusIcons[status]
-        "
-        class="chat-step-group__icon"
-        tooltip-position="bottom-right"
-        aria-hidden="true"
-      />
-      <span class="chat-step-group__title">{{ title }}</span>
-      <span class="chat-step-group__status" :class="statusClass">
-        {{ stepStatusText({ status, changesData, failureHint, partial }, $t) }}
-      </span>
     </div>
     <p v-if="description" class="chat-step-group__description">
       {{ description }}
@@ -74,23 +60,22 @@
       <ul v-if="lines.length" class="chat-step-group__lines">
         <li v-for="line in lines" :key="line.id" class="chat-step-group__line">
           <span
-            v-tooltip:[failureTooltipOptions]="
-              line.status === STEP_STATUS.FAILED
-                ? line.failureHint || $t('toolPresentation.failureFailed')
-                : null
-            "
+            v-if="line.status !== STEP_STATUS.FAILED"
             :class="
               line.status === STEP_STATUS.RUNNING
                 ? 'chat-step-group__spinner'
                 : statusIcons[line.status]
             "
             class="chat-step-group__icon chat-step-group__line-icon"
-            tooltip-position="bottom-right"
             aria-hidden="true"
           />
           <span class="chat-step-group__line-title">{{ line.title }}</span>
-          <span class="chat-step-group__status">
-            {{ stepStatusText(line, $t) }}
+          <ChatToolFailure
+            v-if="line.status === STEP_STATUS.FAILED"
+            :reason="line.failureHint || $t('toolPresentation.failureFailed')"
+          />
+          <span v-else class="chat-step-group__status">
+            {{ stepStatusLabel(line, $t) }}
           </span>
         </li>
       </ul>
@@ -124,7 +109,8 @@
 <script setup>
 import { computed, ref, useId } from 'vue'
 import { STEP_STATUS } from '@baserow/modules/core/chatRuns/constants'
-import { stepStatusText } from '@baserow/modules/core/toolPresentationTypes'
+import { stepStatusLabel } from '@baserow/modules/core/toolPresentationTypes'
+import ChatToolFailure from '@baserow/modules/core/components/chat/ChatToolFailure'
 import ChatToolInput from '@baserow/modules/core/components/chat/ChatToolInput'
 
 const props = defineProps({
@@ -139,12 +125,6 @@ const props = defineProps({
   itemErrors: { type: Array, default: () => [] },
 })
 
-const failureTooltipOptions = {
-  contentClasses: [
-    'tooltip__content--expandable',
-    'chat-step-group__failure-tooltip',
-  ],
-}
 const detailsId = useId()
 // Workspace activity starts open; action inputs are available on demand.
 const expanded = ref(props.lines.length > 0)
@@ -162,8 +142,6 @@ const statusClass = computed(() => ({
 const statusIcons = {
   [STEP_STATUS.WAITING]: 'iconoir-clock chat-step-group__icon--waiting',
   [STEP_STATUS.DONE]: 'iconoir-check-circle chat-step-group__icon--done',
-  [STEP_STATUS.FAILED]:
-    'iconoir-warning-triangle chat-step-group__icon--failed',
   [STEP_STATUS.REJECTED]: 'iconoir-prohibition chat-step-group__icon--rejected',
   [STEP_STATUS.STOPPED]: 'iconoir-minus-circle chat-step-group__icon--stopped',
 }
