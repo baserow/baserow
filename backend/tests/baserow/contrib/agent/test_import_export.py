@@ -450,6 +450,28 @@ def test_conversations_are_excluded_outside_full_internal_copies(
 
 
 @pytest.mark.django_db
+@pytest.mark.parametrize(
+    "refused",
+    [5, ["Hi"] * 5, ["x" * 201], [""]],
+    ids=["not a list", "too many", "too long", "blank"],
+)
+def test_an_import_drops_suggested_messages_the_api_would_refuse(
+    data_fixture, configured_agent, refused
+):
+    user = data_fixture.create_user()
+    serialized = export_internal(configured_agent(user=user))
+
+    imported = AgentApplicationType().import_serialized(
+        data_fixture.create_workspace(user=user),
+        serialized | {"suggested_messages": refused},
+        INTERNAL_CONFIG,
+        {},
+    )
+
+    assert imported.suggested_messages == []
+
+
+@pytest.mark.django_db
 def test_internal_copy_skips_private_conversations_of_deleted_owners(
     data_fixture, configured_agent
 ):

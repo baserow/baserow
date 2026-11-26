@@ -6,10 +6,15 @@ from django.db import transaction
 from django.db.transaction import Atomic
 from django.urls import URLResolver, include, path
 
+from rest_framework.exceptions import ValidationError
+
 from baserow.contrib.agent.action_tools.handler import AgentActionHandler
 from baserow.contrib.agent.action_tools.registries import agent_action_type_registry
 from baserow.contrib.agent.actions import UpdateAgentConfigurationActionType
-from baserow.contrib.agent.api.serializers import AgentApplicationSerializer
+from baserow.contrib.agent.api.serializers import (
+    AgentApplicationSerializer,
+    AgentConfigurationUpdateSerializer,
+)
 from baserow.contrib.agent.channels.handler import AgentChannelHandler
 from baserow.contrib.agent.constants import AgentRunAsState
 from baserow.contrib.agent.handler import AgentHandler
@@ -168,6 +173,20 @@ class AgentApplicationType(ApplicationType):
             if identifiers:
                 return provider_type, identifiers[0]
         return None, None
+
+    def _imported_suggested_messages(self, serialized_values: dict) -> list[str]:
+        """
+        :param serialized_values: The exported Agent, from a file that may hold
+            anything.
+        :return: Its suggested messages when the API would accept them, otherwise
+            none.
+        """
+
+        field = AgentConfigurationUpdateSerializer().fields["suggested_messages"]
+        try:
+            return field.run_validation(serialized_values.get("suggested_messages", []))
+        except ValidationError:
+            return []
 
     def _imported_model(
         self,
@@ -469,7 +488,9 @@ class AgentApplicationType(ApplicationType):
             progress_builder,
         )
         application.instructions = serialized_values.get("instructions", "")
-        application.suggested_messages = serialized_values.get("suggested_messages", [])
+        application.suggested_messages = self._imported_suggested_messages(
+            serialized_values
+        )
         application.provider_type, application.model_identifier = self._imported_model(
             workspace, serialized_values, import_export_config
         )
