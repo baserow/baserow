@@ -20,6 +20,8 @@
         :workspace="workspace"
         :owner-actions="selectedOwnerActions"
         :delete-only="!userTemplatesAllowed"
+        :source="previewSource"
+        :tab="['browser', 'admin'].includes(previewSource) ? tab : null"
         show-back
         class="templates__body"
         @back="selectTemplate(null)"
@@ -36,7 +38,7 @@
         :initial-category-id="initialCategoryId"
         :active="open && selectedTemplate === null && tab === 'official'"
         class="templates__body"
-        @selected="selectTemplate"
+        @selected="browseTemplate"
       >
         <template v-if="showSegments" #head>
           <SegmentControl
@@ -83,7 +85,7 @@
         "
         :delete-only="!userTemplatesAllowed"
         class="templates__body"
-        @selected="selectTemplate($event, true)"
+        @selected="browseTemplate($event, true)"
         @create="openCreateModal"
         @edit="openUpdateModal"
         @delete="openDeleteModal"
@@ -161,6 +163,7 @@ import TemplateService from '@baserow/modules/core/services/template'
 import { notifyIf } from '@baserow/modules/core/utils/error'
 import { FF_USER_TEMPLATES } from '@baserow/modules/core/plugins/featureFlags'
 import { isOwnTemplate } from '@baserow/modules/core/utils/userTemplate'
+import { captureTemplateEvent } from '@baserow/modules/core/utils/templateAnalytics'
 import {
   TEMPLATE_MODERATION,
   useTemplateModeration,
@@ -207,6 +210,11 @@ export default {
       required: false,
       default: null,
     },
+    source: {
+      type: String,
+      required: false,
+      default: null,
+    },
   },
   data() {
     return {
@@ -216,6 +224,7 @@ export default {
       categories: [],
       selectedTemplate: null,
       selectedOwnerActions: false,
+      previewSource: 'browser',
       tab: 'official',
       sharedSearch: '',
       // The list of the user's templates is loaded when its tab is opened first.
@@ -336,11 +345,13 @@ export default {
      */
     async show(templateId = null, ...args) {
       const { listError, ownsError } = await this.openAndLoad(...args)
+      this.previewSource = templateId === null ? 'default' : 'link'
       const linked = typeof templateId === 'string'
       if (ownsError || (listError && !linked)) {
         this.failLoading(ownsError ?? listError)
         return
       }
+      this.captureOpened()
       const opensDefault =
         templateId === null && !this.$featureFlagIsEnabled(FF_USER_TEMPLATES)
       const template = this.categories
@@ -393,6 +404,7 @@ export default {
         this.sharedSearch = search
         this.tab = 'public'
       }
+      this.captureOpened()
     },
     /**
      * Opens the modal and fetches all the templates and their categories, so
@@ -432,6 +444,12 @@ export default {
       })
       return data.count > 0
     },
+    captureOpened() {
+      captureTemplateEvent(this.$posthog, 'browser_opened', null, {
+        source: this.source,
+        tab: this.tab,
+      })
+    },
     failLoading(error) {
       notifyIf(error, 'templates')
       this.hide()
@@ -442,6 +460,10 @@ export default {
       if (tab === 'own') {
         this.userTemplatesOpened = true
       }
+    },
+    browseTemplate(template, own = false) {
+      this.previewSource = this.source === 'admin' ? 'admin' : 'browser'
+      this.selectTemplate(template, own)
     },
     selectTemplate(template, own = false) {
       this.selectedTemplate = template
@@ -457,7 +479,7 @@ export default {
       try {
         const { data } = await TemplateService(this.$client).fetch(slug)
         if (this.selectingPublic === id && this.selectedTemplate === null) {
-          this.selectTemplate(data, isOwnTemplate(data))
+          this.browseTemplate(data, isOwnTemplate(data))
         }
       } catch (error) {
         if (error.response?.status === 404) {

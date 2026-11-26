@@ -5,6 +5,7 @@ import { ref } from 'vue'
 import { TestApp } from '@baserow/test/helpers/testApp'
 import { permission } from '@baserow/test/helpers/permission'
 import { heldBack } from '@baserow/test/helpers/heldBack'
+import { providePosthog } from '@baserow/test/helpers/posthog'
 import { toastsOfType, updateJob } from '@baserow/test/helpers/store'
 import TemplateInstall from '@baserow/modules/core/components/template/TemplateInstall'
 import { BaserowPlugin } from '@baserow/modules/core/plugins'
@@ -303,6 +304,38 @@ describe('TemplateInstall', () => {
     ).toBeUndefined()
   })
 
+  test('captures the install click and its refused request', async () => {
+    const posthog = providePosthog(testApp.nuxtApp)
+    signIn()
+    testApp.dontFailOnErrorResponses()
+    testApp.mock
+      .onPost(`/templates/install/1/${template.id}/async/`)
+      .reply(400, { error: 'ERROR_TEMPLATE_BLOCKED', detail: 'Blocked' })
+
+    const wrapper = await testApp.mount(TemplateInstall, {
+      props: {
+        template: { ...template, type: 'user' },
+        workspace: { id: 1 },
+        source: 'admin',
+      },
+    })
+    await clickUse(wrapper)
+
+    const shown = {
+      template_id: template.id,
+      template_slug: null,
+      template_type: 'user',
+      source: 'admin',
+    }
+    expect(posthog.capture.mock.calls).toEqual([
+      ['template_install_clicked', { ...shown, signed_in: true }],
+      [
+        'template_install_failed',
+        { ...shown, stage: 'request', error_code: 'ERROR_TEMPLATE_BLOCKED' },
+      ],
+    ])
+  })
+
   test('shows nothing when the install answers after a logout', async () => {
     signIn()
     const { reply, send } = heldBack()
@@ -436,10 +469,14 @@ describe('TemplateInstall', () => {
     })
 
     test('starts the download job of the shown revision with its toast, then closes the menu', async () => {
+      const posthog = providePosthog(testApp.nuxtApp)
       signIn()
       const { reply, send } = heldBack()
       testApp.mock.onPost(downloadUrl).reply(reply)
-      const wrapper = await mountWithMenu({ template: userTemplate })
+      const wrapper = await mountWithMenu({
+        template: userTemplate,
+        source: 'browser',
+      })
 
       await clickDownload(wrapper)
 
@@ -465,6 +502,38 @@ describe('TemplateInstall', () => {
         },
       ])
       expect(menuIsOpen(wrapper)).toBe(false)
+      expect(posthog.capture.mock.calls).toEqual([
+        [
+          'template_download_requested',
+          {
+            template_id: 5,
+            template_slug: null,
+            template_type: 'user',
+            source: 'browser',
+          },
+        ],
+      ])
+    })
+
+    test('captures no click that only gets the download that runs already', async () => {
+      const posthog = providePosthog(testApp.nuxtApp)
+      signIn()
+      testApp.mock.onPost(downloadUrl).reply(202, runningJob())
+      const wrapper = await mountWithMenu({
+        template: userTemplate,
+        source: 'browser',
+      })
+
+      await clickDownload(wrapper)
+      await wrapper
+        .find('.template-install__actions .button-icon')
+        .trigger('click')
+      await flushPromises()
+      await clickDownload(wrapper)
+
+      expect(downloadRequests()).toHaveLength(2)
+      expect(downloadToasts()).toHaveLength(1)
+      expect(posthog.capture).toHaveBeenCalledTimes(1)
     })
 
     test('asks to reload when the shown revision is no longer public', async () => {
@@ -486,6 +555,7 @@ describe('TemplateInstall', () => {
     })
 
     test('shows why a template is not downloaded', async () => {
+      const posthog = providePosthog(testApp.nuxtApp)
       signIn()
       testApp.dontFailOnErrorResponses()
       testApp.mock.onPost(downloadUrl).reply(400, {
@@ -504,6 +574,7 @@ describe('TemplateInstall', () => {
       expect(downloadLink(wrapper).classes()).not.toContain(
         'context__menu-item-link--loading'
       )
+      expect(posthog.capture).not.toHaveBeenCalled()
     })
 
     test('shows nothing when the answer comes after a logout', async () => {

@@ -138,7 +138,9 @@ watch(
 )
 
 function copy() {
-  return copyLink(url.value, copiedRef.value)
+  return copyLink(url.value, copiedRef.value, props.template, {
+    source: 'browser',
+  })
 }
 
 async function change(newOperation) {

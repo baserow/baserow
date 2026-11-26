@@ -99,7 +99,11 @@
         </div>
       </template>
     </div>
-    <TemplateModal v-if="linkedTemplateSlug" ref="templateModal" />
+    <TemplateModal
+      v-if="linkedTemplateSlug"
+      ref="templateModal"
+      source="link"
+    />
   </div>
 </template>
 

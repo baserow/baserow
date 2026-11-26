@@ -1,7 +1,7 @@
-import { defineComponent, h, onErrorCaptured } from 'vue'
+import { Suspense, defineComponent, h, onErrorCaptured } from 'vue'
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 import { flushPromises } from '@vue/test-utils'
-import { clearNuxtData, useNuxtApp, useRouter } from '#app'
+import { clearNuxtData, useNuxtApp, useRoute, useRouter } from '#app'
 
 import { TestApp } from '@baserow/test/helpers/testApp'
 import TemplatePage from '@baserow/modules/core/components/template/TemplatePage'
@@ -31,6 +31,7 @@ const crm = {
 describe('TemplatePage', () => {
   let testApp = null
   let refreshPublicList = vi.fn()
+  let previews = []
 
   beforeEach(() => {
     testApp = new TestApp()
@@ -39,6 +40,7 @@ describe('TemplatePage', () => {
     })
     testApp.store.commit('settings/SET_LOADED', true)
     refreshPublicList = vi.fn()
+    previews = []
   })
 
   afterEach(async () => {
@@ -49,9 +51,12 @@ describe('TemplatePage', () => {
   const stubs = {
     TemplateDetails: defineComponent({
       name: 'TemplateDetails',
-      props: ['template', 'categories', 'showBack'],
+      props: ['template', 'categories', 'showBack', 'tab'],
       emits: ['back', 'outdated'],
       inject: { moderation: { from: TEMPLATE_MODERATION } },
+      mounted() {
+        previews.push([this.template.slug, this.tab])
+      },
       template: `<div class="details">
         {{ template.name }}: {{ categories.map((c) => c.name).join(',') }}
         <a class="details__back" @click="$emit('back')" />
@@ -156,6 +161,61 @@ describe('TemplatePage', () => {
 
     expect(wrapper.find('.details').text()).toBe('Recipe Book: Personal')
     expect(wrapper.find('.list').isVisible()).toBe(false)
+  })
+
+  test('previews only the picked template with its tab, and no tab when the history opens one', async () => {
+    const wrapper = await mountPage('project-tracker')
+    const router = useRouter()
+
+    await wrapper.find('.details__back').trigger('click')
+    await wrapper.find('.list__recipe-book').trigger('click')
+    await vi.waitFor(() =>
+      expect(router.currentRoute.value.params.slug).toBe('recipe-book')
+    )
+    router.back()
+    await vi.waitFor(() =>
+      expect(router.currentRoute.value.params.slug).toBe('project-tracker')
+    )
+    await flushPromises()
+
+    expect(previews).toEqual([
+      ['project-tracker', null],
+      ['recipe-book', 'official'],
+      ['project-tracker', null],
+    ])
+  })
+
+  test('previews a template picked on the private link page once, on the template page, with its tab', async () => {
+    const Host = defineComponent({
+      setup() {
+        const route = useRoute()
+        return () =>
+          h(Suspense, null, {
+            default: () => h(TemplatePage, { key: route.name }),
+          })
+      },
+    })
+    testApp.mock.onGet('/templates/crm-a1b2c3/').reply(200, crm)
+    testApp.mock.onGet('/templates/recipe-book/').reply(200, recipeBook)
+    testApp.mock.onGet('/templates/').reply(200, categories)
+    const wrapper = await testApp.mount(Host, {
+      route: `/template/crm-a1b2c3/private-link/${'a'.repeat(64)}`,
+      global: { stubs },
+    })
+    await flushPromises()
+    const router = useRouter()
+
+    await wrapper.find('.details__back').trigger('click')
+    await wrapper.find('.list__recipe-book').trigger('click')
+    await vi.waitFor(() =>
+      expect(router.currentRoute.value.name).toBe('template')
+    )
+    await flushPromises()
+
+    expect(previews).toEqual([
+      ['crm-a1b2c3', null],
+      ['recipe-book', 'official'],
+    ])
   })
 
   test('opens a public template from the public tab', async () => {

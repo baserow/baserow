@@ -243,8 +243,7 @@ class TemplateListItemSerializer(TemplateDetailSerializer):
     )
     listed = serializers.SerializerMethodField(
         help_text="Whether a revision of the template is listed for everybody, also "
-        "while a later one is in review or rejected. Only shown to its owner, and "
-        "to instance admins on the template page."
+        "while a later one is in review or rejected. Null for an official template."
     )
     source_workspace_id = serializers.SerializerMethodField(
         help_text="The workspace the applications of the latest revision were "
@@ -299,7 +298,7 @@ class TemplateListItemSerializer(TemplateDetailSerializer):
         admins when the context has `shows_state_to_staff`.
 
         :param instance: The template revision.
-        :return: True if the state and whether it's listed are shown.
+        :return: True if the state is shown.
         """
 
         request = self.context.get("request")
@@ -375,7 +374,7 @@ class TemplateListItemSerializer(TemplateDetailSerializer):
 
     @extend_schema_field(serializers.BooleanField(allow_null=True))
     def get_listed(self, instance: Template) -> Optional[bool]:
-        if not self._shows_state(instance):
+        if instance.type != Template.Type.USER:
             return None
         return UserTemplateHandler().is_listed(instance)
 

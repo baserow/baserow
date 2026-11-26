@@ -4,6 +4,7 @@ import { defineComponent, h, provide, ref, unref } from 'vue'
 
 import { TestApp } from '@baserow/test/helpers/testApp'
 import { heldBack } from '@baserow/test/helpers/heldBack'
+import { providePosthog } from '@baserow/test/helpers/posthog'
 import {
   mockTemplateApplications,
   template,
@@ -104,9 +105,54 @@ describe('TemplateDetails', () => {
     expect(selectedTables(wrapper)).toEqual(['First table'])
   })
 
+  test('captures the preview, the pages viewed and how it was left', async () => {
+    const posthog = providePosthog(testApp.nuxtApp)
+    const now = vi.spyOn(Date, 'now').mockReturnValue(1000)
+    const wrapper = await mountComponent({
+      source: 'browser',
+      tab: 'official',
+      showBack: true,
+    })
+
+    await wrapper.findAll('.tree__link')[0].trigger('click')
+    await wrapper.find('.tree__sub-link').trigger('click')
+    await wrapper.find('.tree__sub-link').trigger('click')
+    await wrapper.find('.template-details__back-link').trigger('click')
+    now.mockReturnValue(13400)
+    wrapper.unmount()
+    now.mockRestore()
+
+    const shown = {
+      template_id: 5,
+      template_slug: 'project-tracker',
+      template_type: 'official',
+    }
+    expect(posthog.capture.mock.calls).toEqual([
+      ['template_previewed', { ...shown, source: 'browser', tab: 'official' }],
+      ['template_preview_navigated', shown],
+      [
+        'template_preview_closed',
+        { ...shown, exit: 'back', pages_viewed: 2, seconds_in_preview: 12 },
+      ],
+    ])
+  })
+
+  test('captures nothing when shown without a source', async () => {
+    const posthog = providePosthog(testApp.nuxtApp)
+    const wrapper = await mountComponent()
+
+    await wrapper.findAll('.tree__link')[0].trigger('click')
+    await wrapper.find('.tree__sub-link').trigger('click')
+    await wrapper.find('.template-install__use').trigger('click')
+    await flushPromises()
+    wrapper.unmount()
+
+    expect(posthog.capture.mock.calls).toEqual([])
+  })
+
   test('installs a user template', async () => {
     const wrapper = await mountComponent({
-      template: { ...template, type: 'user' },
+      template: { ...template, type: 'user', listed: true },
     })
 
     expect(wrapper.find('.template-details__foot').exists()).toBe(true)
@@ -283,7 +329,7 @@ describe('TemplateDetails', () => {
     ]
     const author = { type: 'user', is_own: true, private_link_token: token }
     const admin = { type: 'user', is_own: false, private_link_token: null }
-    const other = { type: 'user', listed: null, state: null }
+    const other = { type: 'user', state: null }
     const listed = { state: 'public', listed: true }
     const pendingEdit = { state: 'in_review', listed: true }
     const unlisted = { state: 'private', listed: false }
@@ -328,8 +374,21 @@ describe('TemplateDetails', () => {
       ],
       ['admin', 'pending edit', { ...admin, ...pendingEdit }, false, sharing],
       ['admin', 'private', { ...admin, ...unlisted }, false, null],
-      ['other', 'listed', other, false, sharing],
-      ['other on a private link page', 'shown', other, true, null],
+      ['other', 'listed', { ...other, listed: true }, false, sharing],
+      [
+        'other on a private link page',
+        'listed',
+        { ...other, listed: true },
+        true,
+        sharing,
+      ],
+      [
+        'other on a private link page',
+        'private link',
+        { ...other, listed: false },
+        true,
+        null,
+      ],
       ['anyone', 'official', {}, false, sharing],
     ])(
       'of the %s on a %s template',

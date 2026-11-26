@@ -71,6 +71,7 @@
         <TemplateModal
           ref="templateModal"
           :workspace="workspace"
+          source="create_menu"
         ></TemplateModal>
       </li>
       <li v-if="canImportWorkspace" class="context__menu-item">

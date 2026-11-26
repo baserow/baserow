@@ -6,7 +6,7 @@ import {
 } from './modules/core/utils/sentryErrors'
 import {
   addReplayOutsidePrivateLinks,
-  redactPrivateLinkTokens,
+  redactPrivateLinks,
 } from './modules/core/utils/templatePrivateLink'
 import { dropRouteParams } from './modules/core/utils/sentryTransactions'
 import * as Sentry from '@sentry/nuxt'
@@ -63,11 +63,11 @@ if (dsn && dsn !== '') {
         console.error('[Sentry captured error]', `${err}`)
         return null
       } else {
-        return redactPrivateLinkTokens(event)
+        return redactPrivateLinks(event)
       }
     },
     beforeSendTransaction: (event) =>
-      redactPrivateLinkTokens(dropRouteParams(event)),
+      redactPrivateLinks(dropRouteParams(event)),
   }
 
   // Merge with user-provided configuration from app config

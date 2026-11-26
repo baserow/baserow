@@ -3,6 +3,7 @@ import { flushPromises } from '@vue/test-utils'
 
 import { TestApp } from '@baserow/test/helpers/testApp'
 import { heldBack } from '@baserow/test/helpers/heldBack'
+import { providePosthog } from '@baserow/test/helpers/posthog'
 import { toastsOfType } from '@baserow/test/helpers/store'
 import UserTemplateList from '@baserow/modules/core/components/template/UserTemplateList'
 import InfiniteScroll from '@baserow/modules/core/components/helpers/InfiniteScroll'
@@ -490,6 +491,7 @@ describe('UserTemplateList', () => {
   }
 
   test('downloads the shown revision of a row, then closes its actions', async () => {
+    const posthog = providePosthog(testApp.nuxtApp)
     const templates = [
       userTemplate(1, 'Sprint Tracker'),
       userTemplate(2, 'Growth Playbook'),
@@ -512,6 +514,15 @@ describe('UserTemplateList', () => {
     expect(downloadToasts()).toHaveLength(1)
     expect(context.isOpen()).toBe(false)
     expect(wrapper.emitted('selected')).toBeUndefined()
+    expect(posthog.capture.mock.calls).toEqual([
+      [
+        'template_download_requested',
+        expect.objectContaining({
+          template_id: templates[1].id,
+          source: 'browser',
+        }),
+      ],
+    ])
   })
 
   test('keeps the actions of another row open when a download starts', async () => {

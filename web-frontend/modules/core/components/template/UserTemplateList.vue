@@ -250,7 +250,11 @@
               >
                 <a
                   class="context__menu-item-link"
-                  @click.prevent="copyLink(focusedCopyLinkItem.url, copied)"
+                  @click.prevent="
+                    copyLink(focusedCopyLinkItem.url, copied, focusedTemplate, {
+                      source: 'browser',
+                    })
+                  "
                 >
                   <i class="context__menu-item-icon iconoir-link"></i>
                   {{ $t(focusedCopyLinkItem.label) }}
@@ -544,7 +548,7 @@ function edit(mode) {
 async function downloadTemplate() {
   // The user's own templates, so their latest revision is shown.
   const template = focusedTemplate.value
-  const downloaded = await download(template)
+  const downloaded = await download(template, { source: 'browser' })
   if (downloaded && focusedTemplate.value?.id === template.id) {
     actionsContext.value?.hide()
   }

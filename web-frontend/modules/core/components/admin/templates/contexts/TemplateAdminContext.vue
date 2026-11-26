@@ -159,14 +159,16 @@ const ACTIONS = {
         router,
         config.public.publicWebFrontendUrl
       ),
-      copied
+      copied,
+      props.template,
+      { source: 'admin' }
     )
   },
   async download() {
     const template = props.template
     const onOutdated = () => emit('changed', template.id)
     if (
-      (await download(template, { onOutdated })) &&
+      (await download(template, { onOutdated, source: 'admin' })) &&
       props.template?.id === template.id
     ) {
       hide()

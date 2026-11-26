@@ -3,7 +3,7 @@ import { useNuxtApp, useRouter, useRuntimeConfig } from '#imports'
 
 import {
   carriesPrivateLinkToken,
-  redactPrivateLinkTokens,
+  redactPrivateLinks,
 } from '@baserow/modules/core/utils/templatePrivateLink'
 
 export default defineNuxtPlugin({
@@ -30,7 +30,7 @@ export default defineNuxtPlugin({
       autocapture: {
         css_selector_allowlist: ['[ph-autocapture]'],
       },
-      before_send: redactPrivateLinkTokens,
+      before_send: redactPrivateLinks,
     })
 
     nuxtApp.provide('posthog', posthog)

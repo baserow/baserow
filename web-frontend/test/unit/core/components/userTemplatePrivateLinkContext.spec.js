@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 
 import { TestApp } from '@baserow/test/helpers/testApp'
 import { heldBack } from '@baserow/test/helpers/heldBack'
+import { providePosthog } from '@baserow/test/helpers/posthog'
 import UserTemplatePrivateLinkContext from '@baserow/modules/core/components/template/UserTemplatePrivateLinkContext'
 
 const TOKEN = 'a'.repeat(64)
@@ -54,6 +55,7 @@ describe('UserTemplatePrivateLinkContext', () => {
     )
 
   test('creates the link and shows it', async () => {
+    const posthog = providePosthog(testApp.nuxtApp)
     testApp.mock
       .onPatch('/templates/sprint-tracker/')
       .reply(200, userTemplate({ private_link_token: TOKEN }))
@@ -80,6 +82,16 @@ describe('UserTemplatePrivateLinkContext', () => {
     await flushPromises()
 
     expect(navigator.clipboard.writeText).toHaveBeenCalledWith(url.toString())
+    expect(posthog.capture.mock.calls).toEqual([
+      [
+        'template_link_copied',
+        expect.objectContaining({
+          template_id: 3,
+          template_type: 'user',
+          source: 'browser',
+        }),
+      ],
+    ])
   })
 
   const ROTATE_URL = '/templates/sprint-tracker/rotate-private-link-token/'
@@ -132,6 +144,7 @@ describe('UserTemplatePrivateLinkContext', () => {
   )
 
   test('shows an error instead of copied when the link cannot be copied', async () => {
+    const posthog = providePosthog(testApp.nuxtApp)
     navigator.clipboard.writeText.mockRejectedValueOnce(new Error('denied'))
     const wrapper = await mountAndOpen(
       userTemplate({ private_link_token: TOKEN })
@@ -146,6 +159,7 @@ describe('UserTemplatePrivateLinkContext', () => {
       message: 'copied.linkFailedMessage',
     })
     expect(wrapper.find('.copied--show').exists()).toBe(false)
+    expect(posthog.capture).not.toHaveBeenCalled()
   })
 
   test('a late answer for a template leaves the one shown since alone', async () => {

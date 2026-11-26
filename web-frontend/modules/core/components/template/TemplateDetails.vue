@@ -14,9 +14,9 @@
             class="template-details__back-link"
             role="button"
             tabindex="0"
-            @click="emit('back')"
-            @keydown.enter.prevent="emit('back')"
-            @keydown.space.prevent="emit('back')"
+            @click="back"
+            @keydown.enter.prevent="back"
+            @keydown.space.prevent="back"
           >
             <i class="iconoir-nav-arrow-left"></i>
             {{ $t('templateDetails.back') }}
@@ -86,7 +86,7 @@
               :application="application"
               :page="page"
               @selected="selectApplication"
-              @selected-page="selectPage"
+              @selected-page="navigate(selectPage, $event, page)"
             ></component>
           </ul>
         </div>
@@ -98,7 +98,8 @@
               :applications="applications"
               :copy-link-kind="copyLinkKind"
               :latest="ownerActions || isOwner"
-              @installed="emit('installed')"
+              :source="source"
+              @installed="installed"
               @outdated="emit('outdated')"
             >
               <template
@@ -211,8 +212,15 @@
 </template>
 
 <script setup>
-import { computed, inject, nextTick, ref } from 'vue'
-import { useNuxtApp, useRoute } from '#app'
+import {
+  computed,
+  inject,
+  nextTick,
+  onBeforeUnmount,
+  onMounted,
+  ref,
+} from 'vue'
+import { useNuxtApp } from '#app'
 import { useStore } from 'vuex'
 
 import {
@@ -222,8 +230,8 @@ import {
   isOwnTemplate,
   makePublicResubmits,
 } from '@baserow/modules/core/utils/userTemplate'
-import { isPrivateLinkPage } from '@baserow/modules/core/utils/templatePrivateLink'
 import { notifyIf } from '@baserow/modules/core/utils/error'
+import { captureTemplateEvent } from '@baserow/modules/core/utils/templateAnalytics'
 import {
   getCategoryName,
   sortCategories,
@@ -271,6 +279,16 @@ const props = defineProps({
     required: false,
     default: null,
   },
+  source: {
+    type: String,
+    required: false,
+    default: null,
+  },
+  tab: {
+    type: String,
+    required: false,
+    default: null,
+  },
 })
 
 const emit = defineEmits([
@@ -284,13 +302,11 @@ const emit = defineEmits([
   'make-private',
 ])
 
-const { $registry, $i18n } = useNuxtApp()
+const { $registry, $i18n, $posthog } = useNuxtApp()
 const store = useStore()
 
-const isPrivateLink = isPrivateLinkPage(useRoute())
 const copyLinkKind = computed(() =>
   getCopyLinkKind(props.template, {
-    isPrivateLinkPage: isPrivateLink,
     userTemplatesAllowed: Boolean(
       store.getters['settings/get'].allow_user_templates
     ),
@@ -392,6 +408,52 @@ async function focusBackLink() {
 }
 
 defineExpose({ focus })
+
+const openedAt = Date.now()
+let pagesViewed = 1
+let exit = 'closed'
+
+function capture(name, properties) {
+  if (props.source) {
+    captureTemplateEvent($posthog, name, props.template, properties)
+  }
+}
+
+onMounted(() => {
+  capture('previewed', {
+    source: props.source,
+    tab: props.tab,
+  })
+})
+
+onBeforeUnmount(() => {
+  capture('preview_closed', {
+    exit,
+    pages_viewed: pagesViewed,
+    seconds_in_preview: Math.round((Date.now() - openedAt) / 1000),
+  })
+})
+
+function navigate(select, next, shown) {
+  const same =
+    next.application === shown?.application &&
+    Object.keys(next.value).every((key) => next.value[key] === shown.value[key])
+  if (!same) {
+    pagesViewed++
+    capture('preview_navigated')
+  }
+  select(next)
+}
+
+function back() {
+  exit = 'back'
+  emit('back')
+}
+
+function installed() {
+  exit = 'installed'
+  emit('installed')
+}
 
 function sortApplications(applications) {
   return [...applications].sort((a, b) => a.order - b.order)

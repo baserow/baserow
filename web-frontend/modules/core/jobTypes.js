@@ -357,7 +357,8 @@ export class DownloadUserTemplateJobType extends JobType {
     const store = this.app.$store
     if (status === 202) {
       // A repeated click gets the job that runs already, with its toast.
-      if (!this.findDownloadToast(data.id)) {
+      const started = !this.findDownloadToast(data.id)
+      if (started) {
         const privateLinkToken = config?.headers?.[PRIVATE_LINK_TOKEN_HEADER]
         await this.addDownloadToast(template, {
           jobId: data.id,
@@ -366,11 +367,11 @@ export class DownloadUserTemplateJobType extends JobType {
         })
       }
       await this.followJob(data)
-      return
+      return started
     }
     const current = this.findRevisionToast(template.revision_id)
     if (current?.data.downloading) {
-      return
+      return false
     }
     const archive = {
       state: 'finished',
@@ -396,6 +397,7 @@ export class DownloadUserTemplateJobType extends JobType {
     }
     // Awaited, so that the clicked item stays busy while the file is fetched.
     await this.downloadArchive(data, toast)
+    return true
   }
 
   async onJobDone(job) {

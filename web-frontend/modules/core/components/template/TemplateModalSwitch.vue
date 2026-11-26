@@ -3,6 +3,7 @@
     v-if="$featureFlagIsEnabled(FF_USER_TEMPLATES)"
     ref="modal"
     :workspace="workspace"
+    :source="source"
   />
   <LegacyTemplateModal v-else ref="modal" :workspace="workspace" />
 </template>
@@ -24,6 +25,11 @@ defineProps({
   // the template into.
   workspace: {
     type: Object,
+    required: false,
+    default: null,
+  },
+  source: {
+    type: String,
     required: false,
     default: null,
   },

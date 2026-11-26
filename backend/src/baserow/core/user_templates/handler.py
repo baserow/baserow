@@ -1987,6 +1987,28 @@ class UserTemplateHandler:
         root = template.get_root()
         return root.public_revision_id is not None and root.blocked_at is None
 
+    def get_install_analytics_properties(
+        self, template: Template, user: AbstractUser
+    ) -> Dict[str, Any]:
+        """
+        The properties naming a template in the analytics events of its install,
+        with the slug only of an official or listed template.
+
+        :param template: The installed template, a revision for a user template.
+        :param user: The user installing it.
+        :return: The type, the slug and whether the user owns the template.
+        """
+
+        root = template.get_root()
+        is_user_template = template.type == Template.Type.USER
+        return {
+            "template_type": template.type or Template.Type.OFFICIAL,
+            "template_slug": (
+                root.slug if not is_user_template or self.is_listed(template) else None
+            ),
+            "is_own": is_user_template and root.owner_id == user.id,
+        }
+
     def approve_applies(self, state: UserTemplateState) -> bool:
         """
         Whether approving applies to a user template in a state.

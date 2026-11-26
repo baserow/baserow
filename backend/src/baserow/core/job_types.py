@@ -37,6 +37,7 @@ from baserow.api.templates.errors import (
 )
 from baserow.api.templates.serializers import TemplateSerializer
 from baserow.api.workspaces.serializers import WorkspaceSerializer
+from baserow.core import posthog
 from baserow.core.action.registries import action_type_registry
 from baserow.core.actions import (
     DuplicateApplicationActionType,
@@ -301,6 +302,23 @@ class InstallTemplateJobType(JobType):
         job.save(update_fields=("installed_applications",))
 
         return installed_applications
+
+    def on_error(self, job: InstallTemplateJob, error: Exception):
+        template = job.template
+        posthog.capture_user_event(
+            job.user,
+            "template_install_failed",
+            {
+                "stage": "job",
+                "error_code": job.error_code or "unknown",
+                "template_id": template.family_id,
+                **UserTemplateHandler().get_install_analytics_properties(
+                    template, job.user
+                ),
+            },
+            session=job.user_session_id,
+            workspace=job.workspace,
+        )
 
     def _run_user_template_install(
         self, job: InstallTemplateJob, progress_builder: ChildProgressBuilder

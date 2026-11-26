@@ -36,8 +36,15 @@ export const addPrivateLinkTokenHeader = (nuxtApp) => (config) => {
   return config
 }
 
-const TOKEN_IN_URL_RE =
-  /(private-link(?:\/|%(?:25)*2F))(?:[0-9a-f]|%(?:25)*[0-9a-f]{2}){64}/gi
+const SLASH = '(?:/|%(?:25)*2F)'
+const TOKEN_IN_URL_RE = new RegExp(
+  `(private-link${SLASH})(?:[0-9a-f]|%(?:25)*[0-9a-f]{2}){64}`,
+  'gi'
+)
+const SLUG_IN_URL_RE = new RegExp(
+  `(template${SLASH})[^/?#&\\s]+?(${SLASH}private-link${SLASH})`,
+  'gi'
+)
 
 /**
  * Whether the URL carries the token of a private link.
@@ -47,7 +54,9 @@ export const carriesPrivateLinkToken = (url) =>
 
 const redact = (value) => {
   if (typeof value === 'string') {
-    return value.replace(TOKEN_IN_URL_RE, '$1[redacted]')
+    return value
+      .replace(TOKEN_IN_URL_RE, '$1[redacted]')
+      .replace(SLUG_IN_URL_RE, '$1[redacted]$2')
   }
   if (Array.isArray(value)) {
     return value.map(redact)
@@ -65,11 +74,12 @@ const redact = (value) => {
 }
 
 /**
- * A PostHog `before_send` and Sentry `beforeSend` hook that replaces the token of
- * a private link in the URLs an event carries, so that it doesn't reach analytics
- * or error reports.
+ * A PostHog `before_send` and Sentry `beforeSend` hook that replaces the token and
+ * the slug of a private link in the URLs an event carries, so that they don't reach
+ * analytics or error reports. The slug is made from the name of the template,
+ * which can be unlisted.
  */
-export const redactPrivateLinkTokens = (event) => event && redact(event)
+export const redactPrivateLinks = (event) => event && redact(event)
 
 /**
  * Adds the session replay of Sentry, unless the page carries the token of a

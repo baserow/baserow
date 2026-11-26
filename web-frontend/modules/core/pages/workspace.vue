@@ -218,6 +218,7 @@
     <TemplateModal
       ref="templateModal"
       :workspace="selectedWorkspace"
+      source="workspace"
     ></TemplateModal>
   </div>
 </template>

@@ -5,6 +5,7 @@ import { useNuxtApp } from '#app'
 import TemplateService from '@baserow/modules/core/services/template'
 import { notifyIf } from '@baserow/modules/core/utils/error'
 import { signedInUserCheck } from '@baserow/modules/core/utils/auth'
+import { captureTemplateEvent } from '@baserow/modules/core/utils/templateAnalytics'
 
 /**
  * Downloads the archive of a user template. A click gets the archive when it's
@@ -15,7 +16,7 @@ import { signedInUserCheck } from '@baserow/modules/core/utils/auth'
  */
 export function useUserTemplateDownload() {
   const store = useStore()
-  const { $client, $registry } = useNuxtApp()
+  const { $client, $posthog, $registry } = useNuxtApp()
 
   // The ids of the templates whose download is being requested.
   const downloadingIds = ref(new Set())
@@ -29,10 +30,12 @@ export function useUserTemplateDownload() {
    * @param {object} options
    * @param {Function} [options.onOutdated] Called when another revision was made
    *   public since the template was shown, so that the latest one is shown.
+   * @param {string} [options.source] Where the download was requested from. A
+   *   started download is captured only with a source.
    * @returns {Promise<boolean>} False only for a repeat click while requesting,
    *   so that the menu stays open.
    */
-  async function download(template, { onOutdated = null } = {}) {
+  async function download(template, { onOutdated = null, source = null } = {}) {
     if (isDownloading(template)) {
       return false
     }
@@ -46,9 +49,14 @@ export function useUserTemplateDownload() {
       if (!isSameUser()) {
         return true
       }
-      await $registry
+      const started = await $registry
         .get('job', 'download_user_template')
         .startDownload(response, template)
+      if (started && source) {
+        captureTemplateEvent($posthog, 'download_requested', template, {
+          source,
+        })
+      }
     } catch (error) {
       if (isSameUser()) {
         notifyIf(error, 'template')
