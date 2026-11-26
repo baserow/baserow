@@ -13,7 +13,6 @@ from baserow.api.schemas import get_error_schema
 from baserow.contrib.builder.preview.authentication import (
     BuilderPreviewAuthentication,
 )
-from baserow.contrib.builder.preview.utils import preview_restricts_author_code
 from baserow.contrib.builder.service import BuilderService
 from baserow.core.exceptions import ApplicationDoesNotExist
 from baserow_enterprise.features import BUILDER_CUSTOM_CODE
@@ -43,9 +42,6 @@ class PublicCustomCodeView(APIView):
 
     def can_render_html(self, builder):
         return builder.is_published
-
-    def can_serve_js(self, builder):
-        return True
 
     @extend_schema(
         parameters=[
@@ -94,9 +90,6 @@ class PublicCustomCodeView(APIView):
                 headers={"Cache-Control": "no-store"},
             )
 
-        if code_type == "js" and not self.can_serve_js(builder):
-            return HttpResponse("Not found", status=404)
-
         # Get the appropriate content and content-type
         if code_type == "css":
             content = builder.custom_code.css
@@ -112,7 +105,4 @@ class CustomCodeView(PublicCustomCodeView):
     authentication_classes = (BuilderPreviewAuthentication,)
 
     def can_render_html(self, builder):
-        return not builder.is_published and not preview_restricts_author_code()
-
-    def can_serve_js(self, builder):
-        return not preview_restricts_author_code()
+        return not builder.is_published

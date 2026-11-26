@@ -152,10 +152,8 @@ def test_create_enterprise_builder_application_no_licence(api_client, data_fixtu
 
 @pytest.mark.django_db
 def test_get_enterprise_builder_custom_code_preview(
-    enable_enterprise, api_client, data_fixture, settings
+    enable_enterprise, api_client, data_fixture
 ):
-    settings.PUBLIC_WEB_FRONTEND_HOSTNAME = "editor.example.org"
-    settings.BUILDER_PREVIEW_HOSTNAME = "preview.example.org"
     user, _token = data_fixture.create_user_and_token(
         email="test@test.nl", password="password", first_name="Test1"
     )
@@ -190,54 +188,6 @@ def test_get_enterprise_builder_custom_code_preview(
     )
     assert response.status_code == HTTP_200_OK
     assert response.content == b"testCss"
-
-
-@pytest.mark.django_db
-@pytest.mark.parametrize(
-    "preview_hostname",
-    [
-        "editor.example.org",
-        # Without a hostname the editor's and the preview's can't be told apart.
-        None,
-    ],
-)
-def test_preview_custom_js_is_refused_on_the_editor_hostname(
-    enable_enterprise, api_client, data_fixture, settings, preview_hostname
-):
-    settings.PUBLIC_WEB_FRONTEND_HOSTNAME = "editor.example.org"
-    settings.BUILDER_PREVIEW_HOSTNAME = preview_hostname
-    user = data_fixture.create_user()
-    builder = data_fixture.create_builder_application(user=user)
-    builder.custom_code.css = "testCss"
-    builder.custom_code.js = "testJs"
-    builder.custom_code.save()
-    authenticate_builder_preview(api_client, builder, user)
-    js_url = reverse("api:enterprise:builder_preview_custom_code:js", args=[builder.id])
-
-    response = api_client.get(js_url)
-    assert response.status_code == HTTP_404_NOT_FOUND
-    assert b"testJs" not in response.content
-
-    # CSS can't read cookies, so it still applies in the preview.
-    response = api_client.get(
-        reverse("api:enterprise:builder_preview_custom_code:css", args=[builder.id])
-    )
-    assert response.status_code == HTTP_200_OK
-    assert response.content == b"testCss"
-
-    # Published sites have their own domain, so they keep running the JS.
-    domain = data_fixture.create_builder_custom_domain(builder=builder)
-    published = DomainHandler().publish(domain).published_to
-    response = api_client.get(
-        reverse("api:enterprise:custom_code:public_js", args=[published.id])
-    )
-    assert response.status_code == HTTP_200_OK
-    assert response.content == b"testJs"
-
-    settings.BUILDER_DANGEROUS_RELAX_PREVIEW_SECURITY = True
-    response = api_client.get(js_url)
-    assert response.status_code == HTTP_200_OK
-    assert response.content == b"testJs"
 
 
 @pytest.mark.django_db
@@ -625,10 +575,8 @@ def test_public_builder_head_html_serves_only_the_published_snapshot(
 
 @pytest.mark.django_db
 def test_preview_builder_head_html_requires_a_scoped_session(
-    enable_enterprise, api_client, data_fixture, settings
+    enable_enterprise, api_client, data_fixture
 ):
-    settings.PUBLIC_WEB_FRONTEND_HOSTNAME = "editor.example.org"
-    settings.BUILDER_PREVIEW_HOSTNAME = "preview.example.org"
     user = data_fixture.create_user()
     builder = data_fixture.create_builder_application(user=user)
     other_builder = data_fixture.create_builder_application(user=user)
@@ -652,12 +600,6 @@ def test_preview_builder_head_html_requires_a_scoped_session(
     assert response.json()["custom_code"] == {"css": "", "js": ""}
     assert response.json()["has_head_html"] is True
     assert "head_html" not in response.json()
-
-    settings.BUILDER_PREVIEW_HOSTNAME = settings.PUBLIC_WEB_FRONTEND_HOSTNAME
-    assert api_client.get(url).status_code == HTTP_404_NOT_FOUND
-
-    settings.BUILDER_DANGEROUS_RELAX_PREVIEW_SECURITY = True
-    assert api_client.get(url).status_code == HTTP_200_OK
 
 
 @pytest.mark.django_db
