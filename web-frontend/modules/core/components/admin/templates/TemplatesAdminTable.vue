@@ -184,11 +184,27 @@ function tabIndexOf(tab) {
   )
 }
 
-onMounted(() => fetchCounts())
+function dropTemplateFromUrl() {
+  if (route.query.template) {
+    router.replace({ query: { ...route.query, template: undefined } })
+  }
+}
+
+onMounted(() => {
+  fetchCounts()
+  dropTemplateFromUrl()
+})
 watch(
-  () => route.query.tab,
-  (tab) => {
-    tabIndex.value = tabIndexOf(tab)
+  () => [route.query.tab, route.query.template],
+  ([tab, template]) => {
+    const index = tabIndexOf(tab)
+    if (index !== tabIndex.value) {
+      tabIndex.value = index
+    } else if (template) {
+      fetchCounts()
+      crudTable.value?.refresh()
+    }
+    dropTemplateFromUrl()
   }
 )
 watch(tabIndex, () => {

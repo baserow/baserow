@@ -240,6 +240,29 @@ describe('TemplatesAdminTable', () => {
     expect(listStates()).toEqual(['blocked', 'public', 'blocked'])
   })
 
+  test.each(['/?tab=in_review', '/'])(
+    'a notification link to the open tab from %s reloads rows and counts',
+    async (route) => {
+      await mountTable([], { route })
+      const router = useRouter()
+      const loads = () => [
+        requestsTo('/admin/templates/').length,
+        requestsTo('/admin/templates/counts/').length,
+      ]
+      const before = loads()
+
+      for (const times of [1, 2]) {
+        await router.push({ query: { tab: 'in_review', template: 3 } })
+        await flushPromises()
+
+        await vi.waitFor(() =>
+          expect(router.currentRoute.value.query).toEqual({ tab: 'in_review' })
+        )
+        expect(loads()).toEqual([before[0] + times, before[1] + times])
+      }
+    }
+  )
+
   test('tells when the tab has no templates', async () => {
     const wrapper = await mountTable([], {
       counts: { in_review: 0, public: 0, rejected: 0, blocked: 0, private: 0 },

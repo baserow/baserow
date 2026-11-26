@@ -1473,10 +1473,12 @@
     "reportedBy": "Reported by {reporterName} ({reporterEmail})."
   },
   "userTemplateNotification": {
-    "inReview": "{name} is waiting for review",
-    "blockedChanged": "{name} was changed while blocked",
+    "inReview": "{author} submitted the template {name} for review",
+    "blockedChanged": "{author} changed the blocked template {name}. Check if it can be unblocked.",
     "approved": "Your template {name} was approved",
     "rejected": "Your template {name} was rejected",
+    "changeRejected": "Your changes to {name} were rejected. The previous version stays in Shared templates.",
+    "unlisted": "Your template {name} was removed from Shared templates.",
     "blocked": "Your template {name} was blocked",
     "unblocked": "Your template {name} was unblocked",
     "showMore": "Show more",

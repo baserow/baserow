@@ -5,8 +5,13 @@
       :to="route"
       @click="markAsReadAndHandleClick"
     >
-      <div class="notification-panel__notification-content-title">
+      <div
+        class="notification-panel__notification-content-title user-template-notification__title"
+      >
         <i18n-t scope="global" :keypath="titleKey" tag="span">
+          <template #author>
+            <strong>{{ notification.data.author_name }}</strong>
+          </template>
           <template #name>
             <strong>{{ notification.data.template_name }}</strong>
           </template>

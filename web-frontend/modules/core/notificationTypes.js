@@ -134,7 +134,23 @@ export class UserTemplateNotificationType extends NotificationType {
   }
 }
 
-export class UserTemplateInReviewNotificationType extends UserTemplateNotificationType {
+export class UserTemplateAdminNotificationType extends UserTemplateNotificationType {
+  getAdminTab() {
+    throw new Error('getAdminTab not implemented')
+  }
+
+  getRoute(notificationData) {
+    return {
+      name: 'admin-templates',
+      query: {
+        tab: this.getAdminTab(),
+        template: notificationData.template_id,
+      },
+    }
+  }
+}
+
+export class UserTemplateInReviewNotificationType extends UserTemplateAdminNotificationType {
   static getType() {
     return 'user_template_in_review'
   }
@@ -143,12 +159,12 @@ export class UserTemplateInReviewNotificationType extends UserTemplateNotificati
     return 'userTemplateNotification.inReview'
   }
 
-  getRoute() {
-    return { name: 'admin-templates', query: { tab: 'in_review' } }
+  getAdminTab() {
+    return 'in_review'
   }
 }
 
-export class BlockedUserTemplateChangedNotificationType extends UserTemplateNotificationType {
+export class BlockedUserTemplateChangedNotificationType extends UserTemplateAdminNotificationType {
   static getType() {
     return 'blocked_user_template_changed'
   }
@@ -157,8 +173,8 @@ export class BlockedUserTemplateChangedNotificationType extends UserTemplateNoti
     return 'userTemplateNotification.blockedChanged'
   }
 
-  getRoute() {
-    return { name: 'admin-templates', query: { tab: 'blocked' } }
+  getAdminTab() {
+    return 'blocked'
   }
 }
 
@@ -188,6 +204,26 @@ export class UserTemplateRejectedNotificationType extends UserTemplateAuthorNoti
 
   getTitleKey() {
     return 'userTemplateNotification.rejected'
+  }
+}
+
+export class UserTemplateChangeRejectedNotificationType extends UserTemplateAuthorNotificationType {
+  static getType() {
+    return 'user_template_change_rejected'
+  }
+
+  getTitleKey() {
+    return 'userTemplateNotification.changeRejected'
+  }
+}
+
+export class UserTemplateUnlistedNotificationType extends UserTemplateAuthorNotificationType {
+  static getType() {
+    return 'user_template_unlisted'
+  }
+
+  getTitleKey() {
+    return 'userTemplateNotification.unlisted'
   }
 }
 

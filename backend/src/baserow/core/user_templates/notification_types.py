@@ -2,6 +2,7 @@ from dataclasses import asdict, dataclass
 from typing import Iterable, List, Optional, Tuple
 
 from django.contrib.auth.models import AbstractUser
+from django.db.models import Q, QuerySet
 
 from baserow.core.models import Template
 from baserow.core.notifications.handler import (
@@ -21,7 +22,7 @@ class UserTemplateNotificationData:
     @classmethod
     def from_revision(cls, revision: Template) -> "UserTemplateNotificationData":
         return cls(
-            template_id=revision.root_id or revision.id,
+            template_id=revision.family_id,
             template_name=revision.name,
         )
 
@@ -40,38 +41,48 @@ class UserTemplateAuthorNotificationData(UserTemplateNotificationData):
 
 class UserTemplateNotificationType(NotificationType):
     @classmethod
+    def last_decider_id(cls, template_id: int) -> Optional[int]:
+        """
+        The admin who last decided on the template, who alone is notified about it
+        while still an active instance admin.
+
+        :param template_id: The id of the template, which is its root.
+        :return: The id of the admin, None if no one is.
+        """
+
+        return None
+
+    @classmethod
     def notify_admins(
-        cls,
-        revision: Template,
-        exclude: AbstractUser,
-        only_unnotified: bool = False,
+        cls, revision: Template, author: AbstractUser
     ) -> List[NotificationRecipient]:
         """
-        Notifies the active instance admins about a revision of a user template.
-        Shown in every workspace.
+        Notifies the active instance admins about a revision of a user template,
+        only the last decider when there's one, see `last_decider_id`. Admins who
+        haven't read a notification of this type about the template yet are left
+        out. Shown in every workspace.
 
         :param revision: The revision the notification is about.
-        :param exclude: The user who caused it, who isn't notified.
-        :param only_unnotified: Whether admins who haven't read a notification of
-            this type about the template yet are left out.
+        :param author: The owner of the template, who isn't notified and whose
+            first name the notification carries.
         :return: The created notification recipients.
         """
 
         data = UserTemplateNotificationData.from_revision(revision)
-        admins = active_instance_admins().exclude(id=exclude.id)
-        if only_unnotified:
-            admins = admins.exclude(
-                id__in=NotificationRecipient.objects.filter(
-                    read=False,
-                    notification__type=cls.type,
-                    notification__data__contains={"template_id": data.template_id},
-                ).values("recipient_id")
+        admins = active_instance_admins().exclude(id=author.id)
+        decider_id = cls.last_decider_id(data.template_id)
+        if decider_id is not None and admins.filter(id=decider_id).exists():
+            admins = admins.filter(id=decider_id)
+        admins = admins.exclude(
+            id__in=unread_recipients([cls.type], [data.template_id]).values(
+                "recipient_id"
             )
+        )
 
         return NotificationHandler.create_direct_notification_for_users(
             notification_type=cls.type,
             recipients=admins,
-            data=asdict(data),
+            data={**asdict(data), "author_name": author.first_name},
             sender=None,
             workspace=None,
         )
@@ -159,9 +170,27 @@ class UserTemplateNotificationType(NotificationType):
 class UserTemplateInReviewNotificationType(UserTemplateNotificationType):
     type = "user_template_in_review"
 
+    @classmethod
+    def last_decider_id(cls, template_id: int) -> Optional[int]:
+        return (
+            Template.objects.filter_by_root(id=template_id)
+            .exclude(reviewed_on=None)
+            .order_by("-reviewed_on")
+            .values_list("reviewed_by_id", flat=True)
+            .first()
+        )
+
 
 class BlockedUserTemplateChangedNotificationType(UserTemplateNotificationType):
     type = "blocked_user_template_changed"
+
+    @classmethod
+    def last_decider_id(cls, template_id: int) -> Optional[int]:
+        return (
+            Template.objects.filter(id=template_id)
+            .values_list("blocked_by_id", flat=True)
+            .first()
+        )
 
 
 class UserTemplateApprovedNotificationType(UserTemplateNotificationType):
@@ -172,9 +201,56 @@ class UserTemplateRejectedNotificationType(UserTemplateNotificationType):
     type = "user_template_rejected"
 
 
+class UserTemplateChangeRejectedNotificationType(UserTemplateNotificationType):
+    type = "user_template_change_rejected"
+
+
+class UserTemplateUnlistedNotificationType(UserTemplateNotificationType):
+    type = "user_template_unlisted"
+
+
 class UserTemplateBlockedNotificationType(UserTemplateNotificationType):
     type = "user_template_blocked"
 
 
 class UserTemplateUnblockedNotificationType(UserTemplateNotificationType):
     type = "user_template_unblocked"
+
+
+def unread_recipients(types: List[str], template_ids: Iterable[int]) -> QuerySet:
+    """
+    The recipients who haven't read a notification of the types about the
+    templates yet.
+
+    :param types: The notification types.
+    :param template_ids: The ids of the templates, which are their roots.
+    :return: A queryset of the notification recipients.
+    """
+
+    about_templates = Q()
+    for template_id in template_ids:
+        about_templates |= Q(notification__data__contains={"template_id": template_id})
+    if not about_templates:
+        return NotificationRecipient.objects.none()
+    return NotificationRecipient.objects.filter(
+        about_templates, read=False, notification__type__in=types
+    )
+
+
+def mark_admin_notifications_read(template_ids: Iterable[int]) -> None:
+    """
+    Marks the unread admin notifications about the templates as read, once an
+    admin decided on them.
+
+    :param template_ids: The ids of the templates, which are their roots.
+    """
+
+    NotificationHandler.mark_recipients_as_read(
+        unread_recipients(
+            [
+                UserTemplateInReviewNotificationType.type,
+                BlockedUserTemplateChangedNotificationType.type,
+            ],
+            template_ids,
+        )
+    )

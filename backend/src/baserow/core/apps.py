@@ -654,9 +654,11 @@ class CoreConfig(AppConfig):
             BlockedUserTemplateChangedNotificationType,
             UserTemplateApprovedNotificationType,
             UserTemplateBlockedNotificationType,
+            UserTemplateChangeRejectedNotificationType,
             UserTemplateInReviewNotificationType,
             UserTemplateRejectedNotificationType,
             UserTemplateUnblockedNotificationType,
+            UserTemplateUnlistedNotificationType,
         )
 
         notification_type_registry.register(UserTemplateInReviewNotificationType())
@@ -665,6 +667,10 @@ class CoreConfig(AppConfig):
         )
         notification_type_registry.register(UserTemplateApprovedNotificationType())
         notification_type_registry.register(UserTemplateRejectedNotificationType())
+        notification_type_registry.register(
+            UserTemplateChangeRejectedNotificationType()
+        )
+        notification_type_registry.register(UserTemplateUnlistedNotificationType())
         notification_type_registry.register(UserTemplateBlockedNotificationType())
         notification_type_registry.register(UserTemplateUnblockedNotificationType())
 

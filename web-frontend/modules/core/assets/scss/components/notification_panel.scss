@@ -231,6 +231,10 @@
   font-weight: 600;
 }
 
+.user-template-notification__title {
+  overflow-wrap: anywhere;
+}
+
 .user-template-notification__reason {
   white-space: normal;
   overflow-wrap: anywhere;

@@ -25,14 +25,16 @@ describe('UserTemplateNotification', () => {
   test.each([
     [
       'user_template_in_review',
-      { name: 'admin-templates', query: { tab: 'in_review' } },
+      { name: 'admin-templates', query: { tab: 'in_review', template: 3 } },
     ],
     [
       'blocked_user_template_changed',
-      { name: 'admin-templates', query: { tab: 'blocked' } },
+      { name: 'admin-templates', query: { tab: 'blocked', template: 3 } },
     ],
     ['user_template_approved', templatePage],
     ['user_template_rejected', templatePage],
+    ['user_template_change_rejected', templatePage],
+    ['user_template_unlisted', templatePage],
     ['user_template_blocked', templatePage],
     ['user_template_unblocked', templatePage],
   ])('%s opens its page', (type, route) => {
@@ -83,4 +85,34 @@ describe('UserTemplateNotification', () => {
       expect(wrapper.emitted('close-panel')).toHaveLength(1)
     }
   )
+  test.each([
+    [
+      'user_template_in_review',
+      'Maya submitted the template Recipes for review',
+    ],
+    [
+      'blocked_user_template_changed',
+      'Maya changed the blocked template Recipes. Check if it can be unblocked.',
+    ],
+  ])('%s names the author in bold', async (type, title) => {
+    const wrapper = await testApp.mount(UserTemplateNotification, {
+      props: {
+        workspace: { id: 1 },
+        notification: {
+          id: 5,
+          type,
+          read: true,
+          data: { ...data, author_name: 'Maya' },
+        },
+      },
+    })
+
+    expect(
+      wrapper.find('.notification-panel__notification-content-title').text()
+    ).toBe(title)
+    expect(wrapper.findAll('strong').map((strong) => strong.text())).toEqual([
+      'Maya',
+      'Recipes',
+    ])
+  })
 })

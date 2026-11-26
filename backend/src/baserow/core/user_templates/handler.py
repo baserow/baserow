@@ -108,9 +108,12 @@ from baserow.core.user_templates.notification_types import (
     BlockedUserTemplateChangedNotificationType,
     UserTemplateApprovedNotificationType,
     UserTemplateBlockedNotificationType,
+    UserTemplateChangeRejectedNotificationType,
     UserTemplateInReviewNotificationType,
     UserTemplateRejectedNotificationType,
     UserTemplateUnblockedNotificationType,
+    UserTemplateUnlistedNotificationType,
+    mark_admin_notifications_read,
 )
 from baserow.core.user_templates.types import TemplateMetadata, UnblockOutcome
 from baserow.core.utils import ChildProgressBuilder
@@ -442,7 +445,7 @@ class UserTemplateHandler:
                 self._move_review(latest_revision, revision)
             if root.blocked_at:
                 BlockedUserTemplateChangedNotificationType.notify_admins(
-                    revision, exclude=user, only_unnotified=True
+                    revision, author=user
                 )
 
         return revision
@@ -1101,7 +1104,7 @@ class UserTemplateHandler:
             revision.save(update_fields=["review_state", "submitted_on"])
             if not withdrawn:
                 UserTemplateInReviewNotificationType.notify_admins(
-                    revision, exclude=root.owner
+                    revision, author=root.owner
                 )
             return False
 
@@ -1315,6 +1318,7 @@ class UserTemplateHandler:
             raise TemplateHasNoContent(f"The template {template_id} has no content.")
 
         self._approve_revisions([(revision.id, revision.root_id)], admin)
+        mark_admin_notifications_read([template_id])
         UserTemplateApprovedNotificationType.notify_author(
             revision, revision.get_root(), admin
         )
@@ -1377,9 +1381,15 @@ class UserTemplateHandler:
         revision.reviewed_by = admin
         revision.reviewed_on = timezone.now()
         revision.save(update_fields=revision_fields)
-        UserTemplateRejectedNotificationType.notify_author(
-            revision, revision.get_root(), admin, reason=reason
-        )
+        mark_admin_notifications_read([template_id])
+        root = revision.get_root()
+        if unlisted:
+            notification_type = UserTemplateUnlistedNotificationType
+        elif self.is_listed(root):
+            notification_type = UserTemplateChangeRejectedNotificationType
+        else:
+            notification_type = UserTemplateRejectedNotificationType
+        notification_type.notify_author(revision, root, admin, reason=reason)
         return revision, unlisted
 
     def approve_pending_revisions(self, admin: AbstractUser) -> int:
@@ -1418,11 +1428,12 @@ class UserTemplateHandler:
             [(revision.id, revision.root_id) for revision in revisions],
             admin,
             rejected_template_ids=[
-                revision.root_id or revision.id
+                revision.family_id
                 for revision in revisions
                 if revision.has_reject_reason
             ],
         )
+        mark_admin_notifications_read([revision.family_id for revision in revisions])
         UserTemplateApprovedNotificationType.notify_authors_in_bulk(
             [
                 (revision, revision.owner_of_root_id, revision.slug_of_root)
@@ -1572,6 +1583,7 @@ class UserTemplateHandler:
         root.blocked_by = admin
         root.blocked_reason = reason
         root.save(update_fields=["blocked_at", "blocked_by", "blocked_reason"])
+        mark_admin_notifications_read([root.id])
         if not reason_unchanged:
             UserTemplateBlockedNotificationType.notify_author(
                 latest, root, admin, reason=reason
@@ -1647,6 +1659,7 @@ class UserTemplateHandler:
                 **fields,
             )
         root.refresh_from_db()
+        mark_admin_notifications_read([root.id])
         UserTemplateUnblockedNotificationType.notify_author(latest, root, admin)
         state, _ = self.get_template_state(latest)
         return latest, UnblockOutcome(

@@ -76,6 +76,8 @@ import {
   BlockedUserTemplateChangedNotificationType,
   UserTemplateApprovedNotificationType,
   UserTemplateRejectedNotificationType,
+  UserTemplateChangeRejectedNotificationType,
+  UserTemplateUnlistedNotificationType,
   UserTemplateBlockedNotificationType,
   UserTemplateUnblockedNotificationType,
 } from '@baserow/modules/core/notificationTypes'
@@ -473,6 +475,8 @@ export default defineNuxtPlugin({
       BlockedUserTemplateChangedNotificationType,
       UserTemplateApprovedNotificationType,
       UserTemplateRejectedNotificationType,
+      UserTemplateChangeRejectedNotificationType,
+      UserTemplateUnlistedNotificationType,
       UserTemplateBlockedNotificationType,
       UserTemplateUnblockedNotificationType,
     ]
