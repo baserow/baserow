@@ -14,6 +14,7 @@ class AgentTriggerType(Instance):
     # The values a new service of the type starts with, unless others are given.
     default_service_values: dict[str, Any] = {}
     # The service fields only another consumer uses, which stay at their defaults.
+    # No type lists `integration_id`: the handler leaves it out for all of them.
     unused_service_fields: tuple[str, ...] = ()
 
     def __init__(self, service_type_name: str | None = None) -> None:
