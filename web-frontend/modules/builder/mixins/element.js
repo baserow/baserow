@@ -35,11 +35,10 @@ export default {
       return this.mode === 'editing'
     },
     /**
-     * The editor renders some elements in public mode, such as the later rows
-     * of a repeat element, so this follows the application's mode.
+     * Restrict author code according to the hostname serving this page.
      */
     isAuthorCodeRestricted() {
-      return this.$isAuthorCodeRestricted(this.applicationContext.mode)
+      return this.$isAuthorCodeRestricted()
     },
     /**
      * The editor's hint for an element that holds author code. Preview only

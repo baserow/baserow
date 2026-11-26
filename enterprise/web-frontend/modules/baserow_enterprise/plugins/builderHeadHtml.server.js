@@ -10,7 +10,7 @@ export async function fetchBuilderHeadHtml(
   { builder, mode, requestUrl, config, previewSsrCookieHeader, restricted },
   fetch = $fetch
 ) {
-  // `restricted` is `$isAuthorCodeRestricted(mode)`. Anything but `false`
+  // `restricted` is `$isAuthorCodeRestricted()`. Anything but `false`
   // counts as restricted.
   if (
     builder.untrusted_content ||
@@ -68,7 +68,7 @@ export default defineNuxtPlugin({
         requestUrl,
         config,
         previewSsrCookieHeader: nuxtApp.$builderPreviewSsrCookieHeader,
-        restricted: nuxtApp.$isAuthorCodeRestricted(mode),
+        restricted: nuxtApp.$isAuthorCodeRestricted(),
       })
       if (fragment) {
         event.context.baserowBuilderHeadHtml = fragment

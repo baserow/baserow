@@ -35,6 +35,7 @@ function mountElement(
   untrusted = false,
   context = {}
 ) {
+  if (contextMode === 'editing') onEditorHostname = true
   return mountSuspended(HTMLElement, {
     props: {
       element: {
@@ -45,9 +46,8 @@ function mountElement(
     },
     global: {
       mocks: {
-        $isAuthorCodeRestricted: (applicationMode) =>
+        $isAuthorCodeRestricted: () =>
           isAuthorCodeRestricted({
-            mode: applicationMode,
             onEditorHostname,
             publicConfig: useRuntimeConfig().public,
           }),

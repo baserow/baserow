@@ -31,6 +31,7 @@ describe('IFrameElement', () => {
     applicationContextMode = mode,
     untrustedContent = false
   ) => {
+    if (applicationContextMode === 'editing') onEditorHostname = true
     const page = {}
     const builder = { id: 1, theme: {}, untrusted_content: untrustedContent }
     const element = {
@@ -49,9 +50,8 @@ describe('IFrameElement', () => {
       props: { element },
       global: {
         mocks: {
-          $isAuthorCodeRestricted: (applicationMode) =>
+          $isAuthorCodeRestricted: () =>
             isAuthorCodeRestricted({
-              mode: applicationMode,
               onEditorHostname,
               publicConfig: useRuntimeConfig().public,
             }),
@@ -277,13 +277,11 @@ describe('IFrameElement', () => {
       expect(wrapper.find('iframe').attributes('sandbox')).toBeUndefined()
     })
 
-    test('keeps the editor sandboxed when the instance relaxes Preview security', async () => {
+    test('also relaxes the editor sandbox when the instance relaxes security', async () => {
       setPreviewUrl(`${EDITOR_URL}:3001`, true)
       const wrapper = await mountComponent('public', {}, 'editing')
 
-      expect(wrapper.find('iframe').attributes('sandbox')).toBe(
-        'allow-scripts allow-forms allow-popups'
-      )
+      expect(wrapper.find('iframe').attributes('sandbox')).toBeUndefined()
     })
 
     test('points the editor hint at the published application', async () => {

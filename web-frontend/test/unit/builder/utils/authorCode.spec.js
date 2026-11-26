@@ -41,29 +41,16 @@ describe('isPreviewSecurityRelaxed', () => {
 
 describe('isAuthorCodeRestricted', () => {
   test.each([
-    // The editor is always restricted.
-    ['editing', true, false, true],
-    ['editing', true, true, true],
-    ['editing', false, true, true],
-    // An application page on an editor hostname is restricted unless relaxed.
-    ['preview', true, false, true],
-    ['preview', true, true, false],
-    ['public', true, false, true],
-    ['public', true, true, false],
-    // An unknown hostname counts as the editor's.
-    ['preview', undefined, false, true],
-    ['public', undefined, false, true],
-    // An application on its own hostname is never restricted.
-    ['preview', false, false, false],
-    ['public', false, false, false],
-    // An unknown mode is restricted.
-    [undefined, false, true, true],
+    [true, false, true],
+    [true, true, false],
+    [undefined, false, true],
+    [false, false, false],
+    [false, true, false],
   ])(
-    'mode %s on an editor hostname %s and relaxed %s: %s',
-    (mode, onEditorHostname, relaxed, expected) => {
+    'on an editor hostname %s and relaxed %s: %s',
+    (onEditorHostname, relaxed, expected) => {
       expect(
         isAuthorCodeRestricted({
-          mode,
           onEditorHostname,
           publicConfig: { builderDangerousRelaxPreviewSecurity: relaxed },
         })
@@ -74,7 +61,6 @@ describe('isAuthorCodeRestricted', () => {
   test('a word the backend reads as false does not relax it', () => {
     expect(
       isAuthorCodeRestricted({
-        mode: 'preview',
         onEditorHostname: true,
         publicConfig: { builderDangerousRelaxPreviewSecurity: 'no' },
       })

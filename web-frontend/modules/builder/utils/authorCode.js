@@ -15,7 +15,7 @@ import { previewSharesEditorHostname } from '@baserow/modules/builder/utils/prev
  *
  * @param {object} publicConfig The public runtime config.
  * @returns {boolean} Whether the instance lets author code run on the editor's
- *   hostname outside the editor.
+ *   hostname.
  */
 export const isPreviewSecurityRelaxed = (publicConfig) =>
   trueValues.includes(
@@ -27,29 +27,20 @@ export const isPreviewSecurityRelaxed = (publicConfig) =>
 /**
  * Whether author code must be kept from acting as the logged-in user.
  *
- * That is always the case in the editor. An application page is restricted
- * when it is served on an editor hostname, unless the instance relaxes it. This
+ * Author code is restricted on an editor hostname, unless the instance
+ * relaxes it. This
  * follows the hostname the page is served on, not the configured URLs: by
  * default the editor's hostname serves Preview, and it also serves published
  * applications by id. An application on its own hostname is never restricted.
  *
  * @param {object} options
- * @param {string} options.mode The application mode: editing, preview or public.
  * @param {boolean} options.onEditorHostname Whether the page is served on an
  *   editor hostname. Anything but `false` counts as yes.
  * @param {object} options.publicConfig The public runtime config.
  * @returns {boolean} Whether author code is restricted.
  */
-export const isAuthorCodeRestricted = ({
-  mode,
-  onEditorHostname,
-  publicConfig,
-}) => {
-  if (mode !== 'preview' && mode !== 'public') {
-    return true
-  }
-  return onEditorHostname !== false && !isPreviewSecurityRelaxed(publicConfig)
-}
+export const isAuthorCodeRestricted = ({ onEditorHostname, publicConfig }) =>
+  onEditorHostname !== false && !isPreviewSecurityRelaxed(publicConfig)
 
 /**
  * Whether Preview will restrict author code, for the editor to tell the user.

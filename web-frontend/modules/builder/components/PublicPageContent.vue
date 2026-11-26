@@ -135,7 +135,7 @@ const sharedElements = computed(() =>
 const showPreviewSecurityNotice = computed(
   () =>
     props.mode === 'preview' &&
-    nuxtApp.$isAuthorCodeRestricted(props.mode) &&
+    nuxtApp.$isAuthorCodeRestricted() &&
     ($registry
       .getList('plugin')
       .some((plugin) =>

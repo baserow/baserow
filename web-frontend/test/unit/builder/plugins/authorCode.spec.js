@@ -19,7 +19,7 @@ describe('author code plugin', () => {
 
   test.each([
     ['editing', false, true],
-    ['editing', true, true],
+    ['editing', true, false],
     ['preview', false, true],
     ['preview', true, false],
     ['public', false, true],
@@ -29,7 +29,7 @@ describe('author code plugin', () => {
     (mode, relaxed, expected) => {
       publicConfig.builderDangerousRelaxPreviewSecurity = relaxed
 
-      expect(useNuxtApp().$isAuthorCodeRestricted(mode)).toBe(expected)
+      expect(useNuxtApp().$isAuthorCodeRestricted()).toBe(expected)
     }
   )
 

@@ -202,7 +202,7 @@ export class EnterprisePlugin extends BaserowPlugin {
     const css = `${customCodeBase}/css/${mode === 'preview' ? '' : 'public/'}`
     const js = `${customCodeBase}/js/${mode === 'preview' ? '' : 'public/'}`
 
-    const runJS = !this.app.$isAuthorCodeRestricted(mode)
+    const runJS = !this.app.$isAuthorCodeRestricted()
 
     const script = []
     const link = []

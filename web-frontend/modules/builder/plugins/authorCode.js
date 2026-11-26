@@ -7,8 +7,7 @@ import {
  * The one check the editor, Preview and published applications share to decide
  * whether code written by an application's editors is restricted.
  *
- * - `$isAuthorCodeRestricted(mode)`: whether it is restricted on this page,
- *   where `mode` is the application mode (editing, preview or public).
+ * - `$isAuthorCodeRestricted()`: whether it is restricted on this page,
  * - `$previewRestrictsAuthorCode()`: whether Preview will restrict it, for the
  *   editor to tell the user.
  */
@@ -20,9 +19,8 @@ export default defineNuxtPlugin({
 
     return {
       provide: {
-        isAuthorCodeRestricted: (mode) =>
+        isAuthorCodeRestricted: () =>
           isAuthorCodeRestricted({
-            mode,
             onEditorHostname: nuxtApp.$isWebFrontendHostname,
             publicConfig: config.public,
           }),

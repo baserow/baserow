@@ -5,9 +5,8 @@ import AssistantPanel from '@baserow_enterprise/components/assistant/AssistantPa
 describe('Test enterprise Baserow plugin', () => {
   const app = {
     // Applications are served on their own hostname unless a test says otherwise.
-    $isAuthorCodeRestricted: (mode) =>
+    $isAuthorCodeRestricted: () =>
       isAuthorCodeRestricted({
-        mode,
         onEditorHostname: false,
         publicConfig: {},
       }),
@@ -155,9 +154,8 @@ describe('Test enterprise Baserow plugin', () => {
         const plugin = new EnterprisePlugin({
           app: {
             ...app,
-            $isAuthorCodeRestricted: (applicationMode) =>
+            $isAuthorCodeRestricted: () =>
               isAuthorCodeRestricted({
-                mode: applicationMode,
                 onEditorHostname,
                 publicConfig: { builderDangerousRelaxPreviewSecurity: relaxed },
               }),
