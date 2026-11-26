@@ -6,7 +6,7 @@ $public-agent-chat-password-width: 400px;
   --chat-link-color: #{$palette-blue-700};
   --chat-accent-hover: color-mix(
     in srgb,
-    var(--chat-accent, #{$palette-neutral-1200}) 92%,
+    var(--chat-accent) 85%,
     #{$palette-neutral-1300}
   );
 

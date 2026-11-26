@@ -169,7 +169,11 @@
             </template>
             <AgentChatIntro v-else-if="showChatIntro" :name="agent.name">
               <ChatSuggestions
-                v-if="showComposer && agent.suggested_messages?.length"
+                v-if="
+                  showComposer &&
+                  !draftLocked &&
+                  agent.suggested_messages?.length
+                "
                 class="agent-chat__suggestions"
                 :suggestions="agent.suggested_messages"
                 @pick="pickSuggestion"
@@ -220,7 +224,7 @@
             ref="messageInput"
             class="agent-chat__composer"
             :model-value="state.currentDraft?.content || ''"
-            :readonly="Boolean(state.currentDraft?.submission)"
+            :readonly="draftLocked"
             :disabled="state.waitingForApproval"
             :placeholder="
               state.waitingForApproval
@@ -499,6 +503,8 @@ const canCompose = computed(
     !showConfigurationWarning.value &&
     state.canWriteSelected
 )
+// A message being sent or awaiting retry keeps its text, so a retry is safe.
+const draftLocked = computed(() => Boolean(state.currentDraft?.submission))
 // Who can't send messages sees why, with Stop alone for a running reply.
 const showComposer = computed(
   () => canCompose.value || (replyRunning.value && state.canWriteSelected)
