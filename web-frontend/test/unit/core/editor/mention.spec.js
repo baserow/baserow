@@ -55,3 +55,13 @@ test('renders an Identity mention with its current collaborator name', () => {
   expect(mention.getAttribute('data-id')).toBe('42')
   expect(mention.textContent).toBe('@Ops Identity')
 })
+
+test('renders no mention in email-like text or before a letter', () => {
+  const html = parseMarkdown('team@1.io, @1am and @1', {
+    workspaceUsers: [{ user_id: 1, name: 'Jane Doe' }],
+  })
+  const doc = new DOMParser().parseFromString(html, 'text/html')
+  const mentions = doc.querySelectorAll('[data-type="mention"]')
+  expect(mentions).toHaveLength(1)
+  expect(doc.body.textContent.trim()).toBe('team@1.io, @1am and @Jane Doe')
+})

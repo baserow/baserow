@@ -71,7 +71,7 @@ workspace export; see #6116.
 
 | Module | What enforces it | Status | Owner |
 | --- | --- | --- | --- |
-| Database | All connection settings removed: `DataSyncType.export_serialized` writes every `get_connection_fields()` entry (`allowed_fields` minus the base options: `ical_url`, Postgres host, port, user, database, schema, table and SSL mode, Jira URL, username, project and authentication, GitHub owner and repo, GitLab URL and project) at its model default. `LocalBaserowTableDataSyncType` has none: its source table, view and user are references, handled on import (see below) | done | core/database |
+| Database | All connection settings removed: `DataSyncType.export_serialized` writes every `get_connection_fields()` entry (`allowed_fields` minus the base options: `ical_url`, Postgres host, port, user, database, schema, table and SSL mode, Jira URL, username, project and authentication, GitHub owner and repo, GitLab URL and project) at its model default; a sync stops with "Fill in the connection settings to sync this table." before contacting anything while a required, non-secret one is empty. `LocalBaserowTableDataSyncType` has none: its source table, view and user are references, handled on import (see below) | done | core/database |
 | Database | `DataSyncType.export_serialized` exports `last_error` as `None` | done | core/database |
 | Database | `two_way_sync` (in `BASE_DATA_SYNC_ALLOWED_FIELDS`) exported as `False`, and `DatabaseApplicationType.export_tables_serialized` exports the synced fields read-only, as a one-way sync has them | done | core/database |
 | Database | `sensitive_fields` on `PostgreSQLDataSyncType` (password), `JiraIssuesDataSyncType`, `GitHubIssuesDataSyncType`, `GitLabIssuesDataSyncType`, `HubspotContactsDataSyncType` (tokens) | done | core/database |
@@ -104,7 +104,7 @@ workspace export; see #6116.
 
 | Module | What enforces it | Status | Owner |
 | --- | --- | --- | --- |
-| Database | Rich text mentions (a standalone `@<user id>` outside code) in `LongTextFieldType` cells and view default row values become a neutral `@user` through `FieldType.get_user_template_export_value`; AI fields with rich text output delegate to it | done | core/database |
+| Database | Rich text mentions (every `@<user id>` the grid or the row editor could show as a mention, code included) in `LongTextFieldType` cells and view default row values become a neutral `@user` through `FieldType.get_user_template_export_value`; when that makes cells of a unique field equal, the copy fails naming the field; saved filters keep their values, so filters, sorts and searches on replaced values may match differently in the copy; AI field output is copied as generated, since no renderer shows mentions in it | done | core/database |
 | Premium | `AIFieldType.import_serialized` drops `ai_auto_update_user_id` only when not `is_duplicate`; must key on `is_user_template` | to do | core/database |
 | Integrations | `LocalBaserowTableServiceFilterableMixin.serialize_filters` clears user and collaborator filter values when `exclude_sensitive_data=True`, except a direct `get("provider.path")` reference. Raw values, constants and composed formulas are cleared; exports with sensitive-data removal disabled retain their values. | done | WAB |
 | Enterprise | `SamlAppAuthProviderType.sensitive_fields` removes SAML identity provider metadata when `exclude_sensitive_data=True` (see Login provider secrets) | done | WAB |

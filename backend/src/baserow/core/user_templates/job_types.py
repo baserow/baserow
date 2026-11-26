@@ -61,6 +61,7 @@ from baserow.core.user_templates.exceptions import (
     TemplateBlocked,
     TemplateChangedDuringUpdate,
     TemplateHasNoContent,
+    TemplateUniqueValuesCollide,
     TemplateUpdated,
     UserTemplatePublicListingConsentRequired,
     UserTemplatesDisabled,
@@ -169,6 +170,9 @@ class CreateUserTemplateJobType(JobType):
         TemplateHasNoContent: "The content of the template was removed.",
         TemplateBlocked: "The template is blocked, so it can't be made public.",
         UserTemplatesDisabled: ERROR_USER_TEMPLATES_DISABLED[2],
+        TemplateUniqueValuesCollide: 'Field "{e.field_name}" must hold unique values, '
+        "but some of its cells become the same once mentions are replaced. Edit "
+        "those cells or turn off uniqueness.",
     }
 
     # Which fields are required depends on the mode, see `_validate_mode`.
@@ -563,6 +567,9 @@ class DownloadUserTemplateJobType(JobType):
         TemplateBlocked: ERROR_TEMPLATE_BLOCKED[2],
         TemplateHasNoContent: "The content of the template was removed.",
         UserTemplatesDisabled: ERROR_USER_TEMPLATES_DISABLED[2],
+        TemplateUniqueValuesCollide: "The template can't be downloaded: field "
+        '"{e.field_name}" must hold unique values, but some of its cells become the '
+        "same once mentions are replaced.",
     }
 
     request_serializer_field_names = ["slug", "revision_id"]

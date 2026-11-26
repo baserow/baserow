@@ -78,6 +78,7 @@ from tests.baserow.core.user_templates.utils import (
     add_files_to_source,
     add_password_data,
     add_source_leftovers,
+    add_unique_rich_text,
     assert_files_kept,
     assert_password_data_left_out,
     assert_source_leftovers_left_out,
@@ -246,7 +247,6 @@ def test_create_user_template_job_empties_password_fields(data_fixture):
     copied_database = copied_applications(job.template)["database"]
     assert_password_data_left_out(copied_database.table_set.get(name=table.name))
     assert_source_leftovers_left_out(copied_database)
-    # The source keeps its passwords and connection settings.
     assert list(
         table.get_model().objects.values_list(password_field.db_column, flat=True)
     ) == [password]
@@ -511,6 +511,62 @@ def test_create_user_template_job_refuses_a_template_workspace(data_fixture):
 
     with pytest.raises(PermissionDenied):
         start_job(user, workspace, [database])
+
+
+@pytest.mark.parametrize("values", [["Ask @1", "Ask @2"], ["Ask @1", "Ask @user"]])
+def test_create_user_template_job_names_a_unique_field_its_mentions_make_equal(
+    data_fixture, values
+):
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    database = data_fixture.create_database_application(workspace=workspace)
+    add_unique_rich_text(data_fixture, database, user, values)
+
+    job = start_job(user, workspace, [database])
+
+    assert job.state == JOB_FAILED
+    assert job.error_code == "TemplateUniqueValuesCollide"
+    assert job.human_readable_error == (
+        'Field "Question" must hold unique values, but some of its cells become the '
+        "same once mentions are replaced. Edit those cells or turn off uniqueness."
+    )
+    assert_no_copy_left(workspace)
+
+
+def test_create_user_template_job_allows_empty_cells_in_a_unique_field(data_fixture):
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    database = data_fixture.create_database_application(workspace=workspace)
+    add_unique_rich_text(data_fixture, database, user, ["", "", "Ask @1"])
+
+    job = start_job(user, workspace, [database])
+
+    assert job.state == JOB_FINISHED, job.error
+
+
+def test_user_template_filter_keeps_its_value_on_replaced_mentions(data_fixture):
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    database = data_fixture.create_database_application(workspace=workspace)
+    table = data_fixture.create_database_table(database=database, user=user)
+    field = data_fixture.create_long_text_field(
+        table=table, name="Notes", long_text_enable_rich_text=True
+    )
+    model = table.get_model()
+    for value in ["Ask @1", "Ask @2", "Ask @user", "Ask nobody"]:
+        model.objects.create(**{field.db_column: value})
+    view = data_fixture.create_grid_view(table=table, name="Filtered")
+    data_fixture.create_view_filter(
+        view=view, field=field, type="equal", value="Ask @1"
+    )
+    assert ViewHandler().get_queryset(None, view).count() == 1
+
+    job = start_job(user, workspace, [database])
+
+    copy_table = copied_applications(job.template)["database"].table_set.get()
+    copy_view = copy_table.view_set.get(name="Filtered").specific
+    assert [f.value for f in copy_view.viewfilter_set.all()] == ["Ask @1"]
+    assert ViewHandler().get_queryset(None, copy_view).count() == 0
 
 
 def test_create_user_template_job_fails_when_access_is_lost_before_it_runs(

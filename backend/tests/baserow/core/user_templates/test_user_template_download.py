@@ -17,6 +17,7 @@ from baserow.core.user_templates.exceptions import TemplateUpdated
 from baserow.core.user_templates.handler import UserTemplateHandler
 from baserow.core.user_templates.models import DownloadUserTemplateJob
 from tests.baserow.core.user_templates.utils import (
+    add_unique_rich_text,
     cache_settings,
     create_template,
     download,
@@ -105,6 +106,24 @@ def test_download_of_a_deleted_revision(data_fixture, while_it_builds):
     assert job.revision_id is None
     # So the archive is not asked for anymore.
     assert serialize(job)["slug"] is None
+
+
+@install_marks
+def test_download_names_a_unique_field_its_mentions_make_equal(data_fixture):
+    owner = data_fixture.create_user()
+    template = create_template(data_fixture, owner)
+    editor = data_fixture.create_user(workspace=template.workspace)
+    database = template.workspace.application_set.get().specific
+    add_unique_rich_text(data_fixture, database, editor, ["Ask @1", "Ask @2"])
+
+    job = download(owner, template)
+
+    assert job.state == JOB_FAILED
+    assert job.error_code == "TemplateUniqueValuesCollide"
+    assert job.human_readable_error == (
+        'The template can\'t be downloaded: field "Question" must hold unique '
+        "values, but some of its cells become the same once mentions are replaced."
+    )
 
 
 def lose_access(data_fixture, change, template, user):

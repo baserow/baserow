@@ -8,6 +8,7 @@ from baserow.contrib.database.fields.rich_text_utils import (
     append_user_file_urls,
     count_image_references,
     escape_user_file_references,
+    extract_mentioned_user_ids,
     extract_user_file_names,
     is_renderable_user_file,
     iter_code_segments,
@@ -480,20 +481,42 @@ class TestCodeIsLiteral:
         assert extract_user_file_names("![x`]`[abc_def.png]") == set()
 
 
+# web-frontend/test/unit/core/editor/markdown.spec.js renders every expected
+# output in the grid and the row editor and asserts it shows no mention.
 @pytest.mark.parametrize(
     "content,expected",
     [
         ("Ask @12, then (@3).", "Ask @user, then (@user)."),
         ("Meet @10am", "Meet @10am"),
         ("Write to @123abc or team@123.io", "Write to @123abc or team@123.io"),
-        ("Run `@12` and @12", "Run `@12` and @user"),
-        ("Use \\` and @12 \\`", "Use \\` and @user \\`"),
-        ("Run `a\n\n@12 b`", "Run `a\n\n@user b`"),
+        ("Run `@12` and @12", "Run `@user` and @user"),
         (
-            "[@12](https://example.org/@12) <https://example.org/@12> @12",
-            "[@user](https://example.org/@12) <https://example.org/@12> @user",
+            "[@12](https://example.org/@12) @12",
+            "[@user](https://example.org/@12) @user",
+        ),
+        (
+            "`[`x](https://e.org/@12) <https://e.org/@12>",
+            "`[`x](https://e.org/@user) <https://e.org/@user>",
+        ),
+        (
+            '[x](https://g.co/@52.2,(1)) [x](@12 "t") Close ](@12) now',
+            '[x](https://g.co/@52.2,(1)) [x](@user "t") Close ](@user) now',
+        ),
+        (
+            "[x](javascript:@12) [x](/a?b&c=@12)",
+            "[x](javascript:@user) [x](/a?b&c=@user)",
+        ),
+        ("[a\n\nb](@12) [c\n- d](@12)", "[a\n\nb](@user) [c\n- d](@user)"),
+        (
+            "\\@12 _@12_ \\.@12 a@12@13 @１２",
+            "\\@12 _@user_ \\.@user a@12@user @１２",
         ),
     ],
 )
 def test_neutralize_mentions(content, expected):
     assert neutralize_mentions(content) == expected
+
+
+def test_extract_mentioned_user_ids_skips_what_readers_show_as_text():
+    content = "@1, team@3.io @4am [x](https://e.org/@5) \\@6 @" + "9" * 30
+    assert extract_mentioned_user_ids(content) == {1}

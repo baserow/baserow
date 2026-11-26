@@ -16,6 +16,8 @@ DATA_SYNC_BLOCKED_URL_ERROR = (
     "address, or uses a port other than 80, 443, 8000, 8080 or 8443."
 )
 
+DATA_SYNC_NOT_CONNECTED_ERROR = "Fill in the connection settings to sync this table."
+
 
 def is_synced_field_read_only(unique_primary: bool, two_way_sync: bool) -> bool:
     return unique_primary or not two_way_sync

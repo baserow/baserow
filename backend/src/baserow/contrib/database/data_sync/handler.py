@@ -413,6 +413,7 @@ class DataSyncHandler:
 
         data_sync_type = data_sync_type_registry.get_by_model(data_sync)
         data_sync_type.before_sync_table(user, data_sync)
+        data_sync_type.raise_if_not_connected(data_sync)
         all_properties = data_sync_type.get_properties(data_sync)
         key_to_property = {p.key: p for p in all_properties}
         progress.increment(by=1)  # makes the total `1`

@@ -1,4 +1,5 @@
 import re
+import string
 from typing import Callable, Container, Iterator, Optional
 
 from baserow.core.storage import get_default_storage
@@ -33,11 +34,18 @@ MARKDOWN_IMAGE_WITH_URL_REGEX = re.compile(
 
 _ESCAPED_BRACKET_REGEX = re.compile(r"\\([\[\]])")
 
-# Mirrored in mention.js.
-MENTION_REGEX = re.compile(r"@(\d+)")
-_MENTION_OR_LINK_TARGET_REGEX = re.compile(
-    r"(?P<link_target>\]\([^)\s]*(?=[)\s])|<[A-Za-z][A-Za-z0-9+.\-]{1,31}:[^<>\s]*>)"
-    r"|(?<![\w.%+-])@\d+(?!\w)"
+# The editor reads a mention again after a token ending in ``_``, an escaped
+# character or another mention, so only plain text before it keeps it literal.
+_TEXT_BEFORE_MENTION = frozenset(string.ascii_letters + string.digits + ".%+-")
+_ESCAPE_OR_MENTION = r"(?P<escape>\\.)|@[0-9]+(?![A-Za-z0-9])"
+_MENTION_REGEX = re.compile(_ESCAPE_OR_MENTION)
+# Readers show a link with an unsafe scheme as text, entities decoded.
+_LINK_DESTINATION_CHAR = r"[^()<>\[\]\\|&\s\x00-\x20\x7f]"
+_MENTION_OR_LINK_REGEX = re.compile(
+    r"\[(?P<link_text>(?:[^\[\]\\|\n]|\\[^\n])*)\]"
+    r"(?P<link_target>\([ \t]*(?!(?i:javascript|vbscript|file|data):)"
+    rf"(?:{_LINK_DESTINATION_CHAR}"
+    rf"|\({_LINK_DESTINATION_CHAR}*\))*[ \t]*\))|{_ESCAPE_OR_MENTION}"
 )
 NEUTRAL_MENTION = "@user"
 
@@ -367,19 +375,76 @@ def keep_first_image_references(content: Optional[str], limit: int) -> str:
     )
 
 
+def _is_literal_mention(text: str, start: int) -> bool:
+    before = start - 1
+    if before < 0 or text[before] not in _TEXT_BEFORE_MENTION:
+        return False
+    backslashes = before
+    while backslashes > 0 and text[backslashes - 1] == "\\":
+        backslashes -= 1
+    if (before - backslashes) % 2:
+        return False
+    digits = before
+    while digits >= 0 and text[digits] in string.digits:
+        digits -= 1
+    return digits < 0 or text[digits] != "@"
+
+
+def _map_mentions(
+    text: str, transform: Callable[[re.Match], str], regex: re.Pattern
+) -> str:
+    def _replace(match: re.Match) -> str:
+        if match.groupdict().get("link_target") is not None:
+            link_text = _map_mentions(match.group("link_text"), transform, regex)
+            return f"[{link_text}]{match.group('link_target')}"
+        if match.group("escape") or _is_literal_mention(text, match.start()):
+            return match.group()
+        return transform(match)
+
+    return regex.sub(_replace, text)
+
+
+def _map_all_mentions(content: str, transform: Callable[[re.Match], str]) -> str:
+    # Code spans, autolinks and HTML can hide or break a link in one reader and
+    # not the other, so link destinations only stay literal in plain text.
+    plain = "`" not in content and "<" not in content
+    regex = _MENTION_OR_LINK_REGEX if plain else _MENTION_REGEX
+    return _map_mentions(content, transform, regex)
+
+
 def neutralize_mentions(content: str) -> str:
     """
-    Replaces every standalone ``@<user id>`` outside code in ``content`` with
-    ``NEUTRAL_MENTION``, so that it points at no user. An ``@<digits>`` that is part
-    of a word or of an email-like address, or in a link target, stays as written.
+    Replaces every ``@<user id>`` in ``content`` that a reader could show as a
+    mention with ``NEUTRAL_MENTION``, so that it points at no user. Code is
+    rewritten too: no reader shows a mention there, but the backend can't tell
+    code apart from text exactly like both readers. An ``@<digits>`` that every
+    reader keeps as text stays as written: glued to a word or an email-like
+    address, followed by a letter, escaped, or in the destination of a link in
+    text without code or HTML.
     """
 
-    def _replace(match: re.Match) -> str:
-        return match.group() if match.group("link_target") else NEUTRAL_MENTION
+    if "@" not in content:
+        return content
 
-    return map_outside_code(
-        content, lambda text: _MENTION_OR_LINK_TARGET_REGEX.sub(_replace, text)
-    )
+    return _map_all_mentions(content, lambda _: NEUTRAL_MENTION)
+
+
+def extract_mentioned_user_ids(content: str) -> set[int]:
+    """
+    Returns the user ids of every ``@<user id>`` in ``content`` that
+    ``neutralize_mentions`` would replace.
+    """
+
+    user_ids: set[int] = set()
+
+    def _collect(match: re.Match) -> str:
+        if len(match.group()) <= 20:
+            user_ids.add(int(match.group()[1:]))
+        return match.group()
+
+    if "@" in content:
+        _map_all_mentions(content, _collect)
+    return user_ids
 
 
 def is_renderable_user_file(user_file) -> bool:

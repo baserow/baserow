@@ -3,8 +3,27 @@ import { Mention as TiptapMention } from '@tiptap/extension-mention'
 
 import { escapeHtml } from '@baserow/modules/core/utils/string'
 
-const USER_ID_REGEXP = /@(\d+)/
+// `extract_mentioned_user_ids` in rich_text_utils.py follows the same rule.
+const USER_ID_REGEXP = /@(\d+)(?![A-Za-z0-9])/
+const LEADING_MENTION_REGEXP = /^@(\d+)(?![A-Za-z0-9])/
 const MENTION_PREFIX_CHARACTER_REGEXP = /[\w.%+-]/
+
+// The editor reads a mention again after an escaped character or another
+// mention, so only plain text before it keeps it literal.
+const isLiteralMention = (source, position) => {
+  const before = position - 1
+  if (before < 0 || !MENTION_PREFIX_CHARACTER_REGEXP.test(source[before])) {
+    return false
+  }
+  let backslashes = before
+  while (backslashes > 0 && source[backslashes - 1] === '\\') backslashes--
+  if ((before - backslashes) % 2) {
+    return false
+  }
+  let digits = before
+  while (digits >= 0 && /[0-9]/.test(source[digits])) digits--
+  return digits < 0 || source[digits] !== '@'
+}
 
 const findMentionStart = (source) => {
   const mentionIndex = source.search(USER_ID_REGEXP)
@@ -32,7 +51,11 @@ export const parseMention =
         return false
       }
 
-      const match = state.src.slice(state.pos).match(/^@(\d+)/)
+      if (isLiteralMention(state.src, state.pos)) {
+        return false
+      }
+
+      const match = state.src.slice(state.pos).match(LEADING_MENTION_REGEXP)
       if (!match) {
         return false
       }
@@ -88,7 +111,7 @@ export const createMention = ({
             raw: source.slice(0, mentionIndex + mention[0].length),
           }
         }
-        const match = source.match(/^@(\d+)/)
+        const match = source.match(LEADING_MENTION_REGEXP)
         if (!match) {
           return undefined
         }

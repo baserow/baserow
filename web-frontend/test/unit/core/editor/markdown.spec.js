@@ -429,16 +429,66 @@ describe('official TipTap Markdown integration', () => {
     expect(editor.getMarkdown()).toBe('Hello @1')
   })
 
-  test('does not parse mention IDs embedded in email-like text', () => {
+  test('does not parse mention IDs in email-like text or before a letter', () => {
     const users = [{ user_id: 1, name: 'Jane Doe' }]
-    editor = createEditor('email@1.example and @1', { users })
+    editor = createEditor('email@1.example, @1am and @1', { users })
     const container = document.createElement('div')
     container.innerHTML = editor.getHTML()
 
     const mentions = container.querySelectorAll('[data-type="mention"]')
     expect(mentions).toHaveLength(1)
     expect(mentions[0].textContent).toBe('@Jane Doe')
-    expect(container.textContent).toBe('email@1.example and @Jane Doe')
+    expect(container.textContent).toBe('email@1.example, @1am and @Jane Doe')
+  })
+
+  test.each([
+    ['@1@12', 2],
+    ['x\\_@1', 1],
+    ['\\.@1', 1],
+    ['a@12@1', 1],
+    ['a_@1 a.@1', 0],
+  ])('grid and row editor agree on mentions in %s', (content, count) => {
+    const users = [1, 12].map((id) => ({ user_id: id, name: 'Member' }))
+    const grid = document.createElement('div')
+    grid.innerHTML = parseMarkdown(content, { workspaceUsers: users })
+    editor = createEditor(content, { users })
+    const row = document.createElement('div')
+    row.innerHTML = editor.getHTML()
+    for (const rendered of [grid, row]) {
+      expect(rendered.querySelectorAll('[data-type="mention"]')).toHaveLength(
+        count
+      )
+    }
+  })
+
+  // The expected outputs of test_neutralize_mentions in
+  // backend/tests/baserow/contrib/database/field/test_rich_text_utils.py.
+  test.each([
+    'Ask @user, then (@user).',
+    'Meet @10am',
+    'Write to @123abc or team@123.io',
+    'Run `@user` and @user',
+    '[@user](https://example.org/@12) @user',
+    '`[`x](https://e.org/@user) <https://e.org/@user>',
+    '[x](https://g.co/@52.2,(1)) [x](@user "t") Close ](@user) now',
+    '[x](javascript:@user) [x](/a?b&c=@user)',
+    '[a\n\nb](@user) [c\n- d](@user)',
+    '\\@12 _@user_ \\.@user a@12@user @１２',
+  ])('neutralized template text shows no mention: %s', (content) => {
+    const users = [3, 10, 12, 13, 52, 123].map((id) => ({
+      user_id: id,
+      name: 'Member',
+    }))
+    const grid = document.createElement('div')
+    grid.innerHTML = parseMarkdown(content, { workspaceUsers: users })
+    editor = createEditor(content, { users })
+    const row = document.createElement('div')
+    row.innerHTML = editor.getHTML()
+
+    for (const rendered of [grid, row]) {
+      expect(rendered.querySelector('[data-type="mention"]')).toBeNull()
+      expect(rendered.textContent).not.toContain('Member')
+    }
   })
 
   test.each([

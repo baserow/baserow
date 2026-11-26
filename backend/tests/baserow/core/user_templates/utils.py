@@ -26,6 +26,7 @@ from baserow.contrib.builder.models import Builder
 from baserow.contrib.builder.theme.models import PageThemeConfigBlock
 from baserow.contrib.database.application_types import DatabaseApplicationType
 from baserow.contrib.database.data_sync.models import PostgreSQLDataSync
+from baserow.contrib.database.fields.handler import FieldHandler
 from baserow.contrib.database.fields.models import (
     FileField,
     LongTextField,
@@ -747,6 +748,24 @@ def assert_source_leftovers_left_out(database):
     assert getattr(row, plain_field.db_column) == PLAIN_MENTION
     defaults = ViewDefaultValue.objects.filter(view__table=shared_table)
     assert [default.value for default in defaults] == ["Ask @user"]
+
+
+def add_unique_rich_text(data_fixture, database, user, values):
+    table = data_fixture.create_database_table(
+        database=database, user=user, name="Questions"
+    )
+    data_fixture.create_text_field(table=table, primary=True, name="Name")
+    field = FieldHandler().create_field(
+        user=user,
+        table=table,
+        type_name="long_text",
+        name="Question",
+        long_text_enable_rich_text=True,
+        field_constraints=[{"type_name": "unique_with_empty"}],
+    )
+    model = table.get_model()
+    for value in values:
+        model.objects.create(**{field.db_column: value})
 
 
 def stored_paths():

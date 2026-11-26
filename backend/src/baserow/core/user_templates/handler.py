@@ -94,6 +94,7 @@ from baserow.core.user_templates.exceptions import (
     TemplateBlockReasonRequired,
     TemplateChangedDuringUpdate,
     TemplateHasNoContent,
+    TemplateHasUnfinishedJobs,
     TemplateNotReviewable,
     TemplateRejectReasonRequired,
     TemplateSlugGenerationFailed,
@@ -548,23 +549,52 @@ class UserTemplateHandler:
             storage=storage,
             progress_builder=progress.create_child_builder(represents_progress=50),
         )
-        # Nobody imports the content, so its identities are kept as definitions.
-        CoreHandler().import_applications_to_workspace(
+        self._import_template_storage(
             workspace,
-            serialized,
-            files,
-            dataclasses.replace(
-                config, user_files_belong_to_workspace=True, is_template_storage=True
+            TemplateContent(
+                applications=serialized,
+                files=files,
+                workspace_objects=identity_export.serialize(
+                    owner, [application.id for application in applications]
+                ),
             ),
-            storage=storage,
             progress_builder=progress.create_child_builder(represents_progress=50),
-            atomic_per_application=True,
-            workspace_objects=identity_export.serialize(
-                owner, [application.id for application in applications]
-            ),
         )
 
         return workspace
+
+    def _import_template_storage(
+        self,
+        workspace: Workspace,
+        content: TemplateContent,
+        *,
+        progress_builder: Optional[ChildProgressBuilder] = None,
+    ) -> None:
+        """
+        Imports serialized applications into the workspace holding the content of a
+        user template. Each application is imported in its own transaction.
+
+        :param workspace: The workspace holding the content.
+        :param content: The serialized applications.
+        :param progress_builder: A progress builder that allows for publishing
+            progress.
+        """
+
+        # Nobody imports the content, so its identities are kept as definitions.
+        CoreHandler().import_applications_to_workspace(
+            workspace,
+            content.applications,
+            content.files,
+            dataclasses.replace(
+                user_template_copy_config(),
+                user_files_belong_to_workspace=True,
+                is_template_storage=True,
+            ),
+            storage=get_default_storage(),
+            progress_builder=progress_builder,
+            atomic_per_application=True,
+            workspace_objects=content.workspace_objects,
+        )
 
     def serialize_template_content(
         self,
@@ -718,6 +748,145 @@ class UserTemplateHandler:
                     robust=True,
                 )
         return name
+
+    def rebuild_templates(
+        self, template_ids: Optional[Iterable[int]] = None
+    ) -> Tuple[List[int], List[int]]:
+        """
+        Copies the content of user templates again, with what a copy leaves out
+        now, so that a fix of the copy also cleans what was copied before it. The
+        stored workspaces are replaced and the archives cleared, so that previews
+        and downloads follow. Installs already copy with the current rules.
+        Templates marked for deletion are skipped.
+
+        A template that fails is logged and skipped, so that it doesn't stop the
+        others. Each content is copied in its own transactions, so this must not
+        be called inside an atomic block.
+
+        :param template_ids: The ids of the templates to rebuild, all if None.
+        :return: The ids of the templates rebuilt and of those that failed.
+        """
+
+        roots = Template.objects.user().filter(
+            root__isnull=True, marked_for_deletion_at__isnull=True
+        )
+        if template_ids is not None:
+            roots = roots.filter(id__in=template_ids)
+
+        rebuilt, failed = [], []
+        for root_id in roots.order_by("id").values_list("id", flat=True):
+            try:
+                workspace_ids = (
+                    Template.objects.filter(
+                        Q(id=root_id) | Q(root_id=root_id), workspace__isnull=False
+                    )
+                    .order_by("workspace_id")
+                    .values_list("workspace_id", flat=True)
+                    .distinct()
+                )
+                for workspace_id in workspace_ids:
+                    self._rebuild_template_workspace(root_id, workspace_id)
+                rebuilt.append(root_id)
+            except Exception:
+                logger.exception(f"Rebuilding the user template {root_id} failed.")
+                failed.append(root_id)
+        return rebuilt, failed
+
+    def _rebuild_template_workspace(self, root_id: int, workspace_id: int) -> None:
+        """
+        Copies the content held by a workspace of a user template into a new
+        workspace, points the revisions sharing it at the copy, clears their
+        archives and deletes the old workspace and archives once that commits. On
+        failure the copy is deleted and the revisions are unchanged.
+
+        :param root_id: The id of the root of the template.
+        :param workspace_id: The id of the workspace to copy.
+        :raises TemplateHasUnfinishedJobs: If a job of the template is pending or
+            running.
+        """
+
+        from baserow.core.user_templates.models import UserTemplateContentToDelete
+
+        self._raise_if_unfinished_jobs(root_id)
+        revision = (
+            Template.objects.select_related("workspace")
+            .filter(workspace_id=workspace_id)
+            .first()
+        )
+        content = self.serialize_template_content(revision)
+        workspace = Workspace.objects.create(name=revision.workspace.name)
+        try:
+            self._import_template_storage(workspace, content)
+            with transaction.atomic():
+                # Updates lock the root too, see `create_template_revision`.
+                list(
+                    Template.objects.select_for_update()
+                    .filter(id=root_id)
+                    .values_list("id", flat=True)
+                )
+                self._raise_if_unfinished_jobs(root_id)
+                revisions = Template.objects.filter(workspace_id=workspace_id)
+                archive_names = set(revisions.values_list("archive", flat=True))
+                revisions.update(workspace=workspace, archive=None)
+                # See `create_template_root`.
+                workspace.save(update_fields=["updated_on"])
+                contents = UserTemplateContentToDelete.objects.bulk_create(
+                    [
+                        UserTemplateContentToDelete(
+                            workspace_id=workspace_id, archive_name=""
+                        )
+                    ]
+                    + [
+                        UserTemplateContentToDelete(archive_name=name)
+                        for name in archive_names
+                        if name
+                    ]
+                )
+
+                def delete_content():
+                    for tracked in contents:
+                        self._delete_tracked_content(tracked)
+
+                transaction.on_commit(delete_content)
+        except Exception:
+            self.delete_content_without_template(workspace.id, "")
+            raise
+
+    def _raise_if_unfinished_jobs(self, root_id: int) -> None:
+        """
+        Raises if a job that reads or writes the content of the user template is
+        pending or running, so that its content isn't replaced under it.
+
+        :param root_id: The id of the root of the template.
+        :raises TemplateHasUnfinishedJobs: If such a job is pending or running.
+        """
+
+        from baserow.core.user_templates.models import (
+            CreateUserTemplateJob,
+            DownloadUserTemplateJob,
+        )
+
+        family_ids = Template.objects.filter(Q(id=root_id) | Q(root_id=root_id)).values(
+            "id"
+        )
+        if (
+            CreateUserTemplateJob.objects.is_pending_or_running()
+            .filter(
+                Q(template_id__in=family_ids)
+                | Q(base_revision_id__in=family_ids)
+                | Q(revision_id__in=family_ids)
+            )
+            .exists()
+            or InstallTemplateJob.objects.is_pending_or_running()
+            .filter(template_id__in=family_ids)
+            .exists()
+            or DownloadUserTemplateJob.objects.is_pending_or_running()
+            .filter(revision_id__in=family_ids)
+            .exists()
+        ):
+            raise TemplateHasUnfinishedJobs(
+                f"The template {root_id} has a pending or running job."
+            )
 
     def install_template_content(
         self,

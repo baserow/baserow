@@ -5,6 +5,8 @@ from django.contrib.auth.models import AbstractUser
 from django.db.models.signals import pre_delete
 from django.dispatch import receiver
 
+from loguru import logger
+
 from baserow.core.models import Settings
 from baserow.core.signals import settings_updated
 from baserow.core.user_templates.handler import UserTemplateHandler
@@ -65,3 +67,29 @@ def approve_pending_user_templates(
         and not settings.user_templates_require_approval
     ):
         UserTemplateHandler().approve_pending_revisions(user)
+
+
+REBUILD_USER_TEMPLATES_MIGRATION = ("core", "0146_rebuild_user_templates")
+
+
+def rebuild_user_templates_after_migrate(sender, plan=None, **kwargs):
+    """
+    Rebuilds the user templates once, after the migrations of the run that applied
+    `REBUILD_USER_TEMPLATES_MIGRATION`, so that the copy runs on tables matching
+    the current models. It's connected to `post_migrate`.
+    """
+
+    if not any(
+        (migration.app_label, migration.name) == REBUILD_USER_TEMPLATES_MIGRATION
+        and not backwards
+        for migration, backwards in plan or []
+    ):
+        return
+
+    _, failed = UserTemplateHandler().rebuild_templates()
+    if failed:
+        logger.warning(
+            "Rebuilding the user templates {} failed. Run `rebuild_user_templates "
+            "--template <id>` for each of them.",
+            failed,
+        )

@@ -88,6 +88,7 @@ from baserow.core.user_files.handler import delete_new_files_on_error
 from baserow.core.user_templates.exceptions import (
     TemplateBlocked,
     TemplateHasNoContent,
+    TemplateUniqueValuesCollide,
     TemplateUpdated,
     UserTemplatesDisabled,
 )
@@ -193,6 +194,9 @@ class InstallTemplateJobType(JobType):
         TemplateBlocked: ERROR_TEMPLATE_BLOCKED[2],
         TemplateHasNoContent: "The content of the template was removed.",
         UserTemplatesDisabled: ERROR_USER_TEMPLATES_DISABLED[2],
+        TemplateUniqueValuesCollide: "The template can't be installed: field "
+        '"{e.field_name}" must hold unique values, but some of its cells become the '
+        "same once mentions are replaced.",
         InstallTemplateMaxLocksExceededException: InstallTemplateMaxLocksExceededException.message,
     }
 

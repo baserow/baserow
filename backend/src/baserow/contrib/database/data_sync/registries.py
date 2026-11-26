@@ -10,10 +10,12 @@ from loguru import logger
 from baserow.contrib.database.data_sync.constants import (
     BASE_DATA_SYNC_ALLOWED_FIELDS,
 )
+from baserow.contrib.database.data_sync.exceptions import SyncError
 from baserow.contrib.database.data_sync.export_serialized import (
     DataSyncExportSerializedStructure,
 )
 from baserow.contrib.database.data_sync.models import DataSync, DataSyncSyncedProperty
+from baserow.contrib.database.data_sync.utils import DATA_SYNC_NOT_CONNECTED_ERROR
 from baserow.contrib.database.fields.models import Field
 from baserow.core.registries import ImportExportConfig
 from baserow.core.registry import (
@@ -263,6 +265,24 @@ class DataSyncType(
             for field in self.allowed_fields
             if field not in BASE_DATA_SYNC_ALLOWED_FIELDS
         ]
+
+    def raise_if_not_connected(self, instance: "DataSync"):
+        """
+        Stops a sync before anything is contacted when a connection setting it needs
+        is empty, like in an installed copy of a user template. Secrets and settings
+        that may stay empty aren't checked.
+
+        :param instance: The data sync instance.
+        :raises SyncError: When a needed connection setting is empty.
+        """
+
+        for name in self.get_connection_fields():
+            if name in self.sensitive_fields:
+                continue
+            if self.model_class._meta.get_field(name).blank:
+                continue
+            if getattr(instance, name) in (None, ""):
+                raise SyncError(DATA_SYNC_NOT_CONNECTED_ERROR)
 
     def export_serialized(
         self,
