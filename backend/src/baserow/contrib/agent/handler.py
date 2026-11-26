@@ -1184,8 +1184,11 @@ class AgentHandler:
         message = conversation.messages.filter(uuid=uuid).first()
         if message is None:
             return None
-        if message.content != content or message.sender_id != (
-            sender.id if sender else None
+        role = AgentMessage.Role.USER if sender else AgentMessage.Role.VISITOR
+        if (
+            message.content != content
+            or message.role != role
+            or message.sender_id != (sender.id if sender else None)
         ):
             raise AgentMessageConflict
         return self._accepted(conversation, message)

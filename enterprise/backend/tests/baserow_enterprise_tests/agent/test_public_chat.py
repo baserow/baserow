@@ -13,7 +13,11 @@ from rest_framework.response import Response
 from rest_framework.test import APIClient
 
 from baserow.config.db_routers import clear_db_state, set_db_alias
-from baserow.contrib.agent.models import AgentApplication, AgentConversation
+from baserow.contrib.agent.models import (
+    AgentApplication,
+    AgentConversation,
+    AgentMessage,
+)
 from baserow.core.chat_runs.models import ChatRun
 from baserow_enterprise.agent.constants import PUBLIC_CHAT_PASSWORD_MAX_LENGTH
 from baserow_enterprise.agent.models import PublicChatAgentChannel
@@ -295,6 +299,25 @@ def test_a_uuid_sent_again_with_other_content_conflicts(
         token = encode_conversation_token(chat, conversation)
         send(api_client, chat, token, uuid=uuid)
         response = send(api_client, chat, token, "Other", uuid=uuid)
+
+    assert (response.status_code, response.json()["error"]) == (
+        409,
+        "ERROR_AGENT_MESSAGE_CONFLICT",
+    )
+
+
+@pytest.mark.django_db
+def test_the_uuid_of_an_agent_message_sent_again_conflicts(
+    api_client, data_fixture, chat
+):
+    conversation = data_fixture.create_channel_conversation(channel=chat)
+    token = encode_conversation_token(chat, conversation)
+    send(api_client, chat, token)
+    reply = conversation.messages.get(role=AgentMessage.Role.ASSISTANT)
+    reply.content = "Hello"
+    reply.save(update_fields=["content"])
+
+    response = send(api_client, chat, token, reply.content, uuid=reply.uuid)
 
     assert (response.status_code, response.json()["error"]) == (
         409,
