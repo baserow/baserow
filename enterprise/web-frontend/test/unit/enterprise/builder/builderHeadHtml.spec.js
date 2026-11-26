@@ -1,5 +1,4 @@
 import { fetchBuilderHeadHtml } from '@baserow_enterprise/plugins/builderHeadHtml.server'
-import { previewSharesEditorHostname } from '@baserow_enterprise/utils/builderHeadHtml'
 
 describe('Fetching Custom Code HTML during a Builder render', () => {
   const builder = { id: 42, has_head_html: true }
@@ -14,6 +13,8 @@ describe('Fetching Custom Code HTML during a Builder render', () => {
     builder,
     config,
     mode: 'preview',
+    // What `$isAuthorCodeRestricted(mode)` answers for this page.
+    restricted: false,
     previewSsrCookieHeader: 'test_baserow_builder_preview=signed-session',
     requestUrl: new URL('https://preview.example.com/builder/preview/42'),
   }
@@ -69,8 +70,14 @@ describe('Fetching Custom Code HTML during a Builder render', () => {
         requestUrl: new URL(
           'https://editor.example.com:444/builder/preview/42'
         ),
+        restricted: true,
       },
     ],
+    [
+      'a published application with restricted author code',
+      { mode: 'public', restricted: true },
+    ],
+    ['an unknown restriction', { restricted: undefined }],
   ])('skips requests for %s', async (_, overrides) => {
     const fetch = vi.fn()
 
@@ -80,22 +87,32 @@ describe('Fetching Custom Code HTML during a Builder render', () => {
     expect(fetch).not.toHaveBeenCalled()
   })
 
+  test('fetches on the editor hostname when author code is not restricted', async () => {
+    const fetch = vi.fn().mockResolvedValue({ html: '<meta name="x">' })
+
+    expect(
+      await fetchBuilderHeadHtml(
+        {
+          ...previewOptions,
+          config: {
+            ...config,
+            public: {
+              ...config.public,
+              builderPreviewUrl: 'https://editor.example.com:444',
+            },
+          },
+          requestUrl: new URL(
+            'https://editor.example.com:444/builder/preview/42'
+          ),
+        },
+        fetch
+      )
+    ).toBe('<meta name="x">')
+  })
+
   test('an unavailable HTML endpoint does not interrupt the page render', async () => {
     const fetch = vi.fn().mockRejectedValue(new Error('HTTP 404'))
 
     expect(await fetchBuilderHeadHtml(previewOptions, fetch)).toBe('')
-  })
-})
-
-describe('previewSharesEditorHostname', () => {
-  test.each([
-    ['http://localhost:3000', 'http://localhost:3000', true],
-    ['http://localhost:3001', 'http://localhost:3000', true],
-    ['https://preview.example.com', 'https://example.com', false],
-    ['', 'https://example.com', true],
-  ])('%s vs %s', (builderPreviewUrl, publicWebFrontendUrl, expected) => {
-    expect(
-      previewSharesEditorHostname({ builderPreviewUrl, publicWebFrontendUrl })
-    ).toBe(expected)
   })
 })

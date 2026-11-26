@@ -30,7 +30,8 @@
   }
 
   .page__fixed-stack--top {
-    top: 0;
+    // Preview can show a notice above the application, which sets its height.
+    top: var(--preview-security-notice-height, 0);
   }
 
   .page__fixed-stack--bottom {

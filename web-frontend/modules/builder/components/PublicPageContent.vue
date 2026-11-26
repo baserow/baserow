@@ -1,5 +1,9 @@
 <template>
   <div>
+    <PreviewSecurityNotice
+      v-if="showPreviewSecurityNotice"
+      :untrusted-content="builder.untrusted_content"
+    />
     <BuilderToasts />
     <RecursiveWrapper :components="builderPageDecorators">
       <PageContent
@@ -22,6 +26,7 @@ import PageContent from '@baserow/modules/builder/components/page/PageContent'
 import { DataProviderType } from '@baserow/modules/core/dataProviderTypes'
 import { DATA_SCOPES } from '@baserow/modules/builder/constants'
 import BuilderToasts from '@baserow/modules/builder/components/BuilderToasts'
+import PreviewSecurityNotice from '@baserow/modules/builder/components/page/PreviewSecurityNotice'
 import ApplicationBuilderFormulaInput from '@baserow/modules/builder/components/ApplicationBuilderFormulaInput'
 import _ from 'lodash'
 import { prefixInternalResolvedUrl } from '@baserow/modules/builder/utils/urlResolution'
@@ -127,6 +132,24 @@ const sharedPage = computed(() =>
 
 const sharedElements = computed(() =>
   store.getters['element/getRootElements'](sharedPage.value)
+)
+
+// Preview tells the editor when code they added to this page is restricted.
+const showPreviewSecurityNotice = computed(
+  () =>
+    props.mode === 'preview' &&
+    (props.builder.untrusted_content ||
+      (nuxtApp.$isAuthorCodeRestricted() &&
+        ($registry
+          .getList('plugin')
+          .some((plugin) =>
+            plugin.hasBuilderAuthorCode({ builder: props.builder })
+          ) ||
+          [props.page, sharedPage.value].some((page) =>
+            (page?.orderedElements ?? []).some((element) =>
+              $registry.get('element', element.type).hasAuthorCode(element)
+            )
+          ))))
 )
 
 const isAuthenticated = computed(() =>

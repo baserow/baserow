@@ -2,8 +2,28 @@ import { mountSuspended } from '@nuxt/test-utils/runtime'
 import { reactive, nextTick } from 'vue'
 import { enableAutoUnmount } from '@vue/test-utils'
 import HTMLElement from '@baserow_enterprise/builder/components/elements/HTMLElement'
+import { isAuthorCodeRestricted } from '@baserow/modules/builder/utils/authorCode'
 
 enableAutoUnmount(afterEach)
+
+const EDITOR_URL = 'https://editor.example.com'
+
+// Whether the page is served on an editor hostname. Applications get their
+// own hostname unless a test shares the editor's.
+let isWebFrontendHostname
+
+// Preview gets its own hostname unless a test shares the editor's.
+function setPreviewUrl(url, relaxed = false) {
+  const config = useRuntimeConfig().public
+  config.publicWebFrontendUrl = EDITOR_URL
+  config.builderPreviewUrl = url
+  config.builderDangerousRelaxPreviewSecurity = relaxed
+}
+
+beforeEach(() => {
+  isWebFrontendHostname = false
+  setPreviewUrl('https://preview.example.com')
+})
 
 const snippet =
   '<section id="anchor" class="widget" data-lang="en" aria-label="Demo">Widget</section>'
@@ -15,6 +35,7 @@ function mountElement(
   untrusted = false,
   context = {}
 ) {
+  if (contextMode === 'editing') isWebFrontendHostname = true
   return mountSuspended(HTMLElement, {
     props: {
       element: {
@@ -24,6 +45,13 @@ function mountElement(
       },
     },
     global: {
+      mocks: {
+        $isAuthorCodeRestricted: () =>
+          isAuthorCodeRestricted({
+            isWebFrontendHostname,
+            publicConfig: useRuntimeConfig().public,
+          }),
+      },
       provide: {
         mode,
         builder: { untrusted_content: untrusted },
@@ -42,6 +70,9 @@ describe('HTML element', () => {
       expect(frame.attributes('srcdoc')).toBe(snippet)
       expect(frame.attributes('sandbox')).toBe('allow-same-origin')
       expect(frame.attributes('tabindex')).toBe('-1')
+      expect(frame.classes()).not.toContain(
+        'html-element__preview--interactive'
+      )
       const hint = wrapper.get(
         'button[aria-label="iframeElementForm.editorEmbedHint"]'
       )
@@ -105,9 +136,9 @@ describe('HTML element', () => {
     expect(wrapper.get('script').attributes('src')).toBe('/widget.js')
   })
 
-  test('waits for an explicit visitor context before inserting markup', async () => {
+  test('uses the hostname restriction without requiring an explicit visitor mode', async () => {
     const wrapper = await mountElement('public', '')
-    expect(wrapper.find('#anchor').exists()).toBe(false)
+    expect(wrapper.find('#anchor').exists()).toBe(true)
   })
 
   test.each([
@@ -157,3 +188,47 @@ test.each([{ formula: "''" }, { formula: 'concat(' }])(
     expect(wrapper.text()).toContain('htmlElement.placeholder')
   }
 )
+
+describe('HTML element on the editor hostname', () => {
+  beforeEach(() => {
+    isWebFrontendHostname = true
+    setPreviewUrl(`${EDITOR_URL}:3001`)
+  })
+
+  test.each(['preview', 'public'])(
+    'shows the HTML without running it and without the editor hint in %s',
+    async (mode) => {
+      const wrapper = await mountElement(mode)
+
+      const frame = wrapper.get('iframe')
+      expect(frame.attributes('srcdoc')).toBe(snippet)
+      expect(frame.attributes('sandbox')).toBe('allow-same-origin')
+      expect(frame.attributes('tabindex')).toBeUndefined()
+      expect(frame.classes()).toContain('html-element__preview--interactive')
+      expect(wrapper.find('#anchor').exists()).toBe(false)
+      expect(wrapper.find('.html-element__hint').exists()).toBe(false)
+    }
+  )
+
+  test.each(['editing', 'preview', 'public'])(
+    'inserts the widget in %s when the instance relaxes security',
+    async (mode) => {
+      setPreviewUrl(`${EDITOR_URL}:3001`, true)
+      const wrapper = await mountElement(mode)
+
+      expect(wrapper.find('iframe').exists()).toBe(false)
+      expect(wrapper.get('#anchor').text()).toBe('Widget')
+      expect(wrapper.find('.html-element__hint').exists()).toBe(false)
+    }
+  )
+
+  test('points the editor hint at the published application', async () => {
+    const wrapper = await mountElement('editing')
+
+    expect(
+      wrapper
+        .get('button[aria-label="iframeElementForm.editorEmbedHintPublished"]')
+        .exists()
+    ).toBe(true)
+  })
+})

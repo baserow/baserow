@@ -575,10 +575,8 @@ def test_public_builder_head_html_serves_only_the_published_snapshot(
 
 @pytest.mark.django_db
 def test_preview_builder_head_html_requires_a_scoped_session(
-    enable_enterprise, api_client, data_fixture, settings
+    enable_enterprise, api_client, data_fixture
 ):
-    settings.PUBLIC_WEB_FRONTEND_HOSTNAME = "editor.example.org"
-    settings.BUILDER_PREVIEW_HOSTNAME = "preview.example.org"
     user = data_fixture.create_user()
     builder = data_fixture.create_builder_application(user=user)
     other_builder = data_fixture.create_builder_application(user=user)
@@ -602,9 +600,6 @@ def test_preview_builder_head_html_requires_a_scoped_session(
     assert response.json()["custom_code"] == {"css": "", "js": ""}
     assert response.json()["has_head_html"] is True
     assert "head_html" not in response.json()
-
-    settings.BUILDER_PREVIEW_HOSTNAME = settings.PUBLIC_WEB_FRONTEND_HOSTNAME
-    assert api_client.get(url).status_code == HTTP_404_NOT_FOUND
 
 
 @pytest.mark.django_db

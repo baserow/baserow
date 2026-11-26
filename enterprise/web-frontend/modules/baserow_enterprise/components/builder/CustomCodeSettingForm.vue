@@ -4,7 +4,11 @@
       {{ $t('customCodeSettingForm.customCodeTitle') }}
     </h2>
     <p>
-      {{ $t('customCodeSettingForm.customCodeHelp') }}
+      {{
+        previewRestrictsCustomCode
+          ? $t('customCodeSettingForm.customCodeHelpRestricted')
+          : $t('customCodeSettingForm.customCodeHelp')
+      }}
     </p>
     <FormGroup
       :label="$t('customCodeSettingForm.customCSS')"
@@ -93,6 +97,11 @@ export default {
       values: { custom_code: { css: '', js: '' }, scripts: [] },
       allowedValues: ['custom_code', 'scripts'],
     }
+  },
+  computed: {
+    previewRestrictsCustomCode() {
+      return this.$previewRestrictsAuthorCode()
+    },
   },
   methods: {
     addExternalScript() {

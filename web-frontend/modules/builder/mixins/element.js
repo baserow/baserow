@@ -34,6 +34,21 @@ export default {
     isEditMode() {
       return this.mode === 'editing'
     },
+    /**
+     * Restrict author code according to the hostname serving this page.
+     */
+    isAuthorCodeRestricted() {
+      return this.$isAuthorCodeRestricted()
+    },
+    /**
+     * The editor's hint for an element that holds author code. Preview only
+     * shows such an element in full when it doesn't restrict that code.
+     */
+    authorCodeEditorHint() {
+      return this.$previewRestrictsAuthorCode()
+        ? this.$t('iframeElementForm.editorEmbedHintPublished')
+        : this.$t('iframeElementForm.editorEmbedHint')
+    },
     elementIsInError() {
       return this.elementType.isInError(this.element, this.applicationContext)
     },

@@ -1,4 +1,3 @@
-from django.conf import settings
 from django.http import Http404, HttpResponse
 
 from drf_spectacular.types import OpenApiTypes
@@ -106,11 +105,4 @@ class CustomCodeView(PublicCustomCodeView):
     authentication_classes = (BuilderPreviewAuthentication,)
 
     def can_render_html(self, builder):
-        # Editor and preview cookies share a hostname even across different ports.
-        return (
-            not builder.is_published
-            and settings.BUILDER_PREVIEW_HOSTNAME is not None
-            and settings.PUBLIC_WEB_FRONTEND_HOSTNAME is not None
-            and settings.BUILDER_PREVIEW_HOSTNAME
-            != settings.PUBLIC_WEB_FRONTEND_HOSTNAME
-        )
+        return not builder.is_published

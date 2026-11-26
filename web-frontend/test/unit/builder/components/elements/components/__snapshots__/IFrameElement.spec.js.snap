@@ -64,7 +64,7 @@ exports[`IFrameElement > blocks embedded HTML and URL iframes in public mode 2`]
 </div>"
 `;
 
-exports[`IFrameElement > does not sandbox user-provided content in preview mode 1`] = `
+exports[`IFrameElement > does not sandbox user-provided content in Preview on its own hostname 1`] = `
 <iframe
   class="iframe-element__iframe"
   height="300"

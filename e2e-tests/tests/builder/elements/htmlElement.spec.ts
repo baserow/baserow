@@ -10,6 +10,16 @@ import {
 } from "../../../fixtures/licence";
 import { baserowConfig } from "../../../playwright.config";
 import { createDatabase } from "../../../fixtures/database/database";
+
+// Preview on the editor's hostname shares the editor's cookies, so code written
+// by the application's editors is restricted there: the HTML element is shown
+// in a frame without scripts and custom JavaScript isn't loaded.
+const previewIsRestricted =
+  new URL(baserowConfig.BUILDER_PREVIEW_URL).hostname ===
+  new URL(baserowConfig.PUBLIC_WEB_FRONTEND_URL).hostname;
+const editorHint = previewIsRestricted
+  ? "Some embeds only display fully in your published application."
+  : "Some embeds only display fully in Preview.";
 import { createTable } from "../../../fixtures/database/table";
 import { createLocalBaserowIntegration } from "../../../fixtures/builder/integration";
 
@@ -72,13 +82,9 @@ for (const mode of ["preview", "published"]) {
       await expect(
         page.frameLocator('iframe[title="HTML preview"]').locator("#widget")
       ).toBeVisible();
-      const hint = page.getByRole("button", {
-        name: "Some embeds only display fully in Preview.",
-      });
+      const hint = page.getByRole("button", { name: editorHint });
       await hint.focus();
-      await expect(page.locator(".tooltip")).toHaveText(
-        "Some embeds only display fully in Preview."
-      );
+      await expect(page.locator(".tooltip")).toHaveText(editorHint);
       await hint.press("Escape");
       await page
         .locator(".html-element__editor")
@@ -119,6 +125,20 @@ for (const mode of ["preview", "published"]) {
         );
         url.hostname = domain;
         await visitor.goto(url.href);
+      }
+
+      if (mode === "preview" && previewIsRestricted) {
+        await expect(visitor.locator(".preview-security-notice")).toBeVisible();
+        await expect(
+          visitor
+            .frameLocator('iframe[title="HTML preview"]')
+            .locator("#widget")
+        ).toBeVisible();
+        await expect(visitor.locator("#widget")).toHaveCount(0);
+        expect(
+          await visitor.evaluate(() => Reflect.get(window, "loaderRuns"))
+        ).toBeUndefined();
+        return;
       }
 
       const anchor = visitor.locator(
@@ -353,11 +373,85 @@ for (const mode of ["preview", "published"]) {
         url.hostname = domain;
         await visitor.goto(url.href);
       }
-      await expect(visitor.locator("#greeting")).toHaveText("Hello Alice");
+      const greeting =
+        mode === "preview" && previewIsRestricted
+          ? visitor
+              .frameLocator('iframe[title="HTML preview"]')
+              .locator("#greeting")
+          : visitor.locator("#greeting");
+      await expect(greeting).toHaveText("Hello Alice");
       await visitor.getByRole("textbox").fill("Bob");
-      await expect(visitor.locator("#greeting")).toHaveText("Hello Bob");
+      await expect(greeting).toHaveText("Hello Bob");
     } finally {
       await deleteLicense(license);
     }
   });
 }
+
+test("Restricted HTML preserves native interactions and bounded height @enterprise", async ({
+  context,
+  builderPagePage,
+  workspacePage,
+}) => {
+  test.skip(!previewIsRestricted, "Requires Preview on a frontend hostname");
+  const license = await createLicense(ENTERPRISE_LICENSE);
+  try {
+    const { builder, builderPage } = builderPagePage;
+    await createBuilderElement(builderPage, "html", {
+      html: {
+        formula: JSON.stringify(
+          '<input aria-label="Native input"><button onclick="this.textContent=\'Executed\'">Script blocked</button><details><summary>Expand content</summary><p style="height:160px">Expanded content</p></details>'
+        ),
+      },
+    });
+    const grant = await getClient(workspacePage.user).post(
+      `builder/preview/${builder.id}/grant/`,
+      { path: builderPage.path }
+    );
+    const visitor = await context.newPage();
+    await visitor.goto(grant.data.url);
+    const frame = visitor.locator('iframe[title="HTML preview"]');
+    const document = visitor.frameLocator('iframe[title="HTML preview"]');
+    await expect(frame).toHaveAttribute("sandbox", "allow-same-origin");
+    await document.getByRole("textbox", { name: "Native input" }).fill("Typed");
+    await expect(document.getByRole("textbox")).toHaveValue("Typed");
+    await document.getByRole("button", { name: "Script blocked" }).click();
+    await expect(document.getByRole("button")).toHaveText("Script blocked");
+    await document.locator("summary").click();
+    await expect(document.locator("details")).toHaveAttribute("open", "");
+    await expect(document.getByText("Expanded content")).toBeVisible();
+
+    await frame.evaluate((element: HTMLIFrameElement) => {
+      element.srcdoc =
+        '<div style="height:calc(100vh + 20px)">Viewport content</div>';
+    });
+    await expect.poll(() => frame.evaluate((el) => el.clientHeight)).toBe(600);
+    const heights = await frame.evaluate(async (el) => {
+      const samples: number[] = [];
+      for (let index = 0; index < 12; index++) {
+        await new Promise<void>((resolve) =>
+          requestAnimationFrame(() => resolve())
+        );
+        samples.push(el.clientHeight);
+      }
+      return samples;
+    });
+    expect(heights.every((height) => height === 600)).toBe(true);
+    await expect
+      .poll(() =>
+        frame.evaluate((element: HTMLIFrameElement) => {
+          const body = element.contentDocument!.body;
+          element.contentWindow!.scrollTo(0, body.scrollHeight);
+          return element.contentWindow!.scrollY;
+        })
+      )
+      .toBeGreaterThan(0);
+
+    await frame.evaluate((element: HTMLIFrameElement) => {
+      element.srcdoc = '<div style="height:72px">Short content</div>';
+    });
+    await expect.poll(() => frame.evaluate((el) => el.clientHeight)).toBe(72);
+  } finally {
+    await deleteLicense(license);
+  }
+});

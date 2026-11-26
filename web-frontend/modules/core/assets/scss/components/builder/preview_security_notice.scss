@@ -1,0 +1,55 @@
+// Shown above an application in Preview, so it sets its own font and colors
+// instead of taking the application's theme.
+.preview-security-notice {
+  position: sticky;
+  top: 0;
+  z-index: $z-index-toasts;
+  box-sizing: border-box;
+  width: 100%;
+  padding: 8px 16px;
+  background-color: $palette-yellow-100;
+  border-bottom: 1px solid $palette-yellow-200;
+  color: $palette-neutral-1200;
+  font-family: Inter, sans-serif;
+  font-size: 13px;
+  line-height: 20px;
+}
+
+.preview-security-notice__summary {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.preview-security-notice__icon {
+  color: $palette-yellow-900;
+  font-size: 16px;
+}
+
+.preview-security-notice__toggle {
+  display: flex;
+  align-items: center;
+  padding: 2px;
+  border: 0;
+  border-radius: 4px;
+  background: none;
+  color: inherit;
+  font-size: 16px;
+  cursor: pointer;
+
+  &:hover {
+    background-color: $palette-yellow-200;
+  }
+}
+
+.preview-security-notice__details {
+  max-width: 720px;
+  margin: 8px auto 4px;
+  text-align: center;
+}
+
+.preview-security-notice__link {
+  color: inherit;
+  text-decoration: underline;
+}

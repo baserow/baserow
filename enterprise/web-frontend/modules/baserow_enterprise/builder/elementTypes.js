@@ -405,6 +405,10 @@ export class HTMLElementType extends ElementType {
     return HTMLElementForm
   }
 
+  hasAuthorCode() {
+    return true
+  }
+
   getErrorMessage(element, applicationContext) {
     if (!element.html?.formula?.trim()) {
       return this.app.$i18n.t('elementType.errorHtmlContentMissing')

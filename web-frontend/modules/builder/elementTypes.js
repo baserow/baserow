@@ -281,6 +281,15 @@ export class ElementType extends Registerable {
     return null
   }
 
+  /**
+   * Whether the element holds code written by the application's editors, such
+   * as an HTML snippet. That code is kept from acting as the logged-in user
+   * where `$isAuthorCodeRestricted` says so, and Preview tells the editor.
+   */
+  hasAuthorCode(element) {
+    return false
+  }
+
   isDeactivatedReason({ workspace }) {
     return null
   }
@@ -2246,6 +2255,10 @@ export class IFrameElementType extends ElementType {
 
   get generalFormComponent() {
     return IFrameElementForm
+  }
+
+  hasAuthorCode(element) {
+    return element.source_type === IFRAME_SOURCE_TYPES.EMBED
   }
 
   /**

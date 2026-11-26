@@ -286,3 +286,30 @@ describe('PostHog on a published site', () => {
     expect(captured[0].properties.$host).toBeTruthy()
   })
 })
+
+describe('isWebFrontendHostname with configured ports', () => {
+  test.each([
+    ['editor.example.com', true],
+    ['studio.example.com', true],
+    ['preview.example.com', false],
+    ['editor.example.com.other.test', false],
+  ])(
+    'matches %s against the main and additional frontend hosts: %s',
+    (hostname, expected) => {
+      expect(
+        isWebFrontendHostname(hostname, {
+          publicWebFrontendUrl: 'https://editor.example.com:3000',
+          extraPublicWebFrontendHostnames: ['studio.example.com'],
+        })
+      ).toBe(expected)
+    }
+  )
+
+  test('accepts a configuration without additional hostnames', () => {
+    expect(
+      isWebFrontendHostname('editor.example.com', {
+        publicWebFrontendUrl: 'https://editor.example.com',
+      })
+    ).toBe(true)
+  })
+})
