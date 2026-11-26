@@ -103,7 +103,7 @@ export function resizeWidgetGridLayout(layout, widgetId, width, height) {
   const resolved = []
   const neighbors = layout
     .filter((item) => item !== original)
-    .toSorted(
+    .sort(
       (first, second) =>
         first.y - second.y ||
         first.x - second.x ||
