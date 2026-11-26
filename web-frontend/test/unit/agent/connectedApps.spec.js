@@ -480,6 +480,45 @@ describe('Agent connected apps', () => {
 
     expect(agent).toBeDefined()
     expect(wrapper.find('.agent-mcp-server-card__name').text()).toBe('Renamed')
+    // The fields follow too, so there's nothing to save.
+    expect(inputIn(card(wrapper), 'agent.connectedAppName').value).toBe(
+      'Renamed'
+    )
+    expect(card(wrapper).querySelector('.agent-mcp-server-card__actions')).toBe(
+      null
+    )
+  })
+
+  test("another editor's change keeps this editor's edits to other fields", async () => {
+    const { wrapper, handlers } = await mountWithStore([server()])
+    testApp.mock
+      .onPatch('integration/5/')
+      .reply(200, server({ name: 'Renamed' }))
+    await expand(wrapper)
+    type(inputIn(card(wrapper), 'agent.connectedAppHeaderName'), 'X-Key')
+    await flushPromises()
+
+    handlers.integration_updated(
+      { store: testApp.store },
+      { integration: server({ name: 'Renamed', application_id: 10 }) }
+    )
+    await flushPromises()
+
+    expect(inputIn(card(wrapper), 'agent.connectedAppName').value).toBe(
+      'Renamed'
+    )
+    expect(inputIn(card(wrapper), 'agent.connectedAppHeaderName').value).toBe(
+      'X-Key'
+    )
+    type(inputIn(card(wrapper), 'agent.connectedAppHeaderValue'), 'Bearer new')
+    await flushPromises()
+    buttonIn(card(wrapper), 'action.save').click()
+    await flushPromises()
+    // The other editor's rename isn't sent back.
+    expect(body(testApp.mock.history.patch[0])).toEqual({
+      auth_header_name: 'X-Key',
+      auth_header_value: 'Bearer new',
+    })
   })
 
   const mountWithStore = async (servers) => {
@@ -563,12 +602,19 @@ describe('Agent connected apps', () => {
   })
 
   test('viewers see the apps but cannot add or edit them', async () => {
-    testApp.mock.onGet(/application\/10\/integrations/).reply(200, [server()])
+    testApp.mock
+      .onGet(/application\/10\/integrations/)
+      .reply(200, [server({ enabled: true })])
     const wrapper = await mountSection(false)
     await flushPromises()
 
     expect(wrapper.find('.agent-connected-apps__add').exists()).toBe(false)
-    expect(wrapper.find('.switch').exists()).toBe(false)
+    // The switch shows whether the app is on, but can't be used.
+    expect(wrapper.find('.switch').classes()).toContain('switch--disabled')
+    expect(wrapper.find('.switch').classes()).toContain('switch--active')
+    await wrapper.find('.switch').trigger('click')
+    await flushPromises()
+    expect(testApp.mock.history.patch).toHaveLength(0)
     expect(wrapper.find('.agent-action-card__footer').exists()).toBe(false)
     await expand(wrapper)
     expect(inputIn(card(wrapper), 'agent.connectedAppUrl').disabled).toBe(true)
@@ -772,6 +818,148 @@ describe('Agent connected apps', () => {
       'agent-mcp-tools__description--clamped'
     )
     expect(description().textContent.trim()).toBe(long)
+  })
+
+  test('a save and the switch send one update at a time', async () => {
+    const { wrapper } = await mountWithStore([server({ enabled: false })])
+    const replies = [deferredReply(), deferredReply()]
+    let sent = 0
+    testApp.mock
+      .onPatch('integration/5/')
+      .reply((config) => replies[sent++].reply(config))
+    const switchOf = () => card(wrapper).querySelector('.switch')
+
+    card(wrapper).querySelector('.switch').click()
+    await flushPromises()
+    await expand(wrapper)
+    type(inputIn(card(wrapper), 'agent.connectedAppName'), 'Renamed')
+    await flushPromises()
+    buttonIn(card(wrapper), 'action.save').click()
+    await flushPromises()
+    // The rename waits for the switch.
+    expect(testApp.mock.history.patch).toHaveLength(1)
+    expect(switchOf().classList).toContain('switch--disabled')
+
+    replies[0].resolve(200, server({ enabled: true }))
+    await flushPromises()
+    expect(testApp.mock.history.patch).toHaveLength(2)
+    expect(body(testApp.mock.history.patch[1])).toEqual({ name: 'Renamed' })
+    replies[1].resolve(200, server({ name: 'Renamed', enabled: true }))
+    await flushPromises()
+
+    expect(switchOf().classList).toContain('switch--active')
+    expect(switchOf().classList).not.toContain('switch--disabled')
+  })
+
+  test('the switch is locked while a rename is sent', async () => {
+    const { wrapper } = await mountWithStore([server({ enabled: false })])
+    const renaming = deferredReply()
+    testApp.mock.onPatch('integration/5/').reply(renaming.reply)
+
+    await expand(wrapper)
+    type(inputIn(card(wrapper), 'agent.connectedAppName'), 'Renamed')
+    await flushPromises()
+    buttonIn(card(wrapper), 'action.save').click()
+    await flushPromises()
+    card(wrapper).querySelector('.switch').click()
+    await flushPromises()
+
+    expect(testApp.mock.history.patch).toHaveLength(1)
+    renaming.resolve(200, server({ name: 'Renamed', enabled: false }))
+    await flushPromises()
+    card(wrapper).querySelector('.switch').click()
+    await flushPromises()
+    expect(body(testApp.mock.history.patch[1])).toEqual({ enabled: true })
+  })
+
+  test('renaming an app does not contact it', async () => {
+    testApp.mock
+      .onGet(/application\/10\/integrations/)
+      .reply(200, [server({ enabled: false })])
+    testApp.mock
+      .onPatch('integration/5/')
+      .reply(200, server({ name: 'Renamed', enabled: false }))
+    const wrapper = await mountSection()
+    await flushPromises()
+
+    await expand(wrapper)
+    type(inputIn(card(wrapper), 'agent.connectedAppName'), 'Renamed')
+    await flushPromises()
+    buttonIn(card(wrapper), 'action.save').click()
+    await flushPromises()
+
+    expect(testApp.mock.history.patch).toHaveLength(1)
+    expect(testApp.mock.history.post).toHaveLength(0)
+    expect(card(wrapper).querySelector('.alert')).toBe(null)
+  })
+
+  test('a refused key shows in the badge, also when collapsed', async () => {
+    testApp.mock.onGet(/application\/10\/integrations/).reply(200, [server()])
+    testApp.mock.onPatch('integration/5/').reply(200, server())
+    testApp.mock.onPost('/integrations/mcp/5/refresh-tools/').reply(400, {
+      error: 'ERROR_MCP_SERVER_REFUSED_CREDENTIAL',
+      detail: 'Refused.',
+    })
+    const wrapper = await mountSection()
+    await flushPromises()
+    const badge = () =>
+      card(wrapper).querySelector('.agent-mcp-server-card__status')
+    // Nothing listed yet, so it isn't called connected.
+    expect(badge().textContent).toContain('agent.connectedAppNoToolsStatus')
+
+    await expand(wrapper)
+    type(inputIn(card(wrapper), 'agent.connectedAppHeaderValue'), 'Bearer bad')
+    await flushPromises()
+    buttonIn(card(wrapper), 'action.save').click()
+    await flushPromises()
+    await expand(wrapper)
+
+    expect(badge().textContent).toContain('agent.connectedAppRefusedTitle')
+    expect(badge().textContent).not.toContain('agent.connectedAppConnected')
+  })
+
+  test('a key typed while the tools are listed is kept', async () => {
+    testApp.mock.onGet(/application\/10\/integrations/).reply(200, [server()])
+    testApp.mock.onPatch('integration/5/').reply(200, server())
+    const listing = deferredReply()
+    testApp.mock
+      .onPost('/integrations/mcp/5/refresh-tools/')
+      .reply(listing.reply)
+    const wrapper = await mountSection()
+    await flushPromises()
+
+    await expand(wrapper)
+    const key = () => inputIn(card(wrapper), 'agent.connectedAppHeaderValue')
+    type(key(), 'Bearer first')
+    await flushPromises()
+    buttonIn(card(wrapper), 'action.save').click()
+    await flushPromises()
+    type(key(), 'Bearer second')
+    await flushPromises()
+    listing.resolve(200, server({ tools: [tool('search')] }))
+    await flushPromises()
+
+    expect(key().value).toBe('Bearer second')
+    expect(
+      card(wrapper).querySelector('.agent-mcp-server-card__actions')
+    ).not.toBe(null)
+  })
+
+  test('collapsing a card disarms its remove confirmation', async () => {
+    testApp.mock.onGet(/application\/10\/integrations/).reply(200, [server()])
+    const wrapper = await mountSection()
+    await flushPromises()
+
+    await expand(wrapper)
+    buttonIn(card(wrapper), 'agent.connectedAppRemove').click()
+    await flushPromises()
+    await expand(wrapper)
+    await expand(wrapper)
+
+    expect(buttonIn(card(wrapper), 'agent.connectedAppRemoveConfirm')).toBe(
+      undefined
+    )
+    expect(testApp.mock.history.delete).toHaveLength(0)
   })
 
   describe('signing in with OAuth', () => {

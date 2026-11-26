@@ -43,7 +43,7 @@
         :editable="editable"
         :save="(server, values) => saveServer(card, server, values)"
         :remove="removeServer"
-        :switching="switching.has(card.id)"
+        :switching="Boolean(card.server) && patching.has(card.server.id)"
         :connect="connect"
         :disconnect="disconnect"
         :refresh="refreshTools"
@@ -143,7 +143,7 @@ function discard(id) {
 }
 
 async function saveServer(card, server, values) {
-  if (server) return await update(server, values)
+  if (server) return await patch(server, values)
   const created = await create(values)
   // The draft's card shows the new server, so it isn't listed twice.
   drafts.value = drafts.value.map((draft) =>
@@ -156,18 +156,33 @@ function saved(server, { listTools, firstConnection = false }) {
   if (listTools) toolsModal.value.show(server, { firstConnection })
 }
 
-// One switch request per server at a time, so clicks can't race each other.
-const switching = reactive(new Set())
+// One update per server at a time: each response carries the whole server,
+// so an older one arriving last would undo a newer change on screen. Only the
+// update itself waits, not the sign-in or tool listing after a save.
+const patching = reactive(new Set())
+const patches = new Map()
+
+function patch(server, values) {
+  const run = (patches.get(server.id) ?? Promise.resolve())
+    .catch(() => {})
+    .then(() => update(server, values))
+  patches.set(server.id, run)
+  patching.add(server.id)
+  const settle = () => {
+    if (patches.get(server.id) !== run) return
+    patches.delete(server.id)
+    patching.delete(server.id)
+  }
+  run.then(settle, settle)
+  return run
+}
 
 async function switchServer(server, enabled) {
-  if (switching.has(server.id)) return
-  switching.add(server.id)
+  if (patching.has(server.id)) return
   try {
-    await update(server, { enabled })
+    await patch(server, { enabled })
   } catch (error) {
     store.dispatch('toast/error', mcpErrorMessage(t, error))
-  } finally {
-    switching.delete(server.id)
   }
 }
 

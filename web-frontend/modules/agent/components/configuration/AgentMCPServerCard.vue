@@ -26,17 +26,18 @@
         >
       </button>
       <SwitchInput
-        v-if="server && editable"
+        v-if="server"
         small
         role="switch"
-        tabindex="0"
+        :tabindex="editable ? 0 : -1"
         :aria-label="$t('agent.connectedAppEnabled', { name: server.name })"
         :aria-checked="server.enabled"
+        :aria-disabled="!editable"
         :model-value="server.enabled"
-        :disabled="switching"
-        @update:model-value="$emit('switch', $event)"
-        @keydown.enter.prevent="$emit('switch', !server.enabled)"
-        @keydown.space.prevent="$emit('switch', !server.enabled)"
+        :disabled="!editable || switching"
+        @update:model-value="switchTo"
+        @keydown.enter.prevent="switchTo(!server.enabled)"
+        @keydown.space.prevent="switchTo(!server.enabled)"
       />
     </header>
     <form
@@ -267,7 +268,6 @@
       >
       <ButtonText
         v-else
-        type="danger"
         size="small"
         button-type="button"
         icon="iconoir-bin"
@@ -333,6 +333,8 @@ const showOwnClient = ref(false)
 // usable to stop waiting.
 const waitingForSignIn = ref(false)
 const error = ref(null)
+// The error came from reaching the server, so the badge shows it too.
+const connectionFailed = ref(false)
 // Bumped when the edits are dropped or the card goes away, so a request that
 // finishes after that is ignored.
 let generation = 0
@@ -340,6 +342,9 @@ let signIn = null
 // A draft's tools start all selected, also when its first sign-in is retried.
 const firstConnection = ref(!props.server)
 const values = reactive({})
+// The fields as last filled from the server: a field still equal to it is one
+// the editor didn't change, so it follows the server.
+let baseline = {}
 
 const authSegments = computed(() => [
   { label: t('agent.connectedAppAuthOAuth') },
@@ -361,6 +366,8 @@ const changedCount = computed(
 const status = computed(() => {
   if (!props.server || needsAccount.value)
     return { color: 'yellow', label: t('agent.connectedAppNotConnected') }
+  if (connectionFailed.value && error.value)
+    return { color: 'red', label: error.value.title }
   if (changedCount.value)
     return {
       color: 'yellow',
@@ -370,6 +377,9 @@ const status = computed(() => {
         changedCount.value
       ),
     }
+  // Nothing listed yet, so it's not known whether the server can be reached.
+  if (!(props.server.tools ?? []).length)
+    return { color: 'neutral', label: t('agent.connectedAppNoToolsStatus') }
   return { color: 'green', label: t('agent.connectedAppConnected') }
 })
 const toolsSummary = computed(() => {
@@ -485,10 +495,10 @@ function ownClientId(existing) {
     : ''
 }
 
-/** Fill the fields with the server as stored. */
-function fill() {
+/** The fields as the server stores them. */
+function storedValues() {
   const existing = props.server
-  Object.assign(values, {
+  return {
     name: existing?.name ?? '',
     url: existing?.url ?? '',
     auth_type: existing?.auth_type ?? MCP_AUTH_TYPE.OAUTH,
@@ -496,11 +506,27 @@ function fill() {
     auth_header_value: '',
     oauth_client_id: ownClientId(existing),
     oauth_client_secret: '',
-  })
+  }
+}
+
+/** Fill the fields with the server as stored, dropping the edits. */
+function fill() {
+  baseline = storedValues()
+  Object.assign(values, baseline)
   showOwnClient.value = Boolean(values.oauth_client_id)
   touched.value = false
 }
 fill()
+
+/** Take the server's latest values for the fields the editor didn't change. */
+function follow() {
+  const stored = storedValues()
+  for (const [key, value] of Object.entries(stored)) {
+    if (values[key] === baseline[key]) values[key] = value
+  }
+  baseline = stored
+  if (values.oauth_client_id) showOwnClient.value = true
+}
 
 /** Drop the edits and anything still waiting for them. */
 function reset() {
@@ -508,20 +534,34 @@ function reset() {
   cancelSignIn()
   fill()
   error.value = null
+  connectionFailed.value = false
   saving.value = false
   waitingForSignIn.value = false
   confirmingRemove.value = false
 }
 
-// Another editor's change, or this card's own save, shows in the fields
-// unless the editor is changing them.
+// Another editor's change shows in the fields this editor didn't change.
+// While saving, the store briefly shows the edits and puts the old values back
+// if the save fails, so the fields follow once the save ends.
 watch(
   () => props.server,
   () => {
-    if (!dirty.value && !saving.value) fill()
+    if (!saving.value) follow()
   },
   { deep: true }
 )
+
+// A confirmation left armed would remove the app on the next click.
+watch(
+  () => props.expanded,
+  (expanded) => {
+    if (!expanded) confirmingRemove.value = false
+  }
+)
+
+function switchTo(enabled) {
+  if (props.editable && !props.switching) emit('switch', enabled)
+}
 
 onBeforeUnmount(() => {
   generation++
@@ -589,7 +629,9 @@ async function submit() {
   if (signingIn) signIn = controller
   saving.value = true
   error.value = null
+  connectionFailed.value = false
   let saved = null
+  let connecting = false
   try {
     // Signing in to a server that didn't change saves nothing first.
     saved =
@@ -597,6 +639,7 @@ async function submit() {
         ? await props.save(props.server, changes)
         : props.server
     if (stale()) return popup?.close()
+    connecting = true
     if (signingIn && !popup) {
       throw new MCPSignInError(t('agent.connectedAppPopupBlocked'))
     } else if (signingIn) {
@@ -604,14 +647,22 @@ async function submit() {
       saved = await props.connect(saved, popup, controller.signal)
     }
     if (stale()) return
-    // A server without tools, being new, moved, or after a refused key, lists
-    // them on save, so they can be reviewed and a wrong key shows here.
-    const listing = !signingIn && (isNew || !saved.tools.length)
+    // A new server, or one without tools whose connection changed (moved, or a
+    // new key after a refused one), lists them on save, so they can be
+    // reviewed and a wrong key shows here. A rename alone doesn't contact it.
+    const connectionChanged = Object.keys(changes).some((key) => key !== 'name')
+    const listing =
+      !signingIn && (isNew || (!saved.tools.length && connectionChanged))
     if (listing) saved = await props.refresh(saved)
     if (stale()) return
-    // Saved: the fields now match the server, so the footer goes away.
-    values.auth_header_value = ''
-    values.oauth_client_secret = ''
+    // Saved: a credential still as sent is stored now. One typed while saving
+    // is a new edit, so it stays.
+    if (values.auth_header_value === changes.auth_header_value) {
+      values.auth_header_value = ''
+    }
+    if (values.oauth_client_secret === changes.oauth_client_secret) {
+      values.oauth_client_secret = ''
+    }
     touched.value = false
     emit('saved', saved, {
       listTools: signingIn || listing,
@@ -623,11 +674,13 @@ async function submit() {
     if (stale()) return
     if (e instanceof MCPSignInCancelled) return
     error.value = mcpErrorMessage(t, e)
+    connectionFailed.value = connecting
   } finally {
     if (signIn === controller) signIn = null
     if (!stale()) {
       saving.value = false
       waitingForSignIn.value = false
+      follow()
     }
   }
 }

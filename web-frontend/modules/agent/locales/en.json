@@ -285,6 +285,7 @@
     "connectedAppSignedIn": "Signed in",
     "connectedAppTools": "Tools",
     "connectedAppNoTools": "No tools listed yet.",
+    "connectedAppNoToolsStatus": "No tools yet",
     "connectedAppChanged": "{count} tool changed, review it | {count} tools changed, review them",
     "connectedAppName": "Name",
     "connectedAppNamePlaceholder": "Docs",
