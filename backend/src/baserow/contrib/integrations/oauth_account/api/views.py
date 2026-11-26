@@ -11,15 +11,11 @@ from baserow.api.decorators import map_exceptions, validate_body
 from baserow.api.integrations.errors import ERROR_INTEGRATION_DOES_NOT_EXIST
 from baserow.api.integrations.serializers import IntegrationSerializer
 from baserow.api.schemas import get_error_schema
-from baserow.core.exceptions import (
-    ApplicationDoesNotExist,
-    ApplicationOperationNotSupported,
+from baserow.contrib.integrations.oauth_account.actions import (
+    ConnectOAuthAccountActionType,
+    DisconnectOAuthAccountActionType,
 )
-from baserow.core.integrations.exceptions import IntegrationDoesNotExist
-from baserow.core.integrations.registries import integration_type_registry
-
-from ..actions import ConnectOAuthAccountActionType, DisconnectOAuthAccountActionType
-from ..exceptions import (
+from baserow.contrib.integrations.oauth_account.exceptions import (
     AccountMismatch,
     AdminConsentRequired,
     ClientRejected,
@@ -31,8 +27,18 @@ from ..exceptions import (
     SignInCancelled,
     TenantNotAllowed,
 )
-from ..handler import OAuthAccountHandler
-from ..service import OAuthAccountService, get_oauth_account_integration_type
+from baserow.contrib.integrations.oauth_account.handler import OAuthAccountHandler
+from baserow.contrib.integrations.oauth_account.service import (
+    OAuthAccountService,
+    get_oauth_account_integration_type,
+)
+from baserow.core.exceptions import (
+    ApplicationDoesNotExist,
+    ApplicationOperationNotSupported,
+)
+from baserow.core.integrations.exceptions import IntegrationDoesNotExist
+from baserow.core.integrations.registries import integration_type_registry
+
 from .errors import (
     ERROR_OAUTH_ACCOUNT_MISMATCH,
     ERROR_OAUTH_ACCOUNT_TYPE_DOES_NOT_EXIST,
