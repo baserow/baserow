@@ -18,9 +18,9 @@ class Migration(migrations.Migration):
             model_name="publicchatagentchannel",
             name="background",
             field=models.CharField(
-                choices=[("plain", "Plain"), ("gradient", "Gradient")],
-                db_default="plain",
-                default="plain",
+                choices=[("gradient", "Gradient"), ("plain", "Plain")],
+                db_default="gradient",
+                default="gradient",
                 max_length=16,
             ),
         ),
@@ -28,15 +28,5 @@ class Migration(migrations.Migration):
             model_name="publicchatagentchannel",
             name="background_color",
             field=models.CharField(blank=True, db_default="", default="", max_length=7),
-        ),
-        migrations.AddField(
-            model_name="publicchatagentchannel",
-            name="font",
-            field=models.CharField(db_default="inter", default="inter", max_length=32),
-        ),
-        migrations.AddField(
-            model_name="publicchatagentchannel",
-            name="show_powered_by",
-            field=models.BooleanField(db_default=True, default=True),
         ),
     ]

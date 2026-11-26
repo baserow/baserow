@@ -560,7 +560,7 @@ $chat-ease: cubic-bezier(0.22, 1, 0.36, 1);
   }
 
   a {
-    color: var(--chat-accent, #{$palette-blue-500});
+    color: var(--chat-link-color, #{$palette-blue-500});
     text-decoration: underline;
 
     @include rounded($rounded);
@@ -829,8 +829,8 @@ $chat-ease: cubic-bezier(0.22, 1, 0.36, 1);
   width: 40px;
   height: 40px;
   border-radius: 100%;
-  background: var(--chat-accent-soft, #{$palette-neutral-50});
-  color: var(--chat-accent, #{$palette-neutral-700});
+  background: $palette-neutral-50;
+  color: $palette-neutral-900;
   font-size: 18px;
 }
 

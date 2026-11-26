@@ -20,10 +20,8 @@ const publicChat = (values = {}) => ({
   title: 'Support',
   welcome_text: '',
   accent_color: '',
-  font: 'inter',
-  background: 'plain',
+  background: 'gradient',
   background_color: '',
-  show_powered_by: true,
   ...values,
 })
 
@@ -283,18 +281,18 @@ describe('agent channels', () => {
     expect(enabled().classes()).not.toContain('switch--active')
   })
 
-  test('saves the picked background and the Powered by switch', async () => {
+  test('starts on Gradient and lets the builder choose Plain', async () => {
     const wrapper = await mountSection()
-    const [, gradient] = wrapper.findAll(
+    const [gradient, plain] = wrapper.findAll(
       '.agent-public-chat-card__background .segment-control__button'
     )
-    await gradient.trigger('click')
-    await wrapper.get('.agent-public-chat-card__powered-by').trigger('click')
+    expect(gradient.classes()).toContain('segment-control__button--active')
+    expect(gradient.text()).toBe('agentChannels.backgroundGradient')
+    expect(wrapper.findAll('.agent-public-chat-card__color')).toHaveLength(2)
+    await plain.trigger('click')
     await flushPromises()
-
     expect(mocks.service.update.mock.calls).toEqual([
-      [8, 1, { background: 'gradient' }],
-      [8, 1, { show_powered_by: false }],
+      [8, 1, { background: 'plain' }],
     ])
   })
 
@@ -305,17 +303,11 @@ describe('agent channels', () => {
     expect(
       card.get('.agent-public-chat-card__color').attributes()
     ).toHaveProperty('inert')
-    expect(card.get('.agent-public-chat-card__font').classes()).toContain(
-      'dropdown--disabled'
-    )
     expect(
       card
         .findAll('.agent-public-chat-card__background .segment-control__button')
         .every((button) => button.attributes('disabled') !== undefined)
     ).toBe(true)
-    expect(card.get('.agent-public-chat-card__powered-by').classes()).toContain(
-      'switch--disabled'
-    )
   })
 
   test('a user who cannot update the agent gets no add button and disabled fields', async () => {
@@ -324,7 +316,7 @@ describe('agent channels', () => {
     expect(wrapper.find('.agent-channels__add').exists()).toBe(false)
     expect(titleInput(wrapper).element.disabled).toBe(true)
     expect(wrapper.findComponent(RichTextEditor).props('editable')).toBe(false)
-    expect(wrapper.findAll('.switch--disabled')).toHaveLength(3)
+    expect(wrapper.findAll('.switch--disabled')).toHaveLength(2)
     expect(wrapper.find('.agent-public-chat-card__delete').exists()).toBe(false)
   })
 })

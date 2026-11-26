@@ -123,24 +123,18 @@ def test_info_names_the_chat_and_hides_a_protected_one_without_a_token(
         title="Support",
         welcome_text="Hello",
         accent_color="#ff6600",
-        font="georgia",
-        background="gradient",
-        show_powered_by=False,
+        background="plain",
     )
     AgentApplication.objects.update(suggested_messages=["What can you do?"])
     default_appearance = {
         "accent_color": "",
-        "font": "inter",
-        "background": "plain",
+        "background": "gradient",
         "background_color": "",
-        "show_powered_by": True,
     }
     appearance = {
         **default_appearance,
         "accent_color": "#ff6600",
-        "font": "georgia",
-        "background": "gradient",
-        "show_powered_by": False,
+        "background": "plain",
     }
 
     assert api_client.get(url(chat.slug, "info")).json() == {

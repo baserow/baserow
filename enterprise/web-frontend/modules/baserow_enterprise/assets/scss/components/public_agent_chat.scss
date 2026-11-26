@@ -3,39 +3,30 @@ $public-agent-chat-gutter: 16px;
 $public-agent-chat-password-width: 400px;
 
 .public-agent-chat {
-  --chat-accent: #{$palette-blue-500};
-  --chat-on-accent: #{$palette-neutral-0};
+  --chat-link-color: #{$palette-blue-700};
   --chat-accent-hover: color-mix(
     in srgb,
-    var(--chat-accent) 85%,
+    var(--chat-accent, #{$palette-neutral-1200}) 92%,
     #{$palette-neutral-1300}
-  );
-  --chat-accent-soft: color-mix(
-    in srgb,
-    var(--chat-accent) 12%,
-    #{$palette-neutral-0}
   );
 
   display: flex;
   flex-direction: column;
   height: 100dvh;
-  background: $palette-neutral-0;
-}
-
-.public-agent-chat--plain {
-  background: var(--public-agent-chat-background-color);
+  padding: 24px;
+  background: var(--public-agent-chat-background-color, #{$palette-neutral-0});
 }
 
 .public-agent-chat--gradient {
   background: linear-gradient(
     160deg,
-    color-mix(in srgb, var(--chat-accent) 35%, #{$palette-neutral-0}),
+    color-mix(
+      in srgb,
+      var(--public-agent-chat-background-color, #{$palette-neutral-200}) 25%,
+      #{$palette-neutral-0}
+    ),
     $palette-neutral-0 75%
   );
-}
-
-.public-agent-chat--card {
-  padding: 24px;
 }
 
 .public-agent-chat__column {
@@ -44,25 +35,17 @@ $public-agent-chat-password-width: 400px;
   flex-direction: column;
   width: 100%;
   min-height: 0;
-}
-
-.public-agent-chat__column--password {
-  flex: none;
-  max-width: $public-agent-chat-password-width + 2 * $public-agent-chat-gutter;
-  margin: auto;
-}
-
-.public-agent-chat--card .public-agent-chat__column {
   max-width: $public-agent-chat-width + 2 * $public-agent-chat-gutter;
   margin: 0 auto;
   overflow: hidden;
   background: $palette-neutral-0;
 
   @include rounded($rounded-2xl);
-  @include elevation($elevation-high);
+  @include elevation($elevation-low);
 }
 
-.public-agent-chat--card .public-agent-chat__column--password {
+.public-agent-chat__column--password {
+  flex: none;
   max-width: $public-agent-chat-password-width + 2 * $public-agent-chat-gutter;
   margin: auto;
   padding-top: 32px;
@@ -134,10 +117,9 @@ $public-agent-chat-password-width: 400px;
   height: 64px;
   margin: 8px 0 32px;
   font-size: 30px;
-  color: var(--chat-on-accent);
-  background: var(--chat-accent);
+  color: var(--chat-on-accent, #{$palette-neutral-1000});
+  background: var(--chat-accent, #{$palette-neutral-100});
   border-radius: 50%;
-  box-shadow: 0 0 0 8px var(--chat-accent-soft);
 }
 
 .public-agent-chat__intro-title {
@@ -203,11 +185,11 @@ $public-agent-chat-password-width: 400px;
 
 .public-agent-chat__enter {
   @include button-style(
-    var(--chat-accent),
-    var(--chat-accent-hover),
-    var(--chat-accent-hover),
-    var(--chat-on-accent),
-    var(--chat-on-accent)
+    var(--chat-accent, #{$palette-neutral-1200}),
+    var(--chat-accent-hover, #{$palette-neutral-1300}),
+    var(--chat-accent-hover, #{$palette-neutral-1300}),
+    var(--chat-on-accent, #{$palette-neutral-0}),
+    var(--chat-on-accent, #{$palette-neutral-0})
   );
 }
 
@@ -229,11 +211,11 @@ $public-agent-chat-password-width: 400px;
 }
 
 @media (max-width: 767px) {
-  .public-agent-chat--card {
+  .public-agent-chat:not(.public-agent-chat--locked) {
     padding: 0;
   }
 
-  .public-agent-chat--card .public-agent-chat__column {
+  .public-agent-chat__column:not(.public-agent-chat__column--password) {
     max-width: none;
     border-radius: 0;
     box-shadow: none;

@@ -5,11 +5,6 @@ import { API_ERROR_CODE } from '@baserow/modules/agent/constants'
 import AgentChannelService from '@baserow_enterprise/services/agentChannels'
 
 export const PUBLIC_CHAT_CHANNEL_TYPE = 'public_chat'
-export const PUBLIC_CHAT_DEFAULT_FONT = 'inter'
-export const PUBLIC_CHAT_BACKGROUND = {
-  PLAIN: 'plain',
-  GRADIENT: 'gradient',
-}
 
 /**
  * The channels of one Agent. Changes show at once, and a failed save puts the

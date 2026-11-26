@@ -17,10 +17,8 @@ from tests.baserow.contrib.agent.test_agent_application import (
 
 APPEARANCE = {
     "accent_color": "#ff6600",
-    "font": "georgia",
-    "background": "gradient",
+    "background": "plain",
     "background_color": "#101010",
-    "show_powered_by": False,
 }
 
 
@@ -144,7 +142,7 @@ def test_an_imported_public_chat_drops_the_appearance_the_api_would_refuse(
         json.dumps(application_type.export_serialized(agent, config))
     )
     serialized["channels"][0].update(
-        accent_color="red;x", background="image", font="x" * 40, show_powered_by=None
+        accent_color="red;x", background="image", font="georgia", show_powered_by=False
     )
 
     imported = application_type.import_serialized(
@@ -154,8 +152,6 @@ def test_an_imported_public_chat_drops_the_appearance_the_api_would_refuse(
     copy = PublicChatAgentChannel.objects.get(agent=imported)
     assert {name: getattr(copy, name) for name in APPEARANCE} == {
         "accent_color": "",
-        "font": "inter",
-        "background": "plain",
+        "background": "gradient",
         "background_color": "#101010",
-        "show_powered_by": True,
     }

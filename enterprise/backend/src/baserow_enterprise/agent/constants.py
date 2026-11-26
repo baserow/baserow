@@ -7,10 +7,8 @@ PUBLIC_CHAT_PASSWORD_MAX_LENGTH = 256
 PUBLIC_CHAT_CONVERSATION_CLAIM = "conversation"
 PUBLIC_CHAT_START_KEY_PATTERN = r"^[0-9a-f-]{32,128}$"
 PUBLIC_CHAT_COLOR_PATTERN = r"^#[0-9a-fA-F]{6}$"
-PUBLIC_CHAT_FONT_MAX_LENGTH = 32
-PUBLIC_CHAT_DEFAULT_FONT = "inter"
 
 
 class PublicChatBackground(models.TextChoices):
-    PLAIN = "plain"
     GRADIENT = "gradient"
+    PLAIN = "plain"

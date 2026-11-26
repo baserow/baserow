@@ -12,11 +12,16 @@ vi.mock('@baserow_enterprise/services/publicAgentChat', () => ({
   default: () => mocks.service,
 }))
 
+vi.mock('@baserow/modules/core/services/settings', () => ({
+  default: () => ({ get: async () => ({ data: {} }) }),
+}))
+
 const SLUG = 'support'
 const STORAGE_KEY = `baserow-agent-public-chat:${SLUG}`
 const OPEN = {
   title: 'Support',
   welcome_text: 'Hi',
+  background: 'gradient',
   password_protected: false,
   has_access: true,
 }
@@ -306,52 +311,44 @@ describe('usePublicAgentChat', () => {
     wrapper.unmount()
   })
 
-  test('the page brands the password screen and leaves out Powered by when off', async () => {
-    mocks.service.getInfo.mockResolvedValue({
-      data: {
-        ...PROTECTED,
-        accent_color: '#ff6600',
-        font: 'georgia',
-        background: 'gradient',
-        background_color: '',
-        show_powered_by: false,
-      },
-    })
-    const wrapper = await mountSuspended(PublicAgentChatPage, {
-      route: `/public/agent-chat/${SLUG}`,
-    })
-    await flushPromises()
+  test.each([
+    ['#ffeb3b', '#000000'],
+    ['#134d44', '#ffffff'],
+  ])(
+    'keeps the wordmark and readable text on a protected chat with accent %s',
+    async (accent, foreground) => {
+      mocks.service.getInfo.mockResolvedValue({
+        data: {
+          ...PROTECTED,
+          accent_color: accent,
+          background: 'gradient',
+          background_color: '#779988',
+        },
+      })
+      const wrapper = await mountSuspended(PublicAgentChatPage, {
+        route: `/public/agent-chat/${SLUG}`,
+      })
+      await flushPromises()
 
-    const page = wrapper.get('.public-agent-chat')
-    expect(page.classes()).toEqual(
-      expect.arrayContaining([
-        'public-agent-chat--gradient',
-        'public-agent-chat--card',
-      ])
-    )
-    expect(page.element.style.getPropertyValue('--chat-accent')).toBe('#ff6600')
-    expect(page.element.style.fontFamily).toContain('Georgia')
-    expect(wrapper.find('.public-agent-chat__password').exists()).toBe(true)
-    expect(wrapper.find('.public-agent-chat__powered-by').exists()).toBe(false)
-    wrapper.unmount()
-
-    mocks.service.getInfo.mockResolvedValue({
-      data: { ...OPEN, font: 'unknown', show_powered_by: true },
-    })
-    const plain = await mountSuspended(PublicAgentChatPage, {
-      route: `/public/agent-chat/${SLUG}`,
-    })
-    await flushPromises()
-
-    expect(plain.get('.public-agent-chat').classes()).not.toContain(
-      'public-agent-chat--card'
-    )
-    expect(plain.get('.public-agent-chat').element.style.fontFamily).toContain(
-      'Inter'
-    )
-    expect(plain.find('.public-agent-chat__powered-by').exists()).toBe(true)
-    plain.unmount()
-  })
+      const page = wrapper.get('.public-agent-chat')
+      expect(page.classes()).toContain('public-agent-chat--gradient')
+      expect(page.element.style.getPropertyValue('--chat-on-accent')).toBe(
+        foreground
+      )
+      expect(
+        page.element.style.getPropertyValue(
+          '--public-agent-chat-background-color'
+        )
+      ).toBe('#779988')
+      expect(
+        wrapper.get('.public-agent-chat__password input').element.required
+      ).toBe(true)
+      expect(
+        wrapper.get('.public-agent-chat__powered-by img').attributes('alt')
+      ).toBe('Baserow')
+      wrapper.unmount()
+    }
+  )
 
   test('a stored access token shows neither the password nor the chat until its check ends', async () => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify({ accessToken: 'access' }))

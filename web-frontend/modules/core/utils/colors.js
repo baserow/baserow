@@ -368,10 +368,11 @@ export const colorRecommendation = (hexColor) => {
  * @returns {string} `#000000` or `#ffffff`, whichever text reads better on it.
  */
 export const readableTextColor = (hexColor) => {
-  const linear = (channel) =>
-    channel <= 0.04045 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4
   const { r, g, b } = convertHexToRgb(hexColor)
-  const luminance = 0.2126 * linear(r) + 0.7152 * linear(g) + 0.0722 * linear(b)
+  const luminance =
+    0.2126 * linearizeRgbChannel(r) +
+    0.7152 * linearizeRgbChannel(g) +
+    0.0722 * linearizeRgbChannel(b)
   // Where the contrast with black and with white is the same.
   return luminance > 0.179 ? '#000000' : '#ffffff'
 }

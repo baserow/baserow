@@ -1299,12 +1299,11 @@
     "deletePublicChat": "Delete public chat",
     "appearance": "Appearance",
     "accentColor": "Accent color",
-    "font": "Font",
     "background": "Background",
     "backgroundPlain": "Plain",
     "backgroundGradient": "Gradient",
     "backgroundColor": "Background color",
     "resetColor": "Reset",
-    "showPoweredBy": "Show “Powered by Baserow”"
+    "automatic": "Automatic"
   }
 }

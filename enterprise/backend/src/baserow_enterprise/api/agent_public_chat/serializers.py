@@ -30,20 +30,16 @@ class PublicChatInfoSerializer(serializers.Serializer):
         "password, otherwise only with a token of the current password."
     )
     accent_color = serializers.CharField(
-        help_text="The colour of buttons, links and the visitor's messages, as "
+        help_text="The colour of buttons and the visitor's messages, as "
         "`#rrggbb`; blank for the default."
     )
-    font = serializers.CharField(help_text="A font of the application builder.")
     background = serializers.ChoiceField(
         choices=PublicChatBackground.choices,
         help_text="How the page background is drawn.",
     )
     background_color = serializers.CharField(
-        help_text="The colour of a plain background, as `#rrggbb`; blank for the "
+        help_text="The solid background colour or gradient tint, as `#rrggbb`; blank for the "
         "default."
-    )
-    show_powered_by = serializers.BooleanField(
-        help_text="Whether the page says it's powered by Baserow."
     )
 
 

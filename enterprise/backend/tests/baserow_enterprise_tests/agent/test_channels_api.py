@@ -81,10 +81,8 @@ def test_a_builder_creates_lists_changes_and_deletes_a_public_chat(
         "title": "Support",
         "welcome_text": "",
         "accent_color": "",
-        "font": "inter",
-        "background": "plain",
+        "background": "gradient",
         "background_color": "",
-        "show_powered_by": True,
     }
 
     assert created == expected
@@ -102,10 +100,8 @@ def test_a_builder_creates_lists_changes_and_deletes_a_public_chat(
 def test_a_builder_changes_the_appearance(api_client, agent, create_chat):
     appearance = {
         "accent_color": "#FF6600",
-        "font": "georgia",
-        "background": "gradient",
+        "background": "plain",
         "background_color": "#F0F0F0",
-        "show_powered_by": False,
     }
 
     changed = api_client.patch(

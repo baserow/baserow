@@ -2,8 +2,8 @@
   <div
     class="public-agent-chat"
     :class="{
-      [`public-agent-chat--${background}`]: background,
-      'public-agent-chat--card': background,
+      'public-agent-chat--gradient': info.background === 'gradient',
+      'public-agent-chat--locked': showsPassword,
     }"
     :style="pageStyle"
   >
@@ -24,6 +24,7 @@
           {{ $t('publicAgentChat.passwordDescription') }}
         </p>
         <FormGroup
+          required
           small-label
           :label="$t('field.password')"
           :error="passwordError || authorizeFailed"
@@ -31,6 +32,7 @@
         >
           <FormInput
             v-model="password"
+            required
             type="password"
             size="large"
             autocomplete="current-password"
@@ -153,7 +155,7 @@
           @stop="stop"
         />
       </template>
-      <div v-if="info.show_powered_by" class="public-agent-chat__powered-by">
+      <div class="public-agent-chat__powered-by">
         {{ $t('publicAgentChat.poweredBy') }}
         <a
           href="https://baserow.io"
@@ -161,7 +163,11 @@
           rel="noopener"
           title="Baserow"
         >
-          <Logo class="public-agent-chat__powered-by-logo" alt="Baserow" />
+          <img
+            src="@baserow/modules/core/static/img/logo.svg?url"
+            class="public-agent-chat__powered-by-logo"
+            alt="Baserow"
+          />
         </a>
       </div>
     </div>
@@ -184,10 +190,6 @@ import { MESSAGE_ROLE } from '@baserow/modules/agent/constants'
 import { AGENT_REPLY_STATUS } from '@baserow/modules/agent/utils/replies'
 import PublicAgentChatService from '@baserow_enterprise/services/publicAgentChat'
 import { usePublicAgentChat } from '@baserow_enterprise/composables/usePublicAgentChat'
-import {
-  PUBLIC_CHAT_BACKGROUND,
-  PUBLIC_CHAT_DEFAULT_FONT,
-} from '@baserow_enterprise/composables/useAgentChannels'
 
 definePageMeta({
   middleware: ['settings'],
@@ -197,7 +199,7 @@ const SEND_ERROR_ID = 'public-agent-chat-send-error'
 const NEAR_BOTTOM_PX = 80
 
 const route = useRoute()
-const { $i18n, $registry } = useNuxtApp()
+const { $i18n } = useNuxtApp()
 const slug = route.params.slug
 
 const originalLocale = ref($i18n.locale.value)
@@ -266,24 +268,9 @@ const draft = ref('')
 const messagesElement = ref(null)
 const composer = ref(null)
 const showsPassword = computed(() => needsPassword.value && !unavailable.value)
-const background = computed(() => {
-  const { background, background_color: color } = info.value
-  const drawn =
-    background === PUBLIC_CHAT_BACKGROUND.GRADIENT ||
-    (background === PUBLIC_CHAT_BACKGROUND.PLAIN && color)
-  return drawn ? background : null
-})
-const fontFamily = computed(() => {
-  const type = $registry.exists('fontFamily', info.value.font)
-    ? info.value.font
-    : PUBLIC_CHAT_DEFAULT_FONT
-  const font = $registry.get('fontFamily', type)
-  return `"${font.name}",${font.safeFont}`
-})
 const pageStyle = computed(() => {
   const { accent_color: accent, background_color: color } = info.value
   return {
-    fontFamily: fontFamily.value,
     ...(accent && {
       '--chat-accent': accent,
       '--chat-on-accent': readableTextColor(accent),
@@ -295,7 +282,6 @@ const showSuggestions = computed(
   () =>
     Boolean(info.value.suggested_messages?.length) &&
     !unavailable.value &&
-    !waiting.value &&
     !sending.value
 )
 
