@@ -114,6 +114,7 @@ def test_a_blank_button_text_leaves_only_the_icon(api_client, agent):
 def test_the_script_carries_the_widget_settings_and_is_cached(
     api_client, create_widget, settings, accent_color, color, text_color
 ):
+    settings.BASEROW_EMBEDDED_SHARE_URL = "https://chat.example.com/"
     widget = create_widget(
         accent_color=accent_color,
         button_text="Ask </script> us",
@@ -128,8 +129,8 @@ def test_the_script_carries_the_widget_settings_and_is_cached(
     assert "</script>" not in response.content.decode()
     assert script_config(response) == {
         "id": f"baserow-agent-widget-{widget.slug}",
-        "chatUrl": f"{settings.BASEROW_EMBEDDED_SHARE_URL}/public/agent-chat/"
-        f"{widget.slug}?embedded=true",
+        "chatUrl": f"https://chat.example.com/public/agent-chat/{widget.slug}"
+        "?embedded=true",
         "color": color,
         "textColor": text_color,
         "position": "bottom_left",
@@ -192,7 +193,7 @@ def test_a_visitor_talks_to_the_agent_through_the_widget(api_client, create_widg
 
 
 @pytest.mark.django_db
-def test_a_copied_website_widget_keeps_its_button_and_drops_what_the_api_would_refuse(
+def test_a_copied_website_widget_keeps_only_what_its_api_accepts(
     data_fixture, agent, create_widget
 ):
     widget = create_widget(
@@ -206,17 +207,32 @@ def test_a_copied_website_widget_keeps_its_button_and_drops_what_the_api_would_r
     workspace = data_fixture.create_workspace()
 
     copy = application_type.import_serialized(workspace, serialized, config, {})
-    serialized["channels"][0].update(button_text="x" * 61, button_position="top")
+    exported = serialized["channels"][0]
+    exported.update(
+        button_text="x" * 61,
+        button_position="top",
+        background="plain",
+        background_color="#000000",
+        password=PublicChatAgentChannel.hash_password("opensesame"),
+    )
     refused = application_type.import_serialized(workspace, serialized, config, {})
 
     copies = [
         WebsiteWidgetAgentChannel.objects.get(agent=agent) for agent in (copy, refused)
     ]
     assert [
-        (c.enabled, c.title, c.password, c.button_text, c.button_position)
+        (
+            c.enabled,
+            c.title,
+            c.password,
+            c.background,
+            c.background_color,
+            c.button_text,
+            c.button_position,
+        )
         for c in copies
     ] == [
-        (False, "Support", "", "Ask us", "bottom_left"),
-        (False, "Support", "", "Chat with us", "bottom_right"),
+        (False, "Support", "", "gradient", "", "Ask us", "bottom_left"),
+        (False, "Support", "", "gradient", "", "Chat with us", "bottom_right"),
     ]
     assert widget.slug not in {c.slug for c in copies}

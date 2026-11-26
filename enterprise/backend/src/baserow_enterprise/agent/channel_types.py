@@ -103,7 +103,6 @@ BUTTON_FIELD_OVERRIDES = {
         help_text="The bottom corner of the website the button sits in.",
     ),
 }
-BUTTON_FIELDS = list(BUTTON_FIELD_OVERRIDES)
 # The panel shows the chat as a phone does, without the page's background.
 WIDGET_APPEARANCE_FIELD_OVERRIDES = {
     "accent_color": color_field(
@@ -137,6 +136,8 @@ def imported_values(
 class PublicChatAgentChannelType(AgentChannelType):
     type = "public_chat"
     model_class = PublicChatAgentChannel
+    # A copy keeps only these, so columns a subtype hides keep their default.
+    appearance_field_overrides = APPEARANCE_FIELD_OVERRIDES
     allowed_fields = [*CONTENT_FIELDS, "password", *APPEARANCE_FIELDS]
     serializer_field_names = [
         "slug",
@@ -191,7 +192,9 @@ class PublicChatAgentChannelType(AgentChannelType):
         serialized.update(
             title=channel.title,
             welcome_text=channel.welcome_text,
-            **{name: getattr(channel, name) for name in APPEARANCE_FIELDS},
+            **{
+                name: getattr(channel, name) for name in self.appearance_field_overrides
+            },
         )
         if self._keeps_password(import_export_config):
             serialized["password"] = channel.password
@@ -216,7 +219,7 @@ class PublicChatAgentChannelType(AgentChannelType):
             password=imported_text(serialized.get("password"), PASSWORD_HASH_LENGTH)
             if keeps_password
             else "",
-            **imported_values(serialized, APPEARANCE_FIELD_OVERRIDES),
+            **imported_values(serialized, self.appearance_field_overrides),
             **values,
         )
 
@@ -230,7 +233,8 @@ class PublicChatAgentChannelType(AgentChannelType):
         """
 
         return (
-            import_export_config.is_duplicate
+            "password" in self.allowed_fields
+            and import_export_config.is_duplicate
             and not import_export_config.is_template
             and not import_export_config.exclude_sensitive_data
         )
@@ -241,6 +245,7 @@ class WebsiteWidgetAgentChannelType(PublicChatAgentChannelType):
 
     type = "website_widget"
     model_class = WebsiteWidgetAgentChannel
+    appearance_field_overrides = WIDGET_APPEARANCE_FIELD_OVERRIDES
     allowed_fields = [*CONTENT_FIELDS, *WIDGET_APPEARANCE_FIELDS]
     serializer_field_names = ["slug", *CONTENT_FIELDS, *WIDGET_APPEARANCE_FIELDS]
     serializer_field_overrides = WIDGET_APPEARANCE_FIELD_OVERRIDES
@@ -252,31 +257,3 @@ class WebsiteWidgetAgentChannelType(PublicChatAgentChannelType):
 
     def get_name(self, channel: WebsiteWidgetAgentChannel) -> str:
         return channel.title or "Website widget"
-
-    def export_serialized(
-        self,
-        channel: WebsiteWidgetAgentChannel,
-        import_export_config: ImportExportConfig,
-    ) -> dict[str, Any]:
-        return {
-            **super().export_serialized(channel, import_export_config),
-            **{name: getattr(channel, name) for name in BUTTON_FIELDS},
-        }
-
-    def import_serialized(
-        self,
-        agent: AgentApplication,
-        serialized: dict[str, Any],
-        import_export_config: ImportExportConfig,
-        **values: Any,
-    ) -> WebsiteWidgetAgentChannel:
-        return super().import_serialized(
-            agent,
-            serialized,
-            import_export_config,
-            **imported_values(serialized, BUTTON_FIELD_OVERRIDES),
-            **values,
-        )
-
-    def _keeps_password(self, import_export_config: ImportExportConfig) -> bool:
-        return False

@@ -2,8 +2,7 @@ import json
 from functools import cache
 from pathlib import Path
 
-from django.conf import settings
-
+from baserow.core.utils import get_embedded_share_url
 from baserow_enterprise.agent.models import WebsiteWidgetAgentChannel
 
 # The chat page's own button colours when no accent colour is set.
@@ -44,10 +43,7 @@ def get_widget_chat_url(widget: WebsiteWidgetAgentChannel) -> str:
     :return: The address of the chat page the widget opens in its panel.
     """
 
-    return (
-        f"{settings.BASEROW_EMBEDDED_SHARE_URL}/public/agent-chat/{widget.slug}"
-        "?embedded=true"
-    )
+    return get_embedded_share_url(f"public/agent-chat/{widget.slug}?embedded=true")
 
 
 def build_widget_script(widget: WebsiteWidgetAgentChannel) -> str:
