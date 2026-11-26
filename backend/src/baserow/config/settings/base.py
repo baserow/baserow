@@ -13,6 +13,7 @@ from django.core.exceptions import ImproperlyConfigured
 
 import dj_database_url
 from corsheaders.defaults import default_headers
+from drf_spectacular_sidecar import __version__ as sidecar_version
 from redis.backoff import EqualJitterBackoff
 from redis.exceptions import ConnectionError as RedisConnectionError
 from redis.exceptions import ReadOnlyError as RedisReadOnlyError
@@ -723,9 +724,7 @@ SPECTACULAR_SETTINGS = {
     },
     "VERSION": "2.4.3",
     "SERVE_INCLUDE_SCHEMA": False,
-    # ReDoc 3 is incompatible with drf-spectacular's classic script template.
-    # Pin the bundle so CDN releases cannot silently break the documentation.
-    "REDOC_DIST": "https://cdn.jsdelivr.net/npm/redoc@2.5.4",
+    "REDOC_DIST": f"./{sidecar_version}",
     "TAGS": [
         {"name": "Settings"},
         {"name": "User"},
