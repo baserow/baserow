@@ -112,7 +112,7 @@ def test_list_the_workspace_integrations_an_application_can_use(
         # Only what its button actions carry.
         ("create_database_application", ["slack_bot", "smtp"]),
         # Only what its action tools' services use.
-        ("create_agent_application", ["smtp"]),
+        ("create_agent_application", ["slack_bot", "smtp"]),
         # Its data sources always use its own integration.
         ("create_dashboard_application", []),
     ],
