@@ -311,6 +311,29 @@ describe('usePublicAgentChat', () => {
     wrapper.unmount()
   })
 
+  test('hides suggestions while the first message is being sent', async () => {
+    mocks.service.getInfo.mockResolvedValue({
+      data: { ...OPEN, suggested_messages: ['Where is my order?'] },
+    })
+    let rejectSend
+    mocks.service.startConversation.mockImplementation(
+      () =>
+        new Promise((resolve, reject) => {
+          rejectSend = reject
+        })
+    )
+    const wrapper = await mountSuspended(PublicAgentChatPage, {
+      route: `/public/agent-chat/${SLUG}`,
+    })
+    await wrapper.get('.chat-suggestions__item').trigger('click')
+    await wrapper.get('form.chat-composer').trigger('submit')
+    expect(wrapper.find('.chat-suggestions__item').exists()).toBe(false)
+    rejectSend(refused(503))
+    await flushPromises()
+    expect(wrapper.get('.chat-suggestions__item').exists()).toBe(true)
+    wrapper.unmount()
+  })
+
   test.each([
     ['#ffeb3b', '#000000'],
     ['#134d44', '#ffffff'],

@@ -120,6 +120,19 @@ describe('Agent conversations', () => {
     expect(sentBodies(testApp)).toEqual([])
   })
 
+  test('hides suggestions when the member has no usable composer', async () => {
+    mockConfiguration(testApp, {
+      ...incompleteConfiguration('instructions'),
+      suggested_messages: ['Where is my order?'],
+    })
+    const wrapper = await mount()
+    expect(wrapper.findComponent({ name: 'AgentChatIntro' }).exists()).toBe(
+      true
+    )
+    expect(composerExists(wrapper)).toBe(false)
+    expect(wrapper.find('.chat-suggestions__item').exists()).toBe(false)
+  })
+
   test('collapses and reopens the list while keeping the selected conversation and draft', async () => {
     twoConversations()
     mockMessages(testApp, 'conversation-b', page([message('m1', 'Hello')]))

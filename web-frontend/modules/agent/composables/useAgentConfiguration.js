@@ -2,6 +2,7 @@ import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { useStore } from 'vuex'
 import { onBeforeRouteLeave, onBeforeRouteUpdate } from 'vue-router'
 import { useNuxtApp } from '#app'
+import isEqual from 'lodash/isEqual'
 import debounce from 'lodash/debounce'
 import { getEnabledModelsForAIProviderFeature } from '@baserow/modules/core/aiProviderModelFeatureTypes'
 import { notifyIf } from '@baserow/modules/core/utils/error'
@@ -91,9 +92,7 @@ const isSameValue = (field, a, b) => {
     return a?.length === b?.length && a.every((name) => b.includes(name))
   }
   if (field === CONFIGURATION_FIELD.SUGGESTED_MESSAGES) {
-    return (
-      a?.length === b?.length && a.every((text, index) => text === b[index])
-    )
+    return isEqual(a, b)
   }
   return a === b
 }

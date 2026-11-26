@@ -9,6 +9,7 @@
     "instructions": "Instructions",
     "instructionsDescription": "Describe the agent’s job and how it should do it.",
     "instructionsHelper": "Plain language is fine. Describe the goal, where the data lives and what a good result looks like.",
+    "suggestedMessageLabel": "Suggested message {number}",
     "suggestedMessages": "Suggested messages",
     "suggestedMessagesDescription": "Shown as buttons in a new conversation to help people start.",
     "addSuggestedMessage": "Add",

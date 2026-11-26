@@ -202,6 +202,9 @@ describe('Agent configuration sections', () => {
       const wrapper = await mountInstructions()
 
       await addButton(wrapper).trigger('click')
+      expect(rowInputs(wrapper)[1].element.labels[0].textContent).toContain(
+        'agent.suggestedMessageLabel'
+      )
       expect(document.activeElement).toBe(rowInputs(wrapper)[1].element)
       await rowInputs(wrapper)[1].setValue('  Summarize my week ')
       await addButton(wrapper).trigger('click')

@@ -45,19 +45,24 @@
     </p>
     <ul v-else class="agent-suggested-messages__list">
       <li
-        v-for="row in rows"
+        v-for="(row, index) in rows"
         :key="row.id"
         class="agent-suggested-messages__item"
       >
-        <FormInput
-          :ref="(input) => (rowInputs[row.id] = input)"
+        <FormGroup
           class="agent-suggested-messages__input"
-          :model-value="row.text"
-          :disabled="!editable"
-          :maxlength="AGENT_SUGGESTED_MESSAGE_MAX_LENGTH"
-          @update:model-value="editRow(row, $event)"
-          @blur="blurRow(row)"
-        />
+          :label="$t('agent.suggestedMessageLabel', { number: index + 1 })"
+          required
+        >
+          <FormInput
+            :ref="(input) => (rowInputs[row.id] = input)"
+            :model-value="row.text"
+            :disabled="!editable"
+            :maxlength="AGENT_SUGGESTED_MESSAGE_MAX_LENGTH"
+            @update:model-value="editRow(row, $event)"
+            @blur="blurRow(row)"
+          />
+        </FormGroup>
         <ButtonIcon
           v-if="editable"
           icon="iconoir-bin"
@@ -72,6 +77,7 @@
 
 <script setup>
 import { nextTick, ref, watch } from 'vue'
+import isEqual from 'lodash/isEqual'
 import { uuid } from '@baserow/modules/core/utils/string'
 import {
   AGENT_SUGGESTED_MESSAGE_MAX_LENGTH,
@@ -98,11 +104,7 @@ const rows = ref(toRows(props.configuration.suggested_messages))
 watch(
   () => props.configuration.suggested_messages,
   (messages = []) => {
-    const current = savedMessages()
-    const same =
-      messages.length === current.length &&
-      messages.every((text, index) => text === current[index])
-    if (!same) rows.value = toRows(messages)
+    if (!isEqual(messages, savedMessages())) rows.value = toRows(messages)
   }
 )
 
