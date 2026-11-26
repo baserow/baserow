@@ -34,6 +34,8 @@ describe('Builder collection field types', () => {
         'table',
         'button',
       ])
+      // A column just changed to a link has no variant yet.
+      expect(config('link').configBlockTypes).toEqual(['table', 'link'])
       // Images and ratings have no column style.
       expect(config('image')).toBeNull()
       expect(config('rating')).toBeNull()

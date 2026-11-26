@@ -187,10 +187,11 @@ export class LinkCollectionFieldType extends CollectionFieldType {
   }
 
   getStyleConfig(field) {
+    // A column just changed to a link has no variant yet, and shows as a link.
     return {
       configBlockTypes: [
         'table',
-        field.variant === LINK_VARIANTS.LINK ? 'link' : 'button',
+        field.variant === LINK_VARIANTS.BUTTON ? 'button' : 'link',
       ],
       extraArgs: { onlyCell: true, noAlignment: true },
     }
