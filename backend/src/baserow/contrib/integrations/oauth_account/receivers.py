@@ -4,6 +4,7 @@ from django.db.models.signals import pre_delete
 from django.dispatch import receiver
 
 from baserow.core.integrations.registries import integration_type_registry
+from baserow.core.registries import application_type_registry
 from baserow.core.signals import before_workspace_user_deleted
 
 from .models import OAuthAccountIntegrationMixin
@@ -52,19 +53,15 @@ def forget_oauth_tokens_connected_by_departing_member(
     from.
     """
 
-    in_workspace = (
-        Q(application__workspace_id=workspace.id)
-        | Q(application__builder__published_from__builder__workspace_id=workspace.id)
-        | Q(
-            application__automation__published_from__automation__workspace_id=(
-                workspace.id
-            )
+    in_workspace = Q(application__workspace_id=workspace.id)
+    for application_type in application_type_registry.get_all():
+        in_workspace |= Q(
+            application_id__in=application_type.get_published_applications(
+                workspace
+            ).values("pk")
         )
-    )
     for model in oauth_account_models():
-        # The joins may match an integration more than once, and an update
-        # can't be made distinct: select the ids first.
-        ids = model.objects_and_trash.filter(
-            in_workspace, connected_by_id=user.id
-        ).values_list("id", flat=True)
-        _forget_tokens(model, model.objects_and_trash.filter(id__in=list(ids)))
+        _forget_tokens(
+            model,
+            model.objects_and_trash.filter(in_workspace, connected_by_id=user.id),
+        )

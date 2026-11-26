@@ -5,7 +5,12 @@ import pytest
 
 from baserow.contrib.integrations.oauth_account.receivers import oauth_account_models
 from baserow.core.handler import CoreHandler
-from baserow.core.registries import ImportExportConfig
+from baserow.core.models import Application
+from baserow.core.registries import (
+    ApplicationType,
+    ImportExportConfig,
+    application_type_registry,
+)
 
 from .fake_provider import FAKE_TYPE
 
@@ -375,8 +380,9 @@ def test_deleting_the_user_who_connected_it_forgets_the_tokens(
 
 
 @pytest.mark.django_db
+@pytest.mark.parametrize("trashed", [False, True])
 def test_a_member_leaving_the_workspace_stops_being_the_account_used(
-    data_fixture, fake_oauth
+    data_fixture, fake_oauth, trashed
 ):
     from baserow.contrib.automation.models import Automation
 
@@ -387,7 +393,9 @@ def test_a_member_leaving_the_workspace_stops_being_the_account_used(
 
     builder = data_fixture.create_builder_application(workspace=workspace)
     in_app = fake_oauth.create(application=builder, connected_by=member)
-    published_builder = data_fixture.create_builder_application(workspace=None)
+    published_builder = data_fixture.create_builder_application(
+        workspace=None, trashed=trashed
+    )
     data_fixture.create_builder_custom_domain(
         builder=builder, published_to=published_builder
     )
@@ -398,7 +406,11 @@ def test_a_member_leaving_the_workspace_stops_being_the_account_used(
         automation=data_fixture.create_automation_application(workspace=workspace)
     )
     published_automation = Automation.objects.create(
-        workspace=None, name="Published", order=1, published_from=workflow
+        workspace=None,
+        name="Published",
+        order=1,
+        published_from=workflow,
+        trashed=trashed,
     )
     in_published_workflow = fake_oauth.create(
         application=published_automation, connected_by=member
@@ -408,16 +420,88 @@ def test_a_member_leaving_the_workspace_stops_being_the_account_used(
         application=data_fixture.create_builder_application(workspace=elsewhere),
         connected_by=member,
     )
+    other_published_builder = data_fixture.create_builder_application(workspace=None)
+    data_fixture.create_builder_custom_domain(
+        builder=other_workspace.application.specific,
+        published_to=other_published_builder,
+    )
+    other_builder_copy = fake_oauth.create(
+        application=other_published_builder, connected_by=member
+    )
+    other_workflow = data_fixture.create_automation_workflow(
+        automation=data_fixture.create_automation_application(workspace=elsewhere)
+    )
+    other_published_automation = Automation.objects.create(
+        workspace=None, name="Other published", order=1, published_from=other_workflow
+    )
+    other_automation_copy = fake_oauth.create(
+        application=other_published_automation, connected_by=member
+    )
 
     CoreHandler().leave_workspace(member, workspace)
 
     for integration in (in_app, in_published_app, in_published_workflow):
-        integration.refresh_from_db()
+        integration.refresh_from_db(from_queryset=fake_oauth.model.objects_and_trash)
         assert integration.connected is False
         assert integration.account_email == "alice@example.com"
-    for integration in (by_admin, other_workspace):
+    for integration in (
+        by_admin,
+        other_workspace,
+        other_builder_copy,
+        other_automation_copy,
+    ):
         integration.refresh_from_db()
         assert integration.connected is True
+
+
+@pytest.mark.django_db
+def test_workspace_departure_uses_the_registered_application_publication_hook(
+    data_fixture, fake_oauth
+):
+    """A new application type can include published copies without OAuth changes."""
+
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(members=[user])
+    published = data_fixture.create_database_application(workspace=None)
+    elsewhere = data_fixture.create_workspace(user=user)
+    other_copy = data_fixture.create_database_application(workspace=None)
+    connected = fake_oauth.create(application=published, connected_by=user)
+    untouched = fake_oauth.create(application=other_copy, connected_by=user)
+
+    class PublishingApplicationType(ApplicationType):
+        type = "test_oauth_publisher"
+        model_class = Application
+
+        def get_published_applications(self, source_workspace):
+            application_id = (
+                published.id if source_workspace.id == workspace.id else other_copy.id
+            )
+            return Application.objects_and_trash.filter(id=application_id)
+
+    application_type = PublishingApplicationType()
+    application_type_registry.register(application_type)
+    try:
+        CoreHandler().leave_workspace(user, workspace)
+    finally:
+        application_type_registry.unregister(application_type.type)
+
+    connected.refresh_from_db()
+    untouched.refresh_from_db()
+    assert connected.connected is False
+    assert untouched.connected is True
+    assert elsewhere.workspaceuser_set.filter(user=user).exists()
+
+
+@pytest.mark.django_db
+def test_application_without_publication_does_not_return_workspace_applications(
+    data_fixture,
+):
+    """The default hook must not mistake ordinary applications for published copies."""
+
+    database = data_fixture.create_database_application()
+    application_type = application_type_registry.get("database")
+
+    assert list(application_type.get_published_applications(database.workspace)) == []
 
 
 @pytest.mark.django_db
