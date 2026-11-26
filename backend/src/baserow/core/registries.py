@@ -855,6 +855,22 @@ class ApplicationType(
 
         return queryset
 
+    def get_published_applications(
+        self, workspace: "Workspace"
+    ) -> QuerySet["Application"]:
+        """
+        Return published copies originating from this workspace, including trash.
+
+        Published copies may have no workspace of their own. Each application type
+        owns the relationships linking them to their source workspace. Types without
+        publication return an empty queryset. This hook does not filter permissions.
+
+        :param workspace: The workspace the source applications belong to.
+        :return: Published applications, including copies in the trash.
+        """
+
+        return self.model_class.objects_and_trash.none()
+
     def get_pending_counts(
         self, users: list["AbstractUser"], applications: list["Application"]
     ) -> dict[int, dict[int, int]]:

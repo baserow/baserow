@@ -106,6 +106,13 @@ class BuilderApplicationType(ApplicationType):
     # Builder applications are imported second.
     import_application_priority = 1
 
+    def get_published_applications(self, workspace: Workspace) -> QuerySet[Builder]:
+        """Find published builders through domains owned by the source workspace."""
+
+        return Builder.objects_and_trash.filter(
+            published_from__builder__workspace_id=workspace.id
+        )
+
     def get_formula_examples(self, user, target):
         """Build examples for a builder filter target without invoking a model."""
         from baserow.contrib.builder.tools.formulas import BuilderFormulaContext
