@@ -8,6 +8,7 @@ from .views import (
     PublicChatMessagesView,
     PublicChatStopView,
     PublicChatStreamView,
+    PublicChatWidgetScriptView,
 )
 
 app_name = "baserow_enterprise.api.agent_public_chat"
@@ -31,6 +32,11 @@ urlpatterns = [
         name="messages",
     ),
     path("<slug:slug>/conversation/stop/", PublicChatStopView.as_view(), name="stop"),
+    path(
+        "<slug:slug>/widget.js",
+        PublicChatWidgetScriptView.as_view(),
+        name="widget_script",
+    ),
 ]
 
 stream_urlpatterns = [

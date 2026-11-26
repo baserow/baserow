@@ -78,9 +78,13 @@ def register_row_comment_trigger():
 
 def register_agent_channel_types():
     from baserow.contrib.agent.channels.registries import agent_channel_type_registry
-    from baserow_enterprise.agent.channel_types import PublicChatAgentChannelType
+    from baserow_enterprise.agent.channel_types import (
+        PublicChatAgentChannelType,
+        WebsiteWidgetAgentChannelType,
+    )
 
     agent_channel_type_registry.register(PublicChatAgentChannelType())
+    agent_channel_type_registry.register(WebsiteWidgetAgentChannelType())
 
 
 def register_semantic_search_features():

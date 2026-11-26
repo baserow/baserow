@@ -12,3 +12,13 @@ PUBLIC_CHAT_COLOR_PATTERN = r"^#[0-9a-fA-F]{6}$"
 class PublicChatBackground(models.TextChoices):
     GRADIENT = "gradient"
     PLAIN = "plain"
+
+
+WEBSITE_WIDGET_BUTTON_TEXT_MAX_LENGTH = 60
+WEBSITE_WIDGET_DEFAULT_BUTTON_TEXT = "Chat with us"
+WEBSITE_WIDGET_SCRIPT_MAX_AGE = 300
+
+
+class WebsiteWidgetButtonPosition(models.TextChoices):
+    BOTTOM_RIGHT = "bottom_right"
+    BOTTOM_LEFT = "bottom_left"
