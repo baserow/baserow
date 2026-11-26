@@ -303,14 +303,15 @@ exports[`summary sources expose the shared filter control and save permanent con
     </div>
     <div>
       <div class="service-form__filter-buttons"><span class="service-form__filter-title">serviceRefinementForms.refinements</span>
-        <!--v-if--><a class="header__filter-link"><i class="header__filter-icon iconoir-filter"></i><span class="header__filter-name">serviceRefinementForms.filterTabTitle - 0</span></a>
-        <!--v-if-->
-        <!--v-if-->
-        <!--teleport start-->
-        <!--teleport end-->
-        <!--v-if-->
-        <!--v-if-->
-        <!--v-if-->
+        <div class="service-form__refinement-chips">
+          <!--v-if--><button class="chips chips--small service-form__refinement-chip" type="button"><i class="chips__icon iconoir-filter"></i><span>serviceRefinementForms.filterTabTitle - 0</span>
+            <!--v-if-->
+          </button>
+          <!--teleport start-->
+          <!--teleport end-->
+          <!--v-if-->
+          <!--v-if-->
+        </div>
       </div>
       <!--v-if-->
     </div>

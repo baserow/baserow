@@ -68,15 +68,13 @@ test('summary sources expose the shared filter control and save permanent condit
   await flushPromises()
   expect(wrapper.html()).toMatchSnapshot()
   const filterButton = wrapper.find(
-    '.service-form__filter-buttons .header__filter-link'
+    '.service-form__filter-buttons .service-form__refinement-chip'
   )
   expect(filterButton.text()).toBe('serviceRefinementForms.filterTabTitle - 0')
   await filterButton.trigger('click')
   const body = new DOMWrapper(document.body)
   const context = body.find('.service-form__context--filter')
-  expect(context.text()).toContain(
-    'localBaserowTableServiceConditionalForm.noFilterTitle'
-  )
+  expect(context.text()).toContain('serviceRefinementForms.noFiltersTitle')
   await context
     .findAll('button')
     .find(
@@ -132,7 +130,7 @@ test('summary sources expose the shared filter control and save permanent condit
     ],
   })
   await flushPromises()
-  expect(filterButton.text()).toBe('serviceRefinementForms.filterTabTitle - 2')
+  expect(filterButton.find('.service-form__refinement-count').text()).toBe('2')
   const inherited = context.find('.dashboard-widget-filters__source')
   expect(inherited.text()).toContain('Country')
   expect(inherited.find('input[disabled]').element.value).toBe('France')
@@ -271,7 +269,7 @@ test('summary form keeps values saved elsewhere while it is open', async () => {
 
   // Editing the filters afterwards doesn't put the old aggregation back.
   await wrapper
-    .find('.service-form__filter-buttons .header__filter-link')
+    .find('.service-form__filter-buttons .service-form__refinement-chip')
     .trigger('click')
   const context = new DOMWrapper(document.body).find(
     '.service-form__context--filter'

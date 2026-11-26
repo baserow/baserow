@@ -344,6 +344,13 @@ $dashboard-resources-row-min-width: 1044px;
     border-top: 1px solid $palette-neutral-200;
   }
 
+  // The AND divider above already separates it from the widget's own filters.
+  .dashboard-widget-filters__operator + .dashboard-widget-filters__other {
+    margin-top: 0;
+    padding-top: 0;
+    border-top: 0;
+  }
+
   .dashboard-widget-filters__title {
     font-weight: 600;
   }

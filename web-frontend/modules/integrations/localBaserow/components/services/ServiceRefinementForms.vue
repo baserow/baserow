@@ -1,178 +1,128 @@
 <template>
   <div>
-    <!-- Small screen: Buttons + Contexts -->
+    <!-- Small screen: Chips + popovers -->
     <div v-if="small" class="service-form__filter-buttons">
       <span class="service-form__filter-title">{{
         $t('serviceRefinementForms.refinements')
       }}</span>
-      <!-- Group Button -->
-      <a
-        v-if="showGroup"
-        ref="groupContextLink"
-        class="header__filter-link"
-        :class="{
-          'active active--success': hasActiveGroups,
-        }"
-        @click="openContextWithContent('group', $refs.groupContextLink)"
-      >
-        <i class="header__filter-icon iconoir-group"></i>
-        <span class="header__filter-name">{{ groupTitle }}</span>
-      </a>
+      <div class="service-form__refinement-chips">
+        <RefinementPopover
+          v-if="showGroup"
+          icon="iconoir-group"
+          :label="groupTitle"
+          :title="$t('serviceRefinementForms.groupPopoverTitle')"
+          :active="hasActiveGroups"
+          context-class="service-form__context--group"
+          :width="320"
+        >
+          <slot name="group-form"></slot>
+          <p v-if="!values.table_id">
+            {{ $t('serviceRefinementForms.noTableChosenForGrouping') }}
+          </p>
+        </RefinementPopover>
 
-      <!-- Filter Button -->
-      <a
-        v-if="showFilter"
-        ref="filterContextLink"
-        class="header__filter-link"
-        :class="{
-          'active active--success': hasActiveFilters,
-        }"
-        @click="openContextWithContent('filter', $refs.filterContextLink)"
-      >
-        <i class="header__filter-icon iconoir-filter"></i>
-        <span class="header__filter-name">{{
-          $t(
-            'serviceRefinementForms.filterTabTitle',
-            {
-              count: filterCount,
-            },
-            filterCount
-          )
-        }}</span>
-      </a>
-
-      <!-- Sort Button -->
-      <a
-        v-if="showSort"
-        ref="sortContextLink"
-        class="header__filter-link"
-        :class="{
-          'active active--success': hasActiveSorts,
-        }"
-        @click="openContextWithContent('sort', $refs.sortContextLink)"
-      >
-        <i class="header__filter-icon iconoir-sort"></i>
-        <span class="header__filter-name">{{
-          $t(
-            'serviceRefinementForms.sortTabTitle',
-            {
-              count: sortCount,
-            },
-            sortCount
-          )
-        }}</span>
-      </a>
-
-      <!-- Search Button -->
-      <a
-        v-if="showSearch"
-        ref="searchContextLink"
-        class="header__filter-link"
-        :class="{
-          'active active--success': hasActiveSearch,
-        }"
-        @click="openContextWithContent('search', $refs.searchContextLink)"
-      >
-        <i class="header__filter-icon iconoir-search"></i>
-        <span class="header__filter-name">{{
-          $t('serviceRefinementForms.searchTabTitle', {
-            count: hasActiveSearch ? 1 : 0,
-          })
-        }}</span>
-      </a>
-
-      <!-- Additional Content Slot -->
-      <slot name="additional-buttons"></slot>
-
-      <!-- Filter Context -->
-      <Context
-        v-if="showFilter"
-        ref="filterContext"
-        class="service-form__context service-form__context--filter"
-        overflow-scroll
-        max-height-if-outside-viewport
-      >
-        <div class="service-form__context-content">
-          <span class="service-form__context-title">
-            {{ $t('serviceRefinementForms.filterTabTitle', { count: 0 }) }}
-          </span>
+        <RefinementPopover
+          v-if="showFilter"
+          icon="iconoir-filter"
+          :label="$t('serviceRefinementForms.filterTabTitle', { count: 0 })"
+          :title="$t('serviceRefinementForms.filterPopoverTitle')"
+          :description="$t('serviceRefinementForms.filterPopoverDescription')"
+          :count="hasActiveFilters ? filterCount : null"
+          :active="hasActiveFilters"
+          context-class="service-form__context--filter"
+          :width="460"
+        >
+          <div v-if="!hasAnyFilters" class="service-form__popover-empty">
+            <span class="service-form__popover-empty-icon">
+              <i class="iconoir-filter"></i>
+            </span>
+            <div class="service-form__popover-empty-title">
+              {{ $t('serviceRefinementForms.noFiltersTitle') }}
+            </div>
+            <div class="service-form__popover-empty-description">
+              {{
+                values.table_id
+                  ? $t('serviceRefinementForms.noFiltersDescription')
+                  : $t('serviceRefinementForms.noTableChosenForFiltering')
+              }}
+            </div>
+          </div>
           <LocalBaserowTableServiceConditionalForm
             v-if="values.table_id"
             v-model="values.filters"
             v-model:filter-groups="values.filter_groups"
             v-model:filter-type="values.filter_type"
             :fields="tableFields"
-          />
-          <slot v-if="values.table_id" name="after-filter-form" />
-          <p v-if="!values.table_id">
-            {{ $t('serviceRefinementForms.noTableChosenForFiltering') }}
-          </p>
-        </div>
-      </Context>
+            :show-empty-state="false"
+          >
+            <!-- Above the add buttons, so they stay the popover's footer. -->
+            <template #before-footer>
+              <slot name="after-filter-form" />
+            </template>
+          </LocalBaserowTableServiceConditionalForm>
+        </RefinementPopover>
 
-      <!-- Group Context -->
-      <Context
-        v-if="showGroup"
-        ref="groupContext"
-        class="service-form__context service-form__context--group"
-        overflow-scroll
-        max-height-if-outside-viewport
-      >
-        <div class="service-form__context-content">
-          <span class="service-form__context-title">
-            {{ $t('serviceRefinementForms.groupTabTitle', { count: 0 }) }}
-          </span>
-          <slot name="group-form"></slot>
-          <p v-if="!values.table_id">
-            {{ $t('serviceRefinementForms.noTableChosenForGrouping') }}
-          </p>
-        </div>
-      </Context>
-
-      <!-- Sort Context -->
-      <Context
-        v-if="showSort"
-        ref="sortContext"
-        class="service-form__context service-form__context--sort"
-        overflow-scroll
-        max-height-if-outside-viewport
-      >
-        <div class="service-form__context-content">
-          <span class="service-form__context-title">
-            {{ $t('serviceRefinementForms.sortTabTitle', { count: 0 }) }}
-          </span>
+        <RefinementPopover
+          v-if="showSort"
+          icon="iconoir-sort"
+          :label="$t('serviceRefinementForms.sortTabTitle', { count: 0 })"
+          :title="$t('serviceRefinementForms.sortPopoverTitle')"
+          :description="$t('serviceRefinementForms.sortPopoverDescription')"
+          :count="hasActiveSorts ? sortCount : null"
+          :active="hasActiveSorts"
+          context-class="service-form__context--sort"
+          :width="360"
+        >
+          <!-- A caller's own sort form, like a chart's, has its own empty choice. -->
+          <div
+            v-if="!hasActiveSorts && !$slots['sort-form']"
+            class="service-form__popover-empty"
+          >
+            <span class="service-form__popover-empty-icon">
+              <i class="iconoir-sort"></i>
+            </span>
+            <div class="service-form__popover-empty-title">
+              {{ $t('serviceRefinementForms.noSortsTitle') }}
+            </div>
+            <div class="service-form__popover-empty-description">
+              {{
+                values.table_id
+                  ? $t('serviceRefinementForms.noSortsDescription')
+                  : $t('serviceRefinementForms.noTableChosenForSorting')
+              }}
+            </div>
+          </div>
           <slot name="sort-form">
             <LocalBaserowTableServiceSortForm
               v-if="values.table_id"
               v-model="values.sortings"
               :fields="tableFields"
+              :show-empty-state="false"
             />
           </slot>
-          <p v-if="!values.table_id">
-            {{ $t('serviceRefinementForms.noTableChosenForSorting') }}
-          </p>
-        </div>
-      </Context>
+        </RefinementPopover>
 
-      <!-- Search Context -->
-      <Context
-        v-if="showSearch"
-        ref="searchContext"
-        class="service-form__context service-form__context--search"
-        overflow-scroll
-        max-height-if-outside-viewport
-      >
-        <div class="service-form__context-content">
-          <span class="service-form__context-title">
-            {{ $t('serviceRefinementForms.searchTabTitle', { count: 0 }) }}
-          </span>
+        <RefinementPopover
+          v-if="showSearch"
+          icon="iconoir-search"
+          :label="$t('serviceRefinementForms.searchTabTitle', { count: 0 })"
+          :title="$t('serviceRefinementForms.searchPopoverTitle')"
+          :description="$t('serviceRefinementForms.searchPopoverDescription')"
+          :count="hasActiveSearch ? 1 : null"
+          :active="hasActiveSearch"
+          context-class="service-form__context--search"
+          :width="360"
+        >
           <InjectedFormulaInput
             v-model="values.search_query"
             small
             :placeholder="$t('serviceRefinementForms.searchFieldPlaceHolder')"
           />
-        </div>
-      </Context>
+        </RefinementPopover>
+      </div>
+
+      <!-- Additional Content Slot -->
+      <slot name="additional-buttons"></slot>
     </div>
 
     <!-- Large screen: Tabs -->
@@ -246,7 +196,7 @@
 </template>
 
 <script>
-import Context from '@baserow/modules/core/components/Context'
+import RefinementPopover from '@baserow/modules/integrations/localBaserow/components/services/RefinementPopover'
 import LocalBaserowTableServiceConditionalForm from '@baserow/modules/integrations/localBaserow/components/services/LocalBaserowTableServiceConditionalForm'
 import LocalBaserowTableServiceSortForm from '@baserow/modules/integrations/localBaserow/components/services/LocalBaserowTableServiceSortForm'
 import InjectedFormulaInput from '@baserow/modules/core/components/formula/InjectedFormulaInput'
@@ -257,18 +207,13 @@ import FormGroup from '@baserow/modules/core/components/FormGroup'
 export default {
   name: 'ServiceRefinementForms',
   components: {
-    Context,
+    RefinementPopover,
     LocalBaserowTableServiceConditionalForm,
     LocalBaserowTableServiceSortForm,
     InjectedFormulaInput,
     Tabs,
     Tab,
     FormGroup,
-  },
-  inject: {
-    // Open each refinement below its button, instead of to its left as in the
-    // sidebar, where there is no room on the right.
-    refinementsBelowButtons: { default: false },
   },
   props: {
     values: {
@@ -358,41 +303,15 @@ export default {
     hasActiveGroups() {
       return this.groupCount > 0
     },
+    hasAnyFilters() {
+      return (
+        this.filterCount > 0 || (this.values.filter_groups?.length ?? 0) > 0
+      )
+    },
     hasActiveSearch() {
       return (
         this.values.search_query &&
         this.values.search_query.formula.trim().length > 0
-      )
-    },
-  },
-  methods: {
-    getContextHorizontalOffset(contentType) {
-      // Calculate horizontal offset based on context width
-      switch (contentType) {
-        case 'search':
-          return -400
-        case 'sort':
-        case 'group':
-          return -320
-        case 'filter':
-          return -660
-        default:
-          return 0
-      }
-    },
-    openContextWithContent(contentType, targetElement) {
-      const contextRef = `${contentType}Context`
-      if (this.refinementsBelowButtons) {
-        this.$refs[contextRef].toggle(targetElement, 'bottom', 'left', 4, 0)
-        return
-      }
-      const horizontalOffset = this.getContextHorizontalOffset(contentType)
-      this.$refs[contextRef].toggle(
-        targetElement,
-        'bottom',
-        'left',
-        -32,
-        horizontalOffset - 30
       )
     },
   },
