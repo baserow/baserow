@@ -43,7 +43,7 @@
           :title="alwaysAllowTitle"
           @click="approve(pending, { alwaysAllow: true })"
         >
-          {{ $t('agent.alwaysApproveAll') }}
+          {{ $t('agent.alwaysAllow') }}
         </Button>
         <Button
           type="secondary"

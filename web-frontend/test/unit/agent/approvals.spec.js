@@ -693,7 +693,7 @@ describe('Agent tool approvals', () => {
     )
     const wrapper = await openWaitingReply([approval(1), approval(2)])
     const reads = configurationReads()
-    expect(alwaysAllow(wrapper).text()).toBe('agent.alwaysApproveAll')
+    expect(alwaysAllow(wrapper).text()).toBe('agent.alwaysAllow')
     expect(alwaysAllow(wrapper).attributes('title')).toBe(
       'agent.toolCreateRows'
     )
@@ -727,7 +727,7 @@ describe('Agent tool approvals', () => {
     ])
     const [reviewed, pending] = items(wrapper)
     expect(itemButtons(reviewed)).toHaveLength(0)
-    expect(alwaysAllow(wrapper).text()).toBe('agent.alwaysApproveAll')
+    expect(alwaysAllow(wrapper).text()).toBe('agent.alwaysAllow')
     expect(texts(itemButtons(pending))).toEqual([
       'agent.alwaysAllow',
       'agent.reject',
@@ -748,7 +748,7 @@ describe('Agent tool approvals', () => {
       approval(4, 'approved', { tool: 'update_rows' }),
     ])
 
-    expect(alwaysAllow(wrapper).text()).toBe('agent.alwaysApproveAll')
+    expect(alwaysAllow(wrapper).text()).toBe('agent.alwaysAllow')
     expect(alwaysAllow(wrapper).attributes('title')).toBe(
       'agent.toolCreateRows and agent.toolDeleteRows'
     )
@@ -1138,7 +1138,7 @@ describe('Agent tool approvals', () => {
       })
       const header = card.get('.agent-approval__header')
       expect(header.findAll('button').map((button) => button.text())).toEqual([
-        'agent.alwaysApproveAll',
+        'agent.alwaysAllow',
         'agent.rejectAll',
         'agent.approveAll',
       ])
