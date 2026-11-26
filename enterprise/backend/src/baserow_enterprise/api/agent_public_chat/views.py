@@ -191,11 +191,12 @@ def serialize_accepted(result: AgentMessageCreated) -> dict[str, Any]:
     return {"messages": [result.message, result.reply], "run_id": result.run_id}
 
 
-def to_visitor_record(record: dict[str, Any]) -> dict[str, Any] | None:
+def to_visitor_record(record: dict[str, Any]) -> dict[str, Any]:
     """
     :param record: A record of the stream members follow.
     :return: What a visitor may see of the record: the answer's text and how the
-        run ended, or None to drop it.
+        run ended. Any other record becomes a heartbeat, so the stream stays alive
+        and its cursor moves on while tools run.
     """
 
     kind, data = record["kind"], record["data"]
@@ -210,7 +211,7 @@ def to_visitor_record(record: dict[str, Any]) -> dict[str, Any] | None:
     elif kind in VISITOR_RECORD_KEYS and data.get("variant") is None:
         data = {key: data[key] for key in VISITOR_RECORD_KEYS[kind] if key in data}
     else:
-        return None
+        kind, data = ChatRunEventKind.RUN_HEARTBEAT, {}
     return {
         "kind": kind,
         "data": data,
@@ -234,8 +235,7 @@ async def encode_visitor_records(
         follow_run(run, None, cursor, initial_state=initial_state)
     ) as records:
         async for record in records:
-            if (shown := to_visitor_record(record)) is not None:
-                yield json.dumps(shown) + "\n\n"
+            yield json.dumps(to_visitor_record(record)) + "\n\n"
 
 
 @method_decorator(never_cache, name="dispatch")

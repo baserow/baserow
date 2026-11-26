@@ -505,29 +505,32 @@ def record(kind: str, data: dict[str, Any]) -> dict[str, Any]:
     return {"kind": kind, "data": data, "cursor": "1-1", "replayed": False}
 
 
+HEARTBEAT = record("run.heartbeat", {})
+
+
 @pytest.mark.parametrize(
     "shown,expected",
     [
-        (record("step", {"id": "call", "tool_name": "create_rows"}), None),
-        (record("progress", {"label": "Thinking"}), None),
-        (record("run.created", {}), None),
-        (record("run.started", {}), None),
+        (record("step", {"id": "call", "tool_name": "create_rows"}), HEARTBEAT),
+        (record("progress", {"label": "Thinking"}), HEARTBEAT),
+        (record("run.created", {}), HEARTBEAT),
+        (record("run.started", {}), HEARTBEAT),
         (
             record("text.delta", {"segment": 1, "text": "Hm", "variant": "thought"}),
-            None,
+            HEARTBEAT,
         ),
         (
             record("text.delta", {"segment": 2, "text": "Hi", "step_id": "call"}),
             record("text.delta", {"segment": 2, "text": "Hi"}),
         ),
-        (record("run.heartbeat", {}), record("run.heartbeat", {})),
+        (HEARTBEAT, HEARTBEAT),
         (
             record("run.replay_unavailable", {"reason": "expired", "run": {"id": 1}}),
             record("run.replay_unavailable", {"reason": "expired"}),
         ),
     ],
 )
-def test_a_visitor_sees_only_the_text_of_a_run(shown, expected):
+def test_a_visitor_sees_the_text_of_a_run_and_a_heartbeat_for_the_rest(shown, expected):
     assert to_visitor_record(shown) == expected
 
 
