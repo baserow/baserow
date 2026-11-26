@@ -138,6 +138,9 @@ export default {
     integrations() {
       return this.$store.getters['integration/getUsableIntegrations'](
         this.builder
+      ).filter(
+        (integration) =>
+          integration.type === this.userSourceType?.integrationType?.getType()
       )
     },
     integration() {
