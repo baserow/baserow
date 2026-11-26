@@ -406,8 +406,9 @@ class AgentActionHandler:
         storage: Storage | None = None,
     ) -> list[AgentAction]:
         """
-        Copy actions into the Agent. Only a duplicate keeps them switched on: an
-        imported or template action would otherwise act without anyone asking.
+        Copy actions into the Agent. Only a duplicate keeps them switched on and
+        keeps their Ask first choice: an imported or template action would
+        otherwise act without anyone asking.
         The Agent's action limit doesn't apply, as its source had them already.
 
         :param agent: The Agent the actions are copied into.
@@ -418,7 +419,7 @@ class AgentActionHandler:
         :param files_zip: The zip file service files are read from.
         :param storage: The storage the files are written to.
         :return: The copied actions. One of a type that isn't an action type
-            here is left out.
+            here, or whose service isn't the one its type runs, is left out.
         :raises ValidationError: When a name or the inputs are malformed.
         """
 
@@ -428,7 +429,13 @@ class AgentActionHandler:
             service_values = serialized["service"]
             # An export made before a type had a name of its own has none.
             type_name = serialized.get("type", service_values["type"])
-            if type_name not in agent_action_type_registry.get_types():
+            # Ask first is decided by the action type, so its service must be the
+            # one that type runs.
+            if (
+                type_name not in agent_action_type_registry.get_types()
+                or service_values["type"]
+                != agent_action_type_registry.get(type_name).service_type.type
+            ):
                 continue
             values = {
                 field: serialized[field]
@@ -440,11 +447,15 @@ class AgentActionHandler:
                 validate_action_name(values.get("name", service_values["type"])),
             )
             values["inputs"] = validate_inputs(values.get("inputs", []))
-            values["enabled"] = bool(
+            internal = (
                 import_export_config.is_duplicate
                 and not import_export_config.is_template
-                and values.get("enabled", False)
             )
+            values["enabled"] = bool(internal and values.get("enabled", False))
+            # A copy from outside asks first when it changes data, as a new
+            # action does, whatever its author chose.
+            if not internal and agent_action_type_registry.get(type_name).changes_data:
+                values["ask_first"] = True
             integration = (
                 None
                 if agent_action_type_registry.get(type_name).acts_as_run_identity

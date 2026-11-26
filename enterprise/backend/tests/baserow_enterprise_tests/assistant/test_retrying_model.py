@@ -622,6 +622,37 @@ async def test_request_stream_retry_fallback_closes_nested_model_scopes(retry_lo
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize("streaming", [False, True])
+async def test_a_gemini_rate_limit_is_left_to_the_sdk_retries(streaming):
+    """The Google SDK already made its 3 attempts; retrying here would make 9."""
+
+    from contextlib import asynccontextmanager
+
+    from pydantic_ai.models.google import GoogleModel
+
+    rate_limit = ModelHTTPError(status_code=429, model_name="gemini")
+    inner = MagicMock(spec=GoogleModel)
+    inner.request = AsyncMock(side_effect=rate_limit)
+
+    @asynccontextmanager
+    async def failing_request_stream(*args, **kwargs):
+        raise rate_limit
+        yield  # pragma: no cover
+
+    inner.request_stream = MagicMock(side_effect=failing_request_stream)
+    model = _make_retrying(inner)
+    args = ([], None, ModelRequestParameters(function_tools=[], output_tools=[]))
+
+    with pytest.raises(ModelHTTPError):
+        if streaming:
+            async with model.request_stream(*args):
+                pass  # pragma: no cover
+        else:
+            await model.request(*args)
+    assert inner.request.await_count + inner.request_stream.call_count == 1
+
+
+@pytest.mark.asyncio
 async def test_request_stream_recovers_mid_stream_api_error():
     """_ErrorRecoveringStream catches APIError during chunk iteration
     and emits recovery events instead of crashing."""

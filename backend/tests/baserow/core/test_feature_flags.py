@@ -5,7 +5,11 @@ from django.contrib.auth.models import AnonymousUser
 import pytest
 
 from baserow.core.exceptions import FeatureDisabledException
-from baserow.core.feature_flags import feature_flag_is_enabled
+from baserow.core.feature_flags import (
+    FF_AGENT_BUILDER,
+    FF_IDENTITIES,
+    feature_flag_is_enabled,
+)
 from baserow.core.registries import Plugin, plugin_registry
 
 TEST_FLAG = "test_flag"
@@ -48,3 +52,11 @@ def test_feature_flag_is_enabled_per_user(
         else:
             with pytest.raises(FeatureDisabledException):
                 feature_flag_is_enabled(TEST_FLAG, user=user, raise_if_disabled=True)
+
+
+def test_the_instance_agent_builder_flag_turns_identities_on(settings):
+    settings.FEATURE_FLAGS = [FF_AGENT_BUILDER]
+    assert feature_flag_is_enabled(FF_IDENTITIES)
+
+    settings.FEATURE_FLAGS = [FF_IDENTITIES]
+    assert not feature_flag_is_enabled(FF_AGENT_BUILDER)

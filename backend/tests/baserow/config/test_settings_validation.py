@@ -74,6 +74,48 @@ def test_agent_limits_are_optional(name: str, configured: str | None, expected: 
     assert result.stdout.strip() == expected
 
 
+KEY_LISTS = ["SECRET_KEY_FALLBACKS", "BASEROW_ENCRYPTION_KEY_FALLBACKS"]
+
+
+def _read_key_list(name: str, value: str) -> subprocess.CompletedProcess[str]:
+    env = {**os.environ, "PYTHONPATH": os.pathsep.join(sys.path), name: value}
+    return subprocess.run(  # noqa: S603 - only the current interpreter runs fixed code.
+        [
+            sys.executable,
+            "-c",
+            f"import json; from baserow.config.settings import base; "
+            f"print(json.dumps(base.{name}))",
+        ],
+        check=False,
+        capture_output=True,
+        env=env,
+        text=True,
+    )
+
+
+@pytest.mark.parametrize("name", KEY_LISTS)
+@pytest.mark.parametrize(
+    "value,expected",
+    [("", "[]"), ("  ", "[]"), ('[" old,key ", "other"]', '[" old,key ", "other"]')],
+)
+def test_key_fallbacks_keep_commas_and_spaces_in_a_key(
+    name: str, value: str, expected: str
+):
+    result = _read_key_list(name, value)
+
+    assert result.returncode == 0, result.stderr
+    assert result.stdout.strip().splitlines()[-1] == expected
+
+
+@pytest.mark.parametrize("name", KEY_LISTS)
+@pytest.mark.parametrize("value", ["old-key", '"old-key"', "[1]", '[""]'])
+def test_key_fallbacks_must_be_a_json_array_of_keys(name: str, value: str):
+    result = _read_key_list(name, value)
+
+    assert result.returncode != 0
+    assert f"{name} must be a JSON array of keys" in result.stderr
+
+
 @pytest.mark.parametrize(
     "configured_length,expected_length",
     [("", "12"), ("3", "7"), ("20", "20"), ("50", "50"), ("60", "50")],

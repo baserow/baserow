@@ -11,7 +11,9 @@ Add/remove features flags to the list below:
   workers have drained, as described in [ADR 013](../decisions/013-identities.md#deployment-gate).
 - `dashboard-filters` — creation of dashboard filter widgets (existing widgets remain available).
 - `user_templates` — template marketplace: the new template browser and user templates.
-- `agent-builder` — Agent application creation.
+- `agent-builder` — Agent application creation. Turns on `identities` too, as agents run
+  as identities, so the same rule applies: enable it only after all old backends and
+  workers have drained.
 
 ## Enabling feature flags
 

@@ -62,6 +62,31 @@ else:
 if "SECRET_KEY" in os.environ:
     SECRET_KEY = os.environ.get("SECRET_KEY")
 
+
+def _read_keys(name: str) -> list[str]:
+    """
+    :param name: The environment variable holding a JSON array of keys, which
+        unlike a comma separated list keeps a key's commas and spaces.
+    :return: The keys, empty when the variable is unset or blank.
+    :raises ImproperlyConfigured: When it isn't a JSON array of keys.
+    """
+
+    try:
+        keys = json.loads((os.getenv(name) or "").strip() or "[]")
+    except json.JSONDecodeError:
+        keys = None
+    if not isinstance(keys, list) or not all(
+        isinstance(key, str) and key for key in keys
+    ):
+        raise ImproperlyConfigured(
+            f'{name} must be a JSON array of keys, such as ["old-secret-key"].'
+        )
+    return keys
+
+
+# Old values of SECRET_KEY, still accepted while rotating it.
+SECRET_KEY_FALLBACKS = _read_keys("SECRET_KEY_FALLBACKS")
+
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.getenv("BASEROW_BACKEND_DEBUG", "off") == "on"
 
@@ -683,11 +708,7 @@ SIMPLE_JWT = {
 # tokens of MCP servers. Independent from SECRET_KEY, which only derives the key
 # while this isn't set. Old keys stay in the fallbacks until no secret uses them.
 BASEROW_ENCRYPTION_KEY = (os.getenv("BASEROW_ENCRYPTION_KEY") or "").strip()
-BASEROW_ENCRYPTION_KEY_FALLBACKS = [
-    key.strip()
-    for key in (os.getenv("BASEROW_ENCRYPTION_KEY_FALLBACKS") or "").split(",")
-    if key.strip()
-]
+BASEROW_ENCRYPTION_KEY_FALLBACKS = _read_keys("BASEROW_ENCRYPTION_KEY_FALLBACKS")
 
 SPECTACULAR_SETTINGS = {
     "TITLE": "Baserow API spec",
