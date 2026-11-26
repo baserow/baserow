@@ -9,7 +9,7 @@ const EDITOR_URL = 'https://editor.example.com'
 
 // Whether the page is served on an editor hostname. Applications get their
 // own hostname unless a test shares the editor's.
-let onEditorHostname
+let isWebFrontendHostname
 
 // Preview gets its own hostname unless a test shares the editor's.
 function setPreviewUrl(url, relaxed = false) {
@@ -21,7 +21,7 @@ function setPreviewUrl(url, relaxed = false) {
 
 describe('IFrameElement', () => {
   beforeEach(() => {
-    onEditorHostname = false
+    isWebFrontendHostname = false
     setPreviewUrl('https://preview.example.com')
   })
 
@@ -31,7 +31,7 @@ describe('IFrameElement', () => {
     applicationContextMode = mode,
     untrustedContent = false
   ) => {
-    if (applicationContextMode === 'editing') onEditorHostname = true
+    if (applicationContextMode === 'editing') isWebFrontendHostname = true
     const page = {}
     const builder = { id: 1, theme: {}, untrusted_content: untrustedContent }
     const element = {
@@ -52,7 +52,7 @@ describe('IFrameElement', () => {
         mocks: {
           $isAuthorCodeRestricted: () =>
             isAuthorCodeRestricted({
-              onEditorHostname,
+              isWebFrontendHostname,
               publicConfig: useRuntimeConfig().public,
             }),
         },
@@ -258,7 +258,7 @@ describe('IFrameElement', () => {
 
   describe('with Preview on the editor hostname', () => {
     beforeEach(() => {
-      onEditorHostname = true
+      isWebFrontendHostname = true
       setPreviewUrl(`${EDITOR_URL}:3001`)
     })
 
@@ -301,7 +301,7 @@ describe('IFrameElement', () => {
     })
 
     test('leaves embedded HTML unsandboxed on a published site with its own hostname', async () => {
-      onEditorHostname = false
+      isWebFrontendHostname = false
       const wrapper = await mountComponent('public')
 
       expect(wrapper.find('iframe').attributes('sandbox')).toBeUndefined()

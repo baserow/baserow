@@ -21,7 +21,7 @@ export default defineNuxtPlugin({
       provide: {
         isAuthorCodeRestricted: () =>
           isAuthorCodeRestricted({
-            onEditorHostname: nuxtApp.$isWebFrontendHostname,
+            isWebFrontendHostname: nuxtApp.$isWebFrontendHostname,
             publicConfig: config.public,
           }),
         previewRestrictsAuthorCode: () =>

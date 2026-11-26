@@ -7,7 +7,7 @@ describe('Test enterprise Baserow plugin', () => {
     // Applications are served on their own hostname unless a test says otherwise.
     $isAuthorCodeRestricted: () =>
       isAuthorCodeRestricted({
-        onEditorHostname: false,
+        isWebFrontendHostname: false,
         publicConfig: {},
       }),
     $config: {
@@ -150,13 +150,13 @@ describe('Test enterprise Baserow plugin', () => {
       ['public', false, false, true],
     ])(
       'in %s on an editor hostname %s and relaxed security %s, JavaScript loads: %s',
-      (mode, onEditorHostname, relaxed, runsJS) => {
+      (mode, isWebFrontendHostname, relaxed, runsJS) => {
         const plugin = new EnterprisePlugin({
           app: {
             ...app,
             $isAuthorCodeRestricted: () =>
               isAuthorCodeRestricted({
-                onEditorHostname,
+                isWebFrontendHostname,
                 publicConfig: { builderDangerousRelaxPreviewSecurity: relaxed },
               }),
           },

@@ -10,7 +10,7 @@ const EDITOR_URL = 'https://editor.example.com'
 
 // Whether the page is served on an editor hostname. Applications get their
 // own hostname unless a test shares the editor's.
-let onEditorHostname
+let isWebFrontendHostname
 
 // Preview gets its own hostname unless a test shares the editor's.
 function setPreviewUrl(url, relaxed = false) {
@@ -21,7 +21,7 @@ function setPreviewUrl(url, relaxed = false) {
 }
 
 beforeEach(() => {
-  onEditorHostname = false
+  isWebFrontendHostname = false
   setPreviewUrl('https://preview.example.com')
 })
 
@@ -35,7 +35,7 @@ function mountElement(
   untrusted = false,
   context = {}
 ) {
-  if (contextMode === 'editing') onEditorHostname = true
+  if (contextMode === 'editing') isWebFrontendHostname = true
   return mountSuspended(HTMLElement, {
     props: {
       element: {
@@ -48,7 +48,7 @@ function mountElement(
       mocks: {
         $isAuthorCodeRestricted: () =>
           isAuthorCodeRestricted({
-            onEditorHostname,
+            isWebFrontendHostname,
             publicConfig: useRuntimeConfig().public,
           }),
       },
@@ -188,7 +188,7 @@ test.each([{ formula: "''" }, { formula: 'concat(' }])(
 
 describe('HTML element on the editor hostname', () => {
   beforeEach(() => {
-    onEditorHostname = true
+    isWebFrontendHostname = true
     setPreviewUrl(`${EDITOR_URL}:3001`)
   })
 

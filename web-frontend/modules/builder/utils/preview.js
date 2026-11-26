@@ -51,14 +51,15 @@ export const getBuilderPreviewUserSourceAuthConfig = (
 })
 
 /**
- * Cookies are scoped by hostname, not port, so author code running in Preview
- * on an editor hostname can read the editor's cookies, including the user's
- * token. An invalid URL counts as shared.
+ * Compare the Preview hostname with the main and additional configured web
+ * frontend hostnames. Cookies are scoped by hostname, not port, so a different
+ * port does not isolate Preview from web frontend cookies. An invalid URL
+ * counts as shared.
  *
  * @param {object} publicConfig The public runtime config.
- * @returns {boolean} Whether Preview shares a hostname with the editor.
+ * @returns {boolean} Whether Preview uses a configured web frontend hostname.
  */
-export const previewSharesEditorHostname = (publicConfig) => {
+export const previewSharesWebFrontendHostname = (publicConfig) => {
   try {
     const previewHostname = new URL(publicConfig.builderPreviewUrl).hostname
     return (

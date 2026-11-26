@@ -1,11 +1,11 @@
 import { trueValues } from '@baserow/modules/core/utils/constants'
-import { previewSharesEditorHostname } from '@baserow/modules/builder/utils/preview'
+import { previewSharesWebFrontendHostname } from '@baserow/modules/builder/utils/preview'
 
 /**
  * "Author code" is code written by an application's editors: custom
  * JavaScript, external scripts, head HTML, HTML element scripts and IFrame
- * embeds. On an editor hostname it could act as the logged-in user, because
- * cookies are scoped by hostname. Use the `$isAuthorCodeRestricted` plugin to
+ * embeds. On a web frontend hostname it could act as the logged-in user,
+ * because cookies are scoped by hostname. Use the `$isAuthorCodeRestricted` plugin to
  * ask whether it is restricted on the current page.
  */
 
@@ -14,8 +14,8 @@ import { previewSharesEditorHostname } from '@baserow/modules/builder/utils/prev
  * setting is only on for a value that means true.
  *
  * @param {object} publicConfig The public runtime config.
- * @returns {boolean} Whether the instance lets author code run on the editor's
- *   hostname.
+ * @returns {boolean} Whether the instance lets author code run on a web
+ *   frontend hostname.
  */
 export const isPreviewSecurityRelaxed = (publicConfig) =>
   trueValues.includes(
@@ -27,20 +27,20 @@ export const isPreviewSecurityRelaxed = (publicConfig) =>
 /**
  * Whether author code must be kept from acting as the logged-in user.
  *
- * Author code is restricted on an editor hostname, unless the instance
- * relaxes it. This
- * follows the hostname the page is served on, not the configured URLs: by
- * default the editor's hostname serves Preview, and it also serves published
- * applications by id. An application on its own hostname is never restricted.
+ * Author code is restricted when the current page uses the main web frontend
+ * hostname or an additional configured web frontend hostname, unless the
+ * instance relaxes this restriction. This applies regardless of the page mode.
  *
  * @param {object} options
- * @param {boolean} options.onEditorHostname Whether the page is served on an
- *   editor hostname. Anything but `false` counts as yes.
+ * @param {boolean} options.isWebFrontendHostname Whether the current page uses
+ *   a configured web frontend hostname. Anything but `false` counts as yes.
  * @param {object} options.publicConfig The public runtime config.
  * @returns {boolean} Whether author code is restricted.
  */
-export const isAuthorCodeRestricted = ({ onEditorHostname, publicConfig }) =>
-  onEditorHostname !== false && !isPreviewSecurityRelaxed(publicConfig)
+export const isAuthorCodeRestricted = ({
+  isWebFrontendHostname,
+  publicConfig,
+}) => isWebFrontendHostname !== false && !isPreviewSecurityRelaxed(publicConfig)
 
 /**
  * Whether Preview will restrict author code, for the editor to tell the user.
@@ -49,5 +49,5 @@ export const isAuthorCodeRestricted = ({ onEditorHostname, publicConfig }) =>
  * @returns {boolean} Whether Preview restricts author code.
  */
 export const isPreviewAuthorCodeRestricted = (publicConfig) =>
-  previewSharesEditorHostname(publicConfig) &&
+  previewSharesWebFrontendHostname(publicConfig) &&
   !isPreviewSecurityRelaxed(publicConfig)

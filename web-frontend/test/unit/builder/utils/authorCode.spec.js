@@ -48,10 +48,10 @@ describe('isAuthorCodeRestricted', () => {
     [false, true, false],
   ])(
     'on an editor hostname %s and relaxed %s: %s',
-    (onEditorHostname, relaxed, expected) => {
+    (isWebFrontendHostname, relaxed, expected) => {
       expect(
         isAuthorCodeRestricted({
-          onEditorHostname,
+          isWebFrontendHostname,
           publicConfig: { builderDangerousRelaxPreviewSecurity: relaxed },
         })
       ).toBe(expected)
@@ -61,7 +61,7 @@ describe('isAuthorCodeRestricted', () => {
   test('a word the backend reads as false does not relax it', () => {
     expect(
       isAuthorCodeRestricted({
-        onEditorHostname: true,
+        isWebFrontendHostname: true,
         publicConfig: { builderDangerousRelaxPreviewSecurity: 'no' },
       })
     ).toBe(true)
