@@ -101,4 +101,7 @@ class RoleInvitationLinkScopeType(InvitationLinkScopeType):
                 # The kind of application, like "database", which the frontend
                 # shows the object as.
                 scope_data[invitation_link.id]["type"] = scope.get_type().type
+            elif self.type == "database_view":
+                # Tells apart the views of the same name in different tables.
+                scope_data[invitation_link.id]["table_name"] = scope.table.name
         return scope_data

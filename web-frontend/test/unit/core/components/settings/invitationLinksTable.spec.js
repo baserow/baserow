@@ -152,6 +152,8 @@ describe('InvitationLinksTable', () => {
 
     expect(rows(wrapper)).toHaveLength(1)
     expect(rows(wrapper)[0].text()).toContain('Table: Customers')
+    // The links are only fetched once, so searching doesn't reload them.
+    expect(mockServer.mock.history.get).toHaveLength(1)
   })
 
   test('sorts from A to Z first, like the other management tables', async () => {
@@ -238,5 +240,10 @@ describe('InvitationLinksTable', () => {
     )
     expect(rows(wrapper)).toHaveLength(1)
     expect(rows(wrapper)[0].text()).toContain('Everyone')
+
+    // The deleted link doesn't come back when searching afterwards.
+    wrapper.findComponent(CrudTableSearch).vm.$emit('search-changed', '')
+    await flushPromises()
+    expect(rows(wrapper)).toHaveLength(1)
   })
 })

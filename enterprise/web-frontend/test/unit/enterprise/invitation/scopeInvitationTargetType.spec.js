@@ -294,6 +294,14 @@ describe('ScopeInvitationTargetType in the invitation links settings', () => {
       'scopeInvitationTarget.targetName:{"type":"Automation","name":"Flows"}'
     )
     expect(
+      targetType.getInvitationLinkTargetName(workspace, {
+        scopeType: 'database_view',
+        scope: { id: 3, name: 'Grid', table_name: 'Customers' },
+      })
+    ).toBe(
+      'scopeInvitationTarget.targetName:{"type":"View","name":"Customers / Grid"}'
+    )
+    expect(
       targetType.getTargetFromInvitationLink(workspace, { scope_type: null })
     ).toBeNull()
     expect(

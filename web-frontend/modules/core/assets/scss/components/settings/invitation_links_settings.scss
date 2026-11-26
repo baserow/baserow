@@ -15,9 +15,12 @@
     padding: 0;
   }
 
+  // Wraps like the title of the AI providers instead of being cut off when the
+  // modal is narrow.
   .data-table__title {
     font-size: 20px;
     line-height: 28px;
+    white-space: normal;
   }
 
   .data-table__subtitle {
@@ -34,6 +37,19 @@
     flex: none;
     margin: 0;
     container-type: inline-size;
+  }
+
+  // Stacks the search under the description at the same width as the AI
+  // providers page does with its button.
+  @media (max-width: 900px) {
+    .data-table__header {
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .data-table__actions {
+      margin-top: 0;
+    }
   }
 }
 

@@ -186,10 +186,14 @@ export class ScopeInvitationTargetType extends InvitationTargetType {
     }
   }
 
+  /**
+   * The name of the object, after the name of its table for a view, as
+   * "View: Customers / Grid", so that views of the same name can be told apart.
+   */
   getInvitationLinkTargetName(workspace, { scopeType, scope }) {
     return this.$t('scopeInvitationTarget.targetName', {
       type: this.getScopeTypeName(scopeType, scope),
-      name: scope.name,
+      name: [scope.table_name, scope.name].filter(Boolean).join(' / '),
     })
   }
 

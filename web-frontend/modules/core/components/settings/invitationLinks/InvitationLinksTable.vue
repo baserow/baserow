@@ -136,16 +136,26 @@ function compareRows(sorts) {
 }
 
 /**
- * The links come in one response, so they are searched and sorted here.
+ * The links of the workspace, fetched once and kept up to date with the
+ * changes made here.
+ */
+let invitationLinks = null
+
+/**
+ * The links come in one response, so they are searched and sorted here,
+ * without fetching them again.
  */
 const service = computed(() => ({
   options: { isPaginated: false, baseUrl: null, urlParams: {} },
   async fetch(baseUrl, page, searchQuery, sorts) {
-    const { data } = await WorkspaceService(
-      $client
-    ).fetchManageableInvitationLinks(props.workspace.id)
+    if (invitationLinks === null) {
+      const { data } = await WorkspaceService(
+        $client
+      ).fetchManageableInvitationLinks(props.workspace.id)
+      invitationLinks = data
+    }
     const search = (searchQuery || '').trim().toLowerCase()
-    const rows = data
+    const rows = invitationLinks
       .map(toRow)
       .filter(Boolean)
       .filter(
@@ -233,6 +243,10 @@ async function changeRole(row, uid) {
       row,
       { permissions: uid }
     )
+    const link = invitationLinks?.find(({ id }) => id === row.id)
+    if (link) {
+      link.permissions = updated.permissions
+    }
     table.value.updateRow({ id: row.id, permissions: updated.permissions })
   } catch (error) {
     notifyIf(error, 'workspace')
@@ -274,6 +288,9 @@ async function showDeleteModal(row) {
 }
 
 function deleted(invitationLink) {
+  invitationLinks = invitationLinks?.filter(
+    ({ id }) => id !== invitationLink.id
+  )
   table.value.deleteRow(invitationLink.id)
 }
 </script>

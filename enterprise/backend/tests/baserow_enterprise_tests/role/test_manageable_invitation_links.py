@@ -132,6 +132,12 @@ def test_links_to_trashed_objects_or_without_license_are_not_listed(
 @pytest.mark.django_db
 def test_list_manageable_invitation_links_with_their_objects(api_client, data_fixture):
     admin, workspace, database, table_a, _, team, links = setup_links(data_fixture)
+    view = data_fixture.create_grid_view(
+        table=table_a, name="Open deals", ownership_type="restricted"
+    )
+    links["view"] = RoleAssignmentHandler().create_scoped_invitation_link(
+        admin, workspace, view, role("VIEWER")
+    )
     token = data_fixture.generate_token(admin)
 
     response = api_client.get(
@@ -159,6 +165,12 @@ def test_list_manageable_invitation_links_with_their_objects(api_client, data_fi
         "name": "Customers",
     }
     assert by_id[links["table_a"].id]["permissions"] == "EDITOR"
+    assert by_id[links["view"].id]["scope_type"] == "database_view"
+    assert by_id[links["view"].id]["scope"] == {
+        "id": view.id,
+        "name": "Open deals",
+        "table_name": "Customers",
+    }
     assert by_id[links["team"].id]["scope_type"] == "team"
     assert by_id[links["team"].id]["scope"] == {
         "id": team.id,
