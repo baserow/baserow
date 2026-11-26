@@ -4,15 +4,16 @@ import socket
 from smtplib import SMTPAuthenticationError, SMTPNotSupportedError
 from uuid import uuid4
 
+from django.core.validators import validate_email
+
 import pytest
 from loguru import logger
 
 from baserow.contrib.agent.action_tools.errors import (
-    EMAIL_ADDRESS_ERROR,
     EMAIL_AUTH_ERROR,
     EMAIL_CONNECTION_ERROR,
     EMAIL_DELIVERY_UNCONFIRMED,
-    EMAIL_TLS_ERROR,
+    EMAIL_UNSUPPORTED_ERROR,
     SMTP_DNS_DIAGNOSIS,
     SMTP_REFUSED_DIAGNOSIS,
     SMTP_TIMEOUT_DIAGNOSIS,
@@ -92,7 +93,7 @@ def test_email_runs_without_workspace_access_and_uses_shared_activity(
             SMTP_REFUSED_DIAGNOSIS,
         ),
         (SMTPAuthenticationError(535, b"SMTP_SECRET_CANARY"), EMAIL_AUTH_ERROR, None),
-        (SMTPNotSupportedError("private"), EMAIL_TLS_ERROR, None),
+        (SMTPNotSupportedError("private"), EMAIL_UNSUPPORTED_ERROR, None),
         (TimeoutError("private"), EMAIL_DELIVERY_UNCONFIRMED, SMTP_TIMEOUT_DIAGNOSIS),
         (RuntimeError("SMTP_SECRET_CANARY"), None, None),
     ],
@@ -536,7 +537,7 @@ def test_invalid_resolved_recipient_explains_the_input_error_without_sending(
     assert not reply.approvals.exists()
     assert reply.steps[0]["status"] == "failed"
     assert reply.steps[0]["error_code"] == "invalid_input"
-    assert reply.steps[0]["error_message"] == EMAIL_ADDRESS_ERROR.message
+    assert reply.steps[0]["error_message"] == validate_email.message
     assert mailoutbox == []
     connection.assert_not_called()
 

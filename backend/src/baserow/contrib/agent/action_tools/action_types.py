@@ -313,15 +313,14 @@ class HTTPRequestAgentActionType(AgentActionType):
         for position, row in enumerate(service.headers.all()):
             value = values[f"headers.{position}"]
             if _LINE_BREAK.search(row.key + value):
-                raise ToolInputError(f'The header "{row.key}" contains a line break.')
+                raise ToolInputError("A request header contains a line break.")
             try:
                 # What HTTP sends a header name and value as.
                 row.key.encode("ascii")
                 value.encode("latin-1")
             except UnicodeEncodeError as exc:
                 raise ToolInputError(
-                    f'The header "{row.key}" contains a character a header can\'t '
-                    f"carry: {exc.object[exc.start]}.",
+                    "A request header contains an unsupported character.",
                     hint="Use plain ASCII text in headers.",
                 ) from exc
         body = values.get("body_content")
@@ -335,7 +334,7 @@ class HTTPRequestAgentActionType(AgentActionType):
                 )
             except (json.JSONDecodeError, ValueError) as exc:
                 raise ToolInputError(
-                    f"The request body is not valid JSON: {exc}.",
+                    "The request body is not valid JSON.",
                     hint="Send the body as one JSON value, with every string "
                     "quoted and escaped.",
                 ) from exc

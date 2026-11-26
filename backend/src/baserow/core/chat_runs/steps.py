@@ -27,7 +27,7 @@ from pydantic_ai.messages import (
     ToolReturnPart,
 )
 
-from baserow.core.tools.errors import ToolErrorCode
+from baserow.core.tools.errors import ToolError, ToolErrorCode
 from baserow.core.utils import remove_unstorable_characters
 
 from .constants import (
@@ -69,6 +69,17 @@ class ToolFailureWithDiagnostic(ToolReturn):
 
         await ctx.emit(ToolCallDiagnosticEvent(message=_message(self.builder_message)))
         return ToolReturn(self.return_value, metadata=self.metadata)
+
+
+def tool_failure(error: ToolError, builder_message: str | None = None) -> ToolReturn:
+    """Send the public failure to the model and the step, keeping diagnostics separate."""
+    result = {"error": error.to_dict()}
+    metadata = {"error_code": error.code}
+    if builder_message:
+        return ToolFailureWithDiagnostic(
+            return_value=result, metadata=metadata, builder_message=builder_message
+        )
+    return ToolReturn(return_value=result, metadata=metadata)
 
 
 def stop_running_steps(steps: list[ChatRunStep]) -> list[ChatRunStep]:

@@ -13,13 +13,14 @@ from pydantic_ai.exceptions import ApprovalRequired
 from rest_framework.exceptions import PermissionDenied as DRFPermissionDenied
 
 from baserow.core.cache import local_cache
-from baserow.core.chat_runs.steps import ToolCallInputEvent, ToolFailureWithDiagnostic
+from baserow.core.chat_runs.steps import ToolCallInputEvent, tool_failure
 from baserow.core.db import with_usable_db_connection
 from baserow.core.exceptions import PermissionDenied
 from baserow.core.formula.registries import DataProviderTypeRegistry
 from baserow.core.models import Workspace
 from baserow.core.registries import subject_type_registry
 from baserow.core.registry import Instance, Registry
+from baserow.core.services.exceptions import DispatchException
 from baserow.core.tools import ToolContext
 from baserow.core.tools.errors import (
     ToolError,
@@ -70,21 +71,14 @@ def failed_call(
         logger.error(
             "Agent tool {} failed ({}) [{}]",
             tool_type.type,
-            type(exc).__name__,
+            type(exc).__name__
+            if isinstance(exc, DispatchException)
+            else describe_failure(exc),
             reference,
         )
         cause = exc.__cause__ or exc
         builder_message = f"{type(cause).__name__} (log reference {reference})"
-    if builder_message:
-        return ToolFailureWithDiagnostic(
-            return_value={"error": error.to_dict()},
-            metadata={"error_code": error.code},
-            builder_message=builder_message,
-        )
-    return ToolReturn(
-        return_value={"error": error.to_dict()},
-        metadata={"error_code": error.code},
-    )
+    return tool_failure(error, builder_message)
 
 
 def _step_facts(

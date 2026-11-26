@@ -13,6 +13,14 @@ from baserow.contrib.agent.actions import CreateAgentConversationActionType
 from baserow.contrib.agent.handler import AgentHandler
 from baserow.contrib.agent.models import AgentMessage
 from baserow.contrib.integrations.mcp.handler import MCPServerHandler, MCPToolSettings
+from baserow.contrib.integrations.mcp.toolset import (
+    CHANGED_MESSAGE,
+    MCP_INVALID_PARAMS,
+    MCP_TOOL_FAILED,
+    REFUSED_MESSAGE,
+    SWITCHED_OFF_MESSAGE,
+    UNREACHABLE_MESSAGE,
+)
 from baserow.core.action.registries import action_type_registry
 from baserow.core.chat_runs.models import ChatRun
 
@@ -127,10 +135,13 @@ def test_a_tool_error_is_answered_to_the_model(data_fixture, configured_agent, m
 
     reply = AgentMessage.objects.get(id=created.reply.id)
     assert reply.status == "completed"
-    assert "Nothing works today." in returned[0]["error"]
-    assert reply.tool_errors == {
-        reply.steps[0]["id"]: "The connected MCP server reported that the tool failed."
-    }
+    assert (
+        returned[0]["error"]["message"]
+        == reply.steps[0]["error_message"]
+        == MCP_TOOL_FAILED
+    )
+    assert "Nothing works today." not in str(reply.transcript.model_messages)
+    assert not reply.tool_errors
     assert (reply.steps[0]["status"], reply.steps[0]["error_code"]) == (
         "failed",
         "failed",
@@ -160,7 +171,7 @@ def test_a_tool_changed_after_review_is_refused(data_fixture, configured_agent, 
     run_reply(ChatRun.objects.get(chat_id=created.conversation.id))
 
     reply = AgentMessage.objects.get(id=created.reply.id)
-    assert "review" in returned[0]["error"]
+    assert returned[0]["error"]["message"] == CHANGED_MESSAGE
     assert reply.steps[0]["error_code"] == "permission_denied"
 
 
@@ -184,8 +195,8 @@ def test_an_unreachable_server_fails_the_call_not_the_reply(
 
     reply = AgentMessage.objects.get(id=created.reply.id)
     assert (reply.status, reply.content) == ("completed", "Done.")
-    assert "could not be reached" in returned[0]["error"]
-    assert reply.tool_errors == {reply.steps[0]["id"]: returned[0]["error"]}
+    assert returned[0]["error"]["message"] == UNREACHABLE_MESSAGE
+    assert not reply.tool_errors
 
 
 @pytest.mark.django_db
@@ -215,7 +226,7 @@ def test_a_server_without_a_connected_account_offers_no_tools(
     [
         (
             McpError(ErrorData(code=INVALID_PARAMS, message="Use an ISO date.")),
-            "Use an ISO date.",
+            MCP_INVALID_PARAMS,
         ),
         (
             httpx.HTTPStatusError(
@@ -223,7 +234,7 @@ def test_a_server_without_a_connected_account_offers_no_tools(
                 request=httpx.Request("POST", "https://mcp.example.com/mcp"),
                 response=httpx.Response(401),
             ),
-            "refused the Agent's credential",
+            REFUSED_MESSAGE,
         ),
     ],
 )
@@ -255,7 +266,8 @@ def test_a_server_error_is_answered_to_the_model(
     run_reply(ChatRun.objects.get(chat_id=created.conversation.id))
 
     # The server answered: the model can fix its arguments or explain the key.
-    assert expected in returned[0]["error"]
+    assert returned[0]["error"]["message"] == expected
+    assert "Use an ISO date." not in str(returned)
 
 
 @pytest.mark.django_db
@@ -306,7 +318,7 @@ def test_a_tool_call_after_the_app_is_switched_off_is_refused(
 
     result = async_to_sync(toolset.call_tool)(model_name, {"a": 1, "b": 2}, None, None)
 
-    assert "switched this app off or removed it" in result.return_value["error"]
+    assert result.return_value["error"]["message"] == SWITCHED_OFF_MESSAGE
     assert result.metadata["error_code"] == "not_run"
     assert opened == []
 
