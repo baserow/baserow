@@ -252,8 +252,10 @@ describe('Agent replies', () => {
       wrapper.find('.chat-step-group .iconoir-warning-triangle').exists()
     ).toBe(true)
     const reads = wrapper.findAll('.chat-step-group')[0]
-    expect(reads.find('button .iconoir-check-circle').exists()).toBe(true)
-    expect(reads.find('button .iconoir-warning-triangle').exists()).toBe(false)
+    const header = reads.get('.chat-step-group__header')
+    expect(header.find('.iconoir-check-circle').exists()).toBe(true)
+    expect(header.find('.iconoir-warning-triangle').exists()).toBe(false)
+    expect(reads.findAll('li .chat-tool-failure')).toHaveLength(1)
     expect(reads.findAll('li .iconoir-warning-triangle')).toHaveLength(1)
     expect(reads.findAll('li .iconoir-check-circle')).toHaveLength(2)
     expect(reads.get('button').classes()).not.toContain('button')

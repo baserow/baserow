@@ -5,24 +5,17 @@
     :aria-busy="status === STEP_STATUS.RUNNING"
   >
     <div class="chat-step-group__heading">
-      <component
-        :is="hasDetails ? 'button' : 'div'"
-        class="chat-step-group__header"
-        :class="{ 'chat-step-group__header--toggle': hasDetails }"
-        :type="hasDetails ? 'button' : undefined"
-        :aria-expanded="hasDetails ? expanded : undefined"
-        :aria-controls="hasDetails ? detailsId : undefined"
-        @click="hasDetails && (expanded = !expanded)"
+      <button
+        v-if="hasDetails"
+        type="button"
+        class="chat-step-group__header chat-step-group__header--toggle"
+        :aria-expanded="expanded"
+        :aria-controls="detailsId"
+        @click="expanded = !expanded"
       >
         <span
           v-if="status !== STEP_STATUS.FAILED"
-          :class="
-            status === STEP_STATUS.RUNNING
-              ? 'chat-step-group__spinner'
-              : partial
-                ? 'iconoir-warning-circle chat-step-group__icon--partial'
-                : statusIcons[status]
-          "
+          :class="headerIcon"
           class="chat-step-group__icon"
           aria-hidden="true"
         />
@@ -35,14 +28,29 @@
           {{ stepStatusLabel({ status, changesData, partial }, $t) }}
         </span>
         <i
-          v-if="hasDetails"
           class="chat-step-group__chevron"
           :class="
             expanded ? 'iconoir-nav-arrow-down' : 'iconoir-nav-arrow-right'
           "
           aria-hidden="true"
         />
-      </component>
+      </button>
+      <div v-else class="chat-step-group__header">
+        <span
+          v-if="status !== STEP_STATUS.FAILED"
+          :class="headerIcon"
+          class="chat-step-group__icon"
+          aria-hidden="true"
+        />
+        <span class="chat-step-group__title">{{ title }}</span>
+        <span
+          v-if="status !== STEP_STATUS.FAILED"
+          class="chat-step-group__status"
+          :class="statusClass"
+        >
+          {{ stepStatusLabel({ status, changesData, partial }, $t) }}
+        </span>
+      </div>
       <ChatToolFailure
         v-if="status === STEP_STATUS.FAILED"
         :reason="failureHint || $t('toolPresentation.failureFailed')"
@@ -145,4 +153,10 @@ const statusIcons = {
   [STEP_STATUS.REJECTED]: 'iconoir-prohibition chat-step-group__icon--rejected',
   [STEP_STATUS.STOPPED]: 'iconoir-minus-circle chat-step-group__icon--stopped',
 }
+const headerIcon = computed(() => {
+  if (props.status === STEP_STATUS.RUNNING) return 'chat-step-group__spinner'
+  if (partial.value)
+    return 'iconoir-warning-circle chat-step-group__icon--partial'
+  return statusIcons[props.status]
+})
 </script>
