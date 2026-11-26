@@ -1,3 +1,4 @@
+import logging
 from unittest.mock import patch
 
 from django.test.utils import override_settings
@@ -15,14 +16,6 @@ from baserow.core.generative_ai.generative_ai_model_types import (
     OpenAIGenerativeAIModelType,
 )
 from baserow.core.generative_ai.usage import (
-    AI_USAGE_FEATURE_AGENT,
-    AI_USAGE_FEATURE_AI_FIELD,
-    AI_USAGE_FEATURE_UNKNOWN,
-    AI_USAGE_KEY_SCOPE_ENVIRONMENT,
-    AI_USAGE_KEY_SCOPE_EXPLICIT,
-    AI_USAGE_KEY_SCOPE_INSTANCE,
-    AI_USAGE_KEY_SCOPE_INTEGRATION,
-    AI_USAGE_KEY_SCOPE_WORKSPACE,
     AIUsage,
     AIUsageLimitExceeded,
     AIUsageScope,
@@ -31,9 +24,11 @@ from baserow.core.generative_ai.usage import (
     ai_request_starting,
     ai_usage_context,
     ai_usage_preparing,
+    get_ai_usage_plugin_data,
     notify_ai_usage_preparing,
 )
 from baserow.core.models import Workspace
+from baserow.core.registries import Plugin, plugin_registry
 
 MODEL = "gpt-test"
 REQUEST_USAGE = RequestUsage(input_tokens=120, output_tokens=30, cache_read_tokens=20)
@@ -43,7 +38,7 @@ def scope_in_context(provider_type, model, **kwargs):
     return AIUsageScope(
         provider_type,
         model,
-        kwargs.pop("key_scope", AI_USAGE_KEY_SCOPE_EXPLICIT),
+        kwargs.pop("uses_shared_key", False),
         **kwargs,
     ).with_usage_context()
 
@@ -100,36 +95,30 @@ def test_ai_usage_from_pydantic_ai():
 
 
 def test_ai_usage_context_is_nested_and_reset():
-    assert scope_in_context("openai", MODEL).feature == AI_USAGE_FEATURE_UNKNOWN
+    assert scope_in_context("openai", MODEL).feature is None
 
-    with ai_usage_context(feature=AI_USAGE_FEATURE_AI_FIELD, reference_id=1):
+    with ai_usage_context(feature="some_feature", reference_id=1):
         with ai_usage_context(reference_type="ai_field"):
             scope = scope_in_context("openai", MODEL)
-            assert scope.feature == AI_USAGE_FEATURE_AI_FIELD
+            assert scope.feature == "some_feature"
             assert (scope.reference_type, scope.reference_id) == ("ai_field", "1")
         assert scope_in_context("openai", MODEL).reference_type is None
 
-    assert scope_in_context("openai", MODEL).feature == AI_USAGE_FEATURE_UNKNOWN
+    assert scope_in_context("openai", MODEL).feature is None
 
 
-def test_the_context_key_scope_only_replaces_explicit_credentials():
-    with ai_usage_context(key_scope=AI_USAGE_KEY_SCOPE_INTEGRATION):
-        explicit = scope_in_context("openai", MODEL)
-        resolved = scope_in_context(
-            "openai", MODEL, key_scope=AI_USAGE_KEY_SCOPE_INSTANCE
-        )
+def test_the_context_tells_whose_explicit_credentials_are_used():
+    assert scope_in_context("openai", MODEL).uses_shared_key is False
 
-    assert explicit.key_scope == AI_USAGE_KEY_SCOPE_INTEGRATION
-    assert resolved.key_scope == AI_USAGE_KEY_SCOPE_INSTANCE
-    assert resolved.uses_shared_key is True
-    assert explicit.uses_shared_key is False
+    with ai_usage_context(uses_shared_key=True):
+        assert scope_in_context("openai", MODEL).uses_shared_key is True
 
 
 def test_requests_can_be_marked_as_made_without_the_database():
     assert scope_in_context("openai", MODEL).database_allowed is True
 
     with ai_usage_context(database_allowed=False):
-        with ai_usage_context(feature=AI_USAGE_FEATURE_AI_FIELD):
+        with ai_usage_context(feature="some_feature"):
             assert scope_in_context("openai", MODEL).database_allowed is False
 
     assert scope_in_context("openai", MODEL).database_allowed is True
@@ -144,7 +133,7 @@ def test_notify_ai_usage_preparing_tells_the_workspace_and_feature():
 
     ai_usage_preparing.connect(receiver)
     try:
-        notify_ai_usage_preparing(workspace, AI_USAGE_FEATURE_UNKNOWN)
+        notify_ai_usage_preparing(workspace, "other_feature")
     finally:
         ai_usage_preparing.disconnect(receiver)
 
@@ -152,7 +141,7 @@ def test_notify_ai_usage_preparing_tells_the_workspace_and_feature():
         {
             "signal": ai_usage_preparing,
             "workspace": workspace,
-            "feature": AI_USAGE_FEATURE_UNKNOWN,
+            "feature": "other_feature",
         }
     ]
 
@@ -165,23 +154,20 @@ def test_resolve_model_settings_tells_whose_credentials_are_used(data_fixture):
     explicit = model_type.resolve_model_settings(
         MODEL, workspace, settings_override={"api_key": "x", "models": [MODEL]}
     )
-    assert explicit.key_scope == AI_USAGE_KEY_SCOPE_EXPLICIT
+    assert explicit.uses_shared_key is False
 
-    assert (
-        model_type.resolve_model_settings(MODEL, None).key_scope
-        == AI_USAGE_KEY_SCOPE_INSTANCE
-    )
+    assert model_type.resolve_model_settings(MODEL, None).uses_shared_key is True
 
     create_provider()
     instance = model_type.resolve_model_settings(MODEL, workspace)
-    assert instance.key_scope == AI_USAGE_KEY_SCOPE_INSTANCE
+    assert instance.uses_shared_key is True
     assert instance.settings["api_key"] == "key"
 
     # The provider state is cached per workspace, so another one is used.
     other_workspace = data_fixture.create_workspace()
     create_provider(workspace=other_workspace)
     owned = model_type.resolve_model_settings(MODEL, other_workspace)
-    assert owned.key_scope == AI_USAGE_KEY_SCOPE_WORKSPACE
+    assert owned.uses_shared_key is False
     # The old method returns the same settings.
     assert (
         model_type.get_model_settings_override(MODEL, other_workspace) == owned.settings
@@ -200,7 +186,7 @@ def test_an_inactive_workspace_provider_uses_the_instance_credentials(data_fixtu
     resolved = OpenAIGenerativeAIModelType().resolve_model_settings(MODEL, workspace)
 
     assert resolved.settings is None
-    assert resolved.key_scope == AI_USAGE_KEY_SCOPE_INSTANCE
+    assert resolved.uses_shared_key is True
 
 
 @pytest.mark.django_db
@@ -210,7 +196,7 @@ def test_resolve_model_settings_with_environment_credentials(data_fixture):
 
     resolved = OpenAIGenerativeAIModelType().resolve_model_settings(MODEL, workspace)
 
-    assert resolved.key_scope == AI_USAGE_KEY_SCOPE_ENVIRONMENT
+    assert resolved.uses_shared_key is True
     assert resolved.settings["api_key"] == "env-key"
 
 
@@ -223,15 +209,15 @@ def test_prompt_reports_the_usage(data_fixture):
     with (
         patch.object(model_type, "get_ai_model", return_value=FunctionModel(respond)),
         Recorder() as recorder,
-        ai_usage_context(feature=AI_USAGE_FEATURE_AI_FIELD, reference_id=7),
+        ai_usage_context(feature="some_feature", reference_id=7),
     ):
         assert model_type.prompt(MODEL, "Hi", workspace=workspace) == "Hello"
 
     (scope,) = recorder.started
     assert scope.provider_type == "openai"
     assert scope.model == MODEL
-    assert scope.key_scope == AI_USAGE_KEY_SCOPE_INSTANCE
-    assert scope.feature == AI_USAGE_FEATURE_AI_FIELD
+    assert scope.uses_shared_key is True
+    assert scope.feature == "some_feature"
     assert scope.workspace == workspace
     assert scope.reference_id == "7"
     ((completed_scope, usage),) = recorder.completed
@@ -378,16 +364,14 @@ def test_a_failing_preparing_receiver_is_logged():
 
     ai_usage_preparing.connect(fail)
     try:
-        notify_ai_usage_preparing(Workspace(id=1), AI_USAGE_FEATURE_UNKNOWN)
+        notify_ai_usage_preparing(Workspace(id=1), "other_feature")
     finally:
         ai_usage_preparing.disconnect(fail)
 
 
 @pytest.mark.django_db
 def test_usage_reporting_model_reports_every_request():
-    scope = AIUsageScope(
-        "openai", MODEL, AI_USAGE_KEY_SCOPE_INSTANCE, feature=AI_USAGE_FEATURE_AGENT
-    )
+    scope = AIUsageScope("openai", MODEL, True, feature="other_feature")
     model = UsageReportingModel(
         FunctionModel(respond, stream_function=respond_streamed), scope
     )
@@ -395,7 +379,7 @@ def test_usage_reporting_model_reports_every_request():
     async def run():
         async with model:
             await Agent(model).run("Hi")
-            with ai_usage_context(feature=AI_USAGE_FEATURE_AI_FIELD, reference_id=3):
+            with ai_usage_context(feature="some_feature", reference_id=3):
                 async with Agent(model).run_stream("Streamed") as streamed:
                     await streamed.get_output()
 
@@ -407,9 +391,9 @@ def test_usage_reporting_model_reports_every_request():
     # Without a context, the feature of the model is kept.
     assert recorder.started[0] == scope
     # The context at the time of the request is used.
-    assert recorder.started[1].feature == AI_USAGE_FEATURE_AI_FIELD
+    assert recorder.started[1].feature == "some_feature"
     assert recorder.started[1].reference_id == "3"
-    assert recorder.started[1].key_scope == AI_USAGE_KEY_SCOPE_INSTANCE
+    assert recorder.started[1].uses_shared_key is True
     assert recorder.completed[0][1].input_tokens == 120
     assert recorder.completed[1][1].output_tokens > 0
 
@@ -422,7 +406,7 @@ def test_usage_reporting_model_reports_a_stream_that_is_stopped_early():
 
     model = UsageReportingModel(
         FunctionModel(stream_function=stream),
-        AIUsageScope("openai", MODEL, AI_USAGE_KEY_SCOPE_INSTANCE),
+        AIUsageScope("openai", MODEL, True),
     )
 
     async def run():
@@ -442,7 +426,7 @@ def test_usage_reporting_model_reports_a_stream_that_is_stopped_early():
 def test_usage_reporting_model_can_be_refused():
     model = UsageReportingModel(
         FunctionModel(respond),
-        AIUsageScope("openai", MODEL, AI_USAGE_KEY_SCOPE_INSTANCE),
+        AIUsageScope("openai", MODEL, True),
     )
 
     async def run():
@@ -458,10 +442,32 @@ def test_usage_reporting_model_can_be_refused():
     assert recorder.completed == []
 
 
+def test_a_refusal_is_not_logged_as_an_error(caplog):
+    model = UsageReportingModel(
+        FunctionModel(respond),
+        AIUsageScope("openai", MODEL, True),
+    )
+
+    async def run():
+        async with model:
+            await Agent(model).run("Hi")
+
+    with (
+        caplog.at_level(logging.ERROR, logger="django.dispatch"),
+        Recorder(refuse_with=AIUsageLimitExceeded("No credits left.")),
+        pytest.raises(AIUsageLimitExceeded),
+    ):
+        async_to_sync(run)()
+
+    assert [
+        record for record in caplog.records if record.name == "django.dispatch"
+    ] == []
+
+
 def test_usage_reporting_model_does_not_leave_the_loop_without_receivers():
     model = UsageReportingModel(
         FunctionModel(respond),
-        AIUsageScope("openai", MODEL, AI_USAGE_KEY_SCOPE_INSTANCE),
+        AIUsageScope("openai", MODEL, True),
     )
 
     async def run():
@@ -491,3 +497,49 @@ def test_prompt_reports_the_usage_of_a_run_that_fails_after_a_request(data_fixtu
 
     assert len(recorder.completed) > 1
     assert all(usage.input_tokens == 120 for _, usage in recorder.completed)
+
+
+@pytest.mark.django_db
+def test_get_ai_usage_plugin_data_collects_the_data_of_every_plugin():
+    calls = []
+
+    class CostPlugin(Plugin):
+        type = "cost"
+
+        def get_ai_usage_plugin_data(self, reference_type, reference_ids):
+            calls.append((reference_type, reference_ids))
+            return {"1": {"credits": 2}}
+
+    class EmptyPlugin(Plugin):
+        type = "empty"
+
+    with patch.dict(
+        plugin_registry.registry, {"cost": CostPlugin(), "empty": EmptyPlugin()}
+    ):
+        assert get_ai_usage_plugin_data("job", [1, 2, 1]) == {
+            "1": {"cost": {"credits": 2}}
+        }
+        assert get_ai_usage_plugin_data("job", []) == {}
+
+    # Once for all the ids, as strings.
+    assert calls == [("job", ["1", "2"])]
+
+
+@pytest.mark.django_db
+def test_get_ai_usage_plugin_data_leaves_out_a_failing_plugin():
+    class BrokenPlugin(Plugin):
+        type = "broken"
+
+        def get_ai_usage_plugin_data(self, reference_type, reference_ids):
+            raise ValueError("broken")
+
+    class CostPlugin(Plugin):
+        type = "cost"
+
+        def get_ai_usage_plugin_data(self, reference_type, reference_ids):
+            return {"1": {"credits": 2}}
+
+    with patch.dict(
+        plugin_registry.registry, {"broken": BrokenPlugin(), "cost": CostPlugin()}
+    ):
+        assert get_ai_usage_plugin_data("job", [1]) == {"1": {"cost": {"credits": 2}}}

@@ -19,12 +19,16 @@ workers of the AI field, marks those requests with
 `ai_usage_context(database_allowed=False)`. Before it starts them, it calls
 `notify_ai_usage_preparing` from a thread that can, so that receivers can load
 what they need to handle those requests without the database.
+
+Plugins can show the reported usage, for example what it cost, through
+`Plugin.get_ai_usage_plugin_data`, collected with `get_ai_usage_plugin_data`.
 """
 
 import contextlib
+import logging
 from contextvars import ContextVar
 from dataclasses import dataclass, replace
-from typing import Any, AsyncIterator, Iterator, Optional
+from typing import Any, AsyncIterator, Iterable, Iterator, Optional
 
 from django.db import connection, transaction
 from django.dispatch import Signal
@@ -39,33 +43,6 @@ from baserow.core.models import Workspace
 
 from .exceptions import GenerativeAIPromptError
 
-# What the AI is used for.
-AI_USAGE_FEATURE_AI_FIELD = "ai_field"
-AI_USAGE_FEATURE_AI_FORMULA = "ai_formula"
-AI_USAGE_FEATURE_AI_NODE = "ai_node"
-AI_USAGE_FEATURE_BUILDER_AI_ACTION = "builder_ai_action"
-AI_USAGE_FEATURE_AGENT = "agent"
-AI_USAGE_FEATURE_UNKNOWN = "unknown"
-
-# Whose credentials are used to prompt the model.
-# A provider configured by an instance admin for the whole instance.
-AI_USAGE_KEY_SCOPE_INSTANCE = "instance"
-# A provider configured with environment variables.
-AI_USAGE_KEY_SCOPE_ENVIRONMENT = "env"
-# A provider configured by the workspace itself.
-AI_USAGE_KEY_SCOPE_WORKSPACE = "workspace"
-# A provider configured in the legacy workspace settings.
-AI_USAGE_KEY_SCOPE_LEGACY_WORKSPACE = "legacy_workspace"
-# A provider configured in an AI integration of an application.
-AI_USAGE_KEY_SCOPE_INTEGRATION = "integration"
-# Credentials passed in explicitly, of which the origin isn't known.
-AI_USAGE_KEY_SCOPE_EXPLICIT = "explicit"
-
-# The key scopes of credentials that aren't owned by the workspace.
-AI_USAGE_SHARED_KEY_SCOPES = frozenset(
-    [AI_USAGE_KEY_SCOPE_INSTANCE, AI_USAGE_KEY_SCOPE_ENVIRONMENT]
-)
-
 ai_usage_preparing = Signal()
 ai_request_starting = Signal()
 ai_request_completed = Signal()
@@ -79,6 +56,23 @@ class AIUsageLimitExceeded(GenerativeAIPromptError):
     example because the workspace has used up its credits. The message is shown
     to the user.
     """
+
+
+class _RefusalLogFilter(logging.Filter):
+    """
+    `Signal.send_robust` logs every exception of a receiver as an error. A
+    refusal is a deliberate answer and not a failure, so it's not logged.
+    """
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        exc_info = record.exc_info
+        return not (
+            isinstance(exc_info, tuple)
+            and isinstance(exc_info[1], AIUsageLimitExceeded)
+        )
+
+
+logging.getLogger("django.dispatch").addFilter(_RefusalLogFilter())
 
 
 @dataclass(frozen=True)
@@ -123,8 +117,12 @@ class AIUsageScope:
 
     provider_type: str
     model: str
-    key_scope: str
-    feature: str = AI_USAGE_FEATURE_UNKNOWN
+    # Whether the credentials aren't owned by the workspace, but shared by the
+    # instance: configured by an instance admin or with environment variables.
+    uses_shared_key: bool
+    # What the AI is used for. The name is owned by the module of the feature,
+    # this module doesn't know which features exist. None when it's not described.
+    feature: Optional[str] = None
     workspace: Optional[Workspace] = None
     reference_type: Optional[str] = None
     reference_id: Optional[str] = None
@@ -133,31 +131,17 @@ class AIUsageScope:
     # `notify_ai_usage_preparing`.
     database_allowed: bool = True
 
-    @property
-    def uses_shared_key(self) -> bool:
-        """
-        Whether the credentials aren't owned by the workspace, but by the
-        instance.
-        """
-
-        return self.key_scope in AI_USAGE_SHARED_KEY_SCOPES
-
     def with_usage_context(self) -> "AIUsageScope":
         """
-        Completes the scope with the current `ai_usage_context`. Its values take
-        precedence, except that it can't change resolved credentials or a known
-        workspace.
+        Completes the scope with the current `ai_usage_context`, of which the
+        values take precedence.
         """
 
         context = _ai_usage_context.get()
-        key_scope = self.key_scope
-        if key_scope == AI_USAGE_KEY_SCOPE_EXPLICIT:
-            key_scope = context.get("key_scope", key_scope)
         return replace(
             self,
-            key_scope=key_scope,
+            uses_shared_key=context.get("uses_shared_key", self.uses_shared_key),
             feature=context.get("feature", self.feature),
-            workspace=self.workspace or context.get("workspace"),
             reference_type=context.get("reference_type", self.reference_type),
             reference_id=context.get("reference_id", self.reference_id),
             database_allowed=context.get("database_allowed", self.database_allowed),
@@ -167,8 +151,7 @@ class AIUsageScope:
 @contextlib.contextmanager
 def ai_usage_context(
     feature: Optional[str] = None,
-    workspace: Optional[Workspace] = None,
-    key_scope: Optional[str] = None,
+    uses_shared_key: Optional[bool] = None,
     reference_type: Optional[str] = None,
     reference_id: Any = None,
     database_allowed: Optional[bool] = None,
@@ -177,10 +160,11 @@ def ai_usage_context(
     Describes the AI requests made within the block. Nested blocks extend the
     outer one.
 
-    :param feature: What the AI is used for, one of the `AI_USAGE_FEATURE_*`.
-    :param workspace: The workspace on whose behalf the AI is used.
-    :param key_scope: The `AI_USAGE_KEY_SCOPE_*` of the credentials, when the code
-        resolved them itself and passes them to the model explicitly.
+    :param feature: What the AI is used for, a name that's defined by the module
+        of the feature, like the AI field.
+    :param uses_shared_key: Whether the credentials are shared by the instance,
+        when the code resolved them itself and passes them to the model
+        explicitly. Those are otherwise taken as owned by the workspace.
     :param reference_type: What the requests can be attributed to, like
         `automation_workflow_history`.
     :param reference_id: The id of the referenced object.
@@ -192,8 +176,7 @@ def ai_usage_context(
         key: value
         for key, value in {
             "feature": feature,
-            "workspace": workspace,
-            "key_scope": key_scope,
+            "uses_shared_key": uses_shared_key,
             "reference_type": reference_type,
             "reference_id": None if reference_id is None else str(reference_id),
             "database_allowed": database_allowed,
@@ -259,7 +242,8 @@ def notify_ai_usage_preparing(workspace: Workspace, feature: str) -> None:
     `ai_usage_context(database_allowed=False)`. A failing receiver is logged.
 
     :param workspace: The workspace on whose behalf the AI will be used.
-    :param feature: What the AI will be used for, one of the `AI_USAGE_FEATURE_*`.
+    :param feature: What the AI will be used for, the same name the requests
+        are described with in `ai_usage_context`.
     """
 
     try:
@@ -343,3 +327,44 @@ class UsageReportingModel(WrapperModel):
                 await _anotify_ai_request_completed(
                     scope, AIUsage.from_pydantic_ai(streamed_response.usage)
                 )
+
+
+def get_ai_usage_plugin_data(
+    reference_type: str, reference_ids: Iterable[Any]
+) -> dict[str, dict[str, Any]]:
+    """
+    Collects what every plugin provides about the AI usage of the referenced
+    objects, like what they cost.
+
+    :param reference_type: The reference type the usage was reported with.
+    :param reference_ids: The ids the usage was reported with.
+    :return: The data by reference id and then by plugin type. A plugin that
+        fails is logged and left out.
+    """
+
+    from baserow.core.registries import Plugin, plugin_registry
+
+    reference_ids = list(dict.fromkeys(str(id_) for id_ in reference_ids))
+    plugin_data: dict[str, dict[str, Any]] = {}
+    if not reference_ids:
+        return plugin_data
+    for plugin in plugin_registry.get_all():
+        if type(plugin).get_ai_usage_plugin_data is Plugin.get_ai_usage_plugin_data:
+            # Most plugins don't provide any, which saves their savepoint.
+            continue
+        # The data is only shown alongside, so a failing plugin must not fail what
+        # it's shown with, like persisting an agent reply. The savepoint keeps a
+        # failed query from breaking a surrounding transaction.
+        try:
+            with transaction.atomic():
+                data_by_id = plugin.get_ai_usage_plugin_data(
+                    reference_type, reference_ids
+                )
+        except Exception:
+            logger.exception(
+                "The AI usage plugin data of {plugin} failed.", plugin=plugin.type
+            )
+            continue
+        for reference_id, data in data_by_id.items():
+            plugin_data.setdefault(str(reference_id), {})[plugin.type] = data
+    return plugin_data

@@ -19,17 +19,17 @@ from baserow.core.ai_provider.models import AIProviderConfig, AIProviderModel
 from baserow.core.generative_ai.exceptions import ModelDoesNotBelongToType
 from baserow.core.generative_ai.registries import generative_ai_model_type_registry
 from baserow.core.generative_ai.usage import (
-    AI_USAGE_FEATURE_AI_FIELD,
-    AI_USAGE_KEY_SCOPE_INSTANCE,
     AIUsageLimitExceeded,
     ai_request_starting,
     ai_usage_preparing,
 )
 from baserow.core.jobs.handler import JobHandler
+from baserow.core.registries import Plugin, plugin_registry
 from baserow.core.storage import get_default_storage
+from baserow_premium.fields.constants import AI_FIELD_USAGE_FEATURE
 from baserow_premium.fields.handler import AIFieldHandler
 from baserow_premium.fields.job_types import AIValueGenerator
-from baserow_premium.fields.models import AIField
+from baserow_premium.fields.models import AIField, GenerateAIValuesJob
 from baserow_premium.fields.pydantic_models import BaserowFormulaModel
 
 
@@ -514,11 +514,12 @@ def test_ai_field_reports_its_usage_with_the_instance_credentials(
         ai_request_starting.disconnect(receiver)
 
     (scope,) = scopes
-    assert scope.feature == AI_USAGE_FEATURE_AI_FIELD
+    assert scope.feature == AI_FIELD_USAGE_FEATURE
     # The settings are resolved before prompting, so the context tells whose
     # credentials they are.
-    assert scope.key_scope == AI_USAGE_KEY_SCOPE_INSTANCE
-    assert (scope.reference_type, scope.reference_id) == ("ai_field", str(field.id))
+    assert scope.uses_shared_key is True
+    # Only a job has something to attribute the usage to.
+    assert (scope.reference_type, scope.reference_id) == (None, None)
     assert scope.workspace == table.database.workspace
 
 
@@ -568,7 +569,7 @@ def test_the_workers_requests_are_prepared_and_marked_as_made_without_the_databa
 
     workspace_id = table.database.workspace_id
     assert events == [
-        ("preparing", workspace_id, AI_USAGE_FEATURE_AI_FIELD),
+        ("preparing", workspace_id, AI_FIELD_USAGE_FEATURE),
         ("starting", workspace_id, False),
     ]
     assert generator.results_queue.get_nowait().result == "Hi"
@@ -665,3 +666,80 @@ def test_generating_values_reports_the_usage_on_the_job(premium_data_fixture):
         ai_request_starting.disconnect(receiver)
 
     assert references == [("generate_ai_values_job", str(job.id))]
+
+
+@pytest.mark.django_db
+@pytest.mark.field_ai
+def test_a_job_includes_the_data_of_plugins(premium_data_fixture, api_client):
+    user, token = premium_data_fixture.create_user_and_token(
+        has_active_premium_license=True
+    )
+    table = premium_data_fixture.create_database_table(user=user)
+    _, instance_model = create_instance_openai_provider()
+    field = FieldHandler().create_field(
+        user,
+        table,
+        "ai",
+        name="AI",
+        ai_generative_ai_type="openai",
+        ai_generative_ai_model=instance_model.model_identifier,
+        ai_prompt="'Hello'",
+    )
+    job = GenerateAIValuesJob.objects.create(user=user, field=field)
+
+    class CostPlugin(Plugin):
+        type = "cost"
+
+        def get_ai_usage_plugin_data(self, reference_type, reference_ids):
+            assert (reference_type, reference_ids) == (
+                "generate_ai_values_job",
+                [str(job.id)],
+            )
+            return {reference_id: {"credits": 2} for reference_id in reference_ids}
+
+    with patch.dict(plugin_registry.registry, {"cost": CostPlugin()}):
+        response = api_client.get(
+            reverse("api:jobs:item", kwargs={"job_id": job.id}),
+            HTTP_AUTHORIZATION=f"JWT {token}",
+        )
+
+    assert response.status_code == HTTP_200_OK
+    assert response.json()["plugin_data"] == {"cost": {"credits": 2}}
+
+
+@pytest.mark.django_db
+@pytest.mark.field_ai
+def test_listing_jobs_includes_the_data_of_plugins(premium_data_fixture, api_client):
+    user, token = premium_data_fixture.create_user_and_token(
+        has_active_premium_license=True
+    )
+    table = premium_data_fixture.create_database_table(user=user)
+    _, instance_model = create_instance_openai_provider()
+    field = FieldHandler().create_field(
+        user,
+        table,
+        "ai",
+        name="AI",
+        ai_generative_ai_type="openai",
+        ai_generative_ai_model=instance_model.model_identifier,
+        ai_prompt="'Hello'",
+    )
+
+    class CostPlugin(Plugin):
+        type = "cost"
+
+        def get_ai_usage_plugin_data(self, reference_type, reference_ids):
+            return {reference_id: {"credits": 2} for reference_id in reference_ids}
+
+    for _ in range(2):
+        GenerateAIValuesJob.objects.create(user=user, field=field)
+
+    with patch.dict(plugin_registry.registry, {"cost": CostPlugin()}):
+        response = api_client.get(
+            reverse("api:jobs:list"), HTTP_AUTHORIZATION=f"JWT {token}"
+        )
+
+    assert response.status_code == HTTP_200_OK
+    assert [job["plugin_data"] for job in response.json()["jobs"]] == [
+        {"cost": {"credits": 2}}
+    ] * 2

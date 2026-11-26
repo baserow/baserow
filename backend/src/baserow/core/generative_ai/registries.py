@@ -31,15 +31,7 @@ from baserow.core.registry import Instance, Registry
 from .constants import REASONING_EFFORTS, ProviderFailure, ReasoningEffort
 from .exceptions import GenerativeAITypeDoesNotExist, get_user_friendly_error_message
 from .lifecycle import run_agent_sync_with_model
-from .usage import (
-    AI_USAGE_KEY_SCOPE_ENVIRONMENT,
-    AI_USAGE_KEY_SCOPE_EXPLICIT,
-    AI_USAGE_KEY_SCOPE_INSTANCE,
-    AI_USAGE_KEY_SCOPE_LEGACY_WORKSPACE,
-    AI_USAGE_KEY_SCOPE_WORKSPACE,
-    AIUsageScope,
-    UsageReportingModel,
-)
+from .usage import AIUsageScope, UsageReportingModel
 
 if TYPE_CHECKING:
     from pydantic_ai import Agent, WebSearchTool
@@ -404,7 +396,9 @@ class ResolvedModelSettings:
     """The connection settings of a model, and whose credentials they are."""
 
     settings: Optional[dict[str, Any]]
-    key_scope: str
+    # Whether the credentials aren't owned by the workspace, but shared by the
+    # instance: configured by an instance admin or with environment variables.
+    uses_shared_key: bool
 
 
 class GenerativeAIModelType(Instance):
@@ -759,22 +753,23 @@ class GenerativeAIModelType(Instance):
         settings_override: Optional[dict[str, Any]] = None,
         state: Optional[ScopedAIProviderState] = None,
     ) -> ResolvedModelSettings:
-        """Like `get_model_settings_override`, but also tells whose credentials
-        are used, as one of the `AI_USAGE_KEY_SCOPE_*` values.
+        """Like `get_model_settings_override`, but also tells whether the
+        credentials are shared by the instance or owned by the workspace.
 
         :param model_name: The model whose connection settings are requested.
         :param workspace: The owning workspace, or None for instance resolution.
         :param settings_override: An explicit connection override, if supplied.
         :param state: Pre-loaded provider state for this scope, if available.
-        :returns: The settings and the scope of the credentials.
+        :returns: The settings and whose credentials they are.
         """
 
         if settings_override is not None:
-            return ResolvedModelSettings(settings_override, AI_USAGE_KEY_SCOPE_EXPLICIT)
+            # Passed in explicitly, so taken as owned by the workspace.
+            return ResolvedModelSettings(settings_override, False)
 
         if not isinstance(workspace, Workspace):
             # The provider getters fall back to the instance or environment.
-            return ResolvedModelSettings(None, AI_USAGE_KEY_SCOPE_INSTANCE)
+            return ResolvedModelSettings(None, True)
 
         if state is None:
             state = get_ai_provider_state(workspace)
@@ -789,7 +784,7 @@ class GenerativeAIModelType(Instance):
             ):
                 return ResolvedModelSettings(
                     self._get_provider_settings(workspace_provider),
-                    AI_USAGE_KEY_SCOPE_WORKSPACE,
+                    False,
                 )
 
         if workspace_provider is None:
@@ -799,7 +794,7 @@ class GenerativeAIModelType(Instance):
                     legacy_settings
                     if model_name in legacy_settings["models"]
                     else None,
-                    AI_USAGE_KEY_SCOPE_LEGACY_WORKSPACE,
+                    False,
                 )
 
         instance_provider = instance_providers.get(self.type)
@@ -814,7 +809,7 @@ class GenerativeAIModelType(Instance):
         ):
             return ResolvedModelSettings(
                 self._get_provider_settings(instance_provider),
-                AI_USAGE_KEY_SCOPE_INSTANCE,
+                True,
             )
 
         if workspace_provider is None and instance_provider is None:
@@ -838,17 +833,14 @@ class GenerativeAIModelType(Instance):
                             ].items()
                         },
                     },
-                    AI_USAGE_KEY_SCOPE_ENVIRONMENT,
+                    True,
                 )
 
         # The provider getters resolve their own credentials. Like
         # `get_configured_setting`, they only prefer an active workspace provider,
         # an inactive one falls back to the instance provider.
         return ResolvedModelSettings(
-            None,
-            AI_USAGE_KEY_SCOPE_WORKSPACE
-            if workspace_provider is not None and workspace_provider.is_active
-            else AI_USAGE_KEY_SCOPE_INSTANCE,
+            None, workspace_provider is None or not workspace_provider.is_active
         )
 
     def get_api_key(
@@ -1281,7 +1273,7 @@ class GenerativeAIModelType(Instance):
                 AIUsageScope(
                     provider_type=self.type,
                     model=model,
-                    key_scope=resolved.key_scope,
+                    uses_shared_key=resolved.uses_shared_key,
                     workspace=workspace,
                 ),
             )

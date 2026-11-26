@@ -85,10 +85,14 @@
       {{ $t(outcome.note, outcome.noteParams || {}) }}
     </div>
     <template v-if="shown.content && !shown.replying" #actions>
-      <ChatMessageFooter
-        :text="shown.content"
-        :timestamp="message.created_on"
-      />
+      <ChatMessageFooter :text="shown.content" :timestamp="message.created_on">
+        <component
+          :is="component"
+          v-for="(component, index) in aiUsageComponents"
+          :key="index"
+          :plugin-data="message.plugin_data || {}"
+        />
+      </ChatMessageFooter>
     </template>
   </ChatMessage>
 </template>
@@ -262,5 +266,10 @@ const hasRunningStep = computed(() =>
 const entries = computed(() => stepEntries(steps.value, approvals.value))
 const outcome = computed(() =>
   replyOutcome(shown.value, store.getters['auth/getUserId'])
+)
+const aiUsageComponents = computed(() =>
+  Object.values($registry.getAll('plugin')).flatMap((plugin) =>
+    plugin.getAIUsageComponents()
+  )
 )
 </script>

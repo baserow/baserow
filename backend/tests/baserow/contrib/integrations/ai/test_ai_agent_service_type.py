@@ -27,6 +27,10 @@ from baserow.contrib.builder.workflow_actions.models import (
     AIAgentWorkflowAction,
     EventTypes,
 )
+from baserow.contrib.integrations.ai.constants import (
+    AI_NODE_USAGE_FEATURE,
+    BUILDER_AI_ACTION_USAGE_FEATURE,
+)
 from baserow.contrib.integrations.ai.integration_types import AIIntegrationType
 from baserow.contrib.integrations.ai.service_types import AIAgentServiceType
 from baserow.core.ai_provider.constants import AI_PROVIDER_FEATURE_AI_AGENT
@@ -38,16 +42,14 @@ from baserow.core.generative_ai.registries import (
     generative_ai_model_type_registry,
 )
 from baserow.core.generative_ai.usage import (
-    AI_USAGE_FEATURE_AI_NODE,
-    AI_USAGE_FEATURE_BUILDER_AI_ACTION,
-    AI_USAGE_KEY_SCOPE_ENVIRONMENT,
-    AI_USAGE_KEY_SCOPE_INTEGRATION,
+    AIUsageLimitExceeded,
     ai_request_starting,
 )
 from baserow.core.integrations.service import IntegrationService
 from baserow.core.services.exceptions import (
     RuntimeDispatchException,
     ServiceImproperlyConfiguredDispatchException,
+    UnexpectedDispatchException,
 )
 from baserow.core.services.handler import ServiceHandler
 from baserow.core.trash.handler import TrashHandler
@@ -2288,8 +2290,7 @@ def test_ai_agent_service_dispatch_reports_an_ai_node_with_shared_credentials(
         ai_request_starting.disconnect(receiver)
 
     (scope,) = scopes
-    assert scope.feature == AI_USAGE_FEATURE_AI_NODE
-    assert scope.key_scope == AI_USAGE_KEY_SCOPE_ENVIRONMENT
+    assert scope.feature == AI_NODE_USAGE_FEATURE
     assert scope.uses_shared_key is True
 
 
@@ -2330,28 +2331,62 @@ def test_ai_agent_service_dispatch_reports_integration_credentials(
         ai_request_starting.disconnect(receiver)
 
     (scope,) = scopes
-    assert scope.key_scope == AI_USAGE_KEY_SCOPE_INTEGRATION
     assert scope.uses_shared_key is False
 
 
-def test_ai_agent_service_usage_is_attributed_to_the_builder_page_or_the_run():
+@pytest.mark.django_db
+def test_ai_agent_service_dispatch_does_not_retry_a_refused_request(
+    data_fixture, settings
+):
+    settings.BASEROW_OPENAI_API_KEY = "sk-test"
+    settings.BASEROW_OPENAI_MODELS = ["gpt-4"]
+    user = data_fixture.create_user()
+    application = data_fixture.create_builder_application(user=user)
+    integration = (
+        IntegrationService()
+        .create_integration(user, AIIntegrationType(), application=application)
+        .specific
+    )
+    service = ServiceHandler().create_service(
+        AIAgentServiceType(),
+        integration_id=integration.id,
+        ai_generative_ai_type="openai",
+        ai_generative_ai_model="gpt-4",
+        ai_output_type="text",
+        ai_prompt="'Tell me a joke'",
+    )
+
+    def refuse(sender, scope, **kwargs):
+        raise AIUsageLimitExceeded("No credits left.")
+
+    ai_request_starting.connect(refuse, weak=False)
+    try:
+        with pytest.raises(UnexpectedDispatchException) as exc_info:
+            service.get_type().dispatch(service, FakeDispatchContext())
+    finally:
+        ai_request_starting.disconnect(refuse)
+
+    # A `RuntimeDispatchException` would be retried by the automation runner.
+    assert not isinstance(exc_info.value, RuntimeDispatchException)
+    assert "No credits left." in str(exc_info.value)
+
+
+def test_ai_agent_service_usage_is_attributed_to_the_builder_action_or_the_run():
     page = SimpleNamespace(id=4)
     history = SimpleNamespace(id=9)
 
     assert AIAgentServiceType._get_ai_usage_context(SimpleNamespace(page=page)) == {
-        "feature": AI_USAGE_FEATURE_BUILDER_AI_ACTION,
-        "reference_type": "builder_page",
-        "reference_id": 4,
+        "feature": BUILDER_AI_ACTION_USAGE_FEATURE,
     }
     assert AIAgentServiceType._get_ai_usage_context(
         SimpleNamespace(history=history)
     ) == {
-        "feature": AI_USAGE_FEATURE_AI_NODE,
+        "feature": AI_NODE_USAGE_FEATURE,
         "reference_type": "automation_workflow_history",
         "reference_id": 9,
     }
     assert AIAgentServiceType._get_ai_usage_context(SimpleNamespace()) == {
-        "feature": AI_USAGE_FEATURE_AI_NODE,
+        "feature": AI_NODE_USAGE_FEATURE,
         "reference_type": None,
         "reference_id": None,
     }

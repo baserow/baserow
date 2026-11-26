@@ -384,6 +384,23 @@ class Plugin(APIUrlsInstanceMixin, Instance):
 
         return False
 
+    def get_ai_usage_plugin_data(
+        self, reference_type: str, reference_ids: list[str]
+    ) -> dict[str, Any]:
+        """
+        Provides plugin-specific data about the AI usage reported with the
+        reference type and ids, like what an agent reply or a job that generated
+        AI field values cost. Called once for all the objects that are serialized
+        together.
+
+        :param reference_type: The reference type of the `AIUsageScope`, like
+            `agent_message`.
+        :param reference_ids: The reference ids of the `AIUsageScope`.
+        :return: The data, keyed by reference id. Ids without data can be left out.
+        """
+
+        return {}
+
 
 class PluginRegistry(APIUrlsRegistryMixin, Registry[Plugin]):
     """

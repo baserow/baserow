@@ -2,11 +2,11 @@ import asyncio
 import json
 import time
 from functools import wraps
-from unittest.mock import ANY, call
+from unittest.mock import ANY, call, patch
 from uuid import uuid4
 
 from django.contrib.auth.models import AbstractUser
-from django.db import DatabaseError
+from django.db import DatabaseError, connection
 from django.test import override_settings
 from django.urls import reverse
 
@@ -40,6 +40,7 @@ from baserow.contrib.agent.actions import (
 from baserow.contrib.agent.api.serializers import AgentMessageSerializer
 from baserow.contrib.agent.chat_run_type import AgentChatRunType
 from baserow.contrib.agent.constants import (
+    AGENT_USAGE_FEATURE,
     AGENT_USAGE_LIMIT_EXCEEDED,
     ASK_FIRST_INSTRUCTIONS,
     CONVERSATION_USER_INSTRUCTIONS,
@@ -88,11 +89,10 @@ from baserow.core.chat_runs.journal import ChatRunJournal
 from baserow.core.chat_runs.models import ChatRun, ChatRunStatus
 from baserow.core.chat_runs.service import ChatRunService
 from baserow.core.chat_runs.steps import ChatRunSteps
+from baserow.core.chat_runs.types import ChatRunOutcome
 from baserow.core.exceptions import PermissionDenied
 from baserow.core.generative_ai.registries import generative_ai_model_type_registry
 from baserow.core.generative_ai.usage import (
-    AI_USAGE_FEATURE_AGENT,
-    AI_USAGE_KEY_SCOPE_INSTANCE,
     AIUsageLimitExceeded,
     AIUsageScope,
     UsageReportingModel,
@@ -104,6 +104,7 @@ from baserow.core.identities.handler import IdentityHandler
 from baserow.core.identities.service import IdentityService
 from baserow.core.models import User, UserProfile, WorkspaceUser
 from baserow.core.operations import UpdateApplicationOperationType
+from baserow.core.registries import Plugin, plugin_registry
 from baserow.core.signals import application_pending_count_updated
 from baserow.core.tools.errors import ToolInputError
 from baserow.core.trash.handler import TrashHandler
@@ -1147,7 +1148,7 @@ def test_the_reply_model_is_the_configured_one(reply_run):
         OpenAIResponsesModel,
         "test-model",
     )
-    assert model.usage_scope.feature == AI_USAGE_FEATURE_AGENT
+    assert model.usage_scope.feature == AGENT_USAGE_FEATURE
     assert model.usage_scope.reference_type == "agent_message"
     assert model.usage_scope.reference_id == str(request.reply_id)
 
@@ -2970,8 +2971,8 @@ def reporting_model(stream):
         AIUsageScope(
             "openai",
             "test-model",
-            AI_USAGE_KEY_SCOPE_INSTANCE,
-            feature=AI_USAGE_FEATURE_AGENT,
+            True,
+            feature=AGENT_USAGE_FEATURE,
         ),
     )
 
@@ -3042,3 +3043,47 @@ def test_the_tokens_of_a_cancelled_reply_are_reported(reply_run, mocker):
     assert reply_state(reply_run.context["reply_id"])[0] == "cancelled"
     ((_, usage),) = recorder.completed
     assert usage.input_tokens > 0
+
+
+@pytest.mark.django_db
+def test_the_finished_reply_includes_the_data_of_plugins(reply_run):
+    reply_id = reply_run.context["reply_id"]
+
+    class CostPlugin(Plugin):
+        type = "cost"
+
+        def get_ai_usage_plugin_data(self, reference_type, reference_ids):
+            assert (reference_type, reference_ids) == ("agent_message", [str(reply_id)])
+            return {str(reply_id): {"credits": 3}}
+
+    with patch.dict(plugin_registry.registry, {"cost": CostPlugin()}):
+        # What the followers of the run receive when it ends.
+        reply = AgentChatRunType().persist_outcome(
+            reply_run,
+            ChatRunOutcome(ChatRunStatus.COMPLETED, result=AgentReplyResult(text="Hi")),
+        )
+
+    assert reply["id"] == reply_id
+    assert reply["plugin_data"] == {"cost": {"credits": 3}}
+
+
+@pytest.mark.django_db
+def test_a_failing_plugin_does_not_break_persisting_the_reply(reply_run):
+    reply_id = reply_run.context["reply_id"]
+
+    class BrokenPlugin(Plugin):
+        type = "broken"
+
+        def get_ai_usage_plugin_data(self, reference_type, reference_ids):
+            # A failed query, which would otherwise break the transaction.
+            with connection.cursor() as cursor:
+                cursor.execute("SELECT * FROM missing_ai_usage_table")
+
+    with patch.dict(plugin_registry.registry, {"broken": BrokenPlugin()}):
+        reply = AgentChatRunType().persist_outcome(
+            reply_run,
+            ChatRunOutcome(ChatRunStatus.COMPLETED, result=AgentReplyResult(text="Hi")),
+        )
+
+    assert reply["plugin_data"] == {}
+    assert reply_state(reply_id)[0] == "completed"

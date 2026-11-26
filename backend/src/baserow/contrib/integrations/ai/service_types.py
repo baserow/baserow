@@ -5,6 +5,10 @@ from django.contrib.auth.models import AbstractUser
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError as DRFValidationError
 
+from baserow.contrib.integrations.ai.constants import (
+    AI_NODE_USAGE_FEATURE,
+    BUILDER_AI_ACTION_USAGE_FEATURE,
+)
 from baserow.contrib.integrations.ai.integration_types import AIIntegrationType
 from baserow.contrib.integrations.ai.models import AIAgentService, AIOutputType
 from baserow.core.ai_provider.constants import (
@@ -22,9 +26,7 @@ from baserow.core.generative_ai.registries import (
     generative_ai_model_type_registry,
 )
 from baserow.core.generative_ai.usage import (
-    AI_USAGE_FEATURE_AI_NODE,
-    AI_USAGE_FEATURE_BUILDER_AI_ACTION,
-    AI_USAGE_KEY_SCOPE_INTEGRATION,
+    AIUsageLimitExceeded,
     ai_usage_context,
 )
 from baserow.core.integrations.exceptions import IntegrationDoesNotExist
@@ -34,6 +36,7 @@ from baserow.core.services.dispatch_context import DispatchContext
 from baserow.core.services.exceptions import (
     RuntimeDispatchException,
     ServiceImproperlyConfiguredDispatchException,
+    UnexpectedDispatchException,
 )
 from baserow.core.services.registries import DispatchTypes, ServiceType
 from baserow.core.services.types import DispatchResult, FormulaToResolve, ServiceDict
@@ -397,11 +400,8 @@ class AIAgentServiceType(ServiceType):
         if service.ai_temperature is not None:
             kwargs["temperature"] = service.ai_temperature
 
-        usage_context = self._get_ai_usage_context(dispatch_context)
         if settings_override is not None:
             kwargs["settings_override"] = settings_override
-            # The credentials of the integration are owned by the workspace.
-            usage_context["key_scope"] = AI_USAGE_KEY_SCOPE_INTEGRATION
 
         try:
             if service.ai_output_type == AIOutputType.CHOICE:
@@ -414,7 +414,7 @@ class AIAgentServiceType(ServiceType):
 
                 kwargs["output_type"] = choices
 
-            with ai_usage_context(**usage_context):
+            with ai_usage_context(**self._get_ai_usage_context(dispatch_context)):
                 result = ai_model_type.prompt(
                     model=service.ai_generative_ai_model,
                     prompt=prompt,
@@ -422,6 +422,11 @@ class AIAgentServiceType(ServiceType):
                     **kwargs,
                 )
             return {"result": result}
+        except AIUsageLimitExceeded as e:
+            # Not a `RuntimeDispatchException`, because a retry is refused too.
+            raise UnexpectedDispatchException(
+                f"AI prompt execution failed: {str(e)}"
+            ) from e
         except GenerativeAIPromptError as e:
             raise RuntimeDispatchException(
                 f"AI prompt execution failed: {str(e)}"
@@ -435,15 +440,11 @@ class AIAgentServiceType(ServiceType):
         """
 
         if getattr(dispatch_context, "page", None) is not None:
-            return {
-                "feature": AI_USAGE_FEATURE_BUILDER_AI_ACTION,
-                "reference_type": "builder_page",
-                "reference_id": dispatch_context.page.id,
-            }
+            return {"feature": BUILDER_AI_ACTION_USAGE_FEATURE}
 
         history = getattr(dispatch_context, "history", None)
         return {
-            "feature": AI_USAGE_FEATURE_AI_NODE,
+            "feature": AI_NODE_USAGE_FEATURE,
             "reference_type": (
                 "automation_workflow_history" if history is not None else None
             ),

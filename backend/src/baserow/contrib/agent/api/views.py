@@ -36,6 +36,7 @@ from baserow.contrib.agent.actions import (
     UpdateAgentConfigurationActionType,
     UpdateAgentConversationActionType,
 )
+from baserow.contrib.agent.constants import AGENT_MESSAGE_USAGE_REFERENCE
 from baserow.contrib.agent.exceptions import (
     AgentConversationDoesNotExist,
     AgentConversationIsExample,
@@ -48,7 +49,11 @@ from baserow.contrib.agent.exceptions import (
     AgentToolRequirementsMissing,
 )
 from baserow.contrib.agent.handler import AgentHandler
-from baserow.contrib.agent.models import AgentApplication, AgentConversation
+from baserow.contrib.agent.models import (
+    AgentApplication,
+    AgentConversation,
+    AgentMessage,
+)
 from baserow.contrib.agent.service import AgentService
 from baserow.contrib.agent.signals import agent_loaded
 from baserow.contrib.agent.types import AgentMessageCreated
@@ -59,6 +64,7 @@ from baserow.core.exceptions import (
     UserNotInWorkspace,
     WorkspaceDoesNotExist,
 )
+from baserow.core.generative_ai.usage import get_ai_usage_plugin_data
 from baserow.core.pagination import KeysetCursor
 from baserow.core.service import CoreService
 
@@ -749,7 +755,19 @@ class AgentMessagesView(
             serializer = AgentMessageWithToolErrorsSerializer
         return paginator.get_paginated_response(
             serializer(
-                list(reversed(page)), many=True, context={"active_runs": active_runs}
+                list(reversed(page)),
+                many=True,
+                context={
+                    "active_runs": active_runs,
+                    "plugin_data": get_ai_usage_plugin_data(
+                        AGENT_MESSAGE_USAGE_REFERENCE,
+                        [
+                            message.id
+                            for message in page
+                            if message.role == AgentMessage.Role.ASSISTANT
+                        ],
+                    ),
+                },
             ).data
         )
 

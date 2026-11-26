@@ -36,7 +36,6 @@ from baserow.core.generative_ai.exceptions import (
     get_user_friendly_error_message,
 )
 from baserow.core.generative_ai.usage import (
-    AI_USAGE_FEATURE_AI_FIELD,
     AIUsageLimitExceeded,
     ai_usage_context,
     notify_ai_usage_preparing,
@@ -48,8 +47,12 @@ from baserow.core.jobs.models import JobQuerySet
 from baserow.core.jobs.registries import JobType
 from baserow.core.utils import ChildProgressBuilder
 from baserow_premium.api.fields.errors import ERROR_AI_FIELD_PROMPT_INVALID
+from baserow_premium.api.fields.serializers import GenerateAIValuesJobPluginDataField
 
-from .constants import GENERATE_AI_VALUES_JOB_USAGE_REFERENCE
+from .constants import (
+    AI_FIELD_USAGE_FEATURE,
+    GENERATE_AI_VALUES_JOB_USAGE_REFERENCE,
+)
 from .exceptions import AIFieldEmptyPromptError, AIFieldPromptInvalidError
 from .handler import AIFieldHandler
 from .models import AIField, AIFieldScheduledUpdate, GenerateAIValuesJob
@@ -79,14 +82,15 @@ class GenerateAIValuesJobType(JobType):
     # A refusal, like when the workspace has no AI credits left, tells the user
     # why, and isn't an unexpected error.
     job_exceptions_map = {AIUsageLimitExceeded: "{e}"}
-    serializer_field_names = [
+    request_serializer_field_names = [
         "field_id",
         "row_ids",
         "view_id",
         "only_empty",
         "is_auto_update",
     ]
-    serializer_field_overrides = {
+    serializer_field_names = [*request_serializer_field_names, "plugin_data"]
+    request_serializer_field_overrides = {
         "field_id": serializers.IntegerField(
             help_text="The ID of the AI field to generate values for.",
         ),
@@ -111,6 +115,12 @@ class GenerateAIValuesJobType(JobType):
             read_only=True,
             help_text="Indicates if the job has been created because values in a "
             "dependent field changed.",
+        ),
+    }
+    serializer_field_overrides = {
+        **request_serializer_field_overrides,
+        "plugin_data": GenerateAIValuesJobPluginDataField(
+            help_text="Data that plugins provide for this job, keyed by plugin type."
         ),
     }
 
@@ -457,7 +467,7 @@ class AIValueGenerator:
 
         # The rows are generated on worker threads that must not query the
         # database, so the usage receivers load what they need here.
-        notify_ai_usage_preparing(self.workspace, AI_USAGE_FEATURE_AI_FIELD)
+        notify_ai_usage_preparing(self.workspace, AI_FIELD_USAGE_FEATURE)
 
     def generate_value_for(self, row: GeneratedTableModel):
         """

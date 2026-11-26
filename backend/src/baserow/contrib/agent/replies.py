@@ -71,7 +71,6 @@ from baserow.core.generative_ai.registries import (
     generative_ai_model_type_registry,
 )
 from baserow.core.generative_ai.usage import (
-    AI_USAGE_FEATURE_AGENT,
     AIUsageLimitExceeded,
     AIUsageScope,
     UsageReportingModel,
@@ -83,6 +82,7 @@ from baserow.core.utils import remove_null_characters, remove_unstorable_charact
 from .action_tools.tools import BoundActionTool
 from .constants import (
     AGENT_MESSAGE_USAGE_REFERENCE,
+    AGENT_USAGE_FEATURE,
     AGENT_USAGE_LIMIT_EXCEEDED,
     ASK_FIRST_INSTRUCTIONS,
     ASK_PERSON_DISMISSED_HISTORY,
@@ -292,8 +292,8 @@ def create_reply_model(request: AgentReplyRequest) -> tuple[Model, dict]:
     usage_scope = AIUsageScope(
         provider_type=model_type.type,
         model=request.model_identifier,
-        key_scope=resolved.key_scope,
-        feature=AI_USAGE_FEATURE_AGENT,
+        uses_shared_key=resolved.uses_shared_key,
+        feature=AGENT_USAGE_FEATURE,
         workspace=request.workspace,
         reference_type=AGENT_MESSAGE_USAGE_REFERENCE,
         reference_id=str(request.reply_id),

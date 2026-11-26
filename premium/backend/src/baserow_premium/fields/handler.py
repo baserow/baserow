@@ -23,15 +23,13 @@ from baserow.core.formula.registries import formula_runtime_function_registry
 from baserow.core.generative_ai.exceptions import ModelDoesNotBelongToType
 from baserow.core.generative_ai.registries import generative_ai_model_type_registry
 from baserow.core.generative_ai.usage import (
-    AI_USAGE_FEATURE_AI_FIELD,
-    AI_USAGE_FEATURE_AI_FORMULA,
     ai_usage_context,
 )
 from baserow.core.registries import ImportExportConfig
 from baserow_premium.prompts import get_generate_formula_prompt
 
 from .ai_file import AIFile
-from .constants import AI_FIELD_USAGE_REFERENCE
+from .constants import AI_FIELD_USAGE_FEATURE, AI_FORMULA_USAGE_FEATURE
 from .exceptions import AIFieldEmptyPromptError
 from .pydantic_models import BaserowFormulaModel
 from .registries import ai_field_output_registry
@@ -190,12 +188,7 @@ class AIFieldHandler:
             table_schema_json=table_schema_json, user_prompt=ai_prompt
         )
 
-        with ai_usage_context(
-            feature=AI_USAGE_FEATURE_AI_FORMULA,
-            workspace=table.database.workspace,
-            reference_type="table",
-            reference_id=table.id,
-        ):
+        with ai_usage_context(feature=AI_FORMULA_USAGE_FEATURE):
             result = generative_ai_model_type.prompt(
                 ai_model,
                 message,
@@ -223,17 +216,14 @@ class AIFieldHandler:
         :param state: Pre-loaded provider state, so a batch generating many
             rows resolves the workspace once instead of once per row.
         :param usage_reference: The reference type and id the AI usage is
-            reported with. Defaults to the AI field.
+            reported with, if any.
         :return: The generated value.
         :raises AIFieldEmptyPromptError: If the resolved prompt is empty.
         """
 
         generative_ai_model_type = cls.get_valid_model_type_or_raise(ai_field, state)
         ai_output_type = ai_field_output_registry.get(ai_field.ai_output_type)
-        reference_type, reference_id = usage_reference or (
-            AI_FIELD_USAGE_REFERENCE,
-            ai_field.id,
-        )
+        reference_type, reference_id = usage_reference or (None, None)
         workspace = ai_field.table.database.workspace
 
         # 1. Resolve prompt from formula
@@ -293,9 +283,9 @@ class AIFieldHandler:
                     )
 
             with ai_usage_context(
-                feature=AI_USAGE_FEATURE_AI_FIELD,
-                workspace=workspace,
-                key_scope=resolved_settings.key_scope,
+                feature=AI_FIELD_USAGE_FEATURE,
+                # The settings are resolved here and passed in explicitly.
+                uses_shared_key=resolved_settings.uses_shared_key,
                 reference_type=reference_type,
                 reference_id=reference_id,
             ):

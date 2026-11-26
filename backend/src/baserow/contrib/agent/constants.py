@@ -65,7 +65,9 @@ TRIGGER_ROWS_TEXT_HEADROOM = 1000
 TRIGGER_ROWS_NOT_SHOWN = "…and {count} more rows not shown"
 TRIGGER_ROW_CUT_SHORT = "…the row is cut short"
 QUEUED_TRIGGER_REPLY_SWEEP_SECONDS = 60
-# The AI usage of a reply is reported with this reference type and the reply id.
+# The AI usage of a reply is reported as this feature, with this reference type
+# and the reply id.
+AGENT_USAGE_FEATURE = "agent"
 AGENT_MESSAGE_USAGE_REFERENCE = "agent_message"
 INTERRUPTED_REPLY_NOTE = "[This reply was interrupted and may be incomplete.]"
 INTERRUPTED_CHANGES_NOTE = (
