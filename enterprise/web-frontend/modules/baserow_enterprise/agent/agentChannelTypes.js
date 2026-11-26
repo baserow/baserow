@@ -65,12 +65,6 @@ export class WebsiteWidgetAgentChannelType extends PublicChatAgentChannelType {
     return {}
   }
 
-  getDefaultValues() {
-    return {
-      button_text: this.app.$i18n.t('agentChannels.defaultButtonText'),
-    }
-  }
-
   /**
    * @param {object} channel A website widget.
    * @returns {string} The script tag a website adds to show the widget.

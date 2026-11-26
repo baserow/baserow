@@ -41,11 +41,6 @@ export class AgentChannelType extends Registerable {
     return {}
   }
 
-  /** @returns {object} The values a new channel of the type is created with. */
-  getDefaultValues() {
-    return {}
-  }
-
   /**
    * @param {object} channel A channel of the type.
    * @returns {string} The name the channel shows.

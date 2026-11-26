@@ -4,6 +4,7 @@ import { TestApp } from '@baserow/test/helpers/testApp'
 import EnterpriseFeatures from '@baserow_enterprise/features'
 import AgentChannelsSection from '@baserow_enterprise/components/agent/AgentChannelsSection'
 import RichTextEditor from '@baserow/modules/core/components/editor/RichTextEditor'
+import ColorInput from '@baserow/modules/core/components/ColorInput'
 
 const mocks = vi.hoisted(() => ({ service: {} }))
 
@@ -124,14 +125,22 @@ describe('agent channels', () => {
     wrapper.get('.agent-public-chat-content__title-input input')
   const inModal = (selector) => document.body.querySelector(selector)
 
-  async function addFromMenu(wrapper, label) {
+  async function openMenu(wrapper) {
     await wrapper.get('.agent-channels__add').trigger('click')
     await flushPromises()
+  }
+
+  async function pickFromMenu(label) {
     const item = [
       ...document.body.querySelectorAll('.menu-list__item-button'),
     ].find((button) => button.textContent.includes(label))
     item.click()
     await flushPromises()
+  }
+
+  async function addFromMenu(wrapper, label) {
+    await openMenu(wrapper)
+    await pickFromMenu(label)
   }
 
   test('lists the agent channels, and says nobody outside can talk without any', async () => {
@@ -159,7 +168,9 @@ describe('agent channels', () => {
       data: publicChat({ id: 5, title: '' }),
     })
     const wrapper = await mountSection()
-    await addFromMenu(wrapper, 'agentChannels.publicChat')
+    await openMenu(wrapper)
+    expect(document.activeElement.classList).toContain('menu-list__item-button')
+    await pickFromMenu('agentChannels.publicChat')
 
     expect(mocks.service.create).toHaveBeenCalledWith(8, {
       type: 'public_chat',
@@ -354,7 +365,7 @@ describe('agent channels', () => {
       )
     })
 
-    test('is added with the translated button text, an accent color only, and its embed code', async () => {
+    test('is added with the backend defaults, an accent color only, and its embed code', async () => {
       mocks.service.list.mockResolvedValue({ data: [] })
       mocks.service.create.mockResolvedValue({ data: websiteWidget() })
       const writeText = vi
@@ -365,7 +376,6 @@ describe('agent channels', () => {
 
       expect(mocks.service.create).toHaveBeenCalledWith(8, {
         type: 'website_widget',
-        button_text: 'agentChannels.defaultButtonText',
       })
       expect(wrapper.find('.agent-public-chat-form__password').exists()).toBe(
         false
@@ -378,6 +388,21 @@ describe('agent channels', () => {
       expect(writeText).toHaveBeenCalledWith(
         `<script src="${app.nuxtApp.$config.public.publicBackendUrl}/api/agent/public-chat/widget/widget.js" async></script>`
       )
+    })
+
+    test('choosing Automatic clears a custom accent color', async () => {
+      mocks.service.list.mockResolvedValue({
+        data: [websiteWidget({ accent_color: '#ff0000' })],
+      })
+      const wrapper = await mountSection()
+      wrapper
+        .findComponent(ColorInput)
+        .vm.$emit('update:modelValue', 'automatic')
+      await flushPromises()
+
+      expect(mocks.service.update.mock.calls).toEqual([
+        [8, 2, { accent_color: '' }],
+      ])
     })
 
     test('saves a trimmed button text, an empty one, and its position', async () => {

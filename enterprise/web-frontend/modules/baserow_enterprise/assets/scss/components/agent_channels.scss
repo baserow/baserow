@@ -83,7 +83,10 @@
 }
 
 .agent-channel-card__type {
-  flex-shrink: 0;
+  @extend %ellipsis;
+
+  flex-shrink: 10000;
+  min-width: 0;
   font-size: 12px;
   line-height: 20px;
   color: $palette-neutral-700;

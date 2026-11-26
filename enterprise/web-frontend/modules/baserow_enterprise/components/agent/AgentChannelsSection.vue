@@ -58,8 +58,13 @@
         @delete="deleteChannel(channel)"
       />
     </div>
-    <Context ref="picker" class="agent-channels__picker">
-      <MenuList :items="pickerItems" @select="pick" @close="picker.hide()" />
+    <Context ref="picker" class="agent-channels__picker" @shown="focusMenu">
+      <MenuList
+        ref="menu"
+        :items="pickerItems"
+        @select="pick"
+        @close="picker.hide()"
+      />
     </Context>
     <PaidFeaturesModal
       v-if="workspace"
@@ -71,7 +76,7 @@
 </template>
 
 <script setup>
-import { computed, inject, ref, watch } from 'vue'
+import { computed, inject, nextTick, ref, watch } from 'vue'
 import { useStore } from 'vuex'
 import { useNuxtApp } from '#app'
 import ButtonText from '@baserow/modules/core/components/ButtonText'
@@ -96,6 +101,7 @@ const agent = inject('agentApplication')
 const templatePreview = inject('agentTemplatePreview', false)
 const paywall = ref(null)
 const picker = ref(null)
+const menu = ref(null)
 const workspace = computed(() =>
   agent.value ? store.getters['workspace/get'](agent.value.workspace.id) : null
 )
@@ -127,12 +133,7 @@ const pickerItems = computed(() =>
   }))
 )
 const { expandedIds, allExpanded, toggle, toggleAll, list, creating, addItem } =
-  useAgentCardList(channels, (type) =>
-    createChannel(
-      type,
-      $registry.get('agentChannelType', type).getDefaultValues()
-    )
-  )
+  useAgentCardList(channels, (type) => createChannel(type))
 let initializedFor = null
 watch([loading, () => agent.value?.id], ([busy, id]) => {
   if (busy || loadError.value || !id || initializedFor === id) return
@@ -143,6 +144,11 @@ watch([loading, () => agent.value?.id], ([busy, id]) => {
 function add(target) {
   if (licensed.value) picker.value.toggle(target, 'bottom', 'right', 4)
   else paywall.value?.show()
+}
+
+async function focusMenu() {
+  await nextTick()
+  menu.value?.focus()
 }
 
 function pick(item) {
