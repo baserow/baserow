@@ -158,6 +158,7 @@
                   state.selectedConversation?.started_by_channel
                 "
                 :can-approve="state.canApprove"
+                :can-view-tool-errors="state.canUpdateAgent"
                 :can-decide="state.canDecide"
                 :can-always-allow="state.canUpdateConfiguration"
                 :deciding="state.decidingReplies.has(message.uuid)"

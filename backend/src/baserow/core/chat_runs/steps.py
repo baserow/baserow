@@ -7,7 +7,13 @@ from typing import TYPE_CHECKING, Any
 from uuid import uuid4
 
 from loguru import logger
-from pydantic_ai import AgentRunResultEvent, AgentStreamEvent, CustomEvent
+from pydantic_ai import (
+    AgentRunResultEvent,
+    AgentStreamEvent,
+    CustomEvent,
+    RunContext,
+    ToolReturn,
+)
 from pydantic_ai.messages import (
     BaseToolCallPart,
     DeferredToolRequestsEvent,
@@ -45,6 +51,24 @@ class ToolCallInputEvent(CustomEvent, ui=False):
     """
 
     input: dict[str, Any]
+
+
+@dataclass(kw_only=True)
+class ToolCallDiagnosticEvent(CustomEvent, ui=False):
+    """A builder-only failure reason, kept outside the shared step journal."""
+
+    message: str
+
+
+@dataclass(kw_only=True)
+class ToolFailureWithDiagnostic(ToolReturn):
+    builder_message: str
+
+    async def report(self, ctx: RunContext) -> ToolReturn:
+        """Deliver the diagnosis separately from the result saved in model history."""
+
+        await ctx.emit(ToolCallDiagnosticEvent(message=_message(self.builder_message)))
+        return ToolReturn(self.return_value, metadata=self.metadata)
 
 
 def stop_running_steps(steps: list[ChatRunStep]) -> list[ChatRunStep]:
@@ -451,6 +475,12 @@ class ChatRunSteps:
             if step_input != step["input"]:
                 self._update({**step, "input": step_input})
 
+    def pending_step_id(self, tool_call_id: str) -> str | None:
+        """The current step for a provider call ID, which may be reused."""
+
+        pending = self._pending.get(tool_call_id)
+        return pending[0] if pending else None
+
     def _add_input(self, tool_call_id: str, step_input: dict[str, Any]) -> None:
         """Add to the input of a call's open step, when it has one.
 
@@ -458,9 +488,8 @@ class ChatRunSteps:
         :param step_input: The display input its tool sent.
         """
 
-        pending = self._pending.get(tool_call_id)
-        if pending:
-            step = self._steps[pending[0]]
+        if step_id := self.pending_step_id(tool_call_id):
+            step = self._steps[step_id]
             self._update(
                 {**step, "input": {**step["input"], **_display_data(step_input)}}
             )

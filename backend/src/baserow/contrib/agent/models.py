@@ -328,6 +328,7 @@ class AgentMessage(BigAutoFieldMixin, CreatedAndUpdatedOnMixin, models.Model):
     )
     error_code = models.CharField(max_length=64, blank=True, default="", db_default="")
     steps = models.JSONField(null=True)
+    tool_errors = models.JSONField(null=True)
 
     class Meta:
         ordering = ("-id",)

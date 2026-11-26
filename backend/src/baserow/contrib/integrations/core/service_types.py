@@ -26,12 +26,12 @@ from django.urls import path
 from django.utils import timezone
 from django.utils.translation import gettext as _
 
+from advocate.connection import UnacceptableAddressException
 from genson import SchemaBuilder
 from loguru import logger
 from requests import exceptions as request_exceptions
 from rest_framework import serializers
 
-from advocate.connection import UnacceptableAddressException
 from baserow.config.celery import app as celery_app
 from baserow.contrib.integrations.core.api.inbound_email.views import (
     CoreInboundEmailWebhookView,
@@ -1891,27 +1891,33 @@ class CoreSMTPEmailServiceType(CoreServiceType):
         except SMTPNotSupportedError as e:
             # The server was reached and answered, so the click is charged for
             # it even though the fix is in the configuration.
-            raise RemoteRefusedDispatchException("TLS not supported by server") from e
+            raise RemoteRefusedDispatchException(
+                builder_message="TLS not supported by server"
+            ) from e
         except socket.gaierror as e:
             raise UnreachableAddressDispatchException(
-                f"The host {smtp_host}:{smtp_port} could not be reached"
+                f"The host {smtp_host}:{smtp_port} could not be reached",
+                builder_message="The SMTP host could not be reached",
             ) from e
         except ConnectionRefusedError as e:
             raise UnreachableAddressDispatchException(
-                f"Connection refused by {smtp_host}:{smtp_port}"
+                f"Connection refused by {smtp_host}:{smtp_port}",
+                builder_message="The SMTP server refused the connection",
             ) from e
         except SMTPAuthenticationError as e:
             raise RemoteRefusedDispatchException(
-                "The username or password is incorrect"
+                builder_message="The username or password is incorrect"
             ) from e
         except SMTPConnectError as e:
             # The server answered the connection with a refusal greeting,
             # typically because it is restarting or overloaded.
             raise RuntimeDispatchException(
-                "Unable to connect to the SMTP server"
+                builder_message="Unable to connect to the SMTP server"
             ) from e
         except (SMTPServerDisconnected, TimeoutError) as e:
-            raise RuntimeDispatchException("The SMTP server did not answer") from e
+            raise RuntimeDispatchException(
+                builder_message="The SMTP server did not answer"
+            ) from e
         except Exception as e:
             raise UnexpectedDispatchException(f"Failed to send email: {str(e)}") from e
 

@@ -59,6 +59,8 @@ from baserow.core.exceptions import (
     UserNotInWorkspace,
     WorkspaceDoesNotExist,
 )
+from baserow.core.handler import CoreHandler
+from baserow.core.operations import UpdateApplicationOperationType
 from baserow.core.pagination import KeysetCursor
 from baserow.core.service import CoreService
 
@@ -87,6 +89,7 @@ from .serializers import (
     AgentMessageCreateSerializer,
     AgentMessagePagination,
     AgentMessageSerializer,
+    AgentMessageWithToolErrorsSerializer,
     AgentOptionsQueryParamsSerializer,
     AgentPendingReplySerializer,
     AgentRunAsOptionSerializer,
@@ -720,7 +723,9 @@ class AgentMessagesView(
             ),
         ],
         responses={
-            200: get_example_pagination_serializer_class(AgentMessageSerializer),
+            200: get_example_pagination_serializer_class(
+                AgentMessageWithToolErrorsSerializer
+            ),
             **CONVERSATION_READ_ERRORS,
         },
     )
@@ -738,8 +743,21 @@ class AgentMessagesView(
         # After the page, so each reply it lists has its run or is read again as ended.
         active_runs = handler.get_active_reply_runs(conversation) if newest_page else {}
         page = handler.refresh_unfinished_replies(page, active_runs)
+        serializer = AgentMessageSerializer
+        if (
+            request.user.is_authenticated
+            and any(message.tool_errors for message in page)
+            and CoreHandler().check_permissions(
+                request.user,
+                UpdateApplicationOperationType.type,
+                workspace=conversation.agent.workspace,
+                context=conversation.agent,
+                raise_permission_exceptions=False,
+            )
+        ):
+            serializer = AgentMessageWithToolErrorsSerializer
         return paginator.get_paginated_response(
-            AgentMessageSerializer(
+            serializer(
                 list(reversed(page)), many=True, context={"active_runs": active_runs}
             ).data
         )

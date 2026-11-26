@@ -128,6 +128,9 @@ def test_a_tool_error_is_answered_to_the_model(data_fixture, configured_agent, m
     reply = AgentMessage.objects.get(id=created.reply.id)
     assert reply.status == "completed"
     assert "Nothing works today." in returned[0]["error"]
+    assert reply.tool_errors == {
+        reply.steps[0]["id"]: "The connected MCP server reported that the tool failed."
+    }
     assert (reply.steps[0]["status"], reply.steps[0]["error_code"]) == (
         "failed",
         "failed",
@@ -182,6 +185,7 @@ def test_an_unreachable_server_fails_the_call_not_the_reply(
     reply = AgentMessage.objects.get(id=created.reply.id)
     assert (reply.status, reply.content) == ("completed", "Done.")
     assert "could not be reached" in returned[0]["error"]
+    assert reply.tool_errors == {reply.steps[0]["id"]: returned[0]["error"]}
 
 
 @pytest.mark.django_db

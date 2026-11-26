@@ -2280,8 +2280,20 @@ class AgentHandler:
         if not paused:
             steps = self._end_held_steps(reply, steps, resumed=result is not None)
         reply.steps = steps or None
+        if result and result.tool_errors:
+            reply.tool_errors = {
+                **(reply.tool_errors or {}),
+                **remove_unstorable_characters(result.tool_errors),
+            }
         reply.save(
-            update_fields=["status", "error_code", "content", "steps", "updated_on"]
+            update_fields=[
+                "status",
+                "error_code",
+                "content",
+                "steps",
+                "tool_errors",
+                "updated_on",
+            ]
         )
         self._save_transcript(reply, result)
         if paused:

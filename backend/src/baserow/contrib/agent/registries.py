@@ -4,6 +4,7 @@ import json
 from dataclasses import replace
 from enum import StrEnum
 from typing import Any, Awaitable, Callable, get_type_hints
+from uuid import uuid4
 
 from asgiref.sync import async_to_sync, sync_to_async
 from loguru import logger
@@ -12,15 +13,21 @@ from pydantic_ai.exceptions import ApprovalRequired
 from rest_framework.exceptions import PermissionDenied as DRFPermissionDenied
 
 from baserow.core.cache import local_cache
-from baserow.core.chat_runs.steps import ToolCallInputEvent
+from baserow.core.chat_runs.steps import ToolCallInputEvent, ToolFailureWithDiagnostic
 from baserow.core.db import with_usable_db_connection
 from baserow.core.exceptions import PermissionDenied
 from baserow.core.formula.registries import DataProviderTypeRegistry
 from baserow.core.models import Workspace
 from baserow.core.registries import subject_type_registry
 from baserow.core.registry import Instance, Registry
+from baserow.core.services.exceptions import DispatchException
 from baserow.core.tools import ToolContext
-from baserow.core.tools.errors import classify_tool_error, describe_failure
+from baserow.core.tools.errors import (
+    ToolError,
+    ToolErrorCode,
+    classify_tool_error,
+    describe_failure,
+)
 
 from .previews import StepPreview, as_requested
 
@@ -53,9 +60,29 @@ def failed_call(tool_type: "AgentToolType", exc: Exception) -> ToolReturn:
     :return: The ``error``, with its code as metadata.
     """
 
-    error = classify_tool_error(exc)
+    builder_message = (
+        exc.builder_message if isinstance(exc, DispatchException) else None
+    )
+    error = (
+        ToolError(ToolErrorCode.FAILED, None)
+        if builder_message
+        else classify_tool_error(exc)
+    )
     if error.message is None:
-        logger.error("Agent tool {} failed ({})", tool_type.type, describe_failure(exc))
+        reference = uuid4().hex
+        logger.error(
+            "Agent tool {} failed ({}) [{}]",
+            tool_type.type,
+            describe_failure(exc),
+            reference,
+        )
+        cause = exc.__cause__ or exc
+        return ToolFailureWithDiagnostic(
+            return_value={"error": error.to_dict()},
+            metadata={"error_code": error.code},
+            builder_message=builder_message
+            or f"{type(cause).__name__} (log reference {reference})",
+        )
     return ToolReturn(
         return_value={"error": error.to_dict()},
         metadata={"error_code": error.code},

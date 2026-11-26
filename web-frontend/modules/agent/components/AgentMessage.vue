@@ -129,6 +129,7 @@ const props = defineProps({
   canDecide: { type: Boolean, default: false },
   /** Whether the viewer may also turn off Ask first for the held tools. */
   canAlwaysAllow: { type: Boolean, default: false },
+  canViewToolErrors: { type: Boolean, default: false },
   /** A decision about this reply's held steps is being saved. */
   deciding: { type: Boolean, default: false },
   /** The service type key of the trigger that started the conversation. */
@@ -240,11 +241,16 @@ function stepEntries(steps, approvals) {
 }
 
 // Stable arrays let text deltas skip rebuilding and re-rendering the steps.
-const steps = computed(() =>
-  fromPerson.value || !Array.isArray(shown.value.steps)
-    ? NO_STEPS
-    : shown.value.steps
-)
+const steps = computed(() => {
+  const steps = shown.value.steps
+  if (fromPerson.value || !Array.isArray(steps)) return NO_STEPS
+  const errors = props.canViewToolErrors && props.message.tool_errors
+  return errors
+    ? steps.map((step) =>
+        errors[step?.id] ? { ...step, error_message: errors[step.id] } : step
+      )
+    : steps
+})
 const approvals = computed(() =>
   fromPerson.value || !Array.isArray(shown.value.approvals)
     ? NO_APPROVALS

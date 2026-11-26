@@ -1,4 +1,5 @@
 import json
+import re
 from uuid import uuid4
 
 import pytest
@@ -16,13 +17,14 @@ from baserow.contrib.agent.constants import (
 from baserow.contrib.agent.handler import AgentHandler
 from baserow.contrib.agent.previews import StepPreview
 from baserow.contrib.agent.service import AgentService
+from baserow.core.chat_runs.journal import ChatRunJournal
 from baserow.core.chat_runs.models import ChatRun
 from baserow.core.identities.handler import IdentityHandler
 from baserow.core.services.types import DispatchResult
 from baserow.core.trash.handler import TrashHandler
 
 from .test_replies import decide, pause, respond, tool_call
-from .utils import run_reply
+from .utils import agent_url, run_reply
 
 
 def email_call(name, call_id="email_call", **changes):
@@ -63,6 +65,53 @@ def test_email_runs_without_workspace_access_and_uses_shared_activity(
     assert "alice@example.com" in json.dumps(step["input"])
     assert "SMTP_SECRET_CANARY" not in json.dumps(reply.transcript.model_messages)
     assert "SMTP_SECRET_CANARY" not in json.dumps(reply.steps)
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("failure", [TimeoutError, RuntimeError])
+def test_approved_smtp_failure_is_private_to_the_builder_history(
+    email_action, mocker, api_client, logs, failure
+):
+    user, agent, action, _, connection = email_action
+    action.ask_first = True
+    action.save()
+    received = respond(mocker, ({0: email_call(action.name)},))
+    journal = mocker.spy(ChatRunJournal, "emit")
+    reply = pause(user, agent)
+    step_id = reply.steps[0]["id"]
+    mocker.patch.object(
+        connection.return_value,
+        "send_messages",
+        side_effect=failure("SMTP_SECRET_CANARY"),
+    )
+    run_reply(decide(user, reply, approved=True))
+    reply.refresh_from_db()
+
+    reason = reply.tool_errors[step_id]
+    if failure is TimeoutError:
+        assert reason == "The SMTP server did not answer"
+    else:
+        reference = re.fullmatch(
+            r"RuntimeError \(log reference ([0-9a-f]{32})\)", reason
+        )
+        assert reference and any(reference[1] in log for log in logs)
+    assert reply.steps[0]["error_message"] == "Internal error."
+    assert reply.tool_errors == {step_id: reason}
+    assert reason not in repr(journal.call_args_list)
+    assert reason not in repr(received[-1])
+    assert reason not in json.dumps(reply.transcript.model_messages)
+    api_client.force_authenticate(user)
+    response = api_client.get(
+        agent_url(agent, "messages", conversation_uuid=reply.conversation.uuid)
+    )
+    assert response.status_code == 200
+    saved = next(
+        message
+        for message in response.json()["results"]
+        if message["uuid"] == str(reply.uuid)
+    )
+    assert saved["tool_errors"] == {step_id: reason}
+    assert "SMTP_SECRET_CANARY" not in response.content.decode()
 
 
 @pytest.mark.django_db

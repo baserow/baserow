@@ -13,6 +13,7 @@ from pydantic_ai.toolsets import AbstractToolset
 from pydantic_ai.toolsets.abstract import ToolsetTool
 from pydantic_core import SchemaValidator, core_schema
 
+from baserow.core.chat_runs.steps import ToolFailureWithDiagnostic
 from baserow.core.db import with_usable_db_connection
 from baserow.core.tools.errors import ToolErrorCode, describe_failure
 
@@ -195,8 +196,14 @@ class MCPServerSnapshot:
         return names
 
 
-def _error(message: str, code: ToolErrorCode) -> ToolReturn:
-    return ToolReturn(return_value={"error": message}, metadata={"error_code": code})
+def _error(
+    builder_message: str, code: ToolErrorCode, *, model_message: str | None = None
+) -> ToolReturn:
+    return ToolFailureWithDiagnostic(
+        return_value={"error": model_message or builder_message},
+        metadata={"error_code": code},
+        builder_message=builder_message,
+    )
 
 
 class MCPServerToolset(AbstractToolset[Any]):
@@ -329,14 +336,20 @@ class MCPServerToolset(AbstractToolset[Any]):
             # The server answered: its message may tell the model what to fix.
             if error := protocol_error(exc):
                 return _error(
-                    error.error.message[:MAX_ERROR_CHARACTERS] or "The tool failed.",
+                    f"The MCP server returned protocol error {error.error.code}.",
                     ToolErrorCode.FAILED,
+                    model_message=error.error.message[:MAX_ERROR_CHARACTERS]
+                    or "The tool failed.",
                 )
             return _error(UNREACHABLE_MESSAGE, ToolErrorCode.FAILED)
 
         text = result_to_text(result)
         if result.isError:
-            return _error(text or "The tool failed.", ToolErrorCode.FAILED)
+            return _error(
+                "The connected MCP server reported that the tool failed.",
+                ToolErrorCode.FAILED,
+                model_message=text or "The tool failed.",
+            )
         return ToolReturn(
             return_value=text, metadata={"facts": {"server": self._server.name}}
         )

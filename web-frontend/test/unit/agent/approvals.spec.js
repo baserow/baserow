@@ -522,6 +522,34 @@ describe('Agent tool approvals', () => {
     }
   )
 
+  test.each([true, false])(
+    'builder access (%s) controls failure details after a live run',
+    async (builder) => {
+      allowed.value = (operation) =>
+        builder || operation !== 'application.update'
+      const approved = [approval(1, 'approved')]
+      const ended = reply('completed', approved, {
+        steps: [
+          {
+            ...heldStep(1, 'failed'),
+            error_code: 'failed',
+            error_message: 'Internal error.',
+          },
+        ],
+      })
+      const diagnosis = 'The SMTP server did not answer'
+      const wrapper = await openReply(
+        reply('running', approved, { runId: 'run-2' }),
+        page([prompt, { ...ended, tool_errors: { 'step-1': diagnosis } }])
+      )
+      await finish('run-2', ended)
+      expect(messageReads()).toHaveLength(builder ? 2 : 1)
+      expect(items(wrapper)[0].get('.agent-approval__item-note').text()).toBe(
+        builder ? diagnosis : 'Internal error.'
+      )
+    }
+  )
+
   test('an approved step that partly failed lists the items it missed', async () => {
     const partlyDone = {
       ...heldStep(1, 'done'),
