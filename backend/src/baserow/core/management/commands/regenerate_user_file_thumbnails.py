@@ -1,11 +1,8 @@
 from django.core.management.base import BaseCommand
 
-from azure.core.exceptions import ResourceNotFoundError
-from botocore.exceptions import ClientError
-from google.api_core.exceptions import NotFound
 from PIL import Image
 
-from baserow.core.storage import get_default_storage
+from baserow.core.storage import get_default_storage, is_missing_file_error
 from baserow.core.user_files.handler import UserFileHandler
 from baserow.core.user_files.models import UserFile
 
@@ -58,10 +55,10 @@ class Command(BaseCommand):
                     )
                     image.close()
                     regenerated += 1
-                except (IOError, ResourceNotFoundError, NotFound):
-                    pass
-                except ClientError as error:
-                    if error.response["ResponseMetadata"]["HTTPStatusCode"] != 404:
+                except Exception as error:
+                    if not isinstance(error, IOError) and not is_missing_file_error(
+                        error
+                    ):
                         raise
 
                 stream.close()

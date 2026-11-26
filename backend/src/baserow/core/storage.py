@@ -5,6 +5,9 @@ from typing import BinaryIO, Collection, Iterator
 
 from django.core.files.storage import FileSystemStorage, Storage, default_storage
 
+from azure.core.exceptions import ResourceNotFoundError
+from botocore.exceptions import ClientError
+from google.api_core.exceptions import NotFound
 from loguru import logger
 
 # This import is necessary to handle the creation of zip files in a standardized way
@@ -23,6 +26,12 @@ def get_default_storage() -> Storage:
     """
 
     return default_storage
+
+
+def is_missing_file_error(error: BaseException) -> bool:
+    if isinstance(error, ClientError):
+        return error.response.get("ResponseMetadata", {}).get("HTTPStatusCode") == 404
+    return isinstance(error, (FileNotFoundError, ResourceNotFoundError, NotFound))
 
 
 class OverwritingStorageHandler:
