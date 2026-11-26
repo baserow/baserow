@@ -479,14 +479,16 @@
 
   .button {
     justify-content: center;
-    width: 100px;
+    width: 112px;
     height: auto;
     min-height: $button-small-height;
-    padding: 4px 2px;
+    padding: 1px 2px;
+    line-height: 14px;
   }
 
   .button__label {
     white-space: normal;
+    text-wrap: balance;
     overflow-wrap: anywhere;
   }
 }
