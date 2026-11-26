@@ -13,6 +13,14 @@
  */
 
 import baseConfig from './nuxt.config.base.ts'
+
+// Server source maps are only used when Sentry uploads them, which needs an
+// auth token: the server doesn't run with source map support. Building them
+// takes the heap the build needs from under 4 GB to over 6 GB, so a build
+// without the token skips them. Client maps stay, because the browser and a
+// Sentry that reads them from the public files both use them.
+const uploadsSourceMaps = Boolean(process.env.SENTRY_AUTH_TOKEN)
+
 export default {
   ...baseConfig,
   nitro: {
@@ -22,7 +30,7 @@ export default {
     compressPublicAssets: { gzip: true, brotli: true },
   },
   sourcemap: {
-    server: true,
+    server: uploadsSourceMaps,
     client: true,
   },
 }
