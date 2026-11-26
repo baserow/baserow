@@ -1,6 +1,7 @@
 from datetime import datetime
 from typing import Any, Dict, Optional
 
+from django.db.models import DateTimeField
 from django.urls import URLResolver
 
 from rest_framework import serializers
@@ -11,9 +12,6 @@ from baserow.core.registries import ImportExportConfig
 
 from .models import OAuthAccountIntegrationMixin
 from .providers import OAuthProvider
-
-DATETIME_FIELDS = ("expires_at", "connected_at")
-ACCOUNT_TEXT_FIELDS = ("account_id", "account_email", "account_name")
 
 
 class OAuthAccountIntegrationDict(IntegrationDict):
@@ -118,10 +116,7 @@ class OAuthAccountIntegrationTypeMixin:
         storage=None,
         cache=None,
     ):
-        if prop_name in DATETIME_FIELDS:
-            value = getattr(integration, prop_name)
-            return value.isoformat() if value else None
-        return super().serialize_property(
+        value = super().serialize_property(
             integration,
             prop_name,
             import_export_config=import_export_config,
@@ -129,6 +124,16 @@ class OAuthAccountIntegrationTypeMixin:
             storage=storage,
             cache=cache,
         )
+        return value.isoformat() if isinstance(value, datetime) else value
+
+    def deserialize_property(self, prop_name, value, id_mapping, **kwargs):
+        """Restore connection dates through the common import property hook."""
+
+        if prop_name in self.get_connection_properties() and isinstance(
+            field := self.model_class._meta.get_field(prop_name), DateTimeField
+        ):
+            return field.to_python(value)
+        return super().deserialize_property(prop_name, value, id_mapping, **kwargs)
 
     def import_serialized(
         self,
@@ -156,8 +161,7 @@ class OAuthAccountIntegrationTypeMixin:
             application, values, id_mapping, import_export_config
         ):
             for name in self.get_connection_properties():
-                values[name] = None
-        values = self.clean_connection_values(values)
+                values.pop(name, None)
         return super().import_serialized(
             application,
             values,
@@ -167,36 +171,6 @@ class OAuthAccountIntegrationTypeMixin:
             storage=storage,
             cache=cache,
         )
-
-    def clean_connection_values(self, values: Dict[str, Any]) -> Dict[str, Any]:
-        """
-        Turn the serialized connection into values the model accepts, whatever
-        the file says. A type with fields of its own cleans those too.
-
-        :param values: The serialized integration.
-        :return: The values to import.
-        """
-
-        for name in ACCOUNT_TEXT_FIELDS:
-            values[name] = str(values.get(name) or "")[:255]
-        values["access_token"] = values.get("access_token") or ""
-        values["refresh_token"] = values.get("refresh_token") or ""
-        scopes = values.get("scopes")
-        values["scopes"] = (
-            [scope for scope in scopes if isinstance(scope, str)]
-            if isinstance(scopes, list)
-            else []
-        )
-        for name in DATETIME_FIELDS:
-            values[name] = self._parse_datetime(values.get(name))
-        connected_by_id = values.get("connected_by_id")
-        values["connected_by_id"] = (
-            connected_by_id if isinstance(connected_by_id, int) else None
-        )
-        for name in self.model_class.extra_connection_fields:
-            if values.get(name) is None:
-                values[name] = self.model_class._meta.get_field(name).get_default()
-        return values
 
     def keeps_connection(
         self,
@@ -233,12 +207,3 @@ class OAuthAccountIntegrationTypeMixin:
         return WorkspaceUser.objects.filter(
             workspace_id=workspace_id, user_id=connected_by_id
         ).exists()
-
-    @staticmethod
-    def _parse_datetime(value) -> Optional[datetime]:
-        if not isinstance(value, str) or not value:
-            return None
-        try:
-            return datetime.fromisoformat(value)
-        except ValueError:
-            return None
