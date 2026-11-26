@@ -33,6 +33,7 @@ def accounts(data_fixture):
         database=database,
         table=table,
         secret=secret,
+        name=name,
         acme=model.objects.create(**{f"field_{name.id}": "Acme"}),
         other_acme=model.objects.create(**{f"field_{name.id}": "Acme"}),
         unnamed=model.objects.create(),
@@ -65,12 +66,18 @@ def test_names_are_resolved_as_the_agent_identity(accounts, data_fixture):
         accounts.acme.id: "Acme",
         accounts.unnamed.id: f"unnamed row {accounts.unnamed.id}",
     }
-    # Two rows of the same name are told apart.
+    # Rows of the same name are told apart, even from one named like a label.
+    lookalike = accounts.table.get_model().objects.create(
+        **{f"field_{accounts.name.id}": f"Acme (row {accounts.other_acme.id})"}
+    )
     assert row_names(
-        accounts.ctx, accounts.table, [accounts.acme.id, accounts.other_acme.id]
+        accounts.ctx,
+        accounts.table,
+        [accounts.acme.id, accounts.other_acme.id, lookalike.id],
     ) == {
         accounts.acme.id: f"Acme (row {accounts.acme.id})",
         accounts.other_acme.id: f"Acme (row {accounts.other_acme.id})",
+        lookalike.id: f"Acme (row {accounts.other_acme.id}) (row {lookalike.id})",
     }
     assert table_reference(accounts.ctx, other.id) == (None, {"table_id": other.id})
     assert database_reference(accounts.ctx, other.database_id) == {

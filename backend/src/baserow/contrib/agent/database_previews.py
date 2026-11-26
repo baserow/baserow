@@ -3,7 +3,6 @@ Names of what the Agent's database tools work on, resolved as the Agent identity
 before a call runs.
 """
 
-from collections import Counter
 from typing import Any
 
 from baserow.contrib.database.fields.models import Field
@@ -132,22 +131,18 @@ def row_names(ctx: ToolContext, table: Table, row_ids: list[int]) -> dict[int, s
     :param table: A table the identity can see.
     :param row_ids: Rows the call names.
     :return: Each row's primary value as text, or ``unnamed row <id>`` when it's
-        empty, by row ID, with the ID added to a name two of the rows share. Rows
-        that are missing or trashed, and all rows when the identity may not list
-        them, keep their IDs.
+        empty, by row ID. When two of them read the same, every named row gets its
+        ID too, which no other row's label can match. Rows that are missing or
+        trashed, and all rows when the identity may not list them, keep their IDs.
     """
 
     if not permitted_tables(ctx, [table], ListRowsDatabaseTableOperationType.type):
         return {}
     names = RowHandler().get_row_names(table, row_ids)
-    shared = {name for name, count in Counter(names.values()).items() if count > 1}
+    labels = {row_id: name or f"unnamed row {row_id}" for row_id, name in names.items()}
+    if len(set(labels.values())) == len(labels):
+        return labels
     return {
-        row_id: (
-            f"unnamed row {row_id}"
-            if not name
-            else f"{name} (row {row_id})"
-            if name in shared
-            else name
-        )
+        row_id: f"{name} (row {row_id})" if name else labels[row_id]
         for row_id, name in names.items()
     }
