@@ -7,6 +7,7 @@ from baserow.contrib.agent.models import AgentApplication, AgentChannel
 from baserow.contrib.agent.types import AgentChannelUpdated
 from baserow.core.db import specific_iterator
 from baserow.core.models import Workspace
+from baserow.core.registries import ImportExportConfig
 from baserow.core.trash.handler import TrashHandler
 from baserow.core.utils import extract_allowed
 
@@ -119,6 +120,60 @@ class AgentChannelHandler:
 
         agent = channel.agent
         TrashHandler.trash(user, agent.workspace, agent, channel)
+
+    def export_channels(
+        self, agent: AgentApplication, import_export_config: ImportExportConfig
+    ) -> list[dict[str, Any]]:
+        """
+        :param agent: The agent whose channels are exported.
+        :param import_export_config: How the agent is exported.
+        :return: The channels that aren't trashed, oldest first, as their types
+            export them, without those of a type this instance doesn't have.
+        """
+
+        serialized = []
+        for channel in self.list_channels(agent):
+            try:
+                channel_type = agent_channel_type_registry.get_for_channel(channel)
+            except AgentChannelTypeNotAvailable:
+                continue
+            serialized.append(
+                channel_type.export_serialized(channel, import_export_config)
+            )
+        return serialized
+
+    def import_channels(
+        self,
+        agent: AgentApplication,
+        serialized_channels: list[dict[str, Any]],
+        id_mapping: dict,
+        import_export_config: ImportExportConfig,
+    ) -> list[AgentChannel]:
+        """
+        Copy channels into the agent, each switched off and with an address of its
+        own. A channel of a type this instance doesn't have is left out.
+
+        :param agent: The agent the channels are copied into.
+        :param serialized_channels: The channels from ``export_channels``.
+        :param id_mapping: The export-to-import id map; ``agent_channels`` is
+            filled in.
+        :param import_export_config: How the agent is imported.
+        :return: The created channels, in the exported order.
+        """
+
+        channel_ids = id_mapping.setdefault("agent_channels", {})
+        channels = []
+        for serialized in serialized_channels:
+            try:
+                channel_type = agent_channel_type_registry.get(serialized["type"])
+            except AgentChannelTypeNotAvailable:
+                continue
+            channel = channel_type.import_serialized(
+                agent, serialized, import_export_config
+            )
+            channel_ids[serialized["id"]] = channel.id
+            channels.append(channel)
+        return channels
 
     def _prepare_values(
         self, channel_type: AgentChannelType, values: dict[str, Any]

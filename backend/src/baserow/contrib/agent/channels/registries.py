@@ -1,7 +1,8 @@
 from typing import Any
 
-from baserow.contrib.agent.models import AgentChannel
+from baserow.contrib.agent.models import AgentApplication, AgentChannel
 from baserow.core.models import Workspace
+from baserow.core.registries import ImportExportConfig
 from baserow.core.registry import (
     CustomFieldsInstanceMixin,
     CustomFieldsRegistryMixin,
@@ -42,6 +43,36 @@ class AgentChannelType(
         """
 
         return self.type
+
+    def export_serialized(
+        self, channel: AgentChannel, import_export_config: ImportExportConfig
+    ) -> dict[str, Any]:
+        """
+        :param channel: A channel of this type.
+        :param import_export_config: How the agent is exported.
+        :return: What a copy of the channel keeps, never its address.
+        """
+
+        return {"id": channel.id, "type": self.type}
+
+    def import_serialized(
+        self,
+        agent: AgentApplication,
+        serialized: dict[str, Any],
+        import_export_config: ImportExportConfig,
+        **values: Any,
+    ) -> AgentChannel:
+        """
+        Create the copy switched off, since it would answer anyone who reaches it.
+
+        :param agent: The agent the channel is copied into.
+        :param serialized: The channel from ``export_serialized``.
+        :param import_export_config: How the agent is imported.
+        :param values: The type's own values for the copy.
+        :return: The copied channel.
+        """
+
+        return self.model_class.objects.create(agent=agent, enabled=False, **values)
 
 
 class AgentChannelTypeRegistry(

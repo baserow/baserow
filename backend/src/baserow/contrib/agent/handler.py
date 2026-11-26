@@ -2507,6 +2507,7 @@ class AgentHandler:
                 if as_examples
                 else [user.id for user in conversation.participants.all()],
                 "trigger_id": conversation.trigger_id,
+                "channel_id": conversation.channel_id,
                 "created_on": conversation.created_on.isoformat(),
                 "updated_on": conversation.updated_on.isoformat(),
                 "messages": [
@@ -2547,13 +2548,14 @@ class AgentHandler:
         Private conversations whose participants were all deleted are skipped,
         others are kept without the users deleted since, and a reply still being
         written or waiting for approvals is ended as interrupted. A conversation
-        whose trigger wasn't copied loses the link, as it does when the trigger is
-        deleted, and one a channel started never keeps its channel.
+        whose trigger or channel wasn't copied loses the link, as it does when the
+        trigger or channel is deleted.
 
         :param agent: The agent to copy the conversations into.
         :param serialized_conversations: The conversations from export_conversations.
         :param id_mapping: The export-to-import id map, with the ``agent_triggers``
-            the agent's triggers were imported under.
+            and ``agent_channels`` the agent's triggers and channels were imported
+            under.
         :param as_examples: Import them as examples: only those the export picks
             as such, never attributed to a user of this instance and without tool
             steps, whatever the file says. The users, steps and timestamps can be
@@ -2635,6 +2637,7 @@ class AgentHandler:
 
         retained_data = [data for data in serialized_conversations if is_retained(data)]
         trigger_ids = id_mapping.get("agent_triggers", {})
+        channel_ids = id_mapping.get("agent_channels", {})
         conversations = [
             AgentConversation(
                 agent=agent,
@@ -2648,6 +2651,7 @@ class AgentHandler:
                 is_example=as_examples or data.get("is_example", False),
                 started_by_channel=data.get("started_by_channel", False),
                 trigger_id=trigger_ids.get(data.get("trigger_id")),
+                channel_id=channel_ids.get(data.get("channel_id")),
             )
             for data in retained_data
         ]

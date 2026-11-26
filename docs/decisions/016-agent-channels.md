@@ -167,15 +167,18 @@ already route to the async server.
   feature is in beta and must be solved before the "Beta" label comes off.
 - A message's `unattended` flag now means that no member is behind the reply. Whether
   somebody reads it while it is written depends on what started the conversation.
-- Channels are not exported: a duplicated, imported or restored agent has none, and
-  its copied conversations keep `started_by_channel`.
+- A copy of an agent keeps its channels, each switched off and with a new link, so
+  none answers before a member turns it on. Only a duplicate or a snapshot restore
+  keeps a public chat's password; a file export or a template leaves it out. Copied
+  visitor conversations stay on the copied channel, and the visitors' tokens don't
+  open them there.
 - Next, in its own PR: an "answer the visitor" tool. A reply that can call tools sends
   its answer by calling it, only that text goes to the visitor, as it is written, and
   everything else the reply writes stays in the members' view. Members also get a way
   to see a conversation as its visitor saw it.
 - Follow-ups: limits, the Website widget type, how a public chat looks (a logo and a
-  colour), replacing a link without deleting the channel, members taking over a
-  conversation, and exporting channels.
+  colour), replacing a link without deleting the channel, and members taking over a
+  conversation.
 
 ## Revisit triggers
 

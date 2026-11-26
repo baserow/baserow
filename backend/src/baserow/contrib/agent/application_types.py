@@ -10,6 +10,7 @@ from baserow.contrib.agent.action_tools.handler import AgentActionHandler
 from baserow.contrib.agent.action_tools.registries import agent_action_type_registry
 from baserow.contrib.agent.actions import UpdateAgentConfigurationActionType
 from baserow.contrib.agent.api.serializers import AgentApplicationSerializer
+from baserow.contrib.agent.channels.handler import AgentChannelHandler
 from baserow.contrib.agent.constants import AgentRunAsState
 from baserow.contrib.agent.handler import AgentHandler
 from baserow.contrib.agent.models import AgentApplication
@@ -396,6 +397,9 @@ class AgentApplicationType(ApplicationType):
             triggers=AgentTriggerHandler().export_triggers(
                 application, import_export_config, files_zip, storage
             ),
+            channels=AgentChannelHandler().export_channels(
+                application, import_export_config
+            ),
         )
         # Identity ids are local references, not portable configuration.
         if (
@@ -434,8 +438,8 @@ class AgentApplicationType(ApplicationType):
         progress_builder: ChildProgressBuilder | None = None,
     ) -> AgentApplication:
         """
-        Import the configuration, its triggers switched off, and any copied
-        conversations as one new Agent.
+        Import the configuration, its triggers and channels switched off, and any
+        copied conversations as one new Agent.
 
         :param workspace: The workspace the Agent is imported into.
         :param serialized_values: The exported Agent.
@@ -550,6 +554,12 @@ class AgentApplicationType(ApplicationType):
             import_export_config,
             files_zip,
             storage,
+        )
+        AgentChannelHandler().import_channels(
+            application,
+            serialized_values.get("channels", []),
+            id_mapping,
+            import_export_config,
         )
         if self._includes_conversations(import_export_config):
             AgentHandler().import_conversations(

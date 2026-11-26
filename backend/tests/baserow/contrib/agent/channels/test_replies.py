@@ -1,5 +1,4 @@
 import asyncio
-from collections.abc import Iterator
 from uuid import uuid4
 
 from django.contrib.auth.models import AbstractUser
@@ -8,10 +7,6 @@ import pytest
 from pydantic_ai.exceptions import ModelHTTPError
 from pydantic_ai.models.function import FunctionModel
 
-from baserow.contrib.agent.channels.registries import (
-    AgentChannelType,
-    agent_channel_type_registry,
-)
 from baserow.contrib.agent.constants import (
     ASK_FIRST_INSTRUCTIONS,
     TRIGGER_CONVERSATION_INSTRUCTIONS,
@@ -42,21 +37,6 @@ from ..test_replies import (
     run_of,
 )
 from ..utils import run_reply
-
-
-class BaseAgentChannelType(AgentChannelType):
-    type = "base"
-    model_class = AgentChannel
-
-
-@pytest.fixture
-def channel_type() -> Iterator[AgentChannelType]:
-    channel_type = BaseAgentChannelType()
-    agent_channel_type_registry.register(channel_type)
-    agent_channel_type_registry.get_for_class.cache_clear()
-    yield channel_type
-    agent_channel_type_registry.unregister(channel_type)
-    agent_channel_type_registry.get_for_class.cache_clear()
 
 
 @pytest.fixture

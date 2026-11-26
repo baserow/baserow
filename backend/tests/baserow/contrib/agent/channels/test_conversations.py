@@ -27,9 +27,12 @@ def test_the_list_marks_and_filters_the_conversations_a_channel_started(
 
 
 @pytest.mark.django_db
-def test_a_copied_agent_keeps_the_visitor_conversations_without_their_channel(
-    data_fixture, configured_agent
+@pytest.mark.parametrize("type_registered", [True, False])
+def test_a_copied_agent_keeps_the_visitor_conversations_on_its_copied_channel(
+    data_fixture, configured_agent, request, type_registered
 ):
+    if type_registered:
+        request.getfixturevalue("channel_type")
     user = data_fixture.create_user()
     agent = configured_agent(user=user)
     conversation = data_fixture.create_channel_conversation(
@@ -39,12 +42,14 @@ def test_a_copied_agent_keeps_the_visitor_conversations_without_their_channel(
         conversation=conversation, role="visitor", content="Hi"
     )
 
-    copied = CoreHandler().duplicate_application(user, agent).specific.conversations
+    copied = CoreHandler().duplicate_application(user, agent).specific
 
+    channels = list(copied.channels.values_list("id", "enabled"))
+    assert channels == ([(channels[0][0], False)] if type_registered else [])
     assert [
         (item.started_by_channel, item.channel_id, item.shared, item.owner_user_id)
-        for item in copied.all()
-    ] == [(True, None, True, None)]
-    assert list(copied.get().messages.values_list("role", "sender_id", "content")) == [
-        ("visitor", None, "Hi")
-    ]
+        for item in copied.conversations.all()
+    ] == [(True, channels[0][0] if type_registered else None, True, None)]
+    assert list(
+        copied.conversations.get().messages.values_list("role", "sender_id", "content")
+    ) == [("visitor", None, "Hi")]
