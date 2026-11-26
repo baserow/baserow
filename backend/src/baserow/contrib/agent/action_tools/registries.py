@@ -246,6 +246,7 @@ class AgentActionType(Instance, ABC):
         resolved_values: dict[str, Any],
         identity: Subject | None = None,
         arguments: dict[str, Any] | None = None,
+        refuse_private_addresses: bool = False,
     ) -> DispatchResult:
         """
         Send a prepared call through the action's service, whose integration must
@@ -257,6 +258,8 @@ class AgentActionType(Instance, ABC):
             sends the call as.
         :param arguments: The call's arguments, by input name, for the formulas a
             service only resolves while it is sent, like the filters of a table.
+        :param refuse_private_addresses: Refuse private addresses even where
+            the instance allows them, for an address the model picked.
         :return: The result of the service.
         """
 
@@ -273,6 +276,7 @@ class AgentActionType(Instance, ABC):
                 ),
                 resolved_values={service.id: resolved_values},
                 actor=identity if self.acts_as_run_identity else None,
+                refuse_private_addresses=refuse_private_addresses,
             ),
             application_id=action.agent_id,
         )

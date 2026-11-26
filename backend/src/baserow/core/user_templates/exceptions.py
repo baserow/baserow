@@ -81,3 +81,10 @@ class UserTemplatePublicListingConsentRequired(Exception):
     Raised when a user template is made public without its author agreeing that
     it's listed, with their name, for everybody on the instance.
     """
+
+
+class UserTemplatesDisabled(Exception):
+    """
+    Raised when user templates are created, changed, shared, installed or
+    downloaded while the instance admin turned them off.
+    """

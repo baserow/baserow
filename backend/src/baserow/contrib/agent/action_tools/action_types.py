@@ -7,6 +7,7 @@ from uuid import uuid4
 
 from django.conf import settings
 
+from requests import PreparedRequest
 from requests import exceptions as request_exceptions
 
 from baserow.contrib.agent.constants import ACTION_MAX_RESULT_CHARACTERS
@@ -43,7 +44,7 @@ from baserow.core.tools.errors import ToolFailedError, ToolInputError
 from baserow.core.types import Subject
 
 from .data_providers import AgentActionDispatchContext
-from .formulas import reads_only_inputs
+from .formulas import get_single_input_id, reads_only_inputs
 from .inputs import AgentActionInput
 from .registries import AgentActionDefaults, AgentActionType
 
@@ -63,7 +64,6 @@ _HTTP_ROWS = (
 )
 """Each list of key and value rows, with the prefix of its resolved values."""
 
-_SINGLE_INPUT = re.compile(r"""^get\(\s*(['"])tool_input\.([^'"]+)\1\s*\)$""")
 _LINE_BREAK = re.compile(r"[\r\n]")
 
 
@@ -281,7 +281,7 @@ class HTTPRequestAgentActionType(AgentActionType):
     ) -> None:
         url = values["url"]
         try:
-            parts = urlsplit(url)
+            parts = _split_as_sent(url)
             # Reading the port checks it, which parsing doesn't.
             valid = parts.scheme in ("http", "https") and parts.hostname
             valid = valid and (parts.port is None or parts.port > 0)
@@ -357,15 +357,7 @@ class HTTPRequestAgentActionType(AgentActionType):
         if not _reads_tool_input(service.url):
             return
         fixed = self._get_fixed_url(action, service)
-        try:
-            same = fixed is not None and (
-                fixed.scheme,
-                fixed.hostname,
-                fixed.port,
-            ) == (parts.scheme, parts.hostname, parts.port)
-        except ValueError:
-            same = False
-        if not same:
+        if not self._is_fixed_host(fixed, parts):
             # The builder is told when no fixed host can be read at all, so
             # here the model changed it.
             raise ToolInputError(
@@ -374,13 +366,42 @@ class HTTPRequestAgentActionType(AgentActionType):
                 hint="Change only the part of the address the inputs describe.",
             )
 
+    def _is_fixed_host(self, fixed: SplitResult | None, parts: SplitResult) -> bool:
+        """
+        :return: Whether the request goes to the scheme, host and port the
+            builder fixed.
+        """
+
+        try:
+            return fixed is not None and (
+                fixed.scheme,
+                fixed.hostname,
+                fixed.port,
+            ) == (parts.scheme, parts.hostname, parts.port)
+        except ValueError:
+            return False
+
+    def _model_picks_host(self, action, service, url: str) -> bool:
+        """
+        :return: Whether the host the request goes to comes from the model,
+            rather than from the builder.
+        """
+
+        if not _reads_tool_input(service.url):
+            return False
+        try:
+            parts = _split_as_sent(url)
+        except ValueError:
+            return True
+        return not self._is_fixed_host(self._get_fixed_url(action, service), parts)
+
     def _get_fixed_url(self, action, service) -> SplitResult | None:
         """
         :return: The URL resolved with every input empty, when it names a host.
         """
 
         try:
-            fixed = urlsplit(
+            fixed = _split_as_sent(
                 ensure_string(
                     resolve_formula(
                         service.url,
@@ -426,7 +447,10 @@ class HTTPRequestAgentActionType(AgentActionType):
         url = resolved_values["url"]
         values = {
             "http_method": service.http_method,
-            "url": url if self._is_shown(service, "url") else _hide_url_secrets(url),
+            # As it is sent, so the host read is the host called.
+            "url": _split_as_sent(url).geturl()
+            if self._is_shown(service, "url")
+            else _hide_url_secrets(url),
         }
         for field, _ in _HTTP_ROWS:
             rows = getattr(service, field).all()
@@ -483,11 +507,7 @@ class HTTPRequestAgentActionType(AgentActionType):
             then reads as the model chose it.
         """
 
-        formula = self._get_formula(service, key)
-        if formula.get("mode") == BASEROW_FORMULA_MODE_RAW:
-            return None
-        match = _SINGLE_INPUT.match((formula.get("formula") or "").strip())
-        return match.group(2) if match else None
+        return get_single_input_id(self._get_formula(service, key))
 
     def _is_shown(self, service: CoreHTTPRequestService, key: str) -> bool:
         """
@@ -524,7 +544,15 @@ class HTTPRequestAgentActionType(AgentActionType):
                         f"{field}.{position}"
                     ]
         try:
-            result = super().dispatch(action, values, identity, arguments)
+            result = super().dispatch(
+                action,
+                values,
+                identity,
+                arguments,
+                refuse_private_addresses=self._model_picks_host(
+                    action, service, values["url"]
+                ),
+            )
         except AddressNotAllowedDispatchException as exc:
             raise ToolInputError(
                 "This address can't be called from this Baserow instance."
@@ -947,12 +975,30 @@ class SlackWriteMessageAgentActionType(AgentActionType):
 def _reads_tool_input(value: dict[str, Any]) -> bool:
     """
     :param value: A stored formula.
-    :return: Whether it may read what the model provides.
+    :return: Whether it may read what the model provides, however the path is
+        spelled: ``tool_input.<id>`` or ``tool_input[<id>]``.
     """
 
-    return value.get("mode") != BASEROW_FORMULA_MODE_RAW and "tool_input." in (
+    return value.get("mode") != BASEROW_FORMULA_MODE_RAW and "tool_input" in (
         value.get("formula") or ""
     )
+
+
+def _split_as_sent(url: str) -> SplitResult:
+    """
+    :param url: A URL about to be sent.
+    :return: Its parts as Requests sends it. Parsing the raw text can name
+        another host: `urlsplit` reads `a.example\\@b.example` as `b.example`,
+        while Requests sends it to `a.example`.
+    :raises ValueError: When Requests can't send it.
+    """
+
+    request = PreparedRequest()
+    try:
+        request.prepare_url(url, None)
+    except request_exceptions.RequestException as exc:
+        raise ValueError(str(exc)) from exc
+    return urlsplit(request.url)
 
 
 def _refuse_constant(name: str) -> None:
@@ -975,7 +1021,7 @@ def _hide_url_secrets(url: str) -> str:
         readable, and the inputs the URL reads are listed apart.
     """
 
-    parts = urlsplit(url)
+    parts = _split_as_sent(url)
     netloc = parts.netloc
     if "@" in netloc:
         netloc = f"{HIDDEN_VALUE}@{netloc.rsplit('@', 1)[1]}"

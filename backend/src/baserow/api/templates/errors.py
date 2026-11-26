@@ -51,6 +51,11 @@ ERROR_TEMPLATE_UPDATED = (
     HTTP_400_BAD_REQUEST,
     "The template was updated after it was opened.",
 )
+ERROR_USER_TEMPLATES_DISABLED = (
+    "ERROR_USER_TEMPLATES_DISABLED",
+    HTTP_400_BAD_REQUEST,
+    "User templates have been turned off by the instance administrator.",
+)
 ERROR_TEMPLATE_ALREADY_APPROVED = (
     "ERROR_TEMPLATE_ALREADY_APPROVED",
     HTTP_400_BAD_REQUEST,

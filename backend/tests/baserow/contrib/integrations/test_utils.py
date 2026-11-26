@@ -584,6 +584,26 @@ def test_every_hop_is_checked_against_the_address_rules(settings):
     assert other_seen == []
 
 
+@pytest.mark.parametrize("refuse_private_addresses", [False, True])
+def test_a_model_picked_address_is_checked_even_where_private_ones_are_allowed(
+    settings, refuse_private_addresses
+):
+    settings.INTEGRATIONS_ALLOW_PRIVATE_ADDRESS = True
+    with local_server({"/": answer()}) as (base, seen):
+        if refuse_private_addresses:
+            with pytest.raises(UnacceptableAddressException):
+                send_http_request(
+                    "GET",
+                    base + "/",
+                    deadline=time.monotonic() + 5,
+                    refuse_private_addresses=True,
+                )
+        else:
+            send_http_request("GET", base + "/", deadline=time.monotonic() + 5)
+
+    assert seen == ([] if refuse_private_addresses else [("GET", "/")])
+
+
 def test_a_response_whose_headers_trickle_is_given_up_on_at_the_deadline(settings):
     """
     Headers sent a byte at a time never leave a single read waiting long enough

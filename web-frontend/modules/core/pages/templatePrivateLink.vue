@@ -11,6 +11,10 @@
  */
 import TemplatePage from '@baserow/modules/core/components/template/TemplatePage'
 
+definePageMeta({
+  middleware: ['settings'],
+})
+
 const { $store } = useNuxtApp()
 
 // Must precede the stylesheets and scripts, or they send the token as Referer.

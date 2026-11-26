@@ -88,6 +88,58 @@ def reads_only_inputs(
     return True
 
 
+def get_single_input_id(value: BaserowFormulaObject) -> str | None:
+    """
+    Read a stored formula that is exactly one input, however it is spelled:
+    ``get('tool_input.<id>')``, ``GET("tool_input[<id>]")``, in brackets or
+    with spaces around it.
+
+    :param value: The formula.
+    :return: The ID of the input, or None when the formula is anything else.
+    """
+
+    if not value.get("formula") or value.get("mode") == BASEROW_FORMULA_MODE_RAW:
+        return None
+    try:
+        call = _unwrap(get_parse_tree_for_formula(value["formula"]).expr())
+    # A stored formula can make the parser raise anything.
+    except Exception:
+        return None
+    if (
+        not isinstance(call, BaserowFormula.FunctionCallContext)
+        or call.func_name().getText().lower() != "get"
+        or len(call.expr()) != 1
+    ):
+        return None
+    argument = _unwrap(call.expr()[0])
+    if not isinstance(argument, BaserowFormula.StringLiteralContext):
+        return None
+    provider, *path = to_path(
+        BaserowFormulaValidationVisitor(
+            formula_runtime_function_registry,
+            agent_action_data_provider_type_registry,
+        ).process_string(argument)
+    )
+    return path[0] if provider == "tool_input" and len(path) == 1 else None
+
+
+def _unwrap(expr: BaserowFormula.ExprContext) -> BaserowFormula.ExprContext:
+    """
+    :return: The expression without the brackets, spaces and comments around it.
+    """
+
+    while isinstance(
+        expr,
+        (
+            BaserowFormula.BracketsContext,
+            BaserowFormula.LeftWhitespaceOrCommentsContext,
+            BaserowFormula.RightWhitespaceOrCommentsContext,
+        ),
+    ):
+        expr = expr.expr()
+    return expr
+
+
 def get_formula_errors(
     formulas: dict[str, BaserowFormulaObject], inputs: list[AgentActionInput]
 ) -> dict[str, str]:

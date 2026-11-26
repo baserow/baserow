@@ -2,7 +2,7 @@
 
 |        |                                                |
 | ------ | ---------------------------------------------- |
-| Status | Proposed                                       |
+| Status | Accepted                                       |
 | Date   | 2026-10-01                                     |
 | Issue  | https://github.com/baserow/baserow/issues/1446 |
 | Author | Przemyslaw Kukulski (@DimmuR)                  |
@@ -142,6 +142,9 @@ if it does not exist.
 - Deactivating the author or scheduling their account deletion does not change their
   templates; deleting the author deletes them (section 7).
 - Access changes take effect immediately.
+- **User templates setting** is an instance-wide setting chosen by instance admins, on by
+  default, that enables or disables user templates for the whole instance. Disabling
+  deletes nothing; enabling again restores access to them as it was.
 
 ### 5. Making public, approval and moderation
 

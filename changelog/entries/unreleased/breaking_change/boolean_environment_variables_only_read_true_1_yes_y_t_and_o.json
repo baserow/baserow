@@ -1,0 +1,12 @@
+{
+    "type": "breaking_change",
+    "message": "Boolean environment variables only read true, 1, yes, y, t and on as true, case-insensitive; any other value, including false, 0 and no, now means false",
+    "issue_origin": "github",
+    "issue_number": null,
+    "domain": "core",
+    "bullet_points": [
+        "BASEROW_INTEGRATIONS_ALLOW_PRIVATE_ADDRESS",
+        "BASEROW_WEBHOOKS_ALLOW_PRIVATE_ADDRESS"
+    ],
+    "created_at": "2026-11-25"
+}

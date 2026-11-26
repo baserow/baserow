@@ -75,6 +75,7 @@ from baserow.core.user_templates.exceptions import (
     TemplateHasNoContent,
     TemplateUpdated,
     UserTemplatePublicListingConsentRequired,
+    UserTemplatesDisabled,
 )
 from baserow.core.user_templates.handler import UserTemplateHandler
 from baserow.core.user_templates.job_types import DownloadUserTemplateJobType
@@ -89,6 +90,7 @@ from .errors import (
     ERROR_TEMPLATE_HAS_NO_CONTENT,
     ERROR_TEMPLATE_PRIVATE_LINK_BLOCKED,
     ERROR_TEMPLATE_UPDATED,
+    ERROR_USER_TEMPLATES_DISABLED,
 )
 
 
@@ -367,6 +369,7 @@ class TemplateView(APIView):
                     "ERROR_PUBLIC_LISTING_CONSENT_REQUIRED",
                     "ERROR_TEMPLATE_HAS_NO_CONTENT",
                     "ERROR_TEMPLATE_BLOCKED",
+                    "ERROR_USER_TEMPLATES_DISABLED",
                 ]
             ),
             401: None,
@@ -381,6 +384,7 @@ class TemplateView(APIView):
             ),
             TemplateHasNoContent: ERROR_TEMPLATE_HAS_NO_CONTENT,
             TemplateBlocked: ERROR_TEMPLATE_BLOCKED_UPDATE,
+            UserTemplatesDisabled: ERROR_USER_TEMPLATES_DISABLED,
         }
     )
     @validate_body(UpdateTemplateSerializer)
@@ -582,6 +586,7 @@ class AsyncInstallTemplateView(APIView):
                     "ERROR_TEMPLATE_HAS_NO_CONTENT",
                     "ERROR_TEMPLATE_UPDATED",
                     "ERROR_QUERY_PARAMETER_VALIDATION",
+                    "ERROR_USER_TEMPLATES_DISABLED",
                 ]
             ),
             404: get_error_schema(
@@ -599,6 +604,7 @@ class AsyncInstallTemplateView(APIView):
             TemplateBlocked: ERROR_TEMPLATE_BLOCKED,
             TemplateHasNoContent: ERROR_TEMPLATE_HAS_NO_CONTENT,
             TemplateUpdated: ERROR_TEMPLATE_UPDATED,
+            UserTemplatesDisabled: ERROR_USER_TEMPLATES_DISABLED,
         }
     )
     @validate_query_parameters(InstallTemplateQueryParamSerializer)
@@ -644,7 +650,9 @@ class RotateTemplatePrivateLinkTokenView(APIView):
         request=None,
         responses={
             200: TemplateListItemSerializer,
-            400: get_error_schema(["ERROR_TEMPLATE_BLOCKED"]),
+            400: get_error_schema(
+                ["ERROR_TEMPLATE_BLOCKED", "ERROR_USER_TEMPLATES_DISABLED"]
+            ),
             401: None,
             404: get_error_schema(["ERROR_TEMPLATE_DOES_NOT_EXIST"]),
         },
@@ -653,6 +661,7 @@ class RotateTemplatePrivateLinkTokenView(APIView):
         {
             TemplateDoesNotExist: ERROR_TEMPLATE_DOES_NOT_EXIST,
             TemplateBlocked: ERROR_TEMPLATE_PRIVATE_LINK_BLOCKED,
+            UserTemplatesDisabled: ERROR_USER_TEMPLATES_DISABLED,
         }
     )
     def post(self, request: Request, slug: str) -> Response:
@@ -706,6 +715,7 @@ class DownloadUserTemplateView(APIView):
                     "ERROR_TEMPLATE_HAS_NO_CONTENT",
                     "ERROR_TEMPLATE_UPDATED",
                     "ERROR_MAX_JOB_COUNT_EXCEEDED",
+                    "ERROR_USER_TEMPLATES_DISABLED",
                 ]
             ),
             404: get_error_schema(["ERROR_TEMPLATE_DOES_NOT_EXIST"]),
@@ -718,6 +728,7 @@ class DownloadUserTemplateView(APIView):
             TemplateHasNoContent: ERROR_TEMPLATE_HAS_NO_CONTENT,
             TemplateUpdated: ERROR_TEMPLATE_UPDATED,
             MaxJobCountExceeded: ERROR_MAX_JOB_COUNT_EXCEEDED,
+            UserTemplatesDisabled: ERROR_USER_TEMPLATES_DISABLED,
         }
     )
     @validate_body(DownloadTemplateSerializer, return_validated=True)

@@ -23,6 +23,7 @@ from baserow.api.templates.errors import (
     ERROR_TEMPLATE_DOES_NOT_EXIST,
     ERROR_TEMPLATE_HAS_NO_CONTENT,
     ERROR_TEMPLATE_UPDATED,
+    ERROR_USER_TEMPLATES_DISABLED,
 )
 from baserow.api.user.errors import ERROR_USER_NOT_FOUND
 from baserow.core.action.registries import action_type_registry
@@ -62,6 +63,7 @@ from baserow.core.user_templates.exceptions import (
     TemplateHasNoContent,
     TemplateUpdated,
     UserTemplatePublicListingConsentRequired,
+    UserTemplatesDisabled,
 )
 from baserow.core.user_templates.handler import UserTemplateHandler
 from baserow.core.user_templates.models import (
@@ -150,6 +152,7 @@ class CreateUserTemplateJobType(JobType):
             ERROR_PUBLIC_LISTING_CONSENT_REQUIRED
         ),
         UserNotFound: ERROR_USER_NOT_FOUND,
+        UserTemplatesDisabled: ERROR_USER_TEMPLATES_DISABLED,
     }
 
     job_exceptions_map = {
@@ -165,6 +168,7 @@ class CreateUserTemplateJobType(JobType):
         "updated. Please try again.",
         TemplateHasNoContent: "The content of the template was removed.",
         TemplateBlocked: "The template is blocked, so it can't be made public.",
+        UserTemplatesDisabled: ERROR_USER_TEMPLATES_DISABLED[2],
     }
 
     # Which fields are required depends on the mode, see `_validate_mode`.
@@ -296,6 +300,7 @@ class CreateUserTemplateJobType(JobType):
         # Only creating checks the flag: updates act on templates the user already
         # owns.
         feature_flag_is_enabled(FF_USER_TEMPLATES, user=user, raise_if_disabled=True)
+        UserTemplateHandler().check_user_templates_allowed(user)
         self._validate_mode(values, CREATE_REQUIRED_FIELDS)
         make_public = values.get("make_public", False)
         if make_public and not values.get("public_listing_consent"):
@@ -336,6 +341,7 @@ class CreateUserTemplateJobType(JobType):
             self._validate_mode(values, DETAILS_FIELDS, ["application_ids"])
 
         root = service.get_own_template(user, values["template_id"])
+        handler.check_user_templates_allowed(user)
         make_public = values.get("make_public", False)
         if make_public and not values.get("public_listing_consent"):
             raise UserTemplatePublicListingConsentRequired()
@@ -381,6 +387,7 @@ class CreateUserTemplateJobType(JobType):
         }
 
     def run(self, job: CreateUserTemplateJob, progress: Progress):
+        UserTemplateHandler().check_user_templates_allowed(job.user)
         is_update = job.template_id is not None
         # An update without applications only changes the details.
         copies_from_workspace = not is_update or bool(job.application_ids)
@@ -476,6 +483,7 @@ class CreateUserTemplateJobType(JobType):
             raise JobCancelled()
         if state == JOB_FAILED:
             raise SoftTimeLimitExceeded()
+        UserTemplateHandler().check_user_templates_allowed(job.user)
         # The root is revision 1 of a created template.
         job.template_id = revision.root_id or revision.id
         job.revision = revision
@@ -545,6 +553,7 @@ class DownloadUserTemplateJobType(JobType):
         TemplateBlocked: ERROR_TEMPLATE_BLOCKED,
         TemplateHasNoContent: ERROR_TEMPLATE_HAS_NO_CONTENT,
         TemplateUpdated: ERROR_TEMPLATE_UPDATED,
+        UserTemplatesDisabled: ERROR_USER_TEMPLATES_DISABLED,
     }
 
     job_exceptions_map = {
@@ -553,6 +562,7 @@ class DownloadUserTemplateJobType(JobType):
         TemplateDoesNotExist: ERROR_TEMPLATE_DOES_NOT_EXIST[2],
         TemplateBlocked: ERROR_TEMPLATE_BLOCKED[2],
         TemplateHasNoContent: "The content of the template was removed.",
+        UserTemplatesDisabled: ERROR_USER_TEMPLATES_DISABLED[2],
     }
 
     request_serializer_field_names = ["slug", "revision_id"]
@@ -649,7 +659,9 @@ class DownloadUserTemplateJobType(JobType):
         revision = job.revision
         if revision is None:
             raise TemplateDoesNotExist("The template was deleted.")
-        UserTemplateHandler().recheck_admitted_install_access(job.user, revision)
+        UserTemplateHandler().recheck_admitted_install_access(
+            job.user, revision, download=True
+        )
         # A repeated download reuses the archive.
         if has_valid_archive(revision):
             progress.increment(progress.total)

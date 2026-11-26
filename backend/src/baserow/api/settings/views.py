@@ -83,7 +83,7 @@ class UpdateSettingsView(APIView):
         Updates the provided config settings if the user has admin permissions.
         """
 
-        if "user_templates_require_approval" in data:
+        if data.keys() & {"user_templates_require_approval", "allow_user_templates"}:
             feature_flag_is_enabled(
                 FF_USER_TEMPLATES, user=request.user, raise_if_disabled=True
             )

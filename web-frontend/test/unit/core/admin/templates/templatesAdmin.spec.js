@@ -46,6 +46,7 @@ let testApp = null
 
 beforeEach(() => {
   testApp = new TestApp()
+  testApp.store.commit('settings/SET_SETTINGS', { allow_user_templates: true })
 })
 
 afterEach(async () => {
@@ -829,6 +830,30 @@ describe('TemplatesAdminTable', () => {
       'templateInstall.download',
       'templatesAdmin.block',
     ])
+  })
+
+  test('previews a public template while user templates are off', async () => {
+    testApp.store.commit('settings/SET_SETTINGS', {
+      allow_user_templates: false,
+    })
+    testApp.authenticate({ id: 1, preferences: {}, is_staff: true })
+    const wrapper = await mountTable([{ ...row('public', true), type: 'user' }])
+
+    await openMenu(wrapper)
+    expect(menuLabels()).toEqual([
+      'templatesAdmin.preview',
+      'templateInstall.download',
+      'templatesAdmin.unlistFromBrowser',
+      'templatesAdmin.block',
+      'templatesAdmin.delete',
+    ])
+    await clickMenuItem('templatesAdmin.preview')
+    document.body
+      .querySelector('.template-install__actions .button-icon')
+      .click()
+    await flushPromises()
+
+    expect(menuLabels()).not.toContain('templateInstall.copyLink')
   })
 
   test('refreshes the list and counts when a block from the preview ends after the preview closed', async () => {

@@ -913,6 +913,61 @@ describe('UserTemplateList', () => {
     )
   })
 
+  describe('delete only', () => {
+    test.each([
+      ['private', ['userTemplateList.download', 'userTemplateList.delete']],
+      ['public', ['userTemplateList.download', 'userTemplateList.delete']],
+      ['blocked', ['userTemplateList.delete']],
+    ])(
+      'tells that user templates are off and only downloads or deletes a %s one',
+      async (state, actions) => {
+        const template = userTemplate(1, 'Sprint Tracker', state, {
+          private_link_token: 'token',
+          can_make_public: true,
+        })
+        mockPages(page([template]))
+        const wrapper = await mountComponent({ deleteOnly: true })
+
+        expect(wrapper.find('.alert').text()).toBe('userTemplateList.turnedOff')
+        expect(wrapper.text()).not.toContain('userTemplateList.newTemplate')
+        expect(wrapper.find('.user-template-list__link').exists()).toBe(false)
+
+        const row = wrapper.find(
+          '.user-template-list__row:not(.user-template-list__row--head)'
+        )
+        await row.trigger('click')
+        await row
+          .find('.user-template-list__name')
+          .trigger('keydown', { key: 'Enter' })
+        expect(row.find('[role="button"]').exists()).toBe(false)
+
+        await wrapper.find('.user-template-list__more').trigger('click')
+        const links = wrapper.findAll('.context__menu-item-link')
+        expect(links.map((link) => link.text())).toStrictEqual(actions)
+        expect(wrapper.find('.context__menu-item').classes()).not.toContain(
+          'context__menu-item--with-separator'
+        )
+
+        await links.at(-1).trigger('click')
+
+        expect(wrapper.emitted('delete')).toStrictEqual([[template]])
+        expect(wrapper.emitted('selected')).toBeUndefined()
+      }
+    )
+
+    test('offers no new template once the last one is deleted', async () => {
+      mockPages(page([]))
+      const wrapper = await mountComponent({ deleteOnly: true })
+
+      expect(wrapper.find('.alert').text()).toBe('userTemplateList.turnedOff')
+      expect(wrapper.find('.template-empty-state__title').text()).toBe(
+        'userTemplateList.emptyTitle'
+      )
+      expect(wrapper.find('.template-empty-state .button').exists()).toBe(false)
+      expect(wrapper.text()).not.toContain('userTemplateList.emptyDescription')
+    })
+  })
+
   test('reloads the first page on refresh', async () => {
     mockPages(
       page([userTemplate(1, 'Sprint Tracker')]),

@@ -172,6 +172,11 @@ CONVERSATION_USER_INSTRUCTIONS = (
     "them, give that ID to your tools."
 )
 CONVERSATION_USER_NAME_MAX_LENGTH = 64
+RUN_AS_IDENTITY_INSTRUCTIONS = (
+    "Your tools act as {name}, whose user ID is {user_id}, so that identity is "
+    "you. Rows assigned to it, comments that mention it and changes made by it "
+    "are about you. When a request refers to you, give that ID to your tools."
+)
 SHARED_CONVERSATION_INSTRUCTIONS = (
     "Other people can write in this conversation too, so each person's message "
     "is a JSON object with the sender's name, their user ID and the message they "

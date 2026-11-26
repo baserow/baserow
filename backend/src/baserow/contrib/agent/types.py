@@ -207,12 +207,20 @@ class AgentConversationUser:
     def of(cls, user: AbstractUser) -> "AgentConversationUser":
         """
         :param user: The person.
-        :return: The person named on one short line, as the name ends up in what
-            the model reads.
+        :return: The person, with the name the model reads.
         """
 
-        name = " ".join(user.first_name.split())
-        return cls(user.id, name[:CONVERSATION_USER_NAME_MAX_LENGTH])
+        return cls(user.id, one_line_name(user))
+
+
+def one_line_name(user: AbstractUser) -> str:
+    """
+    :param user: A person or an identity.
+    :return: Its name on one short line, as the name ends up in what the model
+        reads.
+    """
+
+    return " ".join(user.first_name.split())[:CONVERSATION_USER_NAME_MAX_LENGTH]
 
 
 @dataclass(frozen=True)

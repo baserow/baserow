@@ -32,17 +32,29 @@ class AgentActionDispatchContext(DispatchContext):
     """What one call of an action resolves its formulas from, and sends."""
 
     data_provider_registry = agent_action_data_provider_type_registry
-    own_properties = [*DispatchContext.own_properties, "tool_inputs"]
+    own_properties = [
+        *DispatchContext.own_properties,
+        "tool_inputs",
+        "refuse_private_addresses",
+    ]
     sends_external_calls_outside_transaction = True
     # The approver read where a call goes. A redirect elsewhere would take its
     # headers and body there unseen.
     redirects_stay_on_host = True
 
-    def __init__(self, tool_inputs: dict[str, Any] | None = None, **kwargs) -> None:
+    def __init__(
+        self,
+        tool_inputs: dict[str, Any] | None = None,
+        refuse_private_addresses: bool = False,
+        **kwargs,
+    ) -> None:
         """
         :param tool_inputs: The validated arguments of the call, by input ID.
+        :param refuse_private_addresses: Refuse private addresses even where the
+            instance allows them, for an address the model picked.
         :param kwargs: What every dispatch context takes.
         """
 
         self.tool_inputs = tool_inputs or {}
+        self.refuse_private_addresses = refuse_private_addresses
         super().__init__(**kwargs)

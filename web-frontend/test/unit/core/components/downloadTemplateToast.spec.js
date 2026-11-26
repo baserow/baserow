@@ -44,6 +44,7 @@ describe('DownloadTemplateToast', () => {
   beforeEach(() => {
     testApp = new TestApp()
     store = testApp.store
+    store.commit('settings/SET_LOADED', true)
     testApp.authenticate({ id: 1, preferences: {}, completed_onboarding: true })
   })
 

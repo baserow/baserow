@@ -24,7 +24,9 @@
     >
       <template #head>
         <SegmentControl
-          v-if="$featureFlagIsEnabled(FF_USER_TEMPLATES)"
+          v-if="
+            $featureFlagIsEnabled(FF_USER_TEMPLATES) && userTemplatesAllowed
+          "
           :segments="tabs"
           :active-index="tabIndex"
           type="pills"
@@ -123,6 +125,9 @@ const publicTemplateList = ref(null)
 let selectingPublic = null
 
 const tab = ref('official')
+const userTemplatesAllowed = computed(() =>
+  Boolean($store.getters['settings/get'].allow_user_templates)
+)
 const tabs = computed(() => [
   {
     value: 'official',

@@ -84,6 +84,9 @@ describe('TemplateModal navigation', () => {
 
   beforeEach(() => {
     testApp = new TestApp()
+    testApp.store.commit('settings/SET_SETTINGS', {
+      allow_user_templates: true,
+    })
     testApp.mock.onGet('/templates/').reply(200, categories)
   })
 
@@ -111,6 +114,7 @@ describe('TemplateModal navigation', () => {
         'workspace',
         'showBack',
         'ownerActions',
+        'deleteOnly',
       ],
       emits: [
         'back',
@@ -160,7 +164,7 @@ describe('TemplateModal navigation', () => {
     }),
     UserTemplateList: defineComponent({
       name: 'UserTemplateList',
-      props: ['active'],
+      props: ['active', 'deleteOnly'],
       emits: [
         'selected',
         'create',
@@ -279,9 +283,9 @@ describe('TemplateModal navigation', () => {
       const wrapper = await mountAndShow(sprintTracker.slug)
 
       expect(wrapper.find('.details').text()).toBe('Sprint Tracker: Agile')
-      expect(
-        wrapper.findComponent({ name: 'TemplateDetails' }).props('ownerActions')
-      ).toBe(own)
+      const details = wrapper.findComponent({ name: 'TemplateDetails' })
+      expect(details.props('ownerActions')).toBe(own)
+      expect(details.props('deleteOnly')).toBe(false)
     }
   )
 
@@ -423,18 +427,26 @@ describe('TemplateModal navigation', () => {
       await flushPromises()
     }
 
+    const ownPage = (results) => [
+      200,
+      { count: results.length, next: null, previous: null, results },
+    ]
+
     // Answers the own templates with the given ones, the rest with the
     // categories.
     const mockOwnTemplates = (results) =>
       testApp.mock
         .onGet('/templates/')
         .reply(({ params }) =>
-          params?.owned
-            ? [
-                200,
-                { count: results.length, next: null, previous: null, results },
-              ]
-            : [200, categories]
+          params?.owned ? ownPage(results) : [200, categories]
+        )
+
+    // Answers each request for the own templates with the next reply.
+    const mockOwnReplies = (...replies) =>
+      testApp.mock
+        .onGet('/templates/')
+        .reply(({ params }) =>
+          params?.owned ? replies.shift() : [200, categories]
         )
 
     it('are hidden for anonymous users', async () => {
@@ -469,8 +481,8 @@ describe('TemplateModal navigation', () => {
       expect(ownList(wrapper).isVisible()).toBe(true)
       expect(wrapper.find('.list').isVisible()).toBe(false)
       expect(
-        wrapper.findComponent({ name: 'UserTemplateList' }).props('active')
-      ).toBe(true)
+        wrapper.findComponent({ name: 'UserTemplateList' }).props()
+      ).toStrictEqual({ active: true, deleteOnly: false })
       expect(
         wrapper.findComponent({ name: 'TemplateList' }).props('active')
       ).toBe(false)
@@ -480,6 +492,117 @@ describe('TemplateModal navigation', () => {
       expect(wrapper.find('.list').isVisible()).toBe(true)
       // Kept mounted, so that it doesn't load again.
       expect(ownList(wrapper).isVisible()).toBe(false)
+    })
+
+    describe('while user templates are off', () => {
+      beforeEach(() => {
+        testApp.authenticate({ id: 1 })
+        testApp.store.commit('settings/SET_SETTINGS', {
+          allow_user_templates: false,
+        })
+      })
+
+      it('only show the own templates to delete to their author, until the last one is deleted', async () => {
+        const firstCheck = heldBack()
+        mockOwnReplies(
+          ownPage([sprintTracker, launchPlan]),
+          firstCheck.reply(),
+          ownPage([])
+        )
+        const wrapper = await mountAndShow()
+
+        expect(tabs(wrapper).map((tab) => tab.text())).toStrictEqual([
+          'templateModal.officialTemplates',
+          'templateModal.yourTemplates',
+        ])
+
+        await tabs(wrapper)[1].trigger('click')
+        await flushPromises()
+
+        expect(
+          wrapper.findComponent({ name: 'UserTemplateList' }).props()
+        ).toStrictEqual({ active: true, deleteOnly: true })
+        expect(wrapper.find('.public-list').exists()).toBe(false)
+
+        await wrapper.find('.own-list__delete').trigger('click')
+        const deleteModal = wrapper.findComponent({
+          name: 'DeleteUserTemplateModal',
+        })
+        deleteModal.vm.$emit('deleted', sprintTracker.id)
+        deleteModal.vm.$emit('deleted', launchPlan.id)
+        await flushPromises()
+
+        expect(tabs(wrapper)).toHaveLength(0)
+        expect(wrapper.find('.list').isVisible()).toBe(true)
+
+        firstCheck.send(ownPage([launchPlan]))
+        await flushPromises()
+
+        expect(tabs(wrapper)).toHaveLength(0)
+      })
+
+      it('open a linked own template with only its deletion, and keep the own templates when they cannot be checked after it', async () => {
+        testApp.authenticate({ id: 1, is_staff: true })
+        mockOwnReplies(ownPage([sprintTracker, launchPlan]), [500])
+        testApp.mock
+          .onGet(`/templates/${sprintTracker.slug}/`)
+          .reply(200, { ...sprintTracker, is_own: true })
+        const wrapper = await mountAndShow(sprintTracker.slug)
+
+        const details = wrapper.findComponent({ name: 'TemplateDetails' })
+        expect(details.props('ownerActions')).toBe(true)
+        expect(details.props('deleteOnly')).toBe(true)
+
+        await wrapper.find('.details__delete').trigger('click')
+        wrapper
+          .findComponent({ name: 'DeleteUserTemplateModal' })
+          .vm.$emit('deleted', sprintTracker.id)
+        await flushPromises()
+
+        expect(tabs(wrapper).map((tab) => tab.text())).toStrictEqual([
+          'templateModal.officialTemplates',
+          'templateModal.yourTemplates',
+        ])
+      })
+
+      it.each([null, projectTracker.slug])(
+        'close with an error when the own templates cannot be checked, opened on: %s',
+        async (templateId) => {
+          mockOwnReplies([500])
+          testApp.mock
+            .onGet(`/templates/${projectTracker.slug}/`)
+            .reply(200, projectTracker)
+          const wrapper = await mountAndShow(templateId)
+
+          expect(testApp.store.state.toast.items).toMatchObject([
+            { type: 'error' },
+          ])
+          expect(
+            wrapper.findComponent({ name: 'Modal' }).emitted('hidden')
+          ).toHaveLength(1)
+        }
+      )
+
+      it('are hidden from a user without templates', async () => {
+        mockOwnTemplates([])
+        const wrapper = await mountAndShow()
+
+        expect(tabs(wrapper)).toHaveLength(0)
+        expect(wrapper.find('.list').isVisible()).toBe(true)
+      })
+
+      it('open the official templates to show a shared one', async () => {
+        mockOwnTemplates([])
+        const wrapper = await testApp.mount(TemplateModal, {
+          props: { workspace: { id: 1 } },
+          global: { stubs, mocks },
+        })
+        await wrapper.vm.showShared('Sprint Tracker')
+        await flushPromises()
+
+        expect(wrapper.find('.list').isVisible()).toBe(true)
+        expect(wrapper.find('.public-list').exists()).toBe(false)
+      })
     })
 
     // The public template as it is now.

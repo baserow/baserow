@@ -16,32 +16,103 @@ describe('AdminSettings', () => {
     vi.restoreAllMocks()
   })
 
-  test.each([
-    [200, true, false],
-    [500, false, true],
-  ])(
-    'turning approval off answered %s closes the confirmation: %s',
-    async (status, closed, requireApproval) => {
-      testApp.store.commit('settings/SET_SETTINGS', {
-        user_templates_require_approval: true,
-        account_deletion_grace_delay: 30,
-      })
-      testApp.mock.onGet('/settings/instance-id/').reply(200, {})
-      testApp.mock.onPatch('/settings/update/').reply(status, {})
-      const wrapper = await testApp.mount(AdminSettings, {
-        global: { mocks: { $featureFlagIsEnabled: () => true } },
-      })
-      await flushPromises()
-      const confirmModal = wrapper.findComponent(ConfirmModal)
-      const hide = vi.spyOn(confirmModal.vm, 'hide')
+  const mountSettings = async (key, value, flag = true) => {
+    testApp.store.commit('settings/SET_SETTINGS', {
+      allow_user_templates: true,
+      user_templates_require_approval: true,
+      account_deletion_grace_delay: 30,
+      [key]: value,
+    })
+    testApp.mock.onGet('/settings/instance-id/').reply(200, {})
+    const wrapper = await testApp.mount(AdminSettings, {
+      global: { mocks: { $featureFlagIsEnabled: () => flag } },
+    })
+    await flushPromises()
+    return wrapper
+  }
 
-      confirmModal.vm.$emit('confirm')
+  const item = (wrapper, name) =>
+    wrapper
+      .findAll('.admin-settings__item')
+      .find((el) => el.find('.admin-settings__name').text() === name)
+
+  describe.each([
+    ['allow_user_templates', 'settings.settingAllowUserTemplatesName', 0],
+    [
+      'user_templates_require_approval',
+      'settings.settingUserTemplatesRequireApprovalName',
+      1,
+    ],
+  ])('%s', (key, name, modalIndex) => {
+    test('turns on without asking and asks before turning off', async () => {
+      testApp.mock.onPatch('/settings/update/').reply(200, {})
+      const wrapper = await mountSettings(key, false)
+      const confirmModal = wrapper.findAllComponents(ConfirmModal)[modalIndex]
+      const show = vi.spyOn(confirmModal.vm, 'show')
+      const toggle = item(wrapper, name).find('.switch')
+
+      await toggle.trigger('click')
       await flushPromises()
 
-      expect(hide).toHaveBeenCalledTimes(closed ? 1 : 0)
-      expect(
-        testApp.store.getters['settings/get'].user_templates_require_approval
-      ).toBe(requireApproval)
-    }
-  )
+      expect(show).not.toHaveBeenCalled()
+      expect(JSON.parse(testApp.mock.history.patch[0].data)).toStrictEqual({
+        [key]: true,
+      })
+
+      await toggle.trigger('click')
+
+      expect(show).toHaveBeenCalledTimes(1)
+      expect(testApp.mock.history.patch).toHaveLength(1)
+      expect(testApp.store.getters['settings/get'][key]).toBe(true)
+    })
+
+    test.each([
+      [200, true, false],
+      [500, false, true],
+    ])(
+      'turning it off answered %s closes the confirmation: %s',
+      async (status, closed, value) => {
+        testApp.mock.onPatch('/settings/update/').reply(status, {})
+        const wrapper = await mountSettings(key, true)
+        const confirmModal = wrapper.findAllComponents(ConfirmModal)[modalIndex]
+        const hide = vi.spyOn(confirmModal.vm, 'hide')
+
+        confirmModal.vm.$emit('confirm')
+        await flushPromises()
+
+        expect(hide).toHaveBeenCalledTimes(closed ? 1 : 0)
+        expect(JSON.parse(testApp.mock.history.patch[0].data)).toStrictEqual({
+          [key]: false,
+        })
+        expect(testApp.store.getters['settings/get'][key]).toBe(value)
+      }
+    )
+  })
+
+  test('locks the approval setting while user templates are off', async () => {
+    const wrapper = await mountSettings('allow_user_templates', false)
+    const toggle = item(
+      wrapper,
+      'settings.settingUserTemplatesRequireApprovalName'
+    ).find('.switch')
+
+    await toggle.trigger('click')
+    await flushPromises()
+
+    expect(toggle.classes()).toContain('switch--disabled')
+    expect(testApp.mock.history.patch).toHaveLength(0)
+    expect(
+      testApp.store.getters['settings/get'].user_templates_require_approval
+    ).toBe(true)
+  })
+
+  test('hides the user template toggles without their feature flag', async () => {
+    const wrapper = await mountSettings('allow_user_templates', true, false)
+
+    expect(wrapper.text()).not.toContain('settings.userTemplates')
+    expect(
+      item(wrapper, 'settings.settingAllowUserTemplatesName')
+    ).toBeUndefined()
+    expect(wrapper.findAllComponents(ConfirmModal)).toHaveLength(0)
+  })
 })

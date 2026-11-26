@@ -46,6 +46,7 @@ from baserow.contrib.agent.constants import (
     INTERRUPTED_CHANGES_NOTE,
     INTERRUPTED_REPLY_NOTE,
     REJECTED_TOOL_CALL_NOTE,
+    RUN_AS_IDENTITY_INSTRUCTIONS,
     RUN_AS_LOST_TOOL_CALL_NOTE,
     SHARED_CONVERSATION_INSTRUCTIONS,
     TOOL_CHANGED_CALL_NOTE,
@@ -681,7 +682,7 @@ def test_the_model_knows_when_its_configured_workspace_identity_is_unavailable(
         "The identity configured for your workspace access is no longer available."
         in seen[-1]
     ) is unavailable
-    assert "PRIVATE_IDENTITY_NAME" not in seen[-1]
+    assert ("PRIVATE_IDENTITY_NAME" in seen[-1]) is (identity_state == "active")
     agent.refresh_from_db()
     assert agent.instructions == "Be brief."
 
@@ -693,7 +694,7 @@ def test_workspace_identity_context_is_refreshed_for_each_reply(
     user = data_fixture.create_user()
     agent = configured_agent(user=user, instructions="Be brief.")
     identity = IdentityHandler().create_identity(
-        workspace=agent.workspace, name="Writer"
+        workspace=agent.workspace, name="Task \n Writer"
     )
     agent.run_as_subject_type = "auth.User"
     agent.run_as_subject_id = identity.id
@@ -718,11 +719,16 @@ def test_workspace_identity_context_is_refreshed_for_each_reply(
 
     run_reply(ChatRun.objects.get(id=next_reply.run_id))
 
+    told_identity = RUN_AS_IDENTITY_INSTRUCTIONS.format(
+        name="Task Writer", user_id=identity.id
+    )
     assert "workspace access is no longer available" in seen[0]
+    assert told_identity not in seen[0]
     assert "workspace access is no longer available" not in seen[1]
     assert seen[1].startswith(
         "Be brief.\n\n"
         + CONVERSATION_USER_INSTRUCTIONS.format(name=user.first_name, user_id=user.id)
+        + f"\n\n{told_identity}"
     )
 
 

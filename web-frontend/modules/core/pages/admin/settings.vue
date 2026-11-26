@@ -77,10 +77,40 @@
             >
           </div>
         </div>
-        <div
-          v-if="$featureFlagIsEnabled(FF_USER_TEMPLATES)"
-          class="admin-settings__item"
-        >
+      </div>
+      <div
+        v-if="$featureFlagIsEnabled(FF_USER_TEMPLATES)"
+        class="admin-settings__group"
+      >
+        <h2 class="admin-settings__group-title">
+          {{ $t('settings.userTemplates') }}
+        </h2>
+        <div class="admin-settings__item">
+          <div class="admin-settings__label">
+            <div class="admin-settings__name">
+              {{ $t('settings.settingAllowUserTemplatesName') }}
+            </div>
+            <div class="admin-settings__description">
+              {{ $t('settings.settingAllowUserTemplatesDescription') }}
+            </div>
+          </div>
+          <div class="admin-settings__control">
+            <SwitchInput
+              :value="settings.allow_user_templates"
+              @input="setAllowUserTemplates"
+              >{{ $t('settings.enabled') }}</SwitchInput
+            >
+          </div>
+          <ConfirmModal
+            ref="allowUserTemplatesOffModal"
+            :title="$t('settings.settingAllowUserTemplatesOffTitle')"
+            :message="$t('settings.settingAllowUserTemplatesOffMessage')"
+            :confirm-label="$t('settings.settingAllowUserTemplatesOff')"
+            :loading="allowUserTemplatesOffLoading"
+            @confirm="turnOffUserTemplates"
+          />
+        </div>
+        <div class="admin-settings__item">
           <div class="admin-settings__label">
             <div class="admin-settings__name">
               {{ $t('settings.settingUserTemplatesRequireApprovalName') }}
@@ -94,6 +124,7 @@
           <div class="admin-settings__control">
             <SwitchInput
               :value="settings.user_templates_require_approval"
+              :disabled="!settings.allow_user_templates"
               @input="setUserTemplatesRequireApproval"
               >{{ $t('settings.enabled') }}</SwitchInput
             >
@@ -328,6 +359,8 @@ const store = useStore()
 useHead({ title: $i18n.t('settings.settingsTitle') })
 
 const instanceIdCopied = ref(null)
+const allowUserTemplatesOffModal = ref(null)
+const allowUserTemplatesOffLoading = ref(false)
 const approvalOffModal = ref(null)
 const approvalOffLoading = ref(false)
 
@@ -414,6 +447,23 @@ async function updateSettings(payload) {
   } catch (error) {
     notifyIf(error, 'settings')
     return false
+  }
+}
+
+function setAllowUserTemplates(value) {
+  if (value) {
+    updateSettings({ allow_user_templates: true })
+  } else {
+    allowUserTemplatesOffModal.value.show()
+  }
+}
+
+async function turnOffUserTemplates() {
+  allowUserTemplatesOffLoading.value = true
+  const saved = await updateSettings({ allow_user_templates: false })
+  allowUserTemplatesOffLoading.value = false
+  if (saved) {
+    allowUserTemplatesOffModal.value.hide()
   }
 }
 

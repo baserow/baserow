@@ -958,6 +958,51 @@ def test_a_row_trigger_is_refused_a_table_its_run_identity_cannot_read(
 
 
 @pytest.mark.django_db
+@pytest.mark.parametrize(
+    "owner", ["another application", "another workspace", "nothing"]
+)
+def test_a_row_trigger_leaves_out_any_integration_it_is_given(
+    data_fixture, api_client, api_user, owner
+):
+    agent, table = agent_reading_orders(data_fixture, api_user)
+    if owner == "another application":
+        integration_id = data_fixture.create_local_baserow_integration(
+            application=data_fixture.create_builder_application(
+                workspace=agent.workspace
+            ),
+            user=api_user,
+        ).id
+    elif owner == "another workspace":
+        integration_id = data_fixture.create_local_baserow_integration().id
+    else:
+        integration_id = 2147483647
+    service = {"table_id": table.id, "integration_id": integration_id}
+    periodic = data_fixture.create_agent_trigger(agent=agent)
+
+    created = api_client.post(
+        agent_url(agent, "triggers:list"),
+        {"type": ROWS_CREATED, "message": MESSAGE, "service": service},
+    )
+    assert created.status_code == 200, created.json()
+    updated = api_client.patch(
+        agent_url(agent, "triggers:item", trigger_id=created.json()["id"]),
+        {"service": service},
+    )
+    changed = api_client.patch(
+        agent_url(agent, "triggers:item", trigger_id=periodic.id),
+        {"type": ROWS_CREATED, "service": service},
+    )
+
+    for response in (created, updated, changed):
+        assert response.status_code == 200, response.json()
+        assert response.json()["service"]["integration_id"] is None
+        assert response.json()["service"]["table_id"] == table.id
+    assert list(
+        LocalBaserowRowsCreated.objects.values_list("integration_id", flat=True)
+    ) == [None, None]
+
+
+@pytest.mark.django_db
 def test_a_row_trigger_cannot_switch_on_once_its_run_identity_is_gone(
     data_fixture, api_client, api_user
 ):
