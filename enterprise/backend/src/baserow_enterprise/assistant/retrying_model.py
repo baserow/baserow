@@ -34,7 +34,8 @@ has already streamed.  Kuma recovers each case as follows:
 
 For other retryable errors during ``request_stream`` setup, we fall back to
 the retrying ``request()`` method and wrap the result in
-``_PreFetchedResponse``.
+``_PreFetchedResponse``.  Gemini's SDK retries these errors itself, so for
+Gemini this wrapper neither retries nor falls back.
 """
 
 from __future__ import annotations
@@ -338,22 +339,29 @@ def _make_google(name: str, creds: dict[str, str | None]) -> Model:
     ownership so the client can be closed with the provider.
     """
 
+    from google.genai.types import HttpRetryOptions
     from pydantic_ai.models.google import GoogleModel
     from pydantic_ai.providers.google import GoogleProvider
 
+    # Retried by the SDK, as a database-backed Gemini model is.
     return GoogleModel(
         name,
-        provider=GoogleProvider(api_key=creds["api_key"]),
+        provider=GoogleProvider(
+            api_key=creds["api_key"], retry_options=HttpRetryOptions(attempts=3)
+        ),
     )
 
 
 def _make_google_vertex(name: str, creds: dict[str, str | None]) -> Model:
+    from google.genai.types import HttpRetryOptions
     from pydantic_ai.models.google import GoogleModel
     from pydantic_ai.providers.google_cloud import GoogleCloudProvider
 
     return GoogleModel(
         name,
-        provider=GoogleCloudProvider(api_key=creds["api_key"]),
+        provider=GoogleCloudProvider(
+            api_key=creds["api_key"], retry_options=HttpRetryOptions(attempts=3)
+        ),
     )
 
 
@@ -404,7 +412,8 @@ class RetryingModel(WrapperModel):
 
     Only ``request()`` has a retry loop.  ``request_stream()`` falls back
     to ``request()`` when the stream raises a retryable error, since
-    ``@asynccontextmanager`` only allows a single ``yield``.
+    ``@asynccontextmanager`` only allows a single ``yield``.  Neither happens
+    for Gemini, whose SDK already retries.
 
     A request for a cancelled agent never starts (see ``bind_tool_helpers``),
     which stops the sub-agents that tools of a stopped agent are still running.
@@ -447,6 +456,18 @@ class RetryingModel(WrapperModel):
     def _delay_for(self, attempt: int) -> float:
         """Exponential back-off delay capped at ``max_delay``."""
         return min(self.base_delay * (2 ** (attempt - 1)), self.max_delay)
+
+    @staticmethod
+    def _sdk_retries(model: Model) -> bool:
+        """
+        :param model: The wrapped model.
+        :return: Whether its SDK already retries transient errors, so this wrapper
+            must not retry or fall back again. Every Gemini model is built so.
+        """
+
+        from pydantic_ai.models.google import GoogleModel
+
+        return isinstance(model, GoogleModel)
 
     @staticmethod
     def _uses_anthropic(model: Model) -> bool:
@@ -518,6 +539,7 @@ class RetryingModel(WrapperModel):
                     if (
                         not _is_transient_provider_error(exc)
                         or attempt == self.max_attempts
+                        or self._sdk_retries(wrapped)
                     ):
                         raise
                     delay = self._retry_delay(exc, attempt)
@@ -548,7 +570,7 @@ class RetryingModel(WrapperModel):
     ) -> AsyncIterator[StreamedResponse]:
         """
         Stream the response, falling back to ``request()`` when the stream fails
-        to start with a transient provider error.
+        to start with a transient provider error its SDK didn't retry already.
 
         :param messages: The conversation to send.
         :param model_settings: The settings for this request.
@@ -588,7 +610,7 @@ class RetryingModel(WrapperModel):
                     yield _PreFetchedResponse(recovered, model_request_parameters)
                     return
 
-                if not _is_transient_provider_error(exc):
+                if not _is_transient_provider_error(exc) or self._sdk_retries(wrapped):
                     raise
                 if self._uses_anthropic(wrapped):
                     delay = self._retry_delay(exc, 1)

@@ -419,7 +419,7 @@ class AgentActionHandler:
         :param files_zip: The zip file service files are read from.
         :param storage: The storage the files are written to.
         :return: The copied actions. One of a type that isn't an action type
-            here is left out.
+            here, or whose service isn't the one its type runs, is left out.
         :raises ValidationError: When a name or the inputs are malformed.
         """
 
@@ -429,7 +429,13 @@ class AgentActionHandler:
             service_values = serialized["service"]
             # An export made before a type had a name of its own has none.
             type_name = serialized.get("type", service_values["type"])
-            if type_name not in agent_action_type_registry.get_types():
+            # Ask first is decided by the action type, so its service must be the
+            # one that type runs.
+            if (
+                type_name not in agent_action_type_registry.get_types()
+                or service_values["type"]
+                != agent_action_type_registry.get(type_name).service_type.type
+            ):
                 continue
             values = {
                 field: serialized[field]

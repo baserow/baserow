@@ -154,6 +154,26 @@ def test_import_rejects_malformed_inputs_and_resolves_reserved_names(
 
 
 @pytest.mark.django_db
+def test_import_leaves_out_an_action_whose_service_isnt_its_types(
+    data_fixture, action_with_connection
+):
+    _, agent, _ = action_with_connection
+    target = data_fixture.create_agent_application(workspace=agent.workspace)
+    config = ImportExportConfig(
+        include_permission_data=False, exclude_sensitive_data=True
+    )
+    serialized = deepcopy(AgentActionHandler().export_actions(agent, config))
+    # A read-only type keeps the author's Ask first, so it can't send an email.
+    serialized[0]["type"] = "local_baserow_get_row"
+    assert (
+        AgentActionHandler().import_actions(
+            target, serialized, {"integrations": {}}, config
+        )
+        == []
+    )
+
+
+@pytest.mark.django_db
 def test_agent_supports_smtp_integrations_only(data_fixture):
     from baserow.core.integrations.handler import IntegrationHandler
     from baserow.core.integrations.registries import integration_type_registry
