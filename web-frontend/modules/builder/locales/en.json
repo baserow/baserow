@@ -1,5 +1,7 @@
 {
   "previewSecurityNotice": {
+    "untrustedSummary": "Imported code and embedded content are blocked in this preview.",
+    "untrustedDetails": "Use Review and trust in the application header or General settings to review the import report and enable this content.",
     "summary": "JavaScript is restricted in this preview.",
     "expand": "Show details",
     "collapse": "Hide details",

@@ -28,6 +28,17 @@ describe('PreviewSecurityNotice', () => {
     expect(wrapper.text()).not.toContain('previewSecurityNotice.details')
   })
 
+  test('explains how to review untrusted content without linking to domain configuration', async () => {
+    const wrapper = await mountSuspended(PreviewSecurityNotice, {
+      props: { untrustedContent: true },
+    })
+    expect(wrapper.text()).toContain('previewSecurityNotice.untrustedSummary')
+    await wrapper.get('button').trigger('click')
+    expect(wrapper.text()).toContain('previewSecurityNotice.untrustedDetails')
+    expect(wrapper.find('a').exists()).toBe(false)
+    wrapper.unmount()
+  })
+
   test('tells the page its height while shown, so a fixed header sits below it', async () => {
     const variable = '--preview-security-notice-height'
     const style = document.documentElement.style

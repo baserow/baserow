@@ -177,13 +177,10 @@ export class EnterprisePlugin extends BaserowPlugin {
   }
 
   hasBuilderAuthorCode({ builder }) {
-    return (
-      !builder.untrusted_content &&
-      Boolean(
-        builder.custom_code?.js ||
-        builder.has_head_html ||
-        builder.scripts?.some((s) => s.type === 'javascript' && s.url)
-      )
+    return Boolean(
+      builder.custom_code?.js ||
+      builder.has_head_html ||
+      builder.scripts?.some((s) => s.type === 'javascript' && s.url)
     )
   }
 

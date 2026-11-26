@@ -202,7 +202,7 @@ describe('Test enterprise Baserow plugin', () => {
       [{ custom_code: { css: 'body {}', js: '' } }, false],
       [
         { custom_code: { css: '', js: 'alert(1)' }, untrusted_content: true },
-        false,
+        true,
       ],
     ])('knows whether %j adds author code: %s', (overrides, expected) => {
       const plugin = new EnterprisePlugin({ app })

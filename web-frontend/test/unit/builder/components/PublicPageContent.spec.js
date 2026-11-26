@@ -130,6 +130,7 @@ describe('PublicPageContent Preview security notice', () => {
     mode = 'preview',
     builderPreviewUrl = 'https://editor.example.com:3001',
     relaxed = false,
+    untrustedContent = false,
     elements = [],
     sharedElements = [],
   }) => {
@@ -164,6 +165,7 @@ describe('PublicPageContent Preview security notice', () => {
       user_sources: [],
       login_page_id: null,
       scripts: [],
+      untrusted_content: untrustedContent,
       custom_code: { css: '', js: '' },
     }
 
@@ -191,6 +193,15 @@ describe('PublicPageContent Preview security notice', () => {
   test('is shown when the shared page has author code', async () => {
     expect(await mountPage({ sharedElements: [embed] })).toBe(true)
   })
+
+  test.each([false, true])(
+    'shows the untrusted content notice even when domain restrictions are relaxed: %s',
+    async (relaxed) => {
+      expect(await mountPage({ untrustedContent: true, relaxed })).toBe(true)
+      expect(wrapper.text()).toContain('previewSecurityNotice.untrustedSummary')
+      expect(wrapper.text()).not.toContain('previewSecurityNotice.summary')
+    }
+  )
 
   test.each([
     ['the page has no author code', { elements: [urlIFrame] }],

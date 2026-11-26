@@ -1,6 +1,9 @@
 <template>
   <div>
-    <PreviewSecurityNotice v-if="showPreviewSecurityNotice" />
+    <PreviewSecurityNotice
+      v-if="showPreviewSecurityNotice"
+      :untrusted-content="builder.untrusted_content"
+    />
     <BuilderToasts />
     <RecursiveWrapper :components="builderPageDecorators">
       <PageContent
@@ -135,17 +138,18 @@ const sharedElements = computed(() =>
 const showPreviewSecurityNotice = computed(
   () =>
     props.mode === 'preview' &&
-    nuxtApp.$isAuthorCodeRestricted() &&
-    ($registry
-      .getList('plugin')
-      .some((plugin) =>
-        plugin.hasBuilderAuthorCode({ builder: props.builder })
-      ) ||
-      [props.page, sharedPage.value].some((page) =>
-        (page?.orderedElements ?? []).some((element) =>
-          $registry.get('element', element.type).hasAuthorCode(element)
-        )
-      ))
+    (props.builder.untrusted_content ||
+      (nuxtApp.$isAuthorCodeRestricted() &&
+        ($registry
+          .getList('plugin')
+          .some((plugin) =>
+            plugin.hasBuilderAuthorCode({ builder: props.builder })
+          ) ||
+          [props.page, sharedPage.value].some((page) =>
+            (page?.orderedElements ?? []).some((element) =>
+              $registry.get('element', element.type).hasAuthorCode(element)
+            )
+          ))))
 )
 
 const isAuthenticated = computed(() =>

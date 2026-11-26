@@ -2,7 +2,13 @@
   <div ref="notice" class="preview-security-notice">
     <div class="preview-security-notice__summary">
       <i class="preview-security-notice__icon iconoir-warning-triangle" />
-      <span>{{ $t('previewSecurityNotice.summary') }}</span>
+      <span>{{
+        $t(
+          untrustedContent
+            ? 'previewSecurityNotice.untrustedSummary'
+            : 'previewSecurityNotice.summary'
+        )
+      }}</span>
       <button
         type="button"
         class="preview-security-notice__toggle"
@@ -20,8 +26,15 @@
       </button>
     </div>
     <p v-if="expanded" class="preview-security-notice__details">
-      {{ $t('previewSecurityNotice.details') }}
+      {{
+        $t(
+          untrustedContent
+            ? 'previewSecurityNotice.untrustedDetails'
+            : 'previewSecurityNotice.details'
+        )
+      }}
       <a
+        v-if="!untrustedContent"
         class="preview-security-notice__link"
         :href="DOCUMENTATION_URL"
         target="_blank"
@@ -37,6 +50,10 @@ import { onBeforeUnmount, onMounted, ref } from 'vue'
 
 defineOptions({
   name: 'PreviewSecurityNotice',
+})
+
+defineProps({
+  untrustedContent: { type: Boolean, default: false },
 })
 
 const DOCUMENTATION_URL =
