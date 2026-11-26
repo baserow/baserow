@@ -20,11 +20,9 @@ from baserow.core.formula.registries import DataProviderTypeRegistry
 from baserow.core.models import Workspace
 from baserow.core.registries import subject_type_registry
 from baserow.core.registry import Instance, Registry
-from baserow.core.services.exceptions import DispatchException
 from baserow.core.tools import ToolContext
 from baserow.core.tools.errors import (
     ToolError,
-    ToolErrorCode,
     classify_tool_error,
     describe_failure,
 )
@@ -51,7 +49,13 @@ def act_as_identity(ctx: ToolContext) -> ToolContext:
     return replace(ctx, user=subject)
 
 
-def failed_call(tool_type: "AgentToolType", exc: Exception) -> ToolReturn:
+def failed_call(
+    tool_type: "AgentToolType",
+    exc: Exception,
+    *,
+    error: ToolError | None = None,
+    builder_message: str | None = None,
+) -> ToolReturn:
     """
     Answer an exception with an error the model can explain.
 
@@ -60,28 +64,22 @@ def failed_call(tool_type: "AgentToolType", exc: Exception) -> ToolReturn:
     :return: The ``error``, with its code as metadata.
     """
 
-    builder_message = (
-        exc.builder_message if isinstance(exc, DispatchException) else None
-    )
-    error = (
-        ToolError(ToolErrorCode.FAILED, None)
-        if builder_message
-        else classify_tool_error(exc)
-    )
+    error = error or classify_tool_error(exc)
     if error.message is None:
         reference = uuid4().hex
         logger.error(
             "Agent tool {} failed ({}) [{}]",
             tool_type.type,
-            describe_failure(exc),
+            type(exc).__name__,
             reference,
         )
         cause = exc.__cause__ or exc
+        builder_message = f"{type(cause).__name__} (log reference {reference})"
+    if builder_message:
         return ToolFailureWithDiagnostic(
             return_value={"error": error.to_dict()},
             metadata={"error_code": error.code},
-            builder_message=builder_message
-            or f"{type(cause).__name__} (log reference {reference})",
+            builder_message=builder_message,
         )
     return ToolReturn(
         return_value={"error": error.to_dict()},

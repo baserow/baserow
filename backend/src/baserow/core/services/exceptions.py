@@ -7,13 +7,7 @@ class ServiceTypeDoesNotExist(Exception):
 
 
 class DispatchException(Exception):
-    """A service failure, optionally with a credential-free diagnosis for builders."""
-
-    def __init__(self, *args, builder_message: str | None = None):
-        if not args and builder_message is not None:
-            args = (builder_message,)
-        super().__init__(*args)
-        self.builder_message = builder_message
+    """Base class for all dispatch exception"""
 
 
 class UnexpectedDispatchException(DispatchException):

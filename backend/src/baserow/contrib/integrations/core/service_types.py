@@ -1891,33 +1891,27 @@ class CoreSMTPEmailServiceType(CoreServiceType):
         except SMTPNotSupportedError as e:
             # The server was reached and answered, so the click is charged for
             # it even though the fix is in the configuration.
-            raise RemoteRefusedDispatchException(
-                builder_message="TLS not supported by server"
-            ) from e
+            raise RemoteRefusedDispatchException("TLS not supported by server") from e
         except socket.gaierror as e:
             raise UnreachableAddressDispatchException(
-                f"The host {smtp_host}:{smtp_port} could not be reached",
-                builder_message="The SMTP host could not be reached",
+                f"The host {smtp_host}:{smtp_port} could not be reached"
             ) from e
         except ConnectionRefusedError as e:
             raise UnreachableAddressDispatchException(
-                f"Connection refused by {smtp_host}:{smtp_port}",
-                builder_message="The SMTP server refused the connection",
+                f"Connection refused by {smtp_host}:{smtp_port}"
             ) from e
         except SMTPAuthenticationError as e:
             raise RemoteRefusedDispatchException(
-                builder_message="The username or password is incorrect"
+                "The username or password is incorrect"
             ) from e
         except SMTPConnectError as e:
             # The server answered the connection with a refusal greeting,
             # typically because it is restarting or overloaded.
             raise RuntimeDispatchException(
-                builder_message="Unable to connect to the SMTP server"
+                "Unable to connect to the SMTP server"
             ) from e
         except (SMTPServerDisconnected, TimeoutError) as e:
-            raise RuntimeDispatchException(
-                builder_message="The SMTP server did not answer"
-            ) from e
+            raise RuntimeDispatchException("The SMTP server did not answer") from e
         except Exception as e:
             raise UnexpectedDispatchException(f"Failed to send email: {str(e)}") from e
 
