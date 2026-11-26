@@ -7,6 +7,10 @@ from django.db.models import F, QuerySet
 
 from rest_framework.exceptions import ValidationError
 
+from baserow.contrib.integrations.mcp.handler import MCPServerHandler, MCPToolSettings
+from baserow.contrib.integrations.mcp.models import MCPServerIntegration
+from baserow.contrib.integrations.mcp.service import MCPServerService
+from baserow.contrib.integrations.mcp.toolset import approval_key
 from baserow.core.exceptions import PermissionDenied
 from baserow.core.handler import CoreHandler
 from baserow.core.identities.handler import IdentityHandler
@@ -1112,8 +1116,8 @@ class AgentService:
     ) -> list[str]:
         """
         Stop asking first for the tools of the approved calls, telling the Agent's
-        open pages when its configuration changed. An action only stops asking
-        while it's still the one whose call was approved.
+        open pages when its configuration changed. An action or an MCP tool only
+        stops asking while it's still the one whose call was approved.
 
         :param user: The user deciding, already allowed to update the configuration.
         :param agent_id: The id of the Agent.
@@ -1139,4 +1143,35 @@ class AgentService:
                 # No session edited the action, so the approver's own is told too.
                 agent_action_updated.send(self, action=updated.action, user=None)
                 stopped.append(tool.type)
+        # An MCP tool too, while its server, account and definition are those of
+        # the approved call and nobody has to review a newer definition.
+        approved_by_key = {key: name for name, key in approved.items() if key}
+        for integration in MCPServerIntegration.objects.filter(
+            application_id=agent.id, trashed=False
+        ):
+            tools = [
+                tool
+                for tool in integration.tools.filter(
+                    enabled=True, ask_first=True, changed_since_review=False
+                )
+                if approval_key(integration, tool) in approved_by_key
+            ]
+            if not tools:
+                continue
+            MCPServerHandler().update_tools(
+                integration,
+                [
+                    MCPToolSettings(
+                        name=tool.name,
+                        ask_first=False,
+                        definition_hash=tool.definition_hash,
+                    )
+                    for tool in tools
+                ],
+            )
+            # The approver's own page is told too, as for an action.
+            MCPServerService().notify_updated(None, integration.id)
+            stopped.extend(
+                approved_by_key[approval_key(integration, tool)] for tool in tools
+            )
         return stopped

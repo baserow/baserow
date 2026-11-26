@@ -8,9 +8,17 @@ import {
 const countIsKnown = (count) => Number.isSafeInteger(count) && count >= 0
 const trimmedName = (name) => (typeof name === 'string' ? name.trim() : '')
 
-/** The table a call's request names, or '' when it names none. */
-const requestedTable = (input) =>
-  typeof input?.values?.table === 'string' ? input.values.table.trim() : ''
+/**
+ * The table a call's request names, with its database when the request names
+ * one, as a duplicated database keeps every table's name. '' when it names none.
+ */
+const requestedTable = (input, t) => {
+  const table = trimmedName(input?.values?.table)
+  const database = trimmedName(input?.values?.database)
+  return table && database
+    ? t('agent.tableInDatabase', { table, database })
+    : table
+}
 
 /** Database presenters share count/table formatting; Core knows neither field. */
 export class DatabaseToolPresentationType extends ToolPresentationType {
@@ -41,7 +49,7 @@ export class DatabaseToolPresentationType extends ToolPresentationType {
   /** Titled by what the call asks to do: counted changes by count, reads by table. */
   getRequestedActivity({ input }, t) {
     const { counted, table: titledByTable } = this.constructor.definition
-    const table = titledByTable ? requestedTable(input) : ''
+    const table = titledByTable ? requestedTable(input, t) : ''
     if (counted !== true) {
       return table
         ? t(`${this.labelKey}RequestedTable`, { table })
@@ -74,7 +82,7 @@ export class DatabaseToolPresentationType extends ToolPresentationType {
     // Facts name tables that were created or read; other calls name the table asked for.
     const tableName =
       (typeof facts.table === 'string' && facts.table.trim()) ||
-      requestedTable(input)
+      requestedTable(input, t)
     const hasTable = status === STEP_STATUS.DONE && table && tableName
     const key = `${this.labelKey}${status === STEP_STATUS.RUNNING ? 'Running' : 'Done'}${hasCount ? 'Count' : ''}${hasTable ? 'Table' : ''}`
     return t(

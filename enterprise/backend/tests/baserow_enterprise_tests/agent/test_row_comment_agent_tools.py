@@ -90,6 +90,7 @@ def test_an_identity_uses_the_row_comment_tools_with_a_workspace_licence(
         workspace
     )
     assert create_request["values"] == {
+        "database": scenario.database.name,
         "table": "Tasks",
         "comments": [{"row": "Call", "text": "Ok"}],
     }
@@ -102,7 +103,11 @@ def test_an_identity_uses_the_row_comment_tools_with_a_workspace_licence(
     }
     assert [comment["text"] for comment in found.return_value["comments"]] == ["Ok"]
     assert found.metadata == {"facts": {"count": 1}}
-    assert list_request["values"] == {"table": "Tasks", "row": "Call"}
+    assert list_request["values"] == {
+        "database": scenario.database.name,
+        "table": "Tasks",
+        "row": "Call",
+    }
     assert listed.metadata == {"facts": {"count": 2}}
 
     search = agent_tool_type_registry.get("search_row_comments")

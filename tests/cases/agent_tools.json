@@ -45,14 +45,14 @@
       "name": "list_table_rows",
       "arguments": { "table_id": 1 },
       "input": {},
-      "preview": { "values": { "table": "Tasks" } },
+      "preview": { "values": { "database": "Work", "table": "Tasks" } },
       "facts": { "count": 1 }
     },
     {
       "name": "list_views",
       "arguments": { "table_id": 1 },
       "input": {},
-      "preview": { "values": { "table": "Tasks" } },
+      "preview": { "values": { "database": "Work", "table": "Tasks" } },
       "facts": {}
     },
     {
@@ -83,6 +83,7 @@
       "input": { "requested_count": 1 },
       "preview": {
         "values": {
+          "database": "Work",
           "table": "Tasks",
           "fields": [{ "name": "Notes", "type": "text" }]
         }
@@ -99,6 +100,7 @@
             {
               "field": "Hours",
               "table": "Tasks",
+              "database": "Work",
               "changes": { "name": "Effort" }
             }
           ]
@@ -111,7 +113,9 @@
       "arguments": { "field_ids": [1] },
       "input": { "requested_count": 1 },
       "preview": {
-        "values": { "fields": [{ "field": "Hours", "table": "Tasks" }] }
+        "values": {
+          "fields": [{ "field": "Hours", "table": "Tasks", "database": "Work" }]
+        }
       },
       "facts": { "count": 1 }
     },
@@ -124,6 +128,7 @@
       "input": { "requested_count": 1 },
       "preview": {
         "values": {
+          "database": "Work",
           "table": "Tasks",
           "views": [{ "name": "Board", "type": "grid" }]
         }
@@ -173,7 +178,11 @@
       "arguments": { "table_id": 1, "rows": [{ "Name": "Plan" }] },
       "input": { "requested_count": 1 },
       "preview": {
-        "values": { "table": "Tasks", "rows": [{ "Name": "Plan" }] }
+        "values": {
+          "database": "Work",
+          "table": "Tasks",
+          "rows": [{ "Name": "Plan" }]
+        }
       },
       "facts": { "count": 1 }
     },
@@ -183,6 +192,7 @@
       "input": { "requested_count": 1 },
       "preview": {
         "values": {
+          "database": "Work",
           "table": "Tasks",
           "rows": [{ "row": "Draft", "values": { "Name": "Done" } }]
         }
@@ -193,7 +203,9 @@
       "name": "delete_rows",
       "arguments": { "table_id": 1, "row_ids": [1] },
       "input": { "requested_count": 1 },
-      "preview": { "values": { "table": "Tasks", "rows": ["Draft"] } },
+      "preview": {
+        "values": { "database": "Work", "table": "Tasks", "rows": ["Draft"] }
+      },
       "facts": { "count": 1 }
     }
   ]

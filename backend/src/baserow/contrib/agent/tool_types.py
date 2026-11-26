@@ -29,18 +29,20 @@ def _without(values: dict[str, Any], key: str) -> dict[str, Any]:
 
 
 def _field_reference(
-    field_id: int, names: dict[int, tuple[str, str]]
+    field_id: int, names: dict[int, tuple[str, str, str]]
 ) -> dict[str, Any]:
     """
     :param field_id: A field the call names.
-    :param names: The field and table names the identity can see, by field ID.
-    :return: The field's and its table's names, or its ID as written.
+    :param names: The field, table and database names the identity can see, by
+        field ID.
+    :return: The field's, its table's and its database's names, or its ID as
+        written.
     """
 
     if field_id not in names:
         return {"field_id": field_id}
-    field_name, table_name = names[field_id]
-    return {"field": field_name, "table": table_name}
+    field_name, table_name, database_name = names[field_id]
+    return {"field": field_name, "table": table_name, "database": database_name}
 
 
 def _row_reference(row_id: int, names: dict[int, str]) -> dict[str, Any]:

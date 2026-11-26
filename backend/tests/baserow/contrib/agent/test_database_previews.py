@@ -34,6 +34,7 @@ def accounts(data_fixture):
         table=table,
         secret=secret,
         acme=model.objects.create(**{f"field_{name.id}": "Acme"}),
+        other_acme=model.objects.create(**{f"field_{name.id}": "Acme"}),
         unnamed=model.objects.create(),
     )
 
@@ -46,22 +47,30 @@ def test_names_are_resolved_as_the_agent_identity(accounts, data_fixture):
         name="Secret",
     )
 
+    # A duplicated database keeps every table's name, so the database is named.
     assert table_reference(accounts.ctx, accounts.table.id) == (
         accounts.table,
-        {"table": "Accounts"},
+        {"database": "Sales", "table": "Accounts"},
     )
     assert database_reference(accounts.ctx, accounts.database.id) == {
         "database": "Sales"
     }
     assert named_fields(accounts.ctx, [accounts.secret.id, copy.id]) == {
-        accounts.secret.id: ("Secret", "Accounts"),
-        copy.id: ("Secret", copy.table.name),
+        accounts.secret.id: ("Secret", "Accounts", "Sales"),
+        copy.id: ("Secret", copy.table.name, "Sales"),
     }
     assert row_names(
         accounts.ctx, accounts.table, [accounts.acme.id, accounts.unnamed.id]
     ) == {
         accounts.acme.id: "Acme",
         accounts.unnamed.id: f"unnamed row {accounts.unnamed.id}",
+    }
+    # Two rows of the same name are told apart.
+    assert row_names(
+        accounts.ctx, accounts.table, [accounts.acme.id, accounts.other_acme.id]
+    ) == {
+        accounts.acme.id: f"Acme (row {accounts.acme.id})",
+        accounts.other_acme.id: f"Acme (row {accounts.other_acme.id})",
     }
     assert table_reference(accounts.ctx, other.id) == (None, {"table_id": other.id})
     assert database_reference(accounts.ctx, other.database_id) == {
@@ -80,7 +89,7 @@ def test_missing_hidden_and_trashed_fields_and_rows_are_left_out(
     )
 
     assert named_fields(accounts.ctx, [accounts.secret.id, hidden.id, trashed.id]) == {
-        accounts.secret.id: ("Secret", "Accounts")
+        accounts.secret.id: ("Secret", "Accounts", "Sales")
     }
     assert row_names(
         accounts.ctx, accounts.table, [accounts.acme.id, accounts.unnamed.id, 999999]

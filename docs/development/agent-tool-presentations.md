@@ -19,6 +19,7 @@ The backend emits `step` events and saves the same steps on the assistant messag
     "input": {
         "requested_count": 2,
         "values": {
+            "database": "Work",
             "table": "Tasks",
             "rows": [{ "Name": "Acme" }, { "Name": "Beta" }]
         }
@@ -91,13 +92,16 @@ failed steps too.
 - `input.truncated` marks any of these cuts; the card says the preview is
   shortened.
 - Each ID is resolved on its own: two fields named "Name" stay two entries.
+- A table and a field are named with their database, as a duplicated database
+  keeps every name.
 - Rows are named by their primary field value, or `unnamed row <id>`, when the
-  identity may list them.
+  identity may list them. Rows of one call that share a name get their ID too.
 - Field IDs in views and filters become names when the identity may list the
   table's fields; others stay as written.
 - An integer `linked_table` in `create_fields` the identity can't see stays as
   written.
-- Reads of one table name only the table, so a held read shows what it reads.
+- Reads of one table name only the table and its database, so a held read shows
+  what it reads.
 
 Tool details start collapsed. Objects with keys are shown as a two-column table.
 Nested objects, arrays and other JSON values retain their JSON formatting.

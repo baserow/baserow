@@ -14,6 +14,8 @@ from baserow.contrib.agent.models import (
     AgentReplyStatus,
     AgentToolApproval,
 )
+from baserow.contrib.integrations.mcp.models import MCPServerTool
+from baserow.contrib.integrations.mcp.toolset import approval_key
 from baserow.core.action.registries import action_type_registry
 from baserow.core.chat_runs.handler import ChatRunHandler
 from baserow.core.chat_runs.models import ChatRun, ChatRunStatus
@@ -384,3 +386,40 @@ def test_always_allow_stops_asking_first_only_for_approved_tools_that_ask_first(
     }
     assert audited.call_args.args[1]["always_allowed_tools"] == ["create_rows"]
     configuration_updated.assert_called_once_with(ANY, application=agent, user=api_user)
+
+
+@pytest.mark.django_db
+def test_always_allow_stops_an_mcp_tool_asking_first_while_it_is_the_approved_one(
+    api_client, data_fixture, held_reply
+):
+    agent = held_reply.conversation.agent
+    integration = data_fixture.create_mcp_server_integration(application=agent)
+    close, changed = (
+        MCPServerTool.objects.create(
+            integration=integration,
+            name=name,
+            definition_hash="hash",
+            enabled=True,
+            ask_first=True,
+        )
+        for name in ("close_ticket", "reopen_ticket")
+    )
+    for tool, key in ((close, approval_key(integration, close)), (changed, "old")):
+        data_fixture.create_agent_tool_approval(
+            reply=held_reply, tool_name=f"mcp{integration.id}_{tool.name}", tool_key=key
+        )
+    *_, approved_close, approved_changed = held_reply.approvals.all()
+
+    response = decide(
+        api_client,
+        held_reply,
+        {"id": approved_close.id, "approved": True},
+        {"id": approved_changed.id, "approved": True},
+        always_allow=True,
+    )
+
+    assert response.status_code == 200
+    close.refresh_from_db()
+    changed.refresh_from_db()
+    # The other tool was approved as a definition it no longer has.
+    assert (close.ask_first, changed.ask_first) == (False, True)

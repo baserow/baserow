@@ -493,7 +493,7 @@ def test_a_request_that_cannot_be_named_keeps_its_ids_and_is_left_to_the_tool(
         "done",
         {"values": {"table_id": hidden_id}},
     )
-    assert named.input == {"values": {"table": "Tasks"}}
+    assert named.input == {"values": {"database": "Work", "table": "Tasks"}}
 
 
 @pytest.mark.django_db
@@ -510,7 +510,7 @@ def test_a_call_that_fails_after_its_request_was_named_keeps_it(workspace_data):
     )
 
     assert result.return_value["error"]["code"] == "invalid_input"
-    assert result.input == {"values": {"table": "Tasks"}}
+    assert result.input == {"values": {"database": "Work", "table": "Tasks"}}
 
 
 @pytest.mark.django_db
@@ -638,7 +638,13 @@ def test_partial_field_creation_counts_only_created_fields(workspace_data):
     assert tool_type.get_step_input(arguments) == {"requested_count": 2}
     assert (result.metadata, result.input) == (
         {"facts": {"count": 1}},
-        {"values": {"table": "Tasks", "fields": arguments["fields"]}},
+        {
+            "values": {
+                "database": "Work",
+                "table": "Tasks",
+                "fields": arguments["fields"],
+            }
+        },
     )
     assert len(result.return_value["errors"]) == 1
 
@@ -659,8 +665,8 @@ def test_fields_with_the_same_name_stay_separate_entries(workspace_data, data_fi
     assert preview == {
         "values": {
             "fields": [
-                {"field": "Hours", "table": "Tasks"},
-                {"field": "Hours", "table": "Notes"},
+                {"field": "Hours", "table": "Tasks", "database": "Work"},
+                {"field": "Hours", "table": "Notes", "database": "Work"},
             ]
         }
     }
@@ -690,7 +696,10 @@ def test_a_field_that_cannot_be_named_keeps_its_id_and_fails_alone(
     assert [error["item"] for error in deleted.return_value["errors"]] == [trashed.id]
     assert deleted.input == {
         "values": {
-            "fields": [{"field": "Hours", "table": "Tasks"}, {"field_id": trashed.id}]
+            "fields": [
+                {"field": "Hours", "table": "Tasks", "database": "Work"},
+                {"field_id": trashed.id},
+            ]
         }
     }
     assert updated == {
@@ -823,6 +832,7 @@ def test_view_requests_name_their_fields(workspace_data, data_fixture):
 
     assert preview == {
         "values": {
+            "database": "Work",
             "table": "Tasks",
             "views": [{"name": "Board", "type": "kanban", "column_field": "Status"}],
         }
@@ -847,7 +857,9 @@ def test_views_are_created_when_the_identity_may_not_list_fields(
         {"table_id": workspace_data.table.id, "views": [board]},
     )
 
-    assert result.input == {"values": {"table": "Tasks", "views": [board]}}
+    assert result.input == {
+        "values": {"database": "Work", "table": "Tasks", "views": [board]}
+    }
 
 
 @pytest.mark.django_db
@@ -866,7 +878,11 @@ def test_row_writes_show_their_values_with_passwords_masked(
     )
 
     assert result.input == {
-        "values": {"table": "Tasks", "rows": [{"Name": "Acme", "Secret": "••••"}]}
+        "values": {
+            "database": "Work",
+            "table": "Tasks",
+            "rows": [{"Name": "Acme", "Secret": "••••"}],
+        }
     }
 
 
@@ -883,7 +899,9 @@ def test_a_failed_row_write_never_stores_a_value_of_a_password_field(
     )
 
     assert "error" in result.return_value
-    assert result.input == {"values": {"table": "Tasks", "rows": [{"secret": "••••"}]}}
+    assert result.input == {
+        "values": {"database": "Work", "table": "Tasks", "rows": [{"secret": "••••"}]}
+    }
     assert "hunter2" not in json.dumps(result.input)
 
 
@@ -929,6 +947,7 @@ def test_changed_rows_are_named_by_their_primary_value(workspace_data):
 
     assert update == {
         "values": {
+            "database": "Work",
             "table": "Tasks",
             "rows": [
                 {"row": "Draft", "values": {"Name": "Done"}},
@@ -937,7 +956,11 @@ def test_changed_rows_are_named_by_their_primary_value(workspace_data):
         }
     }
     assert delete == {
-        "values": {"table": "Tasks", "rows": ["Draft", f"unnamed row {unnamed.id}"]}
+        "values": {
+            "database": "Work",
+            "table": "Tasks",
+            "rows": ["Draft", f"unnamed row {unnamed.id}"],
+        }
     }
 
 
@@ -954,7 +977,11 @@ def test_a_missing_row_keeps_its_id_and_the_tool_deletes_nothing(workspace_data)
 
     assert result.return_value["error"]["code"] == "not_found"
     assert result.input == {
-        "values": {"table": "Tasks", "rows": ["Draft", {"row_id": 999999}]}
+        "values": {
+            "database": "Work",
+            "table": "Tasks",
+            "rows": ["Draft", {"row_id": 999999}],
+        }
     }
     assert (
         workspace_data.table.get_model()
@@ -1091,7 +1118,7 @@ def test_unexpected_tool_errors_do_not_log_private_values(workspace_data, mocker
     }
     assert (result.metadata, result.input) == (
         {"error_code": "failed"},
-        {"values": {"table": "Tasks"}},
+        {"values": {"database": "Work", "table": "Tasks"}},
     )
     output = "".join(str(entry) for entry in logs)
     assert "list_table_rows" in output

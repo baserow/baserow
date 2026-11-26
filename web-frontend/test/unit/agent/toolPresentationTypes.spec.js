@@ -471,6 +471,19 @@ describe('Agent tool presentations', () => {
     })
   })
 
+  test('a request names the database of its table', () => {
+    const data = step('delete_rows', 'waiting', {
+      input: {
+        requested_count: 1,
+        values: { database: 'Sales 2', table: 'Accounts', rows: ['Acme'] },
+      },
+    })
+
+    expect(toolActivity(data, registry, t).title).toBe(
+      'Delete 1 row from Accounts (Sales 2)'
+    )
+  })
+
   test('a cut request keeps the shortened-preview flag', () => {
     const data = step('create_rows', 'done', {
       input: {
