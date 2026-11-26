@@ -8,6 +8,7 @@ import {
   getBuilderPreviewSsrCookieName,
   getBuilderPreviewUserSourceAuthConfig,
   getBuilderPreviewUserSourceCookieName,
+  previewSharesEditorHostname,
 } from '@baserow/modules/builder/utils/preview'
 
 const config = { public: { baserowFrontendCookiePrefix: 'test_' } }
@@ -66,5 +67,18 @@ describe('builder preview cookies', () => {
         sameSite: 'Lax',
       },
     })
+  })
+})
+
+describe('previewSharesEditorHostname', () => {
+  test.each([
+    ['http://localhost:3000', 'http://localhost:3000', true],
+    ['http://localhost:3001', 'http://localhost:3000', true],
+    ['https://preview.example.com', 'https://example.com', false],
+    ['', 'https://example.com', true],
+  ])('%s vs %s', (builderPreviewUrl, publicWebFrontendUrl, expected) => {
+    expect(
+      previewSharesEditorHostname({ builderPreviewUrl, publicWebFrontendUrl })
+    ).toBe(expected)
   })
 })

@@ -1,10 +1,30 @@
 import { mountSuspended } from '@nuxt/test-utils/runtime'
 import { enableAutoUnmount } from '@vue/test-utils'
 import IFrameElement from '@baserow/modules/builder/components/elements/components/IFrameElement.vue'
+import { isAuthorCodeRestricted } from '@baserow/modules/builder/utils/authorCode'
 
 enableAutoUnmount(afterEach)
 
+const EDITOR_URL = 'https://editor.example.com'
+
+// Whether the page is served on an editor hostname. Applications get their
+// own hostname unless a test shares the editor's.
+let onEditorHostname
+
+// Preview gets its own hostname unless a test shares the editor's.
+function setPreviewUrl(url, relaxed = false) {
+  const config = useRuntimeConfig().public
+  config.publicWebFrontendUrl = EDITOR_URL
+  config.builderPreviewUrl = url
+  config.builderDangerousRelaxPreviewSecurity = relaxed
+}
+
 describe('IFrameElement', () => {
+  beforeEach(() => {
+    onEditorHostname = false
+    setPreviewUrl('https://preview.example.com')
+  })
+
   const mountComponent = (
     mode,
     elementValues = {},
@@ -28,6 +48,14 @@ describe('IFrameElement', () => {
     return mountSuspended(IFrameElement, {
       props: { element },
       global: {
+        mocks: {
+          $isAuthorCodeRestricted: (applicationMode) =>
+            isAuthorCodeRestricted({
+              mode: applicationMode,
+              onEditorHostname,
+              publicConfig: useRuntimeConfig().public,
+            }),
+        },
         provide: {
           workspace: {},
           builder,
@@ -144,7 +172,7 @@ describe('IFrameElement', () => {
     )
   })
 
-  test('does not sandbox user-provided content in preview mode', async () => {
+  test('does not sandbox user-provided content in Preview on its own hostname', async () => {
     const wrapper = await mountComponent('preview')
 
     expect(wrapper.find('iframe').element).toMatchSnapshot()
@@ -220,12 +248,74 @@ describe('IFrameElement', () => {
     )
   })
 
-  test('does not change sandboxing for trusted embedded content', async () => {
+  test('does not sandbox trusted embedded content in Preview on its own hostname', async () => {
     const wrapper = await mountComponent('preview', {
       allow_same_origin: true,
     })
 
     expect(wrapper.find('iframe').attributes('sandbox')).toBeUndefined()
+  })
+
+  describe('with Preview on the editor hostname', () => {
+    beforeEach(() => {
+      onEditorHostname = true
+      setPreviewUrl(`${EDITOR_URL}:3001`)
+    })
+
+    test('sandboxes embedded HTML away from the editor origin in Preview', async () => {
+      const wrapper = await mountComponent('preview')
+
+      expect(wrapper.find('iframe').attributes('sandbox')).toBe(
+        'allow-scripts allow-forms allow-popups'
+      )
+    })
+
+    test('leaves embedded HTML unsandboxed in Preview when the instance relaxes Preview security', async () => {
+      setPreviewUrl(`${EDITOR_URL}:3001`, true)
+      const wrapper = await mountComponent('preview')
+
+      expect(wrapper.find('iframe').attributes('sandbox')).toBeUndefined()
+    })
+
+    test('keeps the editor sandboxed when the instance relaxes Preview security', async () => {
+      setPreviewUrl(`${EDITOR_URL}:3001`, true)
+      const wrapper = await mountComponent('public', {}, 'editing')
+
+      expect(wrapper.find('iframe').attributes('sandbox')).toBe(
+        'allow-scripts allow-forms allow-popups'
+      )
+    })
+
+    test('points the editor hint at the published application', async () => {
+      const wrapper = await mountComponent('editing')
+
+      expect(
+        wrapper.get('.iframe-element__editor-hint').attributes('aria-label')
+      ).toBe('iframeElementForm.editorEmbedHintPublished')
+    })
+
+    test('sandboxes a published application served on the editor hostname', async () => {
+      const wrapper = await mountComponent('public')
+
+      expect(wrapper.find('iframe').attributes('sandbox')).toBe(
+        'allow-scripts allow-forms allow-popups'
+      )
+    })
+
+    test('leaves embedded HTML unsandboxed on a published site with its own hostname', async () => {
+      onEditorHostname = false
+      const wrapper = await mountComponent('public')
+
+      expect(wrapper.find('iframe').attributes('sandbox')).toBeUndefined()
+    })
+  })
+
+  test('sandboxes embedded HTML the editor force-renders in public mode', async () => {
+    const wrapper = await mountComponent('public', {}, 'editing')
+
+    expect(wrapper.find('iframe').attributes('sandbox')).toBe(
+      'allow-scripts allow-forms allow-popups'
+    )
   })
 
   test('allows restricted capabilities for external URLs in public mode', async () => {

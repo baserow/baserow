@@ -1,9 +1,23 @@
 import { EnterprisePlugin } from '@baserow_enterprise/plugins'
+import { isAuthorCodeRestricted } from '@baserow/modules/builder/utils/authorCode'
 import AssistantPanel from '@baserow_enterprise/components/assistant/AssistantPanel'
 
 describe('Test enterprise Baserow plugin', () => {
   const app = {
-    $config: { public: { publicBackendUrl: 'http://localhost:8000' } },
+    // Applications are served on their own hostname unless a test says otherwise.
+    $isAuthorCodeRestricted: (mode) =>
+      isAuthorCodeRestricted({
+        mode,
+        onEditorHostname: false,
+        publicConfig: {},
+      }),
+    $config: {
+      public: {
+        publicBackendUrl: 'http://localhost:8000',
+        publicWebFrontendUrl: 'http://localhost:3000',
+        builderPreviewUrl: 'http://preview.localhost:3000',
+      },
+    },
   }
 
   const makeBuilder = (overrides = {}) => ({
@@ -126,6 +140,78 @@ describe('Test enterprise Baserow plugin', () => {
       expect(script[0].src).toBe(
         'http://localhost:8000/api/builder/preview/42/custom-code/js/'
       )
+    })
+
+    test.each([
+      ['preview', true, false, false],
+      ['preview', true, true, true],
+      ['preview', false, false, true],
+      // The editor's hostname also serves published applications by id.
+      ['public', true, false, false],
+      ['public', false, false, true],
+    ])(
+      'in %s on an editor hostname %s and relaxed security %s, JavaScript loads: %s',
+      (mode, onEditorHostname, relaxed, runsJS) => {
+        const plugin = new EnterprisePlugin({
+          app: {
+            ...app,
+            $isAuthorCodeRestricted: (applicationMode) =>
+              isAuthorCodeRestricted({
+                mode: applicationMode,
+                onEditorHostname,
+                publicConfig: { builderDangerousRelaxPreviewSecurity: relaxed },
+              }),
+          },
+        })
+        const builder = makeBuilder({
+          custom_code: { css: 'body { color: red }', js: 'alert(1)' },
+          scripts: [
+            { type: 'javascript', url: 'https://example.com/a.js' },
+            { type: 'stylesheet', url: 'https://example.com/a.css' },
+          ],
+        })
+
+        const { link, script } = plugin.getBuilderApplicationHeaderAddition({
+          builder,
+          mode,
+        })
+
+        expect(link.map(({ href }) => href)).toEqual([
+          mode === 'preview'
+            ? 'http://localhost:8000/api/builder/preview/42/custom-code/css/'
+            : 'http://localhost:8000/api/custom_code/42/css/public/',
+        ])
+        expect(script.map(({ src, href }) => src ?? href)).toEqual(
+          runsJS
+            ? [
+                'https://example.com/a.js',
+                'https://example.com/a.css',
+                expect.stringMatching(/\/js\/(public\/)?$/),
+              ]
+            : ['https://example.com/a.css']
+        )
+      }
+    )
+
+    test.each([
+      [{ custom_code: { css: '', js: 'alert(1)' } }, true],
+      [{ has_head_html: true }, true],
+      [{ scripts: [{ type: 'javascript', url: 'https://x.test/a.js' }] }, true],
+      [
+        { scripts: [{ type: 'stylesheet', url: 'https://x.test/a.css' }] },
+        false,
+      ],
+      [{ custom_code: { css: 'body {}', js: '' } }, false],
+      [
+        { custom_code: { css: '', js: 'alert(1)' }, untrusted_content: true },
+        false,
+      ],
+    ])('knows whether %j adds author code: %s', (overrides, expected) => {
+      const plugin = new EnterprisePlugin({ app })
+
+      expect(
+        plugin.hasBuilderAuthorCode({ builder: makeBuilder(overrides) })
+      ).toBe(expected)
     })
 
     test('external scripts and stylesheets are injected at body close', () => {

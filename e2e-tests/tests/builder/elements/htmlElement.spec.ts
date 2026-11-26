@@ -10,6 +10,16 @@ import {
 } from "../../../fixtures/licence";
 import { baserowConfig } from "../../../playwright.config";
 import { createDatabase } from "../../../fixtures/database/database";
+
+// Preview on the editor's hostname shares the editor's cookies, so code written
+// by the application's editors is restricted there: the HTML element is shown
+// in a frame without scripts and custom JavaScript isn't loaded.
+const previewIsRestricted =
+  new URL(baserowConfig.BUILDER_PREVIEW_URL).hostname ===
+  new URL(baserowConfig.PUBLIC_WEB_FRONTEND_URL).hostname;
+const editorHint = previewIsRestricted
+  ? "Some embeds only display fully in your published application."
+  : "Some embeds only display fully in Preview.";
 import { createTable } from "../../../fixtures/database/table";
 import { createLocalBaserowIntegration } from "../../../fixtures/builder/integration";
 
@@ -72,13 +82,9 @@ for (const mode of ["preview", "published"]) {
       await expect(
         page.frameLocator('iframe[title="HTML preview"]').locator("#widget")
       ).toBeVisible();
-      const hint = page.getByRole("button", {
-        name: "Some embeds only display fully in Preview.",
-      });
+      const hint = page.getByRole("button", { name: editorHint });
       await hint.focus();
-      await expect(page.locator(".tooltip")).toHaveText(
-        "Some embeds only display fully in Preview."
-      );
+      await expect(page.locator(".tooltip")).toHaveText(editorHint);
       await hint.press("Escape");
       await page
         .locator(".html-element__editor")
@@ -119,6 +125,20 @@ for (const mode of ["preview", "published"]) {
         );
         url.hostname = domain;
         await visitor.goto(url.href);
+      }
+
+      if (mode === "preview" && previewIsRestricted) {
+        await expect(visitor.locator(".preview-security-notice")).toBeVisible();
+        await expect(
+          visitor
+            .frameLocator('iframe[title="HTML preview"]')
+            .locator("#widget")
+        ).toBeVisible();
+        await expect(visitor.locator("#widget")).toHaveCount(0);
+        expect(
+          await visitor.evaluate(() => Reflect.get(window, "loaderRuns"))
+        ).toBeUndefined();
+        return;
       }
 
       const anchor = visitor.locator(
@@ -353,9 +373,15 @@ for (const mode of ["preview", "published"]) {
         url.hostname = domain;
         await visitor.goto(url.href);
       }
-      await expect(visitor.locator("#greeting")).toHaveText("Hello Alice");
+      const greeting =
+        mode === "preview" && previewIsRestricted
+          ? visitor
+              .frameLocator('iframe[title="HTML preview"]')
+              .locator("#greeting")
+          : visitor.locator("#greeting");
+      await expect(greeting).toHaveText("Hello Alice");
       await visitor.getByRole("textbox").fill("Bob");
-      await expect(visitor.locator("#greeting")).toHaveText("Hello Bob");
+      await expect(greeting).toHaveText("Hello Bob");
     } finally {
       await deleteLicense(license);
     }

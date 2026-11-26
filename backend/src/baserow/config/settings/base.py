@@ -1171,6 +1171,12 @@ BUILDER_PREVIEW_URL = os.getenv("BASEROW_BUILDER_PREVIEW_URL")
 if not BUILDER_PREVIEW_URL:
     BUILDER_PREVIEW_URL = PUBLIC_WEB_FRONTEND_URL
 
+# Lets code written by an application's editors run in a preview that shares the
+# editor's hostname, where it can act as the user who opens the preview.
+BUILDER_DANGEROUS_RELAX_PREVIEW_SECURITY = str_to_bool(
+    os.getenv("BASEROW_BUILDER_DANGEROUS_RELAX_PREVIEW_SECURITY", "false")
+)
+
 
 def _get_origin_from_url(url):
     parsed = urlparse(url)

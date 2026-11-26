@@ -991,6 +991,7 @@
     "noScript": "Enhance your application with external scripts or stylesheets",
     "customCodeTitle": "Custom code",
     "customCodeHelp": "Custom code is only visible in preview or published applications, The results aren't visible in the editor.",
+    "customCodeHelpRestricted": "Custom CSS is visible in preview and in published applications. Custom JavaScript, head HTML and external scripts only run in published applications, because previews on this instance share the editor's domain. The results aren't visible in the editor.",
     "addExternalScript": "Add an external script"
   },
   "customCodeSettingScriptForm": {

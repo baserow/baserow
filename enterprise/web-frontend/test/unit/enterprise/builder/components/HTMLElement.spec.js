@@ -2,8 +2,28 @@ import { mountSuspended } from '@nuxt/test-utils/runtime'
 import { reactive, nextTick } from 'vue'
 import { enableAutoUnmount } from '@vue/test-utils'
 import HTMLElement from '@baserow_enterprise/builder/components/elements/HTMLElement'
+import { isAuthorCodeRestricted } from '@baserow/modules/builder/utils/authorCode'
 
 enableAutoUnmount(afterEach)
+
+const EDITOR_URL = 'https://editor.example.com'
+
+// Whether the page is served on an editor hostname. Applications get their
+// own hostname unless a test shares the editor's.
+let onEditorHostname
+
+// Preview gets its own hostname unless a test shares the editor's.
+function setPreviewUrl(url, relaxed = false) {
+  const config = useRuntimeConfig().public
+  config.publicWebFrontendUrl = EDITOR_URL
+  config.builderPreviewUrl = url
+  config.builderDangerousRelaxPreviewSecurity = relaxed
+}
+
+beforeEach(() => {
+  onEditorHostname = false
+  setPreviewUrl('https://preview.example.com')
+})
 
 const snippet =
   '<section id="anchor" class="widget" data-lang="en" aria-label="Demo">Widget</section>'
@@ -24,6 +44,14 @@ function mountElement(
       },
     },
     global: {
+      mocks: {
+        $isAuthorCodeRestricted: (applicationMode) =>
+          isAuthorCodeRestricted({
+            mode: applicationMode,
+            onEditorHostname,
+            publicConfig: useRuntimeConfig().public,
+          }),
+      },
       provide: {
         mode,
         builder: { untrusted_content: untrusted },
@@ -157,3 +185,41 @@ test.each([{ formula: "''" }, { formula: 'concat(' }])(
     expect(wrapper.text()).toContain('htmlElement.placeholder')
   }
 )
+
+describe('HTML element on the editor hostname', () => {
+  beforeEach(() => {
+    onEditorHostname = true
+    setPreviewUrl(`${EDITOR_URL}:3001`)
+  })
+
+  test.each(['preview', 'public'])(
+    'shows the HTML without running it and without the editor hint in %s',
+    async (mode) => {
+      const wrapper = await mountElement(mode)
+
+      const frame = wrapper.get('iframe')
+      expect(frame.attributes('srcdoc')).toBe(snippet)
+      expect(frame.attributes('sandbox')).toBe('allow-same-origin')
+      expect(wrapper.find('#anchor').exists()).toBe(false)
+      expect(wrapper.find('.html-element__hint').exists()).toBe(false)
+    }
+  )
+
+  test('inserts the widget when the instance relaxes Preview security', async () => {
+    setPreviewUrl(`${EDITOR_URL}:3001`, true)
+    const wrapper = await mountElement('preview')
+
+    expect(wrapper.find('iframe').exists()).toBe(false)
+    expect(wrapper.get('#anchor').text()).toBe('Widget')
+  })
+
+  test('points the editor hint at the published application', async () => {
+    const wrapper = await mountElement('editing')
+
+    expect(
+      wrapper
+        .get('button[aria-label="iframeElementForm.editorEmbedHintPublished"]')
+        .exists()
+    ).toBe(true)
+  })
+})

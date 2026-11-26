@@ -1,4 +1,11 @@
 {
+  "previewSecurityNotice": {
+    "summary": "JavaScript is restricted in this preview.",
+    "expand": "Show details",
+    "collapse": "Hide details",
+    "details": "This preview shares its domain with the Baserow editor, so custom JavaScript, head HTML and scripts in HTML elements are turned off, and IFrame embeds can't use cookies or storage. To see them working, publish the application and open it there. An administrator can also give previews their own domain with BASEROW_BUILDER_PREVIEW_URL, or set BASEROW_BUILDER_DANGEROUS_RELAX_PREVIEW_SECURITY to true.",
+    "learnMore": "Read the documentation"
+  },
   "builderUntrustedContent": {
     "warning": "Custom code and embedded content are blocked. Review the import report before trusting the content."
   },
@@ -358,6 +365,7 @@
     "emptyValue": "Empty IFrame source...",
     "editorPreviewPlaceholder": "This iframe isn't displayed in the editor.\nUse Preview to check how it appears in your application.",
     "editorEmbedHint": "Some embeds only display fully in Preview.",
+    "editorEmbedHintPublished": "Some embeds only display fully in your published application.",
     "sourceTypeLabel": "Source type",
     "urlLabel": "URL",
     "urlPlaceholder": "Link to the external resource to be embedded",

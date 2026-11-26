@@ -2822,3 +2822,16 @@ test('blocked iframes show a trust error before their configuration is evaluated
     )
   ).toBe('elementType.errorIframeUrlMissing')
 })
+
+test('only elements holding author code say so', () => {
+  const registry = useNuxtApp().$registry
+  const iframe = registry.get('element', 'iframe')
+
+  expect(iframe.hasAuthorCode({ source_type: IFRAME_SOURCE_TYPES.EMBED })).toBe(
+    true
+  )
+  expect(iframe.hasAuthorCode({ source_type: IFRAME_SOURCE_TYPES.URL })).toBe(
+    false
+  )
+  expect(registry.get('element', 'heading').hasAuthorCode({})).toBe(false)
+})

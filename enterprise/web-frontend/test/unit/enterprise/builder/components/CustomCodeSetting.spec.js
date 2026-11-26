@@ -188,5 +188,9 @@ describe('Preview notice', () => {
     const { wrapper } = await mountSetting()
 
     expect(wrapper.text().includes(notice)).toBe(shown)
+    // The introduction says which custom code runs in Preview on this instance.
+    expect(
+      wrapper.text().includes('customCodeSettingForm.customCodeHelpRestricted')
+    ).toBe(shown)
   })
 })

@@ -1,6 +1,6 @@
 import { flushPromises } from '@vue/test-utils'
 import { mountSuspended } from '@nuxt/test-utils/runtime'
-import { afterEach, describe, expect, test, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 
 import PublicPageContent from '@baserow/modules/builder/components/PublicPageContent'
 import { ElementType } from '@baserow/modules/builder/elementTypes'
@@ -97,5 +97,109 @@ describe('PublicPageContent', () => {
 
     expect(responsiveStyle.innerHTML).toContain('@media (max-width: 640px)')
     expect(wrapper.find('[data-test-id="root-scope"]').text()).toBe('false')
+  })
+})
+
+// The test app is served on the editor's hostname, like a default install.
+describe('PublicPageContent Preview security notice', () => {
+  let wrapper = null
+  let publicConfig
+  let original
+
+  beforeEach(() => {
+    publicConfig = useRuntimeConfig().public
+    original = {
+      builderPreviewUrl: publicConfig.builderPreviewUrl,
+      publicWebFrontendUrl: publicConfig.publicWebFrontendUrl,
+      builderDangerousRelaxPreviewSecurity:
+        publicConfig.builderDangerousRelaxPreviewSecurity,
+    }
+  })
+
+  afterEach(() => {
+    wrapper?.unmount()
+    wrapper = null
+    Object.assign(publicConfig, original)
+    useHead.mockClear()
+  })
+
+  const embed = { id: 10, type: 'iframe', source_type: 'embed' }
+  const urlIFrame = { id: 11, type: 'iframe', source_type: 'url' }
+
+  const mountPage = async ({
+    mode = 'preview',
+    builderPreviewUrl = 'https://editor.example.com:3001',
+    relaxed = false,
+    elements = [],
+    sharedElements = [],
+  }) => {
+    Object.assign(publicConfig, {
+      builderPreviewUrl,
+      publicWebFrontendUrl: 'https://editor.example.com',
+      builderDangerousRelaxPreviewSecurity: relaxed,
+    })
+    const page = {
+      id: 1,
+      name: 'Page',
+      path: '/',
+      shared: false,
+      graph: {},
+      elements: [],
+      elementMap: {},
+      orderedElements: elements,
+      query_params: [],
+      visibility: 'all',
+    }
+    const sharedPage = {
+      ...page,
+      id: 2,
+      shared: true,
+      orderedElements: sharedElements,
+    }
+    const builder = {
+      id: 1,
+      breakpoints: { mobile: 640, tablet: 1024 },
+      theme: {},
+      pages: [page, sharedPage],
+      user_sources: [],
+      login_page_id: null,
+      scripts: [],
+      custom_code: { css: '', js: '' },
+    }
+
+    wrapper = await mountSuspended(PublicPageContent, {
+      props: {
+        workspace: { id: 1 },
+        builder,
+        page,
+        params: {},
+        path: '/',
+        mode,
+      },
+      global: {
+        stubs: { BuilderToasts: true, PageContent: true },
+      },
+    })
+    await flushPromises()
+    return wrapper.find('.preview-security-notice').exists()
+  }
+
+  test('is shown in Preview on the editor hostname when the page has author code', async () => {
+    expect(await mountPage({ elements: [embed] })).toBe(true)
+  })
+
+  test('is shown when the shared page has author code', async () => {
+    expect(await mountPage({ sharedElements: [embed] })).toBe(true)
+  })
+
+  test.each([
+    ['the page has no author code', { elements: [urlIFrame] }],
+    [
+      'the instance relaxes Preview security',
+      { elements: [embed], relaxed: true },
+    ],
+    ['the application is published', { elements: [embed], mode: 'public' }],
+  ])('is hidden when %s', async (_, options) => {
+    expect(await mountPage(options)).toBe(false)
   })
 })

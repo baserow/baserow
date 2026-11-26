@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Code written by an application's editors (custom JavaScript, HTML element scripts and IFrame embeds) can no longer act as the logged-in user in the editor or in application Preview on the editor's hostname. Set BASEROW_BUILDER_PREVIEW_URL to its own hostname, or BASEROW_BUILDER_DANGEROUS_RELAX_PREVIEW_SECURITY, to run that code in Preview",
+    "issue_origin": "github",
+    "issue_number": null,
+    "domain": "builder",
+    "bullet_points": [],
+    "created_at": "2026-11-26"
+}

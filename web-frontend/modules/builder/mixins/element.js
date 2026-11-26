@@ -34,6 +34,22 @@ export default {
     isEditMode() {
       return this.mode === 'editing'
     },
+    /**
+     * The editor renders some elements in public mode, such as the later rows
+     * of a repeat element, so this follows the application's mode.
+     */
+    isAuthorCodeRestricted() {
+      return this.$isAuthorCodeRestricted(this.applicationContext.mode)
+    },
+    /**
+     * The editor's hint for an element that holds author code. Preview only
+     * shows such an element in full when it doesn't restrict that code.
+     */
+    authorCodeEditorHint() {
+      return this.$previewRestrictsAuthorCode()
+        ? this.$t('iframeElementForm.editorEmbedHintPublished')
+        : this.$t('iframeElementForm.editorEmbedHint')
+    },
     elementIsInError() {
       return this.elementType.isInError(this.element, this.applicationContext)
     },

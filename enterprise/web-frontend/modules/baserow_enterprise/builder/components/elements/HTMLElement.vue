@@ -19,18 +19,15 @@
       </ClientOnly>
       <ElementPreviewHint
         class="html-element__hint"
-        :message="$t('iframeElementForm.editorEmbedHint')"
+        :message="authorCodeEditorHint"
       />
     </template>
   </div>
-  <div
-    v-else-if="
-      ['preview', 'public'].includes(applicationContext.mode) &&
-      !builder.untrusted_content &&
-      resolvedHTML
-    "
-    v-html-content="resolvedHTML"
-  ></div>
+  <!-- Without its scripts and event handlers, like in the editor. -->
+  <ClientOnly v-else-if="showHTML && isAuthorCodeRestricted">
+    <HTMLElementPreview :html="resolvedHTML" :max-height="null" />
+  </ClientOnly>
+  <div v-else-if="showHTML" v-html-content="resolvedHTML"></div>
 </template>
 
 <script>
@@ -46,6 +43,13 @@ export default {
   computed: {
     resolvedHTML() {
       return ensureString(this.resolveFormula(this.element.html))
+    },
+    showHTML() {
+      return (
+        ['preview', 'public'].includes(this.applicationContext.mode) &&
+        !this.builder.untrusted_content &&
+        Boolean(this.resolvedHTML)
+      )
     },
   },
   directives: {

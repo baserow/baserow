@@ -16,6 +16,8 @@ import { onBeforeUnmount, ref, watch } from 'vue'
 
 const props = defineProps({
   html: { type: String, required: true },
+  // The editor caps the height. Preview passes null to use the natural height.
+  maxHeight: { type: Number, default: 600 },
 })
 
 const frame = ref(null)
@@ -63,7 +65,10 @@ function onLoad() {
     )
     // Keep viewport-relative or very tall snippets from growing the editor
     // indefinitely. Preview and publication use the content's natural height.
-    height.value = Math.min(600, Math.max(48, Math.ceil(contentHeight)))
+    height.value = Math.min(
+      props.maxHeight ?? Infinity,
+      Math.max(48, Math.ceil(contentHeight))
+    )
   }
   observer = new ResizeObserver(resize)
   observer.observe(document.body)

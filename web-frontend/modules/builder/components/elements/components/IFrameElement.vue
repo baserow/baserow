@@ -57,7 +57,7 @@
       <ElementPreviewHint
         v-if="shouldShowEditorEmbedHint"
         class="iframe-element__editor-hint"
-        :message="$t('iframeElementForm.editorEmbedHint')"
+        :message="authorCodeEditorHint"
       />
     </template>
   </div>
@@ -68,6 +68,8 @@ import ElementPreviewHint from '@baserow/modules/builder/components/elements/Ele
 import element from '@baserow/modules/builder/mixins/element'
 import { IFRAME_SOURCE_TYPES } from '@baserow/modules/builder/enums'
 import { ensureString } from '@baserow/modules/core/utils/validator'
+
+const RESTRICTED_SANDBOX = 'allow-scripts allow-forms allow-popups'
 
 export default {
   name: 'IFrameElement',
@@ -113,10 +115,12 @@ export default {
           : ''
       }
       if (this.element.source_type !== IFRAME_SOURCE_TYPES.URL) {
-        return null
+        // An unsandboxed embed shares the page's origin, so its scripts could
+        // act as the logged-in editor.
+        return this.isAuthorCodeRestricted ? RESTRICTED_SANDBOX : null
       }
 
-      const permissions = ['allow-scripts', 'allow-forms', 'allow-popups']
+      const permissions = RESTRICTED_SANDBOX.split(' ')
 
       if (
         this.element.allow_same_origin &&
