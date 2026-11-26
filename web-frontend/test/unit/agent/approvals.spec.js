@@ -534,18 +534,25 @@ describe('Agent tool approvals', () => {
     }
   )
 
-  test.each([true, false])(
-    'builder access (%s) controls failure details after a live run',
-    async (builder) => {
+  test.each([
+    [true, true],
+    [false, true],
+    [true, false],
+    [true, undefined],
+  ])(
+    'builder access (%s) and private details (%s) control the history refresh',
+    async (builder, hasDiagnostics) => {
       allowed.value = (operation) =>
         builder || operation !== 'application.update'
+      const publicReason = 'The email service did not confirm delivery.'
+      const fetchDetails = builder && hasDiagnostics !== false
       const approved = [approval(1, 'approved')]
       const ended = reply('completed', approved, {
         steps: [
           {
             ...heldStep(1, 'failed'),
             error_code: 'failed',
-            error_message: 'Internal error.',
+            error_message: publicReason,
           },
         ],
       })
@@ -554,14 +561,14 @@ describe('Agent tool approvals', () => {
         reply('running', approved, { runId: 'run-2' }),
         page([prompt, { ...ended, tool_errors: { 'step-1': diagnosis } }])
       )
-      await finish('run-2', ended)
-      expect(messageReads()).toHaveLength(builder ? 2 : 1)
+      await finish('run-2', { ...ended, has_tool_errors: hasDiagnostics })
+      expect(messageReads()).toHaveLength(fetchDetails ? 2 : 1)
       const failure = items(wrapper)[0].get('.chat-tool-failure')
       expect(failure.text()).toBe('toolPresentation.statusFailed')
       expect(items(wrapper)[0].text()).not.toContain(diagnosis)
       await failure.trigger('click')
       expect(wrapper.get('.chat-tool-failure__reason').text()).toBe(
-        builder ? diagnosis : 'Internal error.'
+        fetchDetails ? diagnosis : publicReason
       )
     }
   )

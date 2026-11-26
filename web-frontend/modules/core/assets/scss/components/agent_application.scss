@@ -558,16 +558,21 @@
 
 .agent-approval__item-head {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 12px;
+  gap: 4px 12px;
+
+  .agent-approval__item-title {
+    flex-basis: min(8em, 100%);
+  }
 
   .agent-approval__decision,
   .agent-approval__step-status,
   .chat-tool-failure {
-    max-width: 45%;
+    max-width: 100%;
+    margin-inline-start: auto;
     padding-inline: 6px;
     text-align: end;
-    overflow-wrap: anywhere;
   }
 
   i {

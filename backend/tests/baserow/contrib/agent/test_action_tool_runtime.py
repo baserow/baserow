@@ -117,8 +117,12 @@ def test_approved_smtp_failure_is_private_to_the_builder_history(
         "send_messages",
         side_effect=failure,
     )
-    run_reply(decide(user, reply, approved=True))
+    run = decide(user, reply, approved=True)
+    run_reply(run)
     reply.refresh_from_db()
+    run.refresh_from_db()
+    assert run.outcome["has_tool_errors"] == bool(reply.tool_errors)
+    assert "tool_errors" not in run.outcome
 
     step = reply.steps[0]
     if public_error:

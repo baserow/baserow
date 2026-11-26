@@ -1084,12 +1084,11 @@ export function useAgentConversations(agent, configuration) {
         saved && history?.items.find((message) => message.uuid === saved.uuid)
       if (row) {
         history.items = mergeMessages(history.items, [saved])
-        // The shared finish event omits builder-only diagnoses.
-        if (
-          !canUpdateAgent.value ||
-          !saved.steps?.some((step) => step?.status === STEP_STATUS.FAILED)
-        )
-          return
+        // Older finish events only describe failures through their steps.
+        const hasDiagnostics =
+          saved.has_tool_errors ??
+          saved.steps?.some((step) => step?.status === STEP_STATUS.FAILED)
+        if (!canUpdateAgent.value || !hasDiagnostics) return
       }
       if (conversation.uuid === selectedUuid.value)
         refreshMessages(conversation.uuid)

@@ -2,6 +2,7 @@ from django.urls import reverse
 
 import pytest
 
+from baserow.contrib.agent.action_tools.errors import EMAIL_DELIVERY_UNCONFIRMED
 from baserow.contrib.agent.handler import AgentHandler
 from baserow.contrib.agent.operations import (
     CreateAgentConversationOperationType,
@@ -134,6 +135,18 @@ def test_tool_diagnostics_require_build_access_on_this_agent(
             conversation=conversation,
             role="assistant",
             status="completed",
+            steps=[
+                {
+                    "id": "step",
+                    "tool": "send_email",
+                    "status": "failed",
+                    "changes_data": True,
+                    "input": {},
+                    "facts": {},
+                    "error_code": EMAIL_DELIVERY_UNCONFIRMED.code,
+                    "error_message": EMAIL_DELIVERY_UNCONFIRMED.message,
+                }
+            ],
             tool_errors={"step": "PRIVATE_DIAGNOSIS"},
         )
         return api_client.get(
@@ -146,6 +159,7 @@ def test_tool_diagnostics_require_build_access_on_this_agent(
     response = history(shared=True)
     assert response.status_code == 200
     message = response.json()["results"][0]
+    assert message["steps"][0]["error_message"] == EMAIL_DELIVERY_UNCONFIRMED.message
     if role_uid in ("BUILDER", "ADMIN"):
         assert message["tool_errors"] == {"step": "PRIVATE_DIAGNOSIS"}
     else:

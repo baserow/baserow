@@ -59,8 +59,6 @@ from baserow.core.exceptions import (
     UserNotInWorkspace,
     WorkspaceDoesNotExist,
 )
-from baserow.core.handler import CoreHandler
-from baserow.core.operations import UpdateApplicationOperationType
 from baserow.core.pagination import KeysetCursor
 from baserow.core.service import CoreService
 
@@ -733,7 +731,8 @@ class AgentMessagesView(
     def get(self, request: Request, agent_id: int, conversation_uuid: UUID) -> Response:
         """Lists messages in pages from the newest, each in chronological order."""
 
-        conversation, messages = AgentService().list_messages(
+        service = AgentService()
+        conversation, messages = service.list_messages(
             request.user, agent_id, conversation_uuid
         )
         paginator = AgentMessagePagination(limit_page_size=100)
@@ -744,17 +743,9 @@ class AgentMessagesView(
         active_runs = handler.get_active_reply_runs(conversation) if newest_page else {}
         page = handler.refresh_unfinished_replies(page, active_runs)
         serializer = AgentMessageSerializer
-        if (
-            request.user.is_authenticated
-            and any(message.tool_errors for message in page)
-            and CoreHandler().check_permissions(
-                request.user,
-                UpdateApplicationOperationType.type,
-                workspace=conversation.agent.workspace,
-                context=conversation.agent,
-                raise_permission_exceptions=False,
-            )
-        ):
+        if any(
+            message.tool_errors for message in page
+        ) and service.can_view_tool_errors(request.user, conversation.agent):
             serializer = AgentMessageWithToolErrorsSerializer
         return paginator.get_paginated_response(
             serializer(
