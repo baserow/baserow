@@ -278,7 +278,7 @@ const fontFamily = computed(() => {
     ? info.value.font
     : PUBLIC_CHAT_DEFAULT_FONT
   const font = $registry.get('fontFamily', type)
-  return `"${font.name}","${font.safeFont}"`
+  return `"${font.name}",${font.safeFont}`
 })
 const pageStyle = computed(() => {
   const { accent_color: accent, background_color: color } = info.value
