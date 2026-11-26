@@ -1,4 +1,5 @@
 import time
+from copy import copy
 from typing import Any, Dict, List
 from urllib.parse import quote
 
@@ -102,6 +103,20 @@ class OAuthAccountServiceTypeMixin:
     What the scopes let Baserow do, completing "hasn't allowed Baserow to … yet",
     e.g. "send Teams messages".
     """
+
+    is_external = True
+
+    def requires_autocommit(self, service) -> bool:
+        """Commit rotated tokens independently of the provider action's outcome."""
+
+        return True
+
+    def dispatch(self, service, dispatch_context):
+        """Keep renewed credentials when a subsequent external call fails."""
+
+        context = copy(dispatch_context)
+        context.sends_external_calls_outside_transaction = True
+        return super().dispatch(service, context)
 
     @property
     def oauth_integration_type(self):

@@ -30,6 +30,8 @@ from baserow.core.services.exceptions import (
     RuntimeDispatchException,
     ServiceImproperlyConfiguredDispatchException,
 )
+from baserow.core.services.handler import ServiceHandler
+from baserow.test_utils.pytest_conftest import FakeDispatchContext
 
 from .fake_provider import (
     API_REQUEST,
@@ -335,6 +337,45 @@ def send_message_service(data_fixture, fake_oauth, **kwargs):
     return data_fixture.create_local_baserow_get_row_service(
         integration=fake_oauth.create(**kwargs)
     )
+
+
+@pytest.mark.django_db(transaction=True)
+@pytest.mark.parametrize("status_code", [400, 503])
+def test_dispatch_keeps_rotated_tokens_when_the_action_fails(
+    fake_oauth, stub_service_type, mocker, status_code
+):
+    """A failed provider action must not roll back an already rotated refresh token."""
+
+    integration = expiring(fake_oauth, scopes=SEND_SCOPES)
+    service = ServiceHandler().create_service(
+        stub_service_type, integration=integration
+    )
+    context = FakeDispatchContext()
+    context.sends_external_calls_outside_transaction = False
+    in_transaction = []
+
+    def refresh(**kwargs):
+        in_transaction.append(connection.in_atomic_block)
+        return token_response(scope=" ".join(SEND_SCOPES))
+
+    mocker.patch(PROVIDER_REQUEST, side_effect=refresh)
+    mocker.patch(API_REQUEST, return_value=FakeResponse(status_code, {}))
+    error = (
+        RemoteRefusedDispatchException
+        if status_code == 400
+        else RemoteBusyDispatchException
+    )
+
+    with pytest.raises(error):
+        stub_service_type.dispatch(service, context)
+
+    integration.refresh_from_db()
+    assert integration.access_token == "new-access"  # nosec B105
+    assert integration.refresh_token == "new-refresh"  # nosec B105
+    assert integration.expires_at > timezone.now() + timedelta(minutes=50)
+    assert in_transaction == [False]
+    assert context.sends_external_calls_outside_transaction is False
+    assert stub_service_type.requires_autocommit(service) is True
 
 
 @pytest.mark.django_db
