@@ -360,9 +360,11 @@ $chat-ease: cubic-bezier(0.22, 1, 0.36, 1);
 
   &::before {
     content: '';
-    width: 14px;
-    height: 14px;
-    border: 1.5px solid;
+
+    // Match the check-circle glyph's 22-unit diameter and 2-unit stroke on a 24-unit canvas.
+    width: calc(1em * 22 / 24);
+    height: calc(1em * 22 / 24);
+    border: calc(1em * 2 / 24) solid;
     border-color: currentcolor transparent;
     border-radius: 50%;
     animation: spin 1.2s linear infinite;
