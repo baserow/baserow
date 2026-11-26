@@ -80,6 +80,22 @@ APPEARANCE_FIELD_OVERRIDES = {
 }
 
 
+def imported_appearance(serialized: dict[str, Any]) -> dict[str, Any]:
+    """
+    :param serialized: A public chat from an imported file, which may hold anything.
+    :return: The appearance values the API would accept; any other is left to the
+        model's default.
+    """
+
+    appearance = {}
+    for name, field in APPEARANCE_FIELD_OVERRIDES.items():
+        try:
+            appearance[name] = field.run_validation(serialized.get(name))
+        except serializers.ValidationError:
+            continue
+    return appearance
+
+
 class PublicChatAgentChannelType(AgentChannelType):
     type = "public_chat"
     model_class = PublicChatAgentChannel
@@ -151,7 +167,11 @@ class PublicChatAgentChannelType(AgentChannelType):
         import_export_config: ImportExportConfig,
     ) -> dict[str, Any]:
         serialized = super().export_serialized(channel, import_export_config)
-        serialized.update(title=channel.title, welcome_text=channel.welcome_text)
+        serialized.update(
+            title=channel.title,
+            welcome_text=channel.welcome_text,
+            **{name: getattr(channel, name) for name in APPEARANCE_FIELDS},
+        )
         if self._keeps_password(import_export_config):
             serialized["password"] = channel.password
         return serialized
@@ -175,6 +195,7 @@ class PublicChatAgentChannelType(AgentChannelType):
             password=imported_text(serialized.get("password"), PASSWORD_HASH_LENGTH)
             if keeps_password
             else "",
+            **imported_appearance(serialized),
         )
 
     def _keeps_password(self, import_export_config: ImportExportConfig) -> bool:
