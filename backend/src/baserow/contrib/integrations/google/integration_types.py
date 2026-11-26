@@ -52,7 +52,8 @@ class GoogleIntegrationType(OAuthAccountIntegrationTypeMixin, IntegrationType):
             instance.save(update_fields=[*fields, "generation"])
         return values
 
-    def clean_connection_values(self, values):
-        values = super().clean_connection_values(values)
-        values["client_secret"] = values.get("client_secret") or ""
-        return values
+    def deserialize_property(self, prop_name, value, id_mapping, **kwargs):
+        """Use the model default for a client secret redacted from an export."""
+        if prop_name == "client_secret" and value is None:
+            return self.model_class._meta.get_field(prop_name).get_default()
+        return super().deserialize_property(prop_name, value, id_mapping, **kwargs)

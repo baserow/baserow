@@ -164,7 +164,9 @@ def test_google_identity_must_be_verified(verified):
             )
 
 
-def test_google_export_uses_shared_privacy_policy(google):
+@pytest.mark.parametrize("omit_client_secret", [False, True])
+def test_google_export_uses_shared_privacy_policy(google, omit_client_secret):
+    """Redacted and omitted client secrets import without restoring credentials."""
     user, app, integration = google
     serialized = (
         integration.get_type().get_serializer(integration, IntegrationSerializer).data
@@ -177,9 +179,16 @@ def test_google_export_uses_shared_privacy_policy(google):
     )
     assert exported["client_secret"] is None
     assert exported["access_token"] is None
+    if omit_client_secret:
+        exported.pop("client_secret")
     imported = IntegrationHandler().import_integration(app, exported, {})
+    imported.refresh_from_db()
     assert not imported.connected
-    assert not imported.client_secret
+    assert imported.client_secret == ""
+    assert imported.access_token == ""
+    assert imported.refresh_token == ""
+    assert imported.connected_at is None
+    assert imported.connected_by_id is None
 
 
 @pytest.mark.parametrize("body_type", ["plain", "html"])
