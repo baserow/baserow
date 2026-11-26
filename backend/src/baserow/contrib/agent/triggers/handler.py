@@ -154,7 +154,9 @@ class AgentTriggerHandler:
         """
         Prepare the values a trigger's service is created or updated with, as an
         Agent hosts its type: a new service starts with the Agent's defaults for
-        the type, and the fields an Agent doesn't use are left out.
+        the type, and the fields an Agent doesn't use are left out. A trigger acts
+        as the Agent's run identity, never through an integration, so whatever its
+        type an ``integration_id`` is left out too.
 
         :param service_type: The trigger service type the service has.
         :param service_values: The values to set, by field name.
@@ -167,10 +169,11 @@ class AgentTriggerHandler:
         trigger_type = agent_trigger_type_registry.get_for_service_type(
             service_type.type
         )
+        unused_fields = {"integration_id", *trigger_type.unused_service_fields}
         values = {
             name: value
             for name, value in service_values.items()
-            if name not in trigger_type.unused_service_fields
+            if name not in unused_fields
         }
         if service is None:
             values = {**trigger_type.default_service_values, **values}
