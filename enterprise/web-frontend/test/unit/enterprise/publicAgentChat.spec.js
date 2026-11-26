@@ -394,6 +394,30 @@ describe('usePublicAgentChat', () => {
     expect(mocks.service.getConversation).toHaveBeenCalledTimes(8)
   })
 
+  test('a resent message whose reply waits for approval syncs until it is decided', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
+    mocks.service.startConversation
+      .mockRejectedValueOnce(new Error('Network error occurred'))
+      .mockResolvedValueOnce({
+        data: {
+          token: 'conversation',
+          messages: [visitor, reply('waiting')],
+          run_id: null,
+        },
+      })
+    mocks.service.getConversation.mockResolvedValue({
+      data: { messages: [visitor, reply('completed', 'Done')], run_id: null },
+    })
+    const { chat } = await mountChat()
+    await chat.send('Hello')
+    await chat.send('Hello')
+    expect(chat.waiting.value).toBe(true)
+
+    await vi.advanceTimersByTimeAsync(5000)
+
+    expect(contents(chat)).toEqual(['Hello', 'Done'])
+  })
+
   test('a failed stream syncs and follows again while the reply still runs', async () => {
     vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
     mocks.service.getConversation.mockResolvedValue({

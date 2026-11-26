@@ -191,6 +191,7 @@ export function usePublicAgentChat(slug, initialInfo) {
       .then(ended, ended)
   }
 
+  /** Streams the run writing the reply, or syncs while the reply has none. */
   function follow(id) {
     if (id === runId.value && streamController) return
     stopFollowing()
@@ -200,6 +201,7 @@ export function usePublicAgentChat(slug, initialInfo) {
     }
     runId.value = id
     if (id && !unmounted) openStream()
+    keepSyncing(nextSyncDelay())
   }
 
   function forgetConversation() {
@@ -227,7 +229,6 @@ export function usePublicAgentChat(slug, initialInfo) {
       failedSyncs = 0
       savedMessages.value = data.messages
       follow(data.run_id)
-      keepSyncing(nextSyncDelay())
     } catch (error) {
       if (tokens.conversationToken !== conversationToken) return
       if (isChannelGone(error)) {
