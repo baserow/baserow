@@ -74,7 +74,13 @@ class WorkflowExamples:
                 schema = visible_schema(service, self.access)
                 if not schema:
                     continue
-                metadata = minimize_json_schema(schema)
+                try:
+                    example = create_example_from_json_schema(schema)
+                    metadata = minimize_json_schema(schema)
+                except ValueError:
+                    # Not a schema of objects, such as an iterator over a list
+                    # of texts. The node is left out, like one without a schema.
+                    continue
                 metadata["node_id"] = node.id
                 metadata["label"] = node.label
                 metadata["node_type"] = node.get_type().type
@@ -83,7 +89,7 @@ class WorkflowExamples:
                     metadata["node_ref"] = self.refs[node.id]
                 if previous is not None:
                     metadata["previous_node_id"] = previous.id
-                examples[node.id] = (create_example_from_json_schema(schema), metadata)
+                examples[node.id] = (example, metadata)
             self._workflows[workflow.id] = (previous_of, examples)
         return self._workflows[workflow.id]
 

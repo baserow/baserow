@@ -218,30 +218,61 @@ def create_example_from_json_schema(schema: dict) -> Any:
 
     :param schema: JSON schema dict.
     :return: Example data matching the schema structure.
+    :raises ValueError: When the schema is neither an object nor an array.
     """
-    examples = {
-        "string": "1",
-        "number": 1,
-        "boolean": True,
-        "null": None,
-        "object": lambda prop: create_example_from_json_schema(prop),
-        "array": lambda prop: [create_example_from_json_schema(prop["items"])],
-    }
-
-    if schema.get("type") == "array":
-        return [create_example_from_json_schema(schema.get("items"))]
-    elif schema.get("type") != "object":
+    if schema.get("type") not in ("object", "array"):
         raise ValueError("Schema must be of type object or array of objects")
 
-    properties = schema.get("properties", {})
-    example = {}
-    for key, prop in properties.items():
-        value = examples[prop.get("type")]
-        if callable(value):
-            example[key] = value(prop)
-        else:
-            example[key] = value
-    return example
+    return _example_from_json_schema(schema)
+
+
+_JSON_SCHEMA_TYPE_EXAMPLES = {
+    "string": "1",
+    "number": 1,
+    "integer": 1,
+    "boolean": True,
+    "null": None,
+}
+
+
+def _example_from_json_schema(schema: Any) -> Any:
+    """
+    The example of one part of a JSON schema. Schemas inferred from sample data
+    can hold more than the ones services declare: a value seen with several
+    types, an array that was empty, or a property with no type at all. Those get
+    the closest example, or none, instead of failing.
+
+    :param schema: The schema of a value, at any depth of a JSON schema.
+    :return: An example value, or None when the schema names no known type.
+    """
+
+    if not isinstance(schema, dict):
+        return None
+
+    if "anyOf" in schema:
+        # A value seen with several shapes, such as an object that can be null.
+        # The first one that holds data says the most about it.
+        options = [
+            option
+            for option in schema["anyOf"]
+            if isinstance(option, dict) and option.get("type") != "null"
+        ]
+        return _example_from_json_schema(options[0]) if options else None
+
+    schema_type = schema.get("type")
+    if isinstance(schema_type, list):
+        # A value seen with several types, such as a string that can be null.
+        schema_type = next((item for item in schema_type if item != "null"), None)
+
+    if schema_type == "object":
+        return {
+            key: _example_from_json_schema(prop)
+            for key, prop in schema.get("properties", {}).items()
+        }
+    if schema_type == "array":
+        items = schema.get("items")
+        return [_example_from_json_schema(items)] if isinstance(items, dict) else []
+    return _JSON_SCHEMA_TYPE_EXAMPLES.get(schema_type)
 
 
 # =============================================================================
