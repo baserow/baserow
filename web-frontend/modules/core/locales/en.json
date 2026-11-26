@@ -2161,7 +2161,7 @@
     "loadError": "Could not load workspace integrations.",
     "retry": "Try again",
     "actions": "Integration actions",
-    "subtitle": "Every application in this workspace can use these integrations. Changes reach published applications and workflows when they're published again.",
+    "subtitle": "Every application in this workspace can use these integrations. Changes reach published Builder applications and Automation workflows when they're published again.",
     "search": "Search integrations",
     "create": "Create integration",
     "name": "Name",
@@ -2173,7 +2173,7 @@
     "emptyDescription": "Create an integration here to set it up once and use it in every application in this workspace.",
     "emptyReadOnlyDescription": "Workspace admins can add integrations here for applications in this workspace to use.",
     "deleteTitle": "Delete integration",
-    "deleteMessage": "Every application in this workspace that uses {name} loses this integration until it's restored from the trash. Published applications and workflows keep their own copy until they're published again."
+    "deleteMessage": "Every application in this workspace that uses {name} loses this integration until it's restored from the trash. Published Builder applications and Automation workflows keep their own copy until they're published again."
   },
   "managementPages": {
     "you": "You"
