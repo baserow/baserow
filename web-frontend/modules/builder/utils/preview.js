@@ -1,3 +1,4 @@
+import { isWebFrontendHostname } from '@baserow/modules/core/utils/publishedSite'
 import { getCookieName } from '@baserow/modules/core/utils/cookie'
 
 export const BUILDER_PREVIEW_COOKIE_BASE_NAME = 'baserow_builder_preview'
@@ -62,12 +63,7 @@ export const getBuilderPreviewUserSourceAuthConfig = (
 export const previewSharesWebFrontendHostname = (publicConfig) => {
   try {
     const previewHostname = new URL(publicConfig.builderPreviewUrl).hostname
-    return (
-      previewHostname === new URL(publicConfig.publicWebFrontendUrl).hostname ||
-      (publicConfig.extraPublicWebFrontendHostnames || []).includes(
-        previewHostname
-      )
-    )
+    return isWebFrontendHostname(previewHostname, publicConfig)
   } catch {
     return true
   }

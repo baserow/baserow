@@ -68,6 +68,7 @@ import ElementPreviewHint from '@baserow/modules/builder/components/elements/Ele
 import element from '@baserow/modules/builder/mixins/element'
 import { IFRAME_SOURCE_TYPES } from '@baserow/modules/builder/enums'
 import { ensureString } from '@baserow/modules/core/utils/validator'
+import { isWebFrontendHostname } from '@baserow/modules/core/utils/publishedSite'
 
 const RESTRICTED_SANDBOX = 'allow-scripts allow-forms allow-popups'
 
@@ -140,19 +141,13 @@ export default {
 
       try {
         const url = new URL(this.resolvedURL)
-        const frontendHostname = new URL(
-          this.$config.public.publicWebFrontendUrl
-        ).hostname
-        const extraFrontendHostnames =
-          this.$config.public.extraPublicWebFrontendHostnames || []
 
         // Cookies ignore ports, so a different origin on a frontend hostname
         // must not gain cookie access through allow-same-origin.
         return (
           ['http:', 'https:'].includes(url.protocol) &&
           url.hostname !== window.location.hostname &&
-          url.hostname !== frontendHostname &&
-          !extraFrontendHostnames.includes(url.hostname)
+          !isWebFrontendHostname(url.hostname, this.$config.public)
         )
       } catch {
         return false
