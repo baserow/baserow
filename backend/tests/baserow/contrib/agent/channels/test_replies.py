@@ -13,14 +13,19 @@ from baserow.contrib.agent.channels.registries import (
     agent_channel_type_registry,
 )
 from baserow.contrib.agent.constants import (
+    ASK_FIRST_INSTRUCTIONS,
     TRIGGER_CONVERSATION_INSTRUCTIONS,
     UNATTENDED_REPLY_INSTRUCTIONS,
+    UNAVAILABLE_WORKSPACE_ACCESS_INSTRUCTIONS,
+    VISITOR_ASK_FIRST_INSTRUCTIONS,
     VISITOR_CONVERSATION_INSTRUCTIONS,
+    VISITOR_UNAVAILABLE_WORKSPACE_ACCESS_INSTRUCTIONS,
 )
 from baserow.contrib.agent.handler import AgentHandler
 from baserow.contrib.agent.models import AgentChannel, AgentMessage
+from baserow.contrib.agent.replies import AgentResponder
 from baserow.contrib.agent.service import AgentService
-from baserow.contrib.agent.types import AgentMessageCreated
+from baserow.contrib.agent.types import AgentMessageCreated, AgentReplyRequest
 from baserow.core.chat_runs.constants import ChatRunStopReason
 from baserow.core.chat_runs.journal import ChatRunJournal
 from baserow.core.chat_runs.models import ChatRun
@@ -109,6 +114,40 @@ def test_a_visitor_reply_is_read_as_it_is_written_and_told_who_it_talks_to(
     assert UNATTENDED_REPLY_INSTRUCTIONS.format(trigger="A trigger") not in (
         instructions
     )
+
+
+@pytest.mark.parametrize("started_by_channel", [True, False])
+def test_a_visitor_reply_is_told_the_team_approves_and_no_access_details(
+    mocker, started_by_channel
+):
+    request = AgentReplyRequest(
+        reply_id=1,
+        workspace=None,
+        instructions="",
+        provider_type="openai",
+        model_identifier="gpt",
+        run_as_unavailable=True,
+        allowed_tool_names=["create_rows"],
+        ask_first_tool_names=["create_rows"],
+        started_by_channel=started_by_channel,
+    )
+
+    instructions = AgentResponder(
+        request, mocker.Mock(), mocker.Mock(), {}
+    )._get_instructions(None)
+
+    visitor_texts = (
+        VISITOR_ASK_FIRST_INSTRUCTIONS,
+        VISITOR_UNAVAILABLE_WORKSPACE_ACCESS_INSTRUCTIONS,
+    )
+    member_texts = (ASK_FIRST_INSTRUCTIONS, UNAVAILABLE_WORKSPACE_ACCESS_INSTRUCTIONS)
+    shown, hidden = (
+        (visitor_texts, member_texts)
+        if started_by_channel
+        else (member_texts, visitor_texts)
+    )
+    assert all(text in instructions for text in shown)
+    assert not any(text in instructions for text in hidden)
 
 
 @pytest.mark.django_db

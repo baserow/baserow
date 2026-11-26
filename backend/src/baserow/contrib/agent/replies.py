@@ -87,7 +87,9 @@ from .constants import (
     UNATTENDED_NO_PERSON_INSTRUCTIONS,
     UNATTENDED_REPLY_INSTRUCTIONS,
     UNAVAILABLE_WORKSPACE_ACCESS_INSTRUCTIONS,
+    VISITOR_ASK_FIRST_INSTRUCTIONS,
     VISITOR_CONVERSATION_INSTRUCTIONS,
+    VISITOR_UNAVAILABLE_WORKSPACE_ACCESS_INSTRUCTIONS,
     WEB_FETCH_INSTRUCTIONS,
     WEB_SEARCH_FAILED_INSTRUCTIONS,
     WEB_SEARCH_INSTRUCTIONS,
@@ -498,7 +500,11 @@ class AgentResponder:
         if request.names_senders:
             instructions += f"\n\n{SHARED_CONVERSATION_INSTRUCTIONS}"
         if request.run_as_unavailable:
-            instructions += f"\n\n{UNAVAILABLE_WORKSPACE_ACCESS_INSTRUCTIONS}"
+            instructions += "\n\n" + (
+                VISITOR_UNAVAILABLE_WORKSPACE_ACCESS_INSTRUCTIONS
+                if request.started_by_channel
+                else UNAVAILABLE_WORKSPACE_ACCESS_INSTRUCTIONS
+            )
         if request.started_by_trigger:
             instructions += f"\n\n{TRIGGER_CONVERSATION_INSTRUCTIONS}"
         if request.started_by_channel:
@@ -527,7 +533,11 @@ class AgentResponder:
                 for tool in server.tools
             )
         ):
-            instructions += f"\n\n{ASK_FIRST_INSTRUCTIONS}"
+            instructions += "\n\n" + (
+                VISITOR_ASK_FIRST_INSTRUCTIONS
+                if request.started_by_channel
+                else ASK_FIRST_INSTRUCTIONS
+            )
         if web_search_tool is not None:
             instructions += f"\n\n{WEB_SEARCH_INSTRUCTIONS}"
         elif request.web_search_tool is not None:
