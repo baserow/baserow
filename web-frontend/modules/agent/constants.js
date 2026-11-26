@@ -93,6 +93,7 @@ export const MESSAGE_ROLE = Object.freeze({
   USER: 'user',
   ASSISTANT: 'assistant',
   TRIGGER: 'trigger',
+  VISITOR: 'visitor',
 })
 
 // Error responses handled by the Agent API client, including shared API errors.
@@ -103,6 +104,7 @@ export const API_ERROR_CODE = Object.freeze({
   AGENT_BUSY: 'ERROR_AGENT_BUSY',
   AGENT_MESSAGE_CONFLICT: 'ERROR_AGENT_MESSAGE_CONFLICT',
   AGENT_CONVERSATION_DOES_NOT_EXIST: 'ERROR_AGENT_CONVERSATION_DOES_NOT_EXIST',
+  AGENT_CHANNEL_DOES_NOT_EXIST: 'ERROR_AGENT_CHANNEL_DOES_NOT_EXIST',
   AGENT_RUN_AS_SUBJECT_DOES_NOT_EXIST:
     'ERROR_AGENT_RUN_AS_SUBJECT_DOES_NOT_EXIST',
   MCP_SERVER_UNREACHABLE: 'ERROR_MCP_SERVER_UNREACHABLE',
@@ -138,6 +140,7 @@ export const AGENT_REPLY_ERROR_CODE = Object.freeze({
   RUN_LIMIT_REACHED: 'chat_run_limit_reached',
   TRIGGER_MESSAGE_FAILED: 'trigger_message_failed',
   TRIGGER_OFF: 'trigger_off',
+  CHANNEL_OFF: 'channel_off',
   PROVIDER_AUTH_FAILED: 'provider_auth_failed',
   PROVIDER_RATE_LIMITED: 'provider_rate_limited',
   PROVIDER_UNAVAILABLE: 'provider_unavailable',

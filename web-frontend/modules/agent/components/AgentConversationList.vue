@@ -35,6 +35,11 @@
         icon="iconoir-flash"
       />
       <DropdownItem
+        value="visitors"
+        :name="$t('agent.channelsFilter')"
+        icon="iconoir-multi-bubble"
+      />
+      <DropdownItem
         value="private"
         :name="$t('agent.private')"
         icon="iconoir-user"
@@ -346,13 +351,15 @@ const itemButtons = {}
 let renameOriginal = ''
 
 function conversationIcon(item) {
+  if (item.started_by_channel) return 'iconoir-multi-bubble'
   return (
     serviceTypeOf($registry, item.trigger_type)?.icon || 'iconoir-chat-bubble'
   )
 }
 
-/** The trigger or the person that started the conversation, by name. */
+/** The trigger, the visitor or the person that started the conversation. */
 function startedBy(item) {
+  if (item.started_by_channel) return t('agent.startedByVisitor')
   if (item.started_by_trigger) {
     return (
       item.trigger_name ||

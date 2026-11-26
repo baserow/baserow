@@ -794,6 +794,33 @@ describe('Agent tool approvals', () => {
     expect(activity(wrapper).text()).toBe('agent.waitingForApproval')
   })
 
+  test('rejecting in a visitor conversation warns that the reason may reach the visitor', async () => {
+    mockConversations(
+      testApp,
+      conversationsPage([
+        {
+          ...chat,
+          shared: true,
+          started_by_channel: true,
+          pending_approval_count: 1,
+        },
+      ])
+    )
+    mockMessages(
+      testApp,
+      chat.uuid,
+      page([prompt, reply('waiting', [approval(1)])])
+    )
+    const wrapper = await mount()
+    await selectConversation(wrapper, chat.title)
+
+    await headerButtons(wrapper)[0].trigger('click')
+
+    expect(inModal('.agent-reject-modal__description').textContent.trim()).toBe(
+      'agent.rejectStepVisitorDescription'
+    )
+  })
+
   test.each(['cancel', 'Escape'])(
     'keeps rejection keyboard focus in the dialog and restores it on %s',
     async (dismiss) => {

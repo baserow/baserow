@@ -929,13 +929,18 @@ describe('Agent conversations', () => {
     ['agent.private', { shared: false }, ['Mine']],
     ['agent.shared', { shared: true }, ['Team', 'Ticket']],
     ['agent.triggered', { started_by_trigger: true }, ['Ticket']],
+    ['agent.channelsFilter', { started_by_channel: true }, ['Team']],
     ['agent.failed', { last_reply_failed: true }, ['Ticket']],
   ])(
     'filters %s conversations on the server',
     async (label, params, titles) => {
       const all = conversationsPage([
         conversation('mine', 'Mine'),
-        { ...conversation('team', 'Team'), shared: true },
+        {
+          ...conversation('team', 'Team'),
+          shared: true,
+          started_by_channel: true,
+        },
         {
           ...conversation('ticket', 'Ticket'),
           shared: true,
@@ -1119,6 +1124,40 @@ describe('Agent conversations', () => {
     expect(messages(wrapper)).toEqual(['Digest ready'])
     expect(wrapper.find('.agent-conversations__options').exists()).toBe(false)
     expect(warning(wrapper).exists()).toBe(false)
+  })
+
+  test("shows a visitor's conversation read-only to a user with every permission, with the visitor's messages on the right under their label", async () => {
+    mockConversations(
+      testApp,
+      conversationsPage([
+        {
+          ...sharedConversation('visit', 'Opening hours'),
+          started_by_trigger: false,
+          started_by_channel: true,
+        },
+      ])
+    )
+    mockMessages(
+      testApp,
+      'visit',
+      page([
+        message('v1', 'When are you open?', {
+          id: 1,
+          role: 'visitor',
+          sender: null,
+        }),
+      ])
+    )
+    const wrapper = await mount()
+
+    await selectConversation(wrapper, 'Opening hours')
+
+    const bubble = wrapper.get('.chat-message--own .chat-message__bubble')
+    expect(bubble.get('.chat-message__sender').text()).toBe('agent.visitor')
+    expect(composerExists(wrapper)).toBe(false)
+    expect(wrapper.get('.agent-chat__shared').text()).toBe(
+      'agent.visitorNoMessages'
+    )
   })
 
   test('shows who may continue a triggered conversation the configuration warning, not a read-only note', async () => {

@@ -88,6 +88,9 @@ from .constants import (
     UNATTENDED_NO_PERSON_INSTRUCTIONS,
     UNATTENDED_REPLY_INSTRUCTIONS,
     UNAVAILABLE_WORKSPACE_ACCESS_INSTRUCTIONS,
+    VISITOR_ASK_FIRST_INSTRUCTIONS,
+    VISITOR_CONVERSATION_INSTRUCTIONS,
+    VISITOR_UNAVAILABLE_WORKSPACE_ACCESS_INSTRUCTIONS,
     WEB_FETCH_INSTRUCTIONS,
     WEB_SEARCH_FAILED_INSTRUCTIONS,
     WEB_SEARCH_INSTRUCTIONS,
@@ -209,9 +212,10 @@ def build_history(
     messages: list[AgentMessage], names_senders: bool = False
 ) -> list[ModelMessage]:
     """
-    Turn earlier prompts, sent by a person or a trigger, and replies into model
-    history, marking replies that did not complete. Questions a reply asked a
-    person come before its text, as the agent asking and the person answering.
+    Turn earlier prompts, sent by a person, a trigger or a visitor, and replies
+    into model history, marking replies that did not complete. Questions a reply
+    asked a person come before its text, as the agent asking and the person
+    answering.
 
     :param messages: Earlier messages of the conversation, oldest first, with
         their senders and the replies' decided questions prefetched.
@@ -221,7 +225,11 @@ def build_history(
         out, so it always starts with a prompt.
     """
 
-    prompt_roles = {AgentMessage.Role.USER, AgentMessage.Role.TRIGGER}
+    prompt_roles = {
+        AgentMessage.Role.USER,
+        AgentMessage.Role.TRIGGER,
+        AgentMessage.Role.VISITOR,
+    }
     history: list[ModelMessage] = []
     for message in messages:
         if message.role in prompt_roles:
@@ -478,8 +486,8 @@ class AgentResponder:
     def _get_instructions(self, web_search_tool: WebSearchTool | None) -> str:
         """
         Combine saved instructions with who this reply answers and acts as, its
-        workspace access, trigger, whether anyone reads it as it's written, and web
-        context.
+        workspace access, trigger or channel, whether anyone reads it as it's
+        written, and web context.
 
         :param web_search_tool: The web search this attempt offers, if any.
         :return: The instructions.
@@ -500,9 +508,15 @@ class AgentResponder:
         if request.names_senders:
             instructions += f"\n\n{SHARED_CONVERSATION_INSTRUCTIONS}"
         if request.run_as_unavailable:
-            instructions += f"\n\n{UNAVAILABLE_WORKSPACE_ACCESS_INSTRUCTIONS}"
+            instructions += "\n\n" + (
+                VISITOR_UNAVAILABLE_WORKSPACE_ACCESS_INSTRUCTIONS
+                if request.started_by_channel
+                else UNAVAILABLE_WORKSPACE_ACCESS_INSTRUCTIONS
+            )
         if request.started_by_trigger:
             instructions += f"\n\n{TRIGGER_CONVERSATION_INSTRUCTIONS}"
+        if request.started_by_channel:
+            instructions += f"\n\n{VISITOR_CONVERSATION_INSTRUCTIONS}"
         if request.unattended:
             trigger = (
                 f'The trigger "{request.trigger_name}"'
@@ -527,7 +541,11 @@ class AgentResponder:
                 for tool in server.tools
             )
         ):
-            instructions += f"\n\n{ASK_FIRST_INSTRUCTIONS}"
+            instructions += "\n\n" + (
+                VISITOR_ASK_FIRST_INSTRUCTIONS
+                if request.started_by_channel
+                else ASK_FIRST_INSTRUCTIONS
+            )
         if web_search_tool is not None:
             instructions += f"\n\n{WEB_SEARCH_INSTRUCTIONS}"
         elif request.web_search_tool is not None:
@@ -651,7 +669,7 @@ class AgentResponder:
             self._parts = {}
             self._text = ""
             self._text_is_commentary = False
-            self._journal.emit_text("")
+            self._stream_text()
             raise
 
     def _offered_web_search(
@@ -839,7 +857,26 @@ class AgentResponder:
             case _:
                 return
         self._text = "".join(self._parts[index] for index in sorted(self._parts))
-        self._journal.emit_text(self._text)
+        self._stream_text()
+
+    @property
+    def _holds_text(self) -> bool:
+        """
+        :return: Whether the text stays out of the stream until the reply ends. A
+            visitor reads the stream, and what a reply writes before it calls a
+            tool isn't its answer and can't be told from it while it arrives.
+        """
+
+        return self._request.started_by_channel and bool(
+            self._tools
+            or self._mcp_toolsets
+            or self._web_fetch_tool
+            or self._web_search_tool
+        )
+
+    def _stream_text(self) -> None:
+        if not self._holds_text:
+            self._journal.emit_text(self._text)
 
     def _outcome(self, work: asyncio.Task) -> ChatRunOutcome:
         result = self._reply_result()
@@ -880,7 +917,8 @@ class AgentResponder:
         """
         Collect what the reply produced: its text, the provider and model, and once
         the model finished or paused, its messages and usage. A paused reply keeps
-        the text the owner saw, the held calls and the run to resume.
+        the text the owner saw, the held calls and the run to resume. A reply
+        holding its text keeps only its final answer.
 
         :return: The text and the execution details of the reply.
         """
@@ -890,15 +928,18 @@ class AgentResponder:
         )
         steps = self._steps.finish() or None
         waiting_calls = self._steps.waiting_calls() if paused else []
+        unfinished_text = "" if self._holds_text else self._text
         if self._result is None:
             return AgentReplyResult(
-                text=self._text,
+                text=unfinished_text,
                 provider_type=self._request.provider_type,
                 model_identifier=self._request.model_identifier,
                 steps=steps,
             )
         return AgentReplyResult(
-            text=self._text if paused else remove_null_characters(self._result.output),
+            text=unfinished_text
+            if paused
+            else remove_null_characters(self._result.output),
             provider_type=self._request.provider_type,
             model_identifier=self._request.model_identifier,
             model_messages=ModelMessagesTypeAdapter.dump_python(

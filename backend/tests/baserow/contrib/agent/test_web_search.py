@@ -655,7 +655,13 @@ def test_step_starts_when_the_search_does_and_learns_the_query_when_it_arrives()
 def test_text_before_a_search_leaves_the_stream_once_the_answer_starts():
     journal = Mock()
     responder = AgentResponder(
-        Mock(allowed_tool_names=[], action_tools=[], mcp_servers=(), resume=None),
+        Mock(
+            allowed_tool_names=[],
+            action_tools=[],
+            mcp_servers=(),
+            resume=None,
+            started_by_channel=False,
+        ),
         journal,
         Mock(),
         {},

@@ -7,7 +7,7 @@ import {
   extendPages,
   addRouteMiddleware,
 } from 'nuxt/kit'
-import { routes, rootChildRoutes } from './routes'
+import { routes, rootChildRoutes, publicRoutes } from './routes'
 import { locales } from '../../../../web-frontend/config/locales.js'
 import _ from 'lodash'
 
@@ -37,6 +37,12 @@ export default defineNuxtModule({
       rootChildRoutes.forEach((route) => {
         if (!rootRoute.children.find(({ name }) => name === route.name)) {
           rootRoute.children.push(route)
+        }
+      })
+
+      publicRoutes.forEach((route) => {
+        if (!pages.find(({ name }) => name === route.name)) {
+          pages.push(route)
         }
       })
 

@@ -1,0 +1,81 @@
+from rest_framework import serializers
+
+from baserow.api.chat_runs.serializers import ChatRunStreamQuerySerializer
+from baserow.contrib.agent.api.serializers import AgentMessageContentSerializer
+from baserow.contrib.agent.models import AgentMessage
+from baserow_enterprise.agent.constants import (
+    PUBLIC_CHAT_PASSWORD_MAX_LENGTH,
+    PUBLIC_CHAT_START_KEY_PATTERN,
+)
+
+
+class PublicChatInfoSerializer(serializers.Serializer):
+    title = serializers.CharField(
+        help_text="The chat's title, or the agent's name. Empty for a password "
+        "protected chat until the request carries a valid token."
+    )
+    welcome_text = serializers.CharField(
+        help_text="Shown before the first message. Empty for a password protected "
+        "chat until the request carries a valid token."
+    )
+    password_protected = serializers.BooleanField()
+    has_access = serializers.BooleanField(
+        help_text="Whether the request may talk in the chat: always without a "
+        "password, otherwise only with a token of the current password."
+    )
+
+
+class PublicChatAuthRequestSerializer(serializers.Serializer):
+    password = serializers.CharField(
+        trim_whitespace=False, max_length=PUBLIC_CHAT_PASSWORD_MAX_LENGTH
+    )
+
+
+class PublicChatConversationStartSerializer(AgentMessageContentSerializer):
+    key = serializers.RegexField(
+        PUBLIC_CHAT_START_KEY_PATTERN,
+        help_text="A secret the page generates for this first message, 32 to 128 "
+        "lowercase hexadecimal digits or hyphens. Sending it again with the same "
+        "content returns the conversation it started.",
+    )
+
+
+class PublicChatAuthResponseSerializer(serializers.Serializer):
+    access_token = serializers.CharField(
+        help_text="Send it in the `Baserow-Agent-Chat-Authorization` header as "
+        "`JWT <token>` to start a conversation."
+    )
+
+
+class PublicChatMessageSerializer(serializers.ModelSerializer):
+    id = serializers.UUIDField(source="uuid")
+
+    class Meta:
+        model = AgentMessage
+        fields = ("id", "role", "content", "status", "created_on")
+
+
+class PublicChatConversationSerializer(serializers.Serializer):
+    messages = PublicChatMessageSerializer(many=True)
+    run_id = serializers.UUIDField(
+        allow_null=True, help_text="The run writing a reply now, or null."
+    )
+
+
+class PublicChatConversationStartedSerializer(PublicChatConversationSerializer):
+    token = serializers.CharField(
+        help_text="Send it in the `Baserow-Agent-Chat-Authorization` header as "
+        "`JWT <token>` to continue the conversation."
+    )
+
+
+class PublicChatStopSerializer(serializers.Serializer):
+    status = serializers.CharField(
+        allow_null=True,
+        help_text="The status of the run after the stop request, or null when the "
+        "agent wasn't replying.",
+    )
+
+
+class PublicChatStreamQuerySerializer(ChatRunStreamQuerySerializer):
+    run_id = serializers.UUIDField(help_text="The run writing the reply to follow.")

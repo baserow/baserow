@@ -19,7 +19,13 @@ from .constants import (
     AgentReadinessState,
     AgentRunAsState,
 )
-from .models import AgentApplication, AgentConversation, AgentMessage, AgentTrigger
+from .models import (
+    AgentApplication,
+    AgentChannel,
+    AgentConversation,
+    AgentMessage,
+    AgentTrigger,
+)
 
 if TYPE_CHECKING:
     from .action_tools.tools import BoundActionTool
@@ -94,6 +100,17 @@ class AgentMessageCreated:
     created: bool
 
 
+@dataclass(frozen=True)
+class AgentVisitorConversation:
+    """A visitor's conversation as their page shows it."""
+
+    conversation: AgentConversation
+    messages: list[AgentMessage]
+    """The visitor's messages and the agent's replies, oldest first."""
+    run_id: UUID | None
+    """The run writing a reply now, or None."""
+
+
 @dataclass
 class AgentConfigurationUpdated:
     agent: AgentApplication
@@ -129,6 +146,14 @@ class AgentTriggerUpdated:
     trigger: AgentTrigger
     changed_fields: list[str]
     previous_type: str | None = None
+
+
+@dataclass
+class AgentChannelUpdated:
+    """An updated channel and the names of the fields that changed."""
+
+    channel: AgentChannel
+    changed_fields: list[str]
 
 
 @dataclass(frozen=True)
@@ -239,6 +264,8 @@ class AgentReplyRequest:
     """Whether web search is turned on, even when the model can't use it."""
     started_by_trigger: bool = False
     """Whether a trigger started the conversation, so its prompt is outside data."""
+    started_by_channel: bool = False
+    """Whether a channel started the conversation, so a visitor writes in it."""
     unattended: bool = False
     """Whether nobody reads the reply as it's written: it answers a trigger."""
     trigger_name: str | None = None

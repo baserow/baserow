@@ -48,6 +48,7 @@
         :disabled="!canDecide"
         :can-always-allow="canAlwaysAllow"
         :deciding="decidingReplies.has(reply.uuid)"
+        :started-by-channel="reply.conversation.started_by_channel"
         compact
         @decide="(decisions, options) => review(reply, decisions, options)"
       >

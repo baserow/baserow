@@ -154,6 +154,9 @@
                 :trigger-type="state.selectedConversation?.trigger_type"
                 :trigger-name="state.selectedConversation?.trigger_name"
                 :example="state.selectedConversation?.is_example"
+                :started-by-channel="
+                  state.selectedConversation?.started_by_channel
+                "
                 :can-approve="state.canApprove"
                 :can-decide="state.canDecide"
                 :can-always-allow="state.canUpdateConfiguration"
@@ -496,6 +499,7 @@ const readOnlyNote = computed(() => {
   const conversation = state.selectedConversation
   if (!conversation || conversation.local || state.canWriteSelected) return ''
   if (conversation.is_example) return 'agent.exampleNoMessages'
+  if (conversation.started_by_channel) return 'agent.visitorNoMessages'
   return conversation.started_by_trigger
     ? 'agent.sharedNoMessages'
     : 'agent.cannotSendMessages'

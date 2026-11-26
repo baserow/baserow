@@ -349,6 +349,29 @@ describe('Agent conversation list', () => {
     expect(wrapper.find('.agent-conversations__filter').exists()).toBe(false)
   })
 
+  test('shows a conversation a channel started with its own icon and as started by a visitor', async () => {
+    const wrapper = await testApp.mount(AgentConversationList, {
+      props: {
+        items: [
+          {
+            uuid: 'visit',
+            title: 'Opening hours',
+            shared: true,
+            started_by_channel: true,
+            owner: null,
+          },
+        ],
+      },
+    })
+
+    expect(wrapper.get('.agent-conversations__item .icon').classes()).toContain(
+      'iconoir-multi-bubble'
+    )
+    expect(wrapper.get('.agent-conversations__detail').text()).toBe(
+      'agent.startedByVisitor'
+    )
+  })
+
   test('lets only members who may update the agent change a shared conversation', async () => {
     const shared = {
       uuid: 'shared',

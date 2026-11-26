@@ -76,6 +76,13 @@ def register_row_comment_trigger():
     agent_trigger_type_registry.register(RowCommentPostedAgentTriggerType())
 
 
+def register_agent_channel_types():
+    from baserow.contrib.agent.channels.registries import agent_channel_type_registry
+    from baserow_enterprise.agent.channel_types import PublicChatAgentChannelType
+
+    agent_channel_type_registry.register(PublicChatAgentChannelType())
+
+
 def register_semantic_search_features():
     from baserow.api.settings.registries import settings_data_registry
     from baserow.contrib.agent.action_tools.registries import (
@@ -527,6 +534,7 @@ class BaserowEnterpriseConfig(AppConfig):
         register_code_runner_features()
         register_xls_file_reader_features()
         register_row_comment_trigger()
+        register_agent_channel_types()
         register_semantic_search_features()
 
         from baserow.contrib.builder.elements.registries import element_type_registry
@@ -736,6 +744,9 @@ class BaserowEnterpriseConfig(AppConfig):
         from baserow.config.streaming import register_async_stream_path
 
         register_async_stream_path("assistant:chat_messages")
+        register_async_stream_path(
+            "api:enterprise:agent_public_chat_stream:stream", methods=("GET",)
+        )
 
         # The signals must always be imported last because they use the registries
         # which need to be filled first.

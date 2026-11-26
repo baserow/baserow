@@ -17,7 +17,7 @@
   </ChatMessage>
   <ChatMessage
     v-else
-    :own="ownMessage"
+    :own="ownMessage || fromVisitor"
     :class="{ 'chat-message--steps': entries.length }"
   >
     <template v-for="entry in entries" :key="entry.key">
@@ -35,6 +35,7 @@
         :disabled="!canDecide"
         :can-always-allow="canAlwaysAllow"
         :deciding="deciding"
+        :started-by-channel="startedByChannel"
         @decide="(decisions, options) => $emit('decide', decisions, options)"
       />
       <ChatStepGroup
@@ -51,18 +52,13 @@
       />
     </template>
     <div
-      v-if="fromUser && !ownMessage"
+      v-if="fromPerson && !ownMessage"
       class="chat-message__bubble chat-message__bubble--peer"
     >
-      <div class="chat-message__sender">
-        {{
-          message.sender?.name ||
-          $t(example ? 'agent.exampleSender' : 'agent.deletedSender')
-        }}
-      </div>
+      <div class="chat-message__sender">{{ senderName }}</div>
       <div class="chat-message__text">{{ message.content }}</div>
     </div>
-    <div v-else-if="fromUser" class="chat-message__bubble">
+    <div v-else-if="fromPerson" class="chat-message__bubble">
       {{ message.content }}
     </div>
     <div
@@ -141,18 +137,29 @@ const props = defineProps({
   triggerName: { type: String, default: null },
   /** Whether the message is part of an example, sent by nobody of this instance. */
   example: { type: Boolean, default: false },
+  /** Whether a visitor started the conversation through a channel. */
+  startedByChannel: { type: Boolean, default: false },
 })
 defineEmits(['decide'])
 
 const store = useStore()
 const { $registry } = useNuxtApp()
 const { t } = useI18n()
-const fromUser = computed(() => props.message.role === MESSAGE_ROLE.USER)
+const fromVisitor = computed(() => props.message.role === MESSAGE_ROLE.VISITOR)
+const fromPerson = computed(
+  () => fromVisitor.value || props.message.role === MESSAGE_ROLE.USER
+)
 // Others write in a shared conversation too, so only the viewer's own are theirs.
 const ownMessage = computed(
   () =>
-    fromUser.value &&
+    props.message.role === MESSAGE_ROLE.USER &&
     props.message.sender?.id === store.getters['auth/getUserId']
+)
+const senderName = computed(() =>
+  fromVisitor.value
+    ? t('agent.visitor')
+    : props.message.sender?.name ||
+      t(props.example ? 'agent.exampleSender' : 'agent.deletedSender')
 )
 /** The saved message, with each field its unsaved run already wrote. */
 const shown = computed(() => {
@@ -234,12 +241,12 @@ function stepEntries(steps, approvals) {
 
 // Stable arrays let text deltas skip rebuilding and re-rendering the steps.
 const steps = computed(() =>
-  fromUser.value || !Array.isArray(shown.value.steps)
+  fromPerson.value || !Array.isArray(shown.value.steps)
     ? NO_STEPS
     : shown.value.steps
 )
 const approvals = computed(() =>
-  fromUser.value || !Array.isArray(shown.value.approvals)
+  fromPerson.value || !Array.isArray(shown.value.approvals)
     ? NO_APPROVALS
     : shown.value.approvals
 )

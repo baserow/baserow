@@ -1017,6 +1017,17 @@ def write_template_with_examples(data_fixture, configured_agent, tmp_path):
         agent=agent, owner_user=None, shared=True, pinned=True, started_by_trigger=True
     )
     data_fixture.create_agent_message(conversation=triggered, content="TRIGGERED")
+    visitor = data_fixture.create_agent_conversation(
+        agent=agent,
+        owner_user=None,
+        shared=True,
+        pinned=True,
+        started_by_trigger=False,
+        started_by_channel=True,
+    )
+    data_fixture.create_agent_message(
+        conversation=visitor, role=AgentMessage.Role.VISITOR, content="VISITOR"
+    )
     data_fixture.create_agent_message(
         conversation=shared,
         content="An example",
@@ -1064,9 +1075,9 @@ def test_conversations_are_exported_as_examples_without_their_people(
         (message["content"], message["sender_id"])
         for message in conversation["messages"]
     ] == [("An example", None)]
-    # The private, unpinned and triggered ones and the tool steps stay behind.
+    # The private, unpinned, triggered and visitor ones and the steps stay behind.
     assert conversation["messages"][0]["steps"] is None
-    for left_out in ("PRIVATE", "UNPINNED", "TRIGGERED"):
+    for left_out in ("PRIVATE", "UNPINNED", "TRIGGERED", "VISITOR"):
         assert left_out not in json.dumps(exported)
 
 
@@ -1591,6 +1602,7 @@ def test_importing_examples_keeps_only_what_the_export_picks(
             {**base, "title": "Private", "shared": False},
             {**base, "title": "Unpinned", "pinned": False},
             {**base, "title": "Triggered", "started_by_trigger": True},
+            {**base, "title": "Visitor", "started_by_channel": True},
             {**base, "title": "Test", "is_test": True},
             # Written by hand and broken: skipped, not failing the import.
             {**base, "title": None},

@@ -1,6 +1,7 @@
 from django.urls import include, path
 
 from .action_tools import urls as action_tools_urls
+from .channels import urls as channels_urls
 from .triggers import urls as triggers_urls
 from .views import (
     AgentApplicationView,
@@ -78,4 +79,5 @@ urlpatterns = [
     ),
     path("", include(triggers_urls, namespace="triggers")),
     path("", include(action_tools_urls, namespace="actions")),
+    path("", include(channels_urls, namespace="channels")),
 ]

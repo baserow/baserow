@@ -7,6 +7,7 @@ from baserow.contrib.agent.action_tools.registries import agent_action_type_regi
 from baserow.contrib.agent.models import (
     AgentAction,
     AgentApplication,
+    AgentChannel,
     AgentConversation,
     AgentMessage,
     AgentReplyStatus,
@@ -156,4 +157,40 @@ class AgentApplicationFixtures:
         kwargs.setdefault("title", "Started by a trigger")
         return AgentConversation.objects.create(
             agent=agent, shared=True, started_by_trigger=True, **kwargs
+        )
+
+    def create_agent_channel(
+        self, agent: AgentApplication | None = None, **kwargs
+    ) -> AgentChannel:
+        """
+        Create a channel of the base type, which core tests use.
+
+        :param agent: The owning agent, created when not given.
+        :return: The created channel.
+        """
+
+        if agent is None:
+            agent = self.create_agent_application()
+        return AgentChannel.objects.create(agent=agent, **kwargs)
+
+    def create_channel_conversation(
+        self, channel: AgentChannel | None = None, **kwargs
+    ) -> AgentConversation:
+        """
+        Create a conversation a channel started: shared and without an owner.
+
+        :param channel: The channel, created when not given.
+        :return: The created conversation.
+        """
+
+        if channel is None:
+            channel = self.create_agent_channel()
+        kwargs.setdefault("uuid", uuid4())
+        kwargs.setdefault("title", "Started by a visitor")
+        return AgentConversation.objects.create(
+            agent=channel.agent,
+            channel=channel,
+            shared=True,
+            started_by_channel=True,
+            **kwargs,
         )
