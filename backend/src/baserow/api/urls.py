@@ -1,6 +1,7 @@
 from django.urls import include, path
 
 from drf_spectacular.views import SpectacularRedocView
+from drf_spectacular_sidecar import __version__ as sidecar_version
 
 from baserow.core.integrations.registries import integration_type_registry
 from baserow.core.registries import (
@@ -48,7 +49,11 @@ urlpatterns = (
             ),
             name="redoc",
         ),
-        path("redoc/bundles/<str:filename>", redoc_asset, name="redoc_asset"),
+        path(
+            f"redoc/{sidecar_version}/bundles/<str:filename>",
+            redoc_asset,
+            name="redoc_asset",
+        ),
         path("settings/", include(settings_urls, namespace="settings")),
         path("abuse-reports/", include(abuse_reports_urls, namespace="abuse_reports")),
         path("identities/", include(identities_urls, namespace="identities")),

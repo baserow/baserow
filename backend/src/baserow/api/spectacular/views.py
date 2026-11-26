@@ -3,13 +3,16 @@ from importlib.resources import files
 from django.conf import settings
 from django.http import FileResponse, Http404
 from django.utils.decorators import method_decorator
-from django.views.decorators.cache import cache_page, never_cache
+from django.views.decorators.cache import cache_control, cache_page, never_cache
+from django.views.decorators.gzip import gzip_page
 from django.views.decorators.http import require_safe
 
 from drf_spectacular.views import SpectacularJSONAPIView as ParentSpectacularJSONAPIView
 
 
 @require_safe
+@cache_control(public=True, max_age=31536000, immutable=True)
+@gzip_page
 def redoc_asset(request, filename):
     content_types = {
         "redoc.standalone.js": "text/javascript",

@@ -13,6 +13,7 @@ from django.core.exceptions import ImproperlyConfigured
 
 import dj_database_url
 from corsheaders.defaults import default_headers
+from drf_spectacular_sidecar import __version__ as sidecar_version
 from redis.backoff import EqualJitterBackoff
 from redis.exceptions import ConnectionError as RedisConnectionError
 from redis.exceptions import ReadOnlyError as RedisReadOnlyError
@@ -723,7 +724,7 @@ SPECTACULAR_SETTINGS = {
     },
     "VERSION": "2.4.3",
     "SERVE_INCLUDE_SCHEMA": False,
-    "REDOC_DIST": ".",
+    "REDOC_DIST": f"./{sidecar_version}",
     "TAGS": [
         {"name": "Settings"},
         {"name": "User"},

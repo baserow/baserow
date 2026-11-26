@@ -1,6 +1,8 @@
+import gzip
 from urllib.parse import urljoin, urlsplit
 
 from bs4 import BeautifulSoup
+from drf_spectacular_sidecar import __version__ as sidecar_version
 from rest_framework.reverse import reverse
 from rest_framework.status import HTTP_200_OK, HTTP_404_NOT_FOUND
 
@@ -19,10 +21,18 @@ def test_redoc_loads_its_assets_from_the_backend(api_client):
         assert not asset.netloc
 
     bundle_url = urljoin(url, page.script["src"])
+    assert f"/{sidecar_version}/" in bundle_url
     bundle = api_client.get(bundle_url)
     assert bundle.status_code == HTTP_200_OK
     assert "javascript" in bundle["Content-Type"]
-    assert b"Redoc" in b"".join(bundle.streaming_content)
+    assert "immutable" in bundle["Cache-Control"]
+    assert "max-age=31536000" in bundle["Cache-Control"]
+    compressed = api_client.get(bundle_url, HTTP_ACCEPT_ENCODING="gzip")
+    assert compressed["Content-Encoding"] == "gzip"
+    assert "Accept-Encoding" in compressed["Vary"]
+    assert gzip.decompress(b"".join(compressed.streaming_content)) == b"".join(
+        bundle.streaming_content
+    )
     assert api_client.head(f"{bundle_url}.LICENSE.txt").status_code == HTTP_200_OK
     assert api_client.head(f"{bundle_url}.map").status_code == HTTP_200_OK
     assert api_client.get(f"{bundle_url}.unknown").status_code == HTTP_404_NOT_FOUND
