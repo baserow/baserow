@@ -76,6 +76,9 @@ from baserow.contrib.integrations.core.service_types import (
     CoreStartWorkflowServiceType,
     CoreWaitServiceType,
 )
+from baserow.contrib.integrations.google.service_types import (
+    GoogleGmailSendEmailServiceType,
+)
 from baserow.contrib.integrations.local_baserow.mixins import (
     UpdateRowRequiresRowIdMixin,
 )
@@ -108,6 +111,8 @@ from baserow.core.services.models import Service
 from baserow.core.services.registries import service_type_registry
 from baserow.core.services.types import DispatchResult
 from baserow.core.utils import exception_capturer
+
+from .models import GoogleGmailSendEmailActionNode
 
 
 class AutomationActionNodeType(AutomationNodeType):
@@ -1043,3 +1048,17 @@ class SlackWriteMessageActionNodeType(AutomationActionNodeType):
     type = "slack_write_message"
     model_class = SlackWriteMessageActionNode
     service_type = SlackWriteMessageServiceType.type
+
+
+class GoogleGmailSendEmailActionNodeType(AutomationActionNodeType):
+    type = "google_gmail_send_email"
+    model_class = GoogleGmailSendEmailActionNode
+    service_type = GoogleGmailSendEmailServiceType.type
+    display_name = _("Gmail send email")
+
+    def get_pytest_params(self, pytest_data_fixture):
+        return {
+            "service": pytest_data_fixture.create_service(
+                GoogleGmailSendEmailServiceType.model_class, integration=None
+            )
+        }

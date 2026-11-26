@@ -272,6 +272,7 @@ class DatabaseConfig(AppConfig):
             CoreHTTPRequestWorkflowActionType,
             CoreSMTPEmailWorkflowActionType,
             CoreStartWorkflowWorkflowActionType,
+            GoogleGmailSendEmailWorkflowActionType,
             LocalBaserowCreateRowWorkflowActionType,
             LocalBaserowDeleteRowWorkflowActionType,
             LocalBaserowUpdateRowWorkflowActionType,
@@ -297,6 +298,9 @@ class DatabaseConfig(AppConfig):
         )
         database_workflow_action_type_registry.register(
             SlackWriteMessageWorkflowActionType()
+        )
+        database_workflow_action_type_registry.register(
+            GoogleGmailSendEmailWorkflowActionType()
         )
         database_workflow_action_type_registry.register(
             CoreStartWorkflowWorkflowActionType()

@@ -32,6 +32,7 @@ NODE_TYPES_NOT_HOSTED = {
     "local_baserow_create_rows": "not hosted yet",
     "local_baserow_update_rows": "not hosted yet",
     "start_workflow": "not hosted yet",
+    "google_gmail_send_email": "not hosted yet",
     "ai_agent": "not hosted yet",
     "csv_file_reader": "not hosted yet",
     "xls_file_reader": "not hosted yet",

@@ -520,5 +520,25 @@
     "serviceTypeNotAllowed": "The account can't be connected for this action.",
     "failed": "The {provider} sign-in didn't complete. Try again.",
     "popupBlocked": "Your browser blocked the {provider} sign-in window. Allow pop-ups for Baserow, then try again."
+  },
+  "googleIntegration": {
+    "name": "Google",
+    "clientMode": "OAuth client",
+    "defaultClient": "Baserow client",
+    "customClient": "Custom client",
+    "clientId": "Client ID",
+    "clientSecret": "Client secret (leave empty to keep)",
+    "redirectUri": "Authorized redirect URI",
+    "saveFirst": "Save this integration, then edit it to connect your Google account.",
+    "saveChanges": "Save client changes before connecting. Changing the OAuth client requires reconnecting."
+  },
+  "googleGmail": {
+    "name": "Gmail send email",
+    "description": "Send an email from a connected Google account.",
+    "integrationRequired": "Select a Google integration.",
+    "recipientRequired": "Enter at least one recipient.",
+    "consentRequired": "Connect Google and grant permission to send Gmail messages.",
+    "messageId": "Message ID",
+    "threadId": "Thread ID"
   }
 }

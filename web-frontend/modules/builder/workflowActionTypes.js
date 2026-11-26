@@ -1,3 +1,4 @@
+import { GoogleGmailSendEmailServiceType } from '@baserow/modules/integrations/google/serviceTypes'
 import { WorkflowActionType } from '@baserow/modules/core/workflowActionTypes'
 import NotificationWorkflowActionForm from '@baserow/modules/builder/components/workflowAction/NotificationWorkflowActionForm.vue'
 import OpenPageWorkflowActionForm from '@baserow/modules/builder/components/workflowAction/OpenPageWorkflowActionForm'
@@ -608,6 +609,27 @@ export class SlackWriteMessageWorkflowActionType extends WorkflowActionServiceTy
     return this.app.$registry.get(
       'service',
       SlackWriteMessageServiceType.getType()
+    )
+  }
+}
+
+export class GoogleGmailSendEmailWorkflowActionType extends WorkflowActionServiceType {
+  static getType() {
+    return 'google_gmail_send_email'
+  }
+  getOrder() {
+    return 95
+  }
+  get icon() {
+    return 'iconoir-mail'
+  }
+  get name() {
+    return this.app.$i18n.t('googleGmail.name')
+  }
+  get serviceType() {
+    return this.app.$registry.get(
+      'service',
+      GoogleGmailSendEmailServiceType.getType()
     )
   }
 }

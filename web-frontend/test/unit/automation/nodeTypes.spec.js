@@ -153,6 +153,7 @@ describe('Automation node types', () => {
       'goto',
       'wait',
       'slack_write_message',
+      'google_gmail_send_email',
     ])
   })
 

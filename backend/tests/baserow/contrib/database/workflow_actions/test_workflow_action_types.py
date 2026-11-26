@@ -39,6 +39,7 @@ def test_every_type_is_registered():
         "http_request",
         "smtp_email",
         "slack_write_message",
+        "google_gmail_send_email",
         "start_workflow",
     }
 

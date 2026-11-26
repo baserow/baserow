@@ -1,4 +1,22 @@
 import {
+  GoogleGmailSendEmailWorkflowActionType,
+  CreateRowWorkflowActionType,
+  NotificationWorkflowActionType,
+  OpenPageWorkflowActionType,
+  UpdateRowWorkflowActionType,
+  LocalBaserowUpdateRowsWorkflowActionType,
+  LogoutWorkflowActionType,
+  RefreshDataSourceWorkflowActionType,
+  DeleteRowWorkflowActionType,
+  CoreCSVFileReaderWorkflowActionType,
+  CoreHTTPRequestWorkflowActionType,
+  CoreSMTPEmailWorkflowActionType,
+  CoreStartWorkflowWorkflowActionType,
+  AIAgentWorkflowActionType,
+  LocalBaserowCreateRowsWorkflowActionType,
+  SlackWriteMessageWorkflowActionType,
+} from '@baserow/modules/builder/workflowActionTypes'
+import {
   GeneralBuilderSettingsType,
   BreakpointsBuilderSettingsType,
   DomainsBuilderSettingsType,
@@ -104,23 +122,6 @@ import {
   InputThemeConfigBlockType,
   TableThemeConfigBlockType,
 } from '@baserow/modules/builder/themeConfigBlockTypes'
-import {
-  CreateRowWorkflowActionType,
-  NotificationWorkflowActionType,
-  OpenPageWorkflowActionType,
-  UpdateRowWorkflowActionType,
-  LocalBaserowUpdateRowsWorkflowActionType,
-  LogoutWorkflowActionType,
-  RefreshDataSourceWorkflowActionType,
-  DeleteRowWorkflowActionType,
-  CoreCSVFileReaderWorkflowActionType,
-  CoreHTTPRequestWorkflowActionType,
-  CoreSMTPEmailWorkflowActionType,
-  CoreStartWorkflowWorkflowActionType,
-  AIAgentWorkflowActionType,
-  LocalBaserowCreateRowsWorkflowActionType,
-  SlackWriteMessageWorkflowActionType,
-} from '@baserow/modules/builder/workflowActionTypes'
 
 import {
   BooleanCollectionFieldType,
@@ -393,6 +394,10 @@ export default defineNuxtPlugin({
     $registry.register(
       'workflowAction',
       new SlackWriteMessageWorkflowActionType(context)
+    )
+    $registry.register(
+      'workflowAction',
+      new GoogleGmailSendEmailWorkflowActionType(context)
     )
 
     $registry.register(

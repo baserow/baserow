@@ -378,6 +378,7 @@ class BuilderConfig(AppConfig):
             CoreStartWorkflowActionType,
             CreateRowWorkflowActionType,
             DeleteRowWorkflowActionType,
+            GoogleGmailSendEmailWorkflowActionType,
             LocalBaserowCreateRowsWorkflowActionType,
             LocalBaserowUpdateRowsWorkflowActionType,
             LogoutWorkflowActionType,
@@ -410,6 +411,9 @@ class BuilderConfig(AppConfig):
         builder_workflow_action_type_registry.register(AIAgentWorkflowActionType())
         builder_workflow_action_type_registry.register(
             SlackWriteMessageWorkflowActionType()
+        )
+        builder_workflow_action_type_registry.register(
+            GoogleGmailSendEmailWorkflowActionType()
         )
 
         from .elements.collection_field_types import (
