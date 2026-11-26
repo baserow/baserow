@@ -17,6 +17,7 @@ import PublicAgentChatService from '@baserow_enterprise/services/publicAgentChat
 const STREAM_RETRY_MS = 2000
 const MAX_RETRY_MS = 30000
 const WAITING_SYNC_MS = 5000
+const MAX_WAITING_SYNC_MS = 60000
 const REFUSED_STATUSES = [401, 404]
 const SYNC_ERRORS = [
   API_ERROR_CODE.CHAT_RUN_IN_PROGRESS,
@@ -70,6 +71,7 @@ export function usePublicAgentChat(slug, initialInfo) {
   let acceptedSends = 0
   let historyLoaded = false
   let failedSyncs = 0
+  let waitingSyncs = 0
   // Resending the content of a send whose answer was lost must not run it twice.
   let pendingSend = null
   let unmounted = false
@@ -122,6 +124,22 @@ export function usePublicAgentChat(slug, initialInfo) {
     }
   }
 
+  /** Backs off while a reply waits for a member, which can take hours. */
+  function nextSyncDelay() {
+    if (!waiting.value) {
+      waitingSyncs = 0
+      return WAITING_SYNC_MS
+    }
+    return Math.min(WAITING_SYNC_MS * 2 ** waitingSyncs++, MAX_WAITING_SYNC_MS)
+  }
+
+  function syncWhenShown() {
+    if (document.visibilityState !== 'visible' || !waiting.value) return
+    clearTimeout(syncTimer)
+    waitingSyncs = 0
+    sync()
+  }
+
   function stopFollowing() {
     clearTimeout(idleTimer)
     streamController?.abort()
@@ -142,7 +160,7 @@ export function usePublicAgentChat(slug, initialInfo) {
       return
     }
     savedMessages.value = [...savedMessages.value.slice(0, -1), message]
-    keepSyncing(WAITING_SYNC_MS)
+    keepSyncing(nextSyncDelay())
   }
 
   function openStream() {
@@ -209,7 +227,7 @@ export function usePublicAgentChat(slug, initialInfo) {
       failedSyncs = 0
       savedMessages.value = data.messages
       follow(data.run_id)
-      keepSyncing(WAITING_SYNC_MS)
+      keepSyncing(nextSyncDelay())
     } catch (error) {
       if (tokens.conversationToken !== conversationToken) return
       if (isChannelGone(error)) {
@@ -352,6 +370,7 @@ export function usePublicAgentChat(slug, initialInfo) {
   }
 
   onMounted(async () => {
+    document.addEventListener('visibilitychange', syncWhenShown)
     readTokens()
     if (!info.value.has_access && token()) await reloadInfo()
     accessChecked.value = true
@@ -359,6 +378,7 @@ export function usePublicAgentChat(slug, initialInfo) {
   })
 
   onBeforeUnmount(() => {
+    document.removeEventListener('visibilitychange', syncWhenShown)
     unmounted = true
     stopFollowing()
     clearTimeout(syncTimer)

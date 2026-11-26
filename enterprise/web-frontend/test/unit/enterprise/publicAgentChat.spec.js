@@ -297,7 +297,6 @@ describe('usePublicAgentChat', () => {
     wrapper.unmount()
   })
 
-
   test('the page shows a stopped reply without text as stopped', async () => {
     localStorage.setItem(
       STORAGE_KEY,
@@ -364,12 +363,35 @@ describe('usePublicAgentChat', () => {
 
     await vi.advanceTimersByTimeAsync(5000)
     expect(chat.waiting.value).toBe(true)
-    await vi.advanceTimersByTimeAsync(5000)
+    await vi.advanceTimersByTimeAsync(10000)
 
     expect(chat.waiting.value).toBe(false)
     expect(streams).toHaveLength(1)
     await vi.advanceTimersByTimeAsync(10000)
     expect(mocks.service.getConversation).toHaveBeenCalledTimes(3)
+  })
+
+  test('a waiting reply syncs at most every minute, and at once when the tab is shown', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
+    localStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify({ conversationToken: 'conversation' })
+    )
+    mocks.service.getConversation.mockResolvedValue({
+      data: { messages: [visitor, reply('waiting')], run_id: null },
+    })
+    await mountChat()
+
+    await vi.advanceTimersByTimeAsync(5000 + 10000 + 20000 + 40000 + 60000)
+    expect(mocks.service.getConversation).toHaveBeenCalledTimes(6)
+    await vi.advanceTimersByTimeAsync(59000)
+    expect(mocks.service.getConversation).toHaveBeenCalledTimes(6)
+
+    document.dispatchEvent(new Event('visibilitychange'))
+    await flushPromises()
+    expect(mocks.service.getConversation).toHaveBeenCalledTimes(7)
+    await vi.advanceTimersByTimeAsync(5000)
+    expect(mocks.service.getConversation).toHaveBeenCalledTimes(8)
   })
 
   test('a failed stream syncs and follows again while the reply still runs', async () => {
