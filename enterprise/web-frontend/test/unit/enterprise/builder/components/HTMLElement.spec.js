@@ -70,6 +70,9 @@ describe('HTML element', () => {
       expect(frame.attributes('srcdoc')).toBe(snippet)
       expect(frame.attributes('sandbox')).toBe('allow-same-origin')
       expect(frame.attributes('tabindex')).toBe('-1')
+      expect(frame.classes()).not.toContain(
+        'html-element__preview--interactive'
+      )
       const hint = wrapper.get(
         'button[aria-label="iframeElementForm.editorEmbedHint"]'
       )
@@ -200,6 +203,8 @@ describe('HTML element on the editor hostname', () => {
       const frame = wrapper.get('iframe')
       expect(frame.attributes('srcdoc')).toBe(snippet)
       expect(frame.attributes('sandbox')).toBe('allow-same-origin')
+      expect(frame.attributes('tabindex')).toBeUndefined()
+      expect(frame.classes()).toContain('html-element__preview--interactive')
       expect(wrapper.find('#anchor').exists()).toBe(false)
       expect(wrapper.find('.html-element__hint').exists()).toBe(false)
     }

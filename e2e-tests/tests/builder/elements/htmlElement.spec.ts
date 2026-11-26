@@ -387,3 +387,71 @@ for (const mode of ["preview", "published"]) {
     }
   });
 }
+
+test("Restricted HTML preserves native interactions and bounded height @enterprise", async ({
+  context,
+  builderPagePage,
+  workspacePage,
+}) => {
+  test.skip(!previewIsRestricted, "Requires Preview on a frontend hostname");
+  const license = await createLicense(ENTERPRISE_LICENSE);
+  try {
+    const { builder, builderPage } = builderPagePage;
+    await createBuilderElement(builderPage, "html", {
+      html: {
+        formula: JSON.stringify(
+          '<input aria-label="Native input"><button onclick="this.textContent=\'Executed\'">Script blocked</button><details><summary>Expand content</summary><p style="height:160px">Expanded content</p></details>'
+        ),
+      },
+    });
+    const grant = await getClient(workspacePage.user).post(
+      `builder/preview/${builder.id}/grant/`,
+      { path: builderPage.path }
+    );
+    const visitor = await context.newPage();
+    await visitor.goto(grant.data.url);
+    const frame = visitor.locator('iframe[title="HTML preview"]');
+    const document = visitor.frameLocator('iframe[title="HTML preview"]');
+    await expect(frame).toHaveAttribute("sandbox", "allow-same-origin");
+    await document.getByRole("textbox", { name: "Native input" }).fill("Typed");
+    await expect(document.getByRole("textbox")).toHaveValue("Typed");
+    await document.getByRole("button", { name: "Script blocked" }).click();
+    await expect(document.getByRole("button")).toHaveText("Script blocked");
+    await document.locator("summary").click();
+    await expect(document.locator("details")).toHaveAttribute("open", "");
+    await expect(document.getByText("Expanded content")).toBeVisible();
+
+    await frame.evaluate((element: HTMLIFrameElement) => {
+      element.srcdoc =
+        '<div style="height:calc(100vh + 20px)">Viewport content</div>';
+    });
+    await expect.poll(() => frame.evaluate((el) => el.clientHeight)).toBe(600);
+    const heights = await frame.evaluate(async (el) => {
+      const samples: number[] = [];
+      for (let index = 0; index < 12; index++) {
+        await new Promise<void>((resolve) =>
+          requestAnimationFrame(() => resolve())
+        );
+        samples.push(el.clientHeight);
+      }
+      return samples;
+    });
+    expect(heights.every((height) => height === 600)).toBe(true);
+    await expect
+      .poll(() =>
+        frame.evaluate((element: HTMLIFrameElement) => {
+          const body = element.contentDocument!.body;
+          element.contentWindow!.scrollTo(0, body.scrollHeight);
+          return element.contentWindow!.scrollY;
+        })
+      )
+      .toBeGreaterThan(0);
+
+    await frame.evaluate((element: HTMLIFrameElement) => {
+      element.srcdoc = '<div style="height:72px">Short content</div>';
+    });
+    await expect.poll(() => frame.evaluate((el) => el.clientHeight)).toBe(72);
+  } finally {
+    await deleteLicense(license);
+  }
+});

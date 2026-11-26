@@ -15,10 +15,7 @@
     </p>
     <template v-else>
       <ClientOnly v-if="isAuthorCodeRestricted">
-        <HTMLElementPreview
-          :html="resolvedHTML"
-          :max-height="isEditor ? 600 : null"
-        />
+        <HTMLElementPreview :html="resolvedHTML" :interactive="!isEditor" />
       </ClientOnly>
       <div v-else v-html-content="resolvedHTML"></div>
       <ElementPreviewHint

@@ -287,7 +287,7 @@ describe('PostHog on a published site', () => {
   })
 })
 
-describe('isWebFrontendHostname', () => {
+describe('isWebFrontendHostname with configured ports', () => {
   test.each([
     ['editor.example.com', true],
     ['studio.example.com', true],
