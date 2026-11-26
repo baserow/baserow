@@ -1,3 +1,5 @@
+import json
+
 from django.contrib.auth import get_user_model
 from django.urls import reverse
 
@@ -289,7 +291,11 @@ def test_only_internal_copies_keep_an_imported_connection(data_fixture, fake_oau
 
 
 @pytest.mark.django_db
-def test_garbage_in_an_imported_connection_is_cleaned(data_fixture, fake_oauth):
+def test_untrusted_connection_values_are_discarded_before_import(
+    data_fixture, fake_oauth
+):
+    """Untrusted connection data is dropped, leaving Django to apply defaults."""
+
     user = data_fixture.create_user()
     workspace = data_fixture.create_workspace(user=user)
     values = {
@@ -305,18 +311,45 @@ def test_garbage_in_an_imported_connection_is_cleaned(data_fixture, fake_oauth):
         data_fixture.create_builder_application(workspace=workspace),
         values,
         {},
-        import_export_config=ImportExportConfig(
-            include_permission_data=True,
-            is_duplicate=True,
-            exclude_sensitive_data=False,
-        ),
     )
 
     assert imported.account_email == ""
-    assert len(imported.account_name) == 255
-    assert imported.scopes == ["openid"]
+    assert imported.account_name == ""
+    assert imported.scopes == []
     assert imported.expires_at is None
     assert imported.connected_at is None
+    assert imported.connected_by_id is None
+    assert imported.access_token == ""
+    assert imported.refresh_token == ""
+    assert imported.tenant == ""
+
+
+@pytest.mark.django_db
+def test_internal_copy_dates_roundtrip_through_the_common_import_hooks(
+    data_fixture, fake_oauth
+):
+    """Import restores datetime values so the copy can be exported again immediately."""
+
+    user = data_fixture.create_user()
+    application = data_fixture.create_builder_application(user=user)
+    integration = fake_oauth.create(application=application, connected_by=user)
+    config = ImportExportConfig(
+        include_permission_data=True, is_duplicate=True, exclude_sensitive_data=False
+    )
+    serialized = json.loads(
+        json.dumps(fake_oauth.type.export_serialized(integration, config))
+    )
+
+    imported = fake_oauth.type.import_serialized(
+        application, serialized, {}, import_export_config=config
+    )
+    exported = fake_oauth.type.export_serialized(imported, config)
+
+    assert imported.connected is True
+    assert imported.expires_at == integration.expires_at
+    assert imported.connected_at == integration.connected_at
+    assert exported["expires_at"] == serialized["expires_at"]
+    assert exported["connected_at"] == serialized["connected_at"]
 
 
 @pytest.mark.django_db
