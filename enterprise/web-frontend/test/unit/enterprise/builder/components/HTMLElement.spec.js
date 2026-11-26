@@ -133,9 +133,9 @@ describe('HTML element', () => {
     expect(wrapper.get('script').attributes('src')).toBe('/widget.js')
   })
 
-  test('waits for an explicit visitor context before inserting markup', async () => {
+  test('uses the hostname restriction without requiring an explicit visitor mode', async () => {
     const wrapper = await mountElement('public', '')
-    expect(wrapper.find('#anchor').exists()).toBe(false)
+    expect(wrapper.find('#anchor').exists()).toBe(true)
   })
 
   test.each([
@@ -205,13 +205,17 @@ describe('HTML element on the editor hostname', () => {
     }
   )
 
-  test('inserts the widget when the instance relaxes Preview security', async () => {
-    setPreviewUrl(`${EDITOR_URL}:3001`, true)
-    const wrapper = await mountElement('preview')
+  test.each(['editing', 'preview', 'public'])(
+    'inserts the widget in %s when the instance relaxes security',
+    async (mode) => {
+      setPreviewUrl(`${EDITOR_URL}:3001`, true)
+      const wrapper = await mountElement(mode)
 
-    expect(wrapper.find('iframe').exists()).toBe(false)
-    expect(wrapper.get('#anchor').text()).toBe('Widget')
-  })
+      expect(wrapper.find('iframe').exists()).toBe(false)
+      expect(wrapper.get('#anchor').text()).toBe('Widget')
+      expect(wrapper.find('.html-element__hint').exists()).toBe(false)
+    }
+  )
 
   test('points the editor hint at the published application', async () => {
     const wrapper = await mountElement('editing')

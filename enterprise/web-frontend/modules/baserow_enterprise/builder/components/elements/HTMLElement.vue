@@ -1,10 +1,10 @@
 <template>
   <div
-    v-if="isEditMode || applicationContext.mode === 'editing'"
-    class="html-element__editor"
+    v-if="isEditor || (!builder.untrusted_content && resolvedHTML)"
+    :class="{ 'html-element__editor': isEditor }"
   >
     <p
-      v-if="builder.untrusted_content || !resolvedHTML.trim()"
+      v-if="builder.untrusted_content || !resolvedHTML"
       class="html-element__placeholder"
     >
       {{
@@ -14,20 +14,20 @@
       }}
     </p>
     <template v-else>
-      <ClientOnly>
-        <HTMLElementPreview :html="resolvedHTML" />
+      <ClientOnly v-if="isAuthorCodeRestricted">
+        <HTMLElementPreview
+          :html="resolvedHTML"
+          :max-height="isEditor ? 600 : null"
+        />
       </ClientOnly>
+      <div v-else v-html-content="resolvedHTML"></div>
       <ElementPreviewHint
+        v-if="isEditor && isAuthorCodeRestricted"
         class="html-element__hint"
         :message="authorCodeEditorHint"
       />
     </template>
   </div>
-  <!-- Without its scripts and event handlers, like in the editor. -->
-  <ClientOnly v-else-if="showHTML && isAuthorCodeRestricted">
-    <HTMLElementPreview :html="resolvedHTML" :max-height="null" />
-  </ClientOnly>
-  <div v-else-if="showHTML" v-html-content="resolvedHTML"></div>
 </template>
 
 <script>
@@ -41,15 +41,11 @@ export default {
   components: { ElementPreviewHint, HTMLElementPreview },
   mixins: [element],
   computed: {
-    resolvedHTML() {
-      return ensureString(this.resolveFormula(this.element.html))
+    isEditor() {
+      return this.applicationContext.mode === 'editing'
     },
-    showHTML() {
-      return (
-        ['preview', 'public'].includes(this.applicationContext.mode) &&
-        !this.builder.untrusted_content &&
-        Boolean(this.resolvedHTML)
-      )
+    resolvedHTML() {
+      return ensureString(this.resolveFormula(this.element.html)).trim()
     },
   },
   directives: {
