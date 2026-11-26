@@ -469,9 +469,7 @@
 
 .agent-approval__actions,
 .agent-approval__item-actions {
-  display: grid;
-  grid-auto-flow: column;
-  grid-auto-columns: minmax(0, 1fr);
+  display: flex;
   gap: 6px;
   width: max-content;
   max-width: 100%;
@@ -480,6 +478,7 @@
   .button {
     justify-content: center;
     width: 112px;
+    min-width: 0;
     height: auto;
     min-height: $button-small-height;
     padding: 1px 2px;
@@ -491,6 +490,14 @@
     text-wrap: balance;
     overflow-wrap: anywhere;
   }
+}
+
+.agent-approval__actions .agent-approval__always-allow,
+.agent-approval__item-actions .agent-approval__always-allow,
+.agent-approval__item-actions--batch::before {
+  flex-shrink: 0;
+  width: 132px;
+  max-width: 44%;
 }
 
 .agent-approval__item-actions--batch::before {

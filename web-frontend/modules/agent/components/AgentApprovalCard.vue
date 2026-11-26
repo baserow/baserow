@@ -157,6 +157,7 @@
         >
           <Button
             v-if="canAlwaysAllow && pending.length === 1"
+            class="agent-approval__always-allow"
             type="secondary"
             size="small"
             :disabled="locked"
