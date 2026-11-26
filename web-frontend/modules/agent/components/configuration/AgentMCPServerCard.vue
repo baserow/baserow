@@ -239,7 +239,7 @@
       </Alert>
 
       <div
-        v-if="editable && (dirty || waitingForSignIn)"
+        v-if="editable && (dirty || saving)"
         class="agent-mcp-server-card__actions"
       >
         <Button
@@ -306,7 +306,7 @@ const props = defineProps({
   server: { type: Object, default: null },
   expanded: Boolean,
   editable: Boolean,
-  // A switch request for this server is still running.
+  // An update of this server is still being sent, so the switch waits.
   switching: Boolean,
   save: { type: Function, required: true },
   remove: { type: Function, required: true },
@@ -540,6 +540,18 @@ function reset() {
   confirmingRemove.value = false
 }
 
+// A listing that worked since the failure shows the server can be reached.
+// Compared by content: the echo of this card's own save changes nothing.
+watch(
+  () => JSON.stringify(props.server?.tools ?? []),
+  () => {
+    if (connectionFailed.value && !saving.value) {
+      connectionFailed.value = false
+      error.value = null
+    }
+  }
+)
+
 // Another editor's change shows in the fields this editor didn't change.
 // While saving, the store briefly shows the edits and puts the old values back
 // if the save fails, so the fields follow once the save ends.
@@ -615,6 +627,8 @@ function cancel() {
 }
 
 async function submit() {
+  // A second Enter would start over and close the sign-in popup.
+  if (saving.value) return
   touched.value = true
   if (Object.values(errors.value).some(Boolean)) return
   // Opened before any request, or the browser blocks the popup.
@@ -631,7 +645,7 @@ async function submit() {
   error.value = null
   connectionFailed.value = false
   let saved = null
-  let connecting = false
+  let listing = false
   try {
     // Signing in to a server that didn't change saves nothing first.
     saved =
@@ -639,7 +653,6 @@ async function submit() {
         ? await props.save(props.server, changes)
         : props.server
     if (stale()) return popup?.close()
-    connecting = true
     if (signingIn && !popup) {
       throw new MCPSignInError(t('agent.connectedAppPopupBlocked'))
     } else if (signingIn) {
@@ -651,16 +664,19 @@ async function submit() {
     // new key after a refused one), lists them on save, so they can be
     // reviewed and a wrong key shows here. A rename alone doesn't contact it.
     const connectionChanged = Object.keys(changes).some((key) => key !== 'name')
-    const listing =
+    listing =
       !signingIn && (isNew || (!saved.tools.length && connectionChanged))
     if (listing) saved = await props.refresh(saved)
     if (stale()) return
-    // Saved: a credential still as sent is stored now. One typed while saving
-    // is a new edit, so it stays.
-    if (values.auth_header_value === changes.auth_header_value) {
+    // Saved: a credential sent is stored now, and one the chosen
+    // authentication doesn't use is dropped. One typed while saving is a new
+    // edit, so it stays.
+    const sent = (field, usedBy) =>
+      values.auth_type !== usedBy || values[field] === changes[field]
+    if (sent('auth_header_value', MCP_AUTH_TYPE.HEADER)) {
       values.auth_header_value = ''
     }
-    if (values.oauth_client_secret === changes.oauth_client_secret) {
+    if (sent('oauth_client_secret', MCP_AUTH_TYPE.OAUTH)) {
       values.oauth_client_secret = ''
     }
     touched.value = false
@@ -674,7 +690,8 @@ async function submit() {
     if (stale()) return
     if (e instanceof MCPSignInCancelled) return
     error.value = mcpErrorMessage(t, e)
-    connectionFailed.value = connecting
+    // A failed sign-in or blocked popup isn't the server failing.
+    connectionFailed.value = listing
   } finally {
     if (signIn === controller) signIn = null
     if (!stale()) {

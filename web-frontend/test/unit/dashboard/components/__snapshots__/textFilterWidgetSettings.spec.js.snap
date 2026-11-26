@@ -68,9 +68,9 @@ exports[`TextFilterWidgetSettings > renders literal settings and saves clearing 
       <div class="control__wrapper">
         <div class="control__elements">
           <div class="control__elements-wrapper">
-            <div class="segment-control"><button class="segment-control__button--active segment-control__button" title="textFilterWidget.input">
+            <div class="segment-control"><button type="button" class="segment-control__button--active segment-control__button" title="textFilterWidget.input">
                 <!--v-if--><span class="segment-control__button-label">textFilterWidget.input</span>
-              </button><button class="segment-control__button" title="textFilterWidget.dropdown">
+              </button><button type="button" class="segment-control__button" title="textFilterWidget.dropdown">
                 <!--v-if--><span class="segment-control__button-label">textFilterWidget.dropdown</span>
               </button></div>
           </div>

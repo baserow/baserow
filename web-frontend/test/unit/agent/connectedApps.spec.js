@@ -945,6 +945,91 @@ describe('Agent connected apps', () => {
     ).not.toBe(null)
   })
 
+  test('a key is dropped once the saved authentication no longer uses it', async () => {
+    testApp.mock.onGet(/application\/10\/integrations/).reply(200, [server()])
+    testApp.mock
+      .onPatch('integration/5/')
+      .reply(200, server({ auth_type: 'none', has_auth_header_value: false }))
+    testApp.mock
+      .onPost('/integrations/mcp/5/refresh-tools/')
+      .reply(200, server({ auth_type: 'none', tools: [tool('search')] }))
+    const wrapper = await mountSection()
+    await flushPromises()
+
+    await expand(wrapper)
+    type(inputIn(card(wrapper), 'agent.connectedAppHeaderValue'), 'Bearer x')
+    await flushPromises()
+    buttonIn(card(wrapper), 'agent.connectedAppAuthNone').click()
+    await flushPromises()
+    buttonIn(card(wrapper), 'action.save').click()
+    await flushPromises()
+    buttonIn(card(wrapper), 'agent.connectedAppAuthHeader').click()
+    await flushPromises()
+
+    expect(body(testApp.mock.history.patch[0])).toEqual({ auth_type: 'none' })
+    expect(inputIn(card(wrapper), 'agent.connectedAppHeaderValue').value).toBe(
+      ''
+    )
+  })
+
+  test('a refresh that works clears a refused key from the badge', async () => {
+    testApp.mock.onGet(/application\/10\/integrations/).reply(200, [server()])
+    testApp.mock.onPatch('integration/5/').reply(200, server())
+    testApp.mock
+      .onPost('/integrations/mcp/5/refresh-tools/')
+      .replyOnce(400, {
+        error: 'ERROR_MCP_SERVER_REFUSED_CREDENTIAL',
+        detail: 'Refused.',
+      })
+      .onPost('/integrations/mcp/5/refresh-tools/')
+      .reply(200, server({ tools: [tool('search', { enabled: true })] }))
+    const wrapper = await mountSection()
+    await flushPromises()
+    const badge = () =>
+      card(wrapper).querySelector('.agent-mcp-server-card__status')
+
+    await expand(wrapper)
+    type(inputIn(card(wrapper), 'agent.connectedAppHeaderValue'), 'Bearer bad')
+    await flushPromises()
+    buttonIn(card(wrapper), 'action.save').click()
+    await flushPromises()
+    expect(badge().textContent).toContain('agent.connectedAppRefusedTitle')
+    await openTools(wrapper)
+    buttonInBody('agent.connectedAppRefresh').click()
+    await flushPromises()
+
+    expect(badge().textContent).toContain('agent.connectedAppConnected')
+    expect(card(wrapper).querySelector('.alert')).toBe(null)
+  })
+
+  test('a save keeps its buttons while it runs and ignores a second submit', async () => {
+    testApp.mock.onGet(/application\/10\/integrations/).reply(200, [server()])
+    const saving = deferredReply()
+    testApp.mock.onPatch('integration/5/').reply(saving.reply)
+    const wrapper = await mountSection()
+    await flushPromises()
+
+    await expand(wrapper)
+    type(inputIn(card(wrapper), 'agent.connectedAppName'), 'Renamed')
+    await flushPromises()
+    buttonIn(card(wrapper), 'action.save').click()
+    await flushPromises()
+    expect(
+      card(wrapper).querySelector('.agent-mcp-server-card__actions')
+    ).not.toBe(null)
+    card(wrapper)
+      .querySelector('form')
+      .dispatchEvent(new Event('submit', { cancelable: true }))
+    await flushPromises()
+    saving.resolve(200, server({ name: 'Renamed' }))
+    await flushPromises()
+
+    expect(testApp.mock.history.patch).toHaveLength(1)
+    expect(card(wrapper).querySelector('.agent-mcp-server-card__actions')).toBe(
+      null
+    )
+  })
+
   test('collapsing a card disarms its remove confirmation', async () => {
     testApp.mock.onGet(/application\/10\/integrations/).reply(200, [server()])
     const wrapper = await mountSection()
