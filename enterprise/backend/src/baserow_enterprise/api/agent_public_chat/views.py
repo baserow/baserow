@@ -5,6 +5,7 @@ from typing import Any
 from uuid import UUID
 
 from django.conf import settings
+from django.db import DEFAULT_DB_ALIAS
 from django.http import StreamingHttpResponse
 from django.utils.decorators import method_decorator
 from django.views.decorators.cache import never_cache
@@ -27,6 +28,7 @@ from baserow.api.decorators import (
     validate_query_parameters,
 )
 from baserow.api.schemas import get_error_schema
+from baserow.config.db_routers import set_db_alias
 from baserow.contrib.agent.api.channels.errors import (
     ERROR_AGENT_CHANNEL_DOES_NOT_EXIST,
 )
@@ -125,6 +127,8 @@ def get_public_chat(slug: str) -> PublicChatAgentChannel:
     :return: The chat, with its agent and the agent's workspace.
     """
 
+    # A replica can still serve a chat that was just switched off or protected.
+    set_db_alias(DEFAULT_DB_ALIAS)
     try:
         chat = PublicChatAgentChannel.objects.select_related("agent__workspace").get(
             slug=slug

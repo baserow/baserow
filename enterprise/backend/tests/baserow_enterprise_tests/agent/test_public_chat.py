@@ -12,6 +12,7 @@ from asgiref.sync import async_to_sync
 from rest_framework.response import Response
 from rest_framework.test import APIClient
 
+from baserow.config.db_routers import clear_db_state, set_db_alias
 from baserow.contrib.agent.models import AgentApplication, AgentConversation
 from baserow.core.chat_runs.models import ChatRun
 from baserow_enterprise.agent.models import PublicChatAgentChannel
@@ -134,6 +135,17 @@ def test_info_names_the_chat_and_hides_a_protected_one_without_a_token(
         "password_protected": True,
         "has_access": True,
     }
+
+
+@pytest.mark.django_db(transaction=True)
+def test_the_chat_is_read_from_the_primary_database(api_client, chat):
+    set_db_alias("unavailable_replica")
+    try:
+        response = api_client.get(url(chat.slug, "info"))
+    finally:
+        clear_db_state()
+
+    assert response.status_code == 200
 
 
 UNUSABLE = {
