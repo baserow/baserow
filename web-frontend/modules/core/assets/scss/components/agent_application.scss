@@ -531,10 +531,28 @@
 }
 
 .agent-approval__item-head {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) min(104px, 45%);
   align-items: center;
   gap: 12px;
+
+  > .agent-approval__item-title:only-child {
+    grid-column: 1 / -1;
+  }
+
+  > :not(.agent-approval__item-title) {
+    justify-self: start;
+    max-width: 100%;
+    padding-inline: 6px;
+    text-align: start;
+    overflow-wrap: anywhere;
+  }
+
+  i {
+    display: grid;
+    flex: 0 0 16px;
+    place-items: center;
+  }
 }
 
 .agent-approval__item-info {
