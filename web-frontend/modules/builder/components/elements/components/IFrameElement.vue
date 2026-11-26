@@ -132,6 +132,7 @@ export default {
 
       return permissions.join(' ')
     },
+    /** Whether the URL uses a hostname outside this page and the web frontend. */
     isExternalURL() {
       if (typeof window === 'undefined') {
         return false
@@ -139,9 +140,19 @@ export default {
 
       try {
         const url = new URL(this.resolvedURL)
+        const frontendHostname = new URL(
+          this.$config.public.publicWebFrontendUrl
+        ).hostname
+        const extraFrontendHostnames =
+          this.$config.public.extraPublicWebFrontendHostnames || []
+
+        // Cookies ignore ports, so a different origin on a frontend hostname
+        // must not gain cookie access through allow-same-origin.
         return (
           ['http:', 'https:'].includes(url.protocol) &&
-          url.origin !== window.location.origin
+          url.hostname !== window.location.hostname &&
+          url.hostname !== frontendHostname &&
+          !extraFrontendHostnames.includes(url.hostname)
         )
       } catch {
         return false

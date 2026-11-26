@@ -234,6 +234,16 @@ describe('IFrameElement', () => {
 
   test.each([
     ['same-origin', window.location.origin],
+    [
+      'same hostname on a different port',
+      `${window.location.protocol}//${window.location.hostname}:65530`,
+    ],
+    ['frontend hostname', EDITOR_URL],
+    ['frontend hostname on a different port', `${EDITOR_URL}:65530`],
+    [
+      'frontend hostname with a different scheme',
+      'http://editor.example.com:65530',
+    ],
     ['relative', '/embedded-resource'],
     ['invalid', 'not a valid URL'],
   ])('keeps a trusted %s URL sandboxed', async (_description, url) => {
@@ -246,6 +256,24 @@ describe('IFrameElement', () => {
     expect(wrapper.find('iframe').attributes('sandbox')).toBe(
       'allow-scripts allow-forms allow-popups'
     )
+  })
+
+  test('keeps an additional frontend hostname sandboxed on a different port', async () => {
+    const config = useRuntimeConfig().public
+    const original = config.extraPublicWebFrontendHostnames
+    config.extraPublicWebFrontendHostnames = ['studio.example.com']
+    try {
+      const wrapper = await mountComponent('public', {
+        source_type: 'url',
+        url: { formula: '"https://studio.example.com:65530/embed"' },
+        allow_same_origin: true,
+      })
+      expect(wrapper.get('iframe').attributes('sandbox')).toBe(
+        'allow-scripts allow-forms allow-popups'
+      )
+    } finally {
+      config.extraPublicWebFrontendHostnames = original
+    }
   })
 
   test('does not sandbox trusted embedded content in Preview on its own hostname', async () => {
