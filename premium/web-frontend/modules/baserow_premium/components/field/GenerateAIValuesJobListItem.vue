@@ -34,6 +34,12 @@
         {{ $t(`generateAIValuesModal.${job.state}`) }} {{ timeAgo }}
       </span>
     </div>
+    <div
+      v-if="job && job.state === 'failed' && job.human_readable_error"
+      class="generate-ai-values-job__error"
+    >
+      {{ job.human_readable_error }}
+    </div>
   </div>
 </template>
 

@@ -11,6 +11,7 @@ describe('replyOutcome', () => {
     ['provider_auth_failed', 'agent.replyProviderAuthFailed'],
     ['provider_rate_limited', 'agent.replyProviderRateLimited'],
     ['provider_unavailable', 'agent.replyProviderUnavailable'],
+    ['usage_limit_exceeded', 'agent.replyUsageLimitExceeded'],
     ['unknown', 'agent.replyFailed'],
   ])('a reply failed with %s shows %s', (errorCode, notice) => {
     expect(replyOutcome({ status: 'failed', error_code: errorCode })).toEqual({

@@ -218,6 +218,7 @@
     "replyNotStarted": "The agent couldn’t start replying. Send your message again.",
     "replyNotReady": "The agent wasn’t ready to reply. Check its configuration and send your message again.",
     "replyNotAllowed": "You no longer have permission to send messages to this agent.",
+    "replyUsageLimitExceeded": "This workspace has reached its AI usage limit, so the agent can’t reply.",
     "replyFailed": "The agent couldn’t reply. Send your message again.",
     "replyProviderAuthFailed": "The AI provider rejected the API key. Ask an admin to check it in AI providers, then send your message again.",
     "replyProviderRateLimited": "The AI provider is limiting requests or its quota ran out. Try again later.",

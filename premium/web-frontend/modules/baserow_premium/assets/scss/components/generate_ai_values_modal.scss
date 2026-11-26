@@ -47,6 +47,13 @@
     line-height: 1.35;
   }
 
+  &__error {
+    margin-top: 4px;
+    font-size: 12px;
+    line-height: 1.35;
+    color: $palette-red-800;
+  }
+
   &__progress-row {
     display: flex;
     align-items: center;

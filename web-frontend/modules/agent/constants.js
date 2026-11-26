@@ -147,6 +147,7 @@ export const AGENT_REPLY_ERROR_CODE = Object.freeze({
   PROVIDER_AUTH_FAILED: 'provider_auth_failed',
   PROVIDER_RATE_LIMITED: 'provider_rate_limited',
   PROVIDER_UNAVAILABLE: 'provider_unavailable',
+  USAGE_LIMIT_EXCEEDED: 'usage_limit_exceeded',
 })
 
 export const RUN_AS_STATUS = Object.freeze({

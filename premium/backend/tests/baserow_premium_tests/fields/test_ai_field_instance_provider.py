@@ -8,6 +8,7 @@ from django.shortcuts import reverse
 import pytest
 from openai.resources.files import Files
 from pydantic_ai.messages import ModelResponse, TextPart
+from pydantic_ai.models.function import FunctionModel
 from pydantic_ai.models.openai import OpenAIResponsesModel
 from rest_framework.status import HTTP_200_OK, HTTP_400_BAD_REQUEST
 
@@ -17,6 +18,14 @@ from baserow.core.ai_provider.handler import AIProviderHandler
 from baserow.core.ai_provider.models import AIProviderConfig, AIProviderModel
 from baserow.core.generative_ai.exceptions import ModelDoesNotBelongToType
 from baserow.core.generative_ai.registries import generative_ai_model_type_registry
+from baserow.core.generative_ai.usage import (
+    AI_USAGE_FEATURE_AI_FIELD,
+    AI_USAGE_KEY_SCOPE_INSTANCE,
+    AIUsageLimitExceeded,
+    ai_request_starting,
+    ai_usage_preparing,
+)
+from baserow.core.jobs.handler import JobHandler
 from baserow.core.storage import get_default_storage
 from baserow_premium.fields.handler import AIFieldHandler
 from baserow_premium.fields.job_types import AIValueGenerator
@@ -465,3 +474,194 @@ def test_ai_field_rejects_models_not_available_from_the_effective_provider(
 
     assert response.status_code == HTTP_400_BAD_REQUEST
     assert response.json()["error"] == "ERROR_MODEL_DOES_NOT_BELONG_TO_TYPE"
+
+
+@pytest.mark.django_db
+@pytest.mark.field_ai
+def test_ai_field_reports_its_usage_with_the_instance_credentials(
+    premium_data_fixture,
+):
+    user = premium_data_fixture.create_user()
+    table = premium_data_fixture.create_database_table(user=user)
+    _, instance_model = create_instance_openai_provider()
+    field = FieldHandler().create_field(
+        user,
+        table,
+        "ai",
+        name="AI",
+        ai_generative_ai_type="openai",
+        ai_generative_ai_model=instance_model.model_identifier,
+        ai_prompt="'Hello'",
+    )
+    row = RowHandler().create_row(user, table, {})
+    model_type = generative_ai_model_type_registry.get("openai")
+    scopes = []
+
+    def receiver(sender, scope, **kwargs):
+        scopes.append(scope)
+
+    ai_request_starting.connect(receiver, weak=False)
+    try:
+        with patch.object(
+            model_type,
+            "get_ai_model",
+            return_value=FunctionModel(
+                lambda messages, info: ModelResponse(parts=[TextPart(content="Hi")])
+            ),
+        ):
+            assert AIFieldHandler.generate_value_with_ai(field, row) == "Hi"
+    finally:
+        ai_request_starting.disconnect(receiver)
+
+    (scope,) = scopes
+    assert scope.feature == AI_USAGE_FEATURE_AI_FIELD
+    # The settings are resolved before prompting, so the context tells whose
+    # credentials they are.
+    assert scope.key_scope == AI_USAGE_KEY_SCOPE_INSTANCE
+    assert (scope.reference_type, scope.reference_id) == ("ai_field", str(field.id))
+    assert scope.workspace == table.database.workspace
+
+
+@pytest.mark.django_db
+@pytest.mark.field_ai
+def test_the_workers_requests_are_prepared_and_marked_as_made_without_the_database(
+    premium_data_fixture,
+):
+    user = premium_data_fixture.create_user(has_active_premium_license=True)
+    table = premium_data_fixture.create_database_table(user=user)
+    _, instance_model = create_instance_openai_provider()
+    field = FieldHandler().create_field(
+        user,
+        table,
+        "ai",
+        name="AI",
+        ai_generative_ai_type="openai",
+        ai_generative_ai_model=instance_model.model_identifier,
+        ai_prompt="'Hello'",
+    )
+    row = RowHandler().create_row(user, table, {})
+    model_type = generative_ai_model_type_registry.get("openai")
+    events = []
+
+    def on_preparing(sender, workspace, feature, **kwargs):
+        events.append(("preparing", workspace.id, feature))
+
+    def on_starting(sender, scope, **kwargs):
+        events.append(("starting", scope.workspace.id, scope.database_allowed))
+
+    ai_usage_preparing.connect(on_preparing, weak=False)
+    ai_request_starting.connect(on_starting, weak=False)
+    try:
+        with patch.object(
+            model_type,
+            "get_ai_model",
+            return_value=FunctionModel(
+                lambda messages, info: ModelResponse(parts=[TextPart(content="Hi")])
+            ),
+        ):
+            generator = AIValueGenerator(user, field)
+            with ThreadPoolExecutor(max_workers=1) as executor:
+                executor.submit(generator.generate_value_for, row).result()
+    finally:
+        ai_usage_preparing.disconnect(on_preparing)
+        ai_request_starting.disconnect(on_starting)
+
+    workspace_id = table.database.workspace_id
+    assert events == [
+        ("preparing", workspace_id, AI_USAGE_FEATURE_AI_FIELD),
+        ("starting", workspace_id, False),
+    ]
+    assert generator.results_queue.get_nowait().result == "Hi"
+
+
+@pytest.mark.django_db
+@pytest.mark.field_ai
+def test_a_refused_job_tells_why_and_is_not_an_unexpected_error(premium_data_fixture):
+    user = premium_data_fixture.create_user(has_active_premium_license=True)
+    table = premium_data_fixture.create_database_table(user=user)
+    _, instance_model = create_instance_openai_provider()
+    field = FieldHandler().create_field(
+        user,
+        table,
+        "ai",
+        name="AI",
+        ai_generative_ai_type="openai",
+        ai_generative_ai_model=instance_model.model_identifier,
+        ai_prompt="'Hello'",
+    )
+    row = RowHandler().create_row(user, table, {})
+    model_type = generative_ai_model_type_registry.get("openai")
+
+    def refuse(sender, **kwargs):
+        raise AIUsageLimitExceeded("No AI credits left.")
+
+    ai_request_starting.connect(refuse, weak=False)
+    try:
+        with patch.object(
+            model_type,
+            "get_ai_model",
+            return_value=FunctionModel(
+                lambda messages, info: ModelResponse(parts=[TextPart(content="Hi")])
+            ),
+        ):
+            # Doesn't raise, because it's not an unexpected error.
+            job = JobHandler().create_and_start_job(
+                user,
+                "generate_ai_values",
+                sync=True,
+                field_id=field.id,
+                row_ids=[row.id],
+            )
+    finally:
+        ai_request_starting.disconnect(refuse)
+
+    job.refresh_from_db()
+    assert job.state == "failed"
+    assert job.human_readable_error == "No AI credits left."
+    assert job.error_code == "AIUsageLimitExceeded"
+    row.refresh_from_db()
+    assert getattr(row, field.db_column) is None
+
+
+@pytest.mark.django_db
+@pytest.mark.field_ai
+def test_generating_values_reports_the_usage_on_the_job(premium_data_fixture):
+    user = premium_data_fixture.create_user(has_active_premium_license=True)
+    table = premium_data_fixture.create_database_table(user=user)
+    _, instance_model = create_instance_openai_provider()
+    field = FieldHandler().create_field(
+        user,
+        table,
+        "ai",
+        name="AI",
+        ai_generative_ai_type="openai",
+        ai_generative_ai_model=instance_model.model_identifier,
+        ai_prompt="'Hello'",
+    )
+    row = RowHandler().create_row(user, table, {})
+    model_type = generative_ai_model_type_registry.get("openai")
+    references = []
+
+    def receiver(sender, scope, **kwargs):
+        references.append((scope.reference_type, scope.reference_id))
+
+    ai_request_starting.connect(receiver, weak=False)
+    try:
+        with patch.object(
+            model_type,
+            "get_ai_model",
+            return_value=FunctionModel(
+                lambda messages, info: ModelResponse(parts=[TextPart(content="Hi")])
+            ),
+        ):
+            job = JobHandler().create_and_start_job(
+                user,
+                "generate_ai_values",
+                sync=True,
+                field_id=field.id,
+                row_ids=[row.id],
+            )
+    finally:
+        ai_request_starting.disconnect(receiver)
+
+    assert references == [("generate_ai_values_job", str(job.id))]

@@ -38,6 +38,8 @@ AGENT_VISITOR_HISTORY_SIZE = 100
 # Never change it: the uuids of visitor conversations already started derive from it.
 AGENT_VISITOR_KEY_NAMESPACE = UUID("926c2501-7a4d-4df4-8c0b-3f8529a03f7a")
 AGENT_NOT_READY = "not_ready"
+# A plugin refused the AI request, for example because of a usage limit.
+AGENT_USAGE_LIMIT_EXCEEDED = "usage_limit_exceeded"
 AGENT_NOT_ALLOWED = "not_allowed"
 AGENT_RUN_LIMIT_REACHED = "chat_run_limit_reached"
 AGENT_TRIGGER_MESSAGE_FAILED = "trigger_message_failed"
@@ -63,6 +65,8 @@ TRIGGER_ROWS_TEXT_HEADROOM = 1000
 TRIGGER_ROWS_NOT_SHOWN = "…and {count} more rows not shown"
 TRIGGER_ROW_CUT_SHORT = "…the row is cut short"
 QUEUED_TRIGGER_REPLY_SWEEP_SECONDS = 60
+# The AI usage of a reply is reported with this reference type and the reply id.
+AGENT_MESSAGE_USAGE_REFERENCE = "agent_message"
 INTERRUPTED_REPLY_NOTE = "[This reply was interrupted and may be incomplete.]"
 INTERRUPTED_CHANGES_NOTE = (
     "[Changes started before the interruption: {changes}. A stopped change may "
