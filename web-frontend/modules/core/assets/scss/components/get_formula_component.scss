@@ -163,3 +163,14 @@
     padding-right: 6px;
   }
 }
+
+// The full path of a chip's data can be long, so it wraps instead of running
+// off the screen.
+.tooltip__content.get-formula-component__tooltip {
+  height: auto;
+  max-width: 320px;
+  padding: 4px 8px;
+  line-height: 18px;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}

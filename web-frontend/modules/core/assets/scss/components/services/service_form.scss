@@ -81,6 +81,16 @@
     min-width: 534px;
   }
 
+  // A long value, like a formula's data chips, shortens to fit its column
+  // instead of widening the row and stretching the dropdowns beside it.
+  .filters__item {
+    grid-template-columns: 68px minmax(0, 1fr);
+  }
+
+  .filters__value {
+    min-width: 0;
+  }
+
   // One centred row, so other items added after the links, like Kuma's, line up
   // with them. Anything wider wraps onto its own line.
   .filters_footer {

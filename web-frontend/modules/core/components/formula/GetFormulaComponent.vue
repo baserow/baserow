@@ -10,7 +10,7 @@
   >
     <span
       ref="content"
-      v-tooltip="tooltip"
+      v-tooltip:[tooltipOptions]="tooltip"
       tooltip-position="top"
       class="get-formula-component__content"
       @click.stop="emitToEditor('data-node-clicked', node)"
@@ -229,6 +229,12 @@ export default {
     },
     fitKey() {
       return JSON.stringify(this.chip)
+    },
+    /**
+     * A long path wraps onto several lines instead of running off the screen.
+     */
+    tooltipOptions() {
+      return { contentClasses: 'get-formula-component__tooltip' }
     },
     tooltip() {
       return this.isInvalid
