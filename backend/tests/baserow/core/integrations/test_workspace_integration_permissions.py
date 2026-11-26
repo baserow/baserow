@@ -279,6 +279,12 @@ def test_the_workspace_integrations_of_a_template_cannot_be_listed(data_fixture)
             IntegrationService().get_integrations(user, shared_application)
 
         with pytest.raises(PermissionException):
+            IntegrationService().get_workspace_integrations(user, builder)
+        assert not IntegrationService().check_can_use_workspace_integrations(
+            user, builder, raise_permission_exceptions=False
+        )
+
+        with pytest.raises(PermissionException):
             IntegrationService().update_integration(
                 user,
                 IntegrationHandler().get_integration_for_update(integration.id),

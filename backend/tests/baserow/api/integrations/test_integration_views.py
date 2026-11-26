@@ -197,6 +197,35 @@ def test_list_the_workspace_integrations_needs_access_to_the_application(
 
 
 @pytest.mark.django_db
+def test_list_the_workspace_integrations_of_a_template(api_client, data_fixture):
+    _, token = data_fixture.create_user_and_token()
+    workspace = data_fixture.create_workspace()
+    data_fixture.create_template(workspace=workspace)
+    application = data_fixture.create_builder_application(workspace=workspace)
+    data_fixture.create_smtp_integration(
+        application=data_fixture.create_shared_application(workspace=workspace)
+    )
+
+    # The preview of a template lists the integrations of its applications, but
+    # not those of its workspace.
+    response = api_client.get(
+        reverse("api:integrations:list", kwargs={"application_id": application.id}),
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert response.status_code == HTTP_200_OK
+
+    url = reverse(
+        "api:integrations:list_workspace", kwargs={"application_id": application.id}
+    )
+    response = api_client.get(url, format="json", HTTP_AUTHORIZATION=f"JWT {token}")
+
+    assert response.status_code == HTTP_401_UNAUTHORIZED
+    assert response.json()["error"] == "PERMISSION_DENIED"
+
+
+@pytest.mark.django_db
 def test_create_integration(api_client, data_fixture):
     user, token = data_fixture.create_user_and_token()
     workspace = data_fixture.create_workspace(user=user)

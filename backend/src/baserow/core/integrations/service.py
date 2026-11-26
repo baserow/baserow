@@ -2,7 +2,7 @@ from typing import Any, Dict, List, Optional, Tuple
 
 from django.contrib.auth.models import AbstractUser
 
-from baserow.core.exceptions import CannotCalculateIntermediateOrder
+from baserow.core.exceptions import CannotCalculateIntermediateOrder, PermissionDenied
 from baserow.core.handler import CoreHandler
 from baserow.core.integrations.exceptions import (
     IntegrationNotInSameApplication,
@@ -212,11 +212,15 @@ class IntegrationService:
     ) -> bool:
         """
         Checks that the user may see and use the workspace integrations from the
-        given application. Whoever may list the integrations of an application may,
-        because every application of a workspace offers the workspace integrations
-        it can use alongside its own. That includes a user with a role on that
-        application only, who can't list the workspace integrations in the
+        given application. Anyone allowed to list the application's integrations is
+        allowed, because an application offers the workspace integrations
+        alongside its own. That includes a user with a role on the application
+        only, even though they can't see the workspace integrations in the
         workspace settings.
+
+        Templates are the exception. Anyone can open a template, but a template
+        comes with its own copies of the workspace integrations it uses, so the
+        integrations of its workspace are never shown.
 
         :param user: The user to check.
         :param application: The application the workspace integrations are used
@@ -227,6 +231,11 @@ class IntegrationService:
             `raise_permission_exceptions` is set.
         :return: Whether the user is allowed.
         """
+
+        if application.workspace is not None and application.workspace.has_template():
+            if raise_permission_exceptions:
+                raise PermissionDenied(user)
+            return False
 
         return CoreHandler().check_permissions(
             user,
