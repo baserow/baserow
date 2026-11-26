@@ -168,7 +168,10 @@ test("a support team can approve privately after the author leaves", async ({
     const approval = section
       .locator(".control")
       .filter({ hasText: "Who can approve tool calls" });
-    await approval.locator(".dropdown__selected").click();
+    await approval
+      .locator(".dropdown__selected")
+      .getByText("Editors and higher", { exact: true })
+      .click();
     await approval
       .getByText("Specific users or teams", { exact: true })
       .click();

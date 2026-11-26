@@ -188,9 +188,7 @@ test("a triggered run waits for approval only while changes ask first", async ({
     });
 
   await page
-    .locator(".agent-conversations__row", { hasText: subject })
-    .first()
-    .locator(".agent-conversations__item")
+    .getByRole("button", { name: `${subject} Waiting` })
     .click();
   await page.getByRole("button", { name: "Approve", exact: true }).click();
   await expect
