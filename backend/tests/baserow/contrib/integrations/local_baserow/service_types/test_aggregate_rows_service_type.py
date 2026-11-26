@@ -2,6 +2,7 @@ from decimal import Decimal
 from unittest.mock import Mock
 
 from django.db import transaction
+from django.db.models import Max
 
 import pytest
 from rest_framework.exceptions import ValidationError
@@ -9,6 +10,7 @@ from rest_framework.exceptions import ValidationError
 from baserow.contrib.database.api.constants import PUBLIC_PLACEHOLDER_ENTITY_ID
 from baserow.contrib.database.fields.exceptions import FieldDoesNotExist
 from baserow.contrib.database.fields.handler import FieldHandler
+from baserow.contrib.database.fields.models import Field
 from baserow.contrib.database.rows.handler import RowHandler
 from baserow.contrib.integrations.local_baserow.models import LocalBaserowAggregateRows
 from baserow.core.services.exceptions import (
@@ -305,16 +307,20 @@ def test_local_baserow_aggregate_rows_prepare_values_incorrect_field(data_fixtur
     )
     service_type = service_type_registry.get("local_baserow_aggregate_rows")
 
-    # field doesn't exist
+    # field doesn't exist. The id is taken above every existing field, because
+    # field ids keep counting up across tests, so a fixed id can be the one that
+    # the field created above received.
+    missing_field_id = Field.objects_and_trash.aggregate(Max("id"))["id__max"] + 1
     with pytest.raises(
-        FieldDoesNotExist, match=f"The field with id 999 does not exist"
+        FieldDoesNotExist,
+        match=f"The field with id {missing_field_id} does not exist",
     ):
         service_type.prepare_values(
             {
                 "view_id": view.id,
                 "table_id": view.table_id,
                 "integration_id": integration.id,
-                "field_id": 999,
+                "field_id": missing_field_id,
                 "aggregation_type": "",
             },
             user,
