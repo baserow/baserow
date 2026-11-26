@@ -55,10 +55,9 @@
         </Button>
       </form>
       <template v-else>
-        <header class="public-agent-chat__header">
+        <header v-if="messages.length" class="public-agent-chat__header">
           <h1 class="public-agent-chat__title">{{ info.title }}</h1>
           <Button
-            v-if="messages.length"
             type="secondary"
             size="small"
             button-type="button"
@@ -69,19 +68,25 @@
           </Button>
         </header>
         <div ref="messagesElement" class="public-agent-chat__messages">
-          <RichTextEditor
-            v-if="!messages.length && info.welcome_text"
-            class="public-agent-chat__welcome"
-            :model-value="info.welcome_text"
-            :editable="false"
-            :enable-rich-text-formatting="true"
-          />
-          <ChatSuggestions
-            v-if="showSuggestions"
-            class="public-agent-chat__suggestions"
-            :suggestions="info.suggested_messages"
-            @pick="pickSuggestion"
-          />
+          <div v-if="!messages.length" class="public-agent-chat__intro">
+            <div class="public-agent-chat__mark" aria-hidden="true">
+              <i class="baserow-icon-agent"></i>
+            </div>
+            <h1 v-if="info.title" class="public-agent-chat__intro-title">
+              {{ info.title }}
+            </h1>
+            <ChatMarkdown
+              v-if="info.welcome_text"
+              class="public-agent-chat__welcome"
+              :content="info.welcome_text"
+            />
+            <ChatSuggestions
+              v-if="showSuggestions"
+              class="public-agent-chat__suggestions"
+              :suggestions="info.suggested_messages"
+              @pick="pickSuggestion"
+            />
+          </div>
           <template v-for="message in messages" :key="message.id">
             <ChatMessage v-if="message.role !== MESSAGE_ROLE.ASSISTANT" own>
               <div class="chat-message__bubble">{{ message.content }}</div>
@@ -174,7 +179,6 @@ import ChatMarkdown from '@baserow/modules/core/components/chat/ChatMarkdown'
 import ChatMessage from '@baserow/modules/core/components/chat/ChatMessage'
 import ChatSuggestions from '@baserow/modules/core/components/chat/ChatSuggestions'
 import ChatTyping from '@baserow/modules/core/components/chat/ChatTyping'
-import RichTextEditor from '@baserow/modules/core/components/editor/RichTextEditor'
 import { readableTextColor } from '@baserow/modules/core/utils/colors'
 import { MESSAGE_ROLE } from '@baserow/modules/agent/constants'
 import { AGENT_REPLY_STATUS } from '@baserow/modules/agent/utils/replies'
@@ -289,7 +293,6 @@ const pageStyle = computed(() => {
 })
 const showSuggestions = computed(
   () =>
-    !messages.value.length &&
     Boolean(info.value.suggested_messages?.length) &&
     !unavailable.value &&
     !waiting.value &&

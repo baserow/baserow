@@ -274,15 +274,27 @@ describe('usePublicAgentChat', () => {
     wrapper.unmount()
   })
 
-  test('the page fills the draft from a picked suggested message', async () => {
+  test('an empty chat introduces itself and fills the draft from a picked suggested message', async () => {
     mocks.service.getInfo.mockResolvedValue({
-      data: { ...OPEN, suggested_messages: ['What can you do?'] },
+      data: {
+        ...OPEN,
+        welcome_text: 'Ask about **orders**.',
+        suggested_messages: ['What can you do?'],
+      },
     })
     const wrapper = await mountSuspended(PublicAgentChatPage, {
       route: `/public/agent-chat/${SLUG}`,
       attachTo: document.body,
     })
     await flushPromises()
+
+    expect(wrapper.find('.public-agent-chat__header').exists()).toBe(false)
+    expect(wrapper.get('.public-agent-chat__intro-title').text()).toBe(
+      'Support'
+    )
+    expect(wrapper.get('.public-agent-chat__welcome').html()).toContain(
+      '<strong>orders</strong>'
+    )
 
     await wrapper.get('.chat-suggestions__item').trigger('click')
     await flushPromises()
@@ -364,7 +376,7 @@ describe('usePublicAgentChat', () => {
     wrapper.unmount()
   })
 
-  test('the page shows a stopped reply without text as stopped', async () => {
+  test('a conversation shows the title in a header and a stopped reply without text as stopped', async () => {
     localStorage.setItem(
       STORAGE_KEY,
       JSON.stringify({ conversationToken: 'conversation' })
@@ -380,6 +392,8 @@ describe('usePublicAgentChat', () => {
     expect(
       wrapper.findAll('.chat-message__bubble').map((bubble) => bubble.text())
     ).toEqual(['Hello', 'publicAgentChat.stopped'])
+    expect(wrapper.get('.public-agent-chat__title').text()).toBe('Support')
+    expect(wrapper.find('.public-agent-chat__intro').exists()).toBe(false)
     wrapper.unmount()
   })
 
