@@ -17,59 +17,8 @@
   }
 }
 
-.service-form__context {
-  &--filter {
-    width: 660px;
-  }
-
-  &--group,
-  &--sort {
-    width: 320px;
-  }
-
-  &--search {
-    width: 400px;
-  }
-
-  .sortings__field {
-    flex: none;
-    flex-grow: 1;
-
-    .dropdown,
-    .dropdown__selected {
-      width: 100%;
-    }
-  }
-
-  .filters__none {
-    padding: 0;
-  }
-
-  .sortings__none {
-    padding: 0 0 12px;
-  }
-
-  .sortings__items {
-    padding-top: 0;
-  }
-
-  .sortings__item {
-    padding: 0;
-  }
-}
-
-.service-form__context-content {
-  @extend %px-12;
-  @extend %py-12;
-}
-
-.service-form__context-title {
-  display: block;
-  color: $palette-neutral-900;
-  line-height: 13px;
-  font-weight: 500;
-
-  @extend %pb-12;
+.service-form__condition-form-tab .filters__items {
+  min-width: 534px;
 }
 
 .service-form__condition-form-tab,
@@ -77,12 +26,19 @@
   padding-left: 0;
   padding-right: 0;
 
-  .filters__items {
-    min-width: 534px;
+  // A long value, like a formula's data chips, shortens to fit its column
+  // instead of widening the row and stretching the dropdowns beside it.
+  .filters__item {
+    grid-template-columns: 68px minmax(0, 1fr);
+  }
+
+  .filters__value {
+    min-width: 0;
   }
 
   // One centred row, so other items added after the links, like Kuma's, line up
   // with them. Anything wider wraps onto its own line.
+  /* stylelint-disable-next-line selector-class-pattern */
   .filters_footer {
     display: flex;
     flex-wrap: wrap;
@@ -111,6 +67,12 @@
       .formula-input-field {
         height: 38px;
       }
+    }
+
+    // Lets a formula's data chips shorten to fit instead of pushing the value
+    // under the buttons beside it.
+    .filters__value--formula-input {
+      min-width: 0;
     }
 
     .control__elements--small {
@@ -142,13 +104,338 @@
   width: 150px;
 }
 
+// Small screens, like the automation node sidebar: the refinements are chips
+// that each open a popover.
 .service-form__filter-buttons {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 8px;
 }
 
 .service-form__filter-title {
+  font-size: 12px;
+  font-weight: 500;
+  color: $palette-neutral-900;
+}
+
+.service-form__refinement-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+
+  // Tighter than the chips' default so all of them, counts included, fit on one
+  // line in the sidebar.
+  .chips {
+    gap: 6px;
+  }
+}
+
+// The chip whose popover is open: a stronger ring and tint than an active one.
+// Scoped to the row so it outranks the chips' own active and hover styles.
+.service-form__refinement-chips .service-form__refinement-chip--open.chips,
+.service-form__refinement-chips
+  .service-form__refinement-chip--open.chips:hover:not(.chips--disabled) {
+  border-color: transparent;
+  box-shadow: 0 0 0 1.5px $palette-blue-500;
+  background: rgba($palette-blue-1000, 0.12);
+
+  .chips__icon {
+    color: #4653e5;
+  }
+}
+
+.service-form__refinement-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  box-sizing: border-box;
+  border-radius: 9px;
+  background-color: $palette-blue-700;
+  color: $white;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.service-form__context {
+  padding: 0;
+
+  &--sort,
+  &--search {
+    width: 360px;
+  }
+
+  &--group {
+    width: 320px;
+  }
+}
+
+.service-form__popover-header {
+  padding: 14px 16px 12px;
+  border-bottom: 1px solid $palette-neutral-200;
+}
+
+.service-form__popover-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: $palette-neutral-1200;
+}
+
+.service-form__popover-description {
+  margin-top: 2px;
+  font-size: 12px;
+  line-height: 18px;
+  color: $palette-neutral-900;
+}
+
+.service-form__popover-body {
+  padding: 12px 16px;
+}
+
+.service-form__popover-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 0 4px;
+  text-align: center;
+}
+
+.service-form__popover-empty-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  margin-bottom: 6px;
+  border-radius: 100%;
+  background-color: $palette-neutral-100;
+  color: $palette-neutral-900;
+  font-size: 18px;
+}
+
+.service-form__popover-empty-title {
   font-size: 13px;
   font-weight: 500;
+  color: $palette-neutral-1200;
 }
+
+.service-form__popover-empty-description {
+  font-size: 12px;
+  line-height: 18px;
+  color: $palette-neutral-900;
+}
+
+// Filters: each condition is a card, with the field and the operator on one
+// line and the value under them, so it fits the narrow popover. These rules
+// override the shared filter value styles above for the popover only.
+/* stylelint-disable no-descending-specificity */
+.service-form__context--filter {
+  width: 460px;
+
+  .filters__items {
+    gap: 8px;
+  }
+
+  .filters__item,
+  .filters__group-item-wrapper {
+    grid-template-columns: minmax(0, 1fr);
+    row-gap: 4px;
+  }
+
+  .filters__item.filters__item--level-1 {
+    padding-right: 0;
+  }
+
+  .filters__operator {
+    font-size: 12px;
+    color: $palette-neutral-900;
+
+    .dropdown {
+      width: 80px;
+    }
+  }
+
+  .filters__operator-where,
+  .filters__operator-text {
+    margin-left: 0;
+  }
+
+  // A group that comes first already starts with its own "Where", so its outer
+  // one would read "Where" twice.
+  .filters__group-item-wrapper
+    > .filters__operator:has(> .filters__operator-where) {
+    display: none;
+  }
+
+  .filters__condition-item {
+    width: auto;
+
+    // The field gets more room than the operator.
+    grid-template-columns: minmax(0, 3fr) minmax(0, 2fr) 32px;
+    grid-template-areas:
+      'field type remove'
+      'value value value';
+    gap: 8px;
+    padding: 8px;
+    border: 1px solid $palette-neutral-200;
+    background-color: $palette-neutral-25;
+
+    @include rounded($rounded-lg);
+
+    .dropdown,
+    .dropdown__selected {
+      width: 100%;
+      max-width: none;
+    }
+  }
+
+  .filters__field {
+    grid-area: field;
+    min-width: 0;
+  }
+
+  .filters__type {
+    grid-area: type;
+    min-width: 0;
+  }
+
+  .filters__value {
+    grid-area: value;
+    min-width: 0;
+  }
+
+  // A long expression wraps onto more lines instead of being cut off.
+  .filters__value--with-input-field .filters__value--formula-input {
+    height: auto;
+    min-width: 0;
+
+    .formula-input-field {
+      height: auto;
+      min-height: 38px;
+    }
+  }
+
+  // The text/formula toggle takes the remove button's column, so the input
+  // ends where the operator does and the toggle sits under the remove button.
+  .filters__value--formula-input .formula-input-field__container {
+    gap: 8px;
+  }
+
+  .filters__value--formula-input .formula-input-field__mode-toggle {
+    width: 32px;
+  }
+
+  .filters__remove {
+    grid-area: remove;
+    width: 32px;
+    height: 32px;
+    border: 0;
+    box-shadow: none;
+    background: transparent;
+    color: $palette-neutral-900;
+
+    &:hover {
+      background-color: $palette-neutral-100;
+    }
+  }
+
+  .filters__group-item {
+    padding: 8px 8px 0;
+
+    @include rounded($rounded-lg);
+  }
+
+  // The add links and Kuma become the popover's footer.
+  /* stylelint-disable-next-line selector-class-pattern */
+  .filters_footer {
+    margin: 12px -16px -12px;
+    padding: 6px 8px;
+    border-top: 1px solid $palette-neutral-200;
+  }
+
+  .filters__add {
+    padding: 9px 8px;
+  }
+}
+
+// Sorts: "Sort by" above each row, then the field, a two-way order toggle and
+// the remove button.
+.service-form__context--sort {
+  .sortings__items {
+    padding: 0;
+    gap: 12px;
+  }
+
+  .sortings__item {
+    flex-wrap: wrap;
+    gap: 4px 8px;
+    padding: 0;
+  }
+
+  .sortings__description {
+    flex: 0 0 100%;
+    width: 100%;
+    margin: 0;
+    font-size: 12px;
+    color: $palette-neutral-900;
+  }
+
+  .sortings__field {
+    flex: 1 1 0;
+    min-width: 0;
+    margin-right: 0;
+
+    .dropdown,
+    .dropdown__selected {
+      width: 100%;
+    }
+  }
+
+  .sortings__order {
+    order: 3;
+    gap: 2px;
+    padding: 2px;
+    background-color: $palette-neutral-100;
+
+    @include rounded($rounded-md);
+  }
+
+  .sortings__order-item {
+    width: auto;
+    height: 28px;
+    padding: 0 8px;
+    font-size: 12px;
+    color: $palette-neutral-900;
+
+    &:not(:last-child) {
+      margin-right: 0;
+    }
+
+    &:hover {
+      background-color: $palette-neutral-200;
+    }
+
+    &.active {
+      background-color: $white;
+      color: $palette-neutral-1200;
+      box-shadow: 0 1px 2px rgba(7, 8, 16, 0.12);
+    }
+  }
+
+  .sortings__remove {
+    order: 4;
+    width: 28px;
+    font-size: 16px;
+  }
+
+  .sortings__footer {
+    margin: 12px -16px -12px;
+    padding: 6px 12px;
+    border-top: 1px solid $palette-neutral-200;
+  }
+}
+
+/* stylelint-enable no-descending-specificity */

@@ -44,6 +44,7 @@ from baserow.core.jobs.exceptions import JobNotCancellable
 from baserow.core.jobs.handler import JobHandler
 from baserow.core.jobs.tasks import run_async_job
 from baserow.core.models import Template, TemplateCategory, UserFile
+from baserow.core.notifications.models import NotificationRecipient
 from baserow.core.operations import ExportWorkspaceOperationType
 from baserow.core.storage import get_default_storage
 from baserow.core.user_files.handler import UserFileHandler
@@ -51,7 +52,13 @@ from baserow.core.user_files.template_files import (
     template_file_owner,
     template_file_prefix,
 )
-from baserow.core.user_templates.actions import UpdateUserTemplateVisibilityActionType
+from baserow.core.user_templates.actions import (
+    ApproveUserTemplateAdminActionType,
+    BlockUserTemplateAdminActionType,
+    RejectUserTemplateAdminActionType,
+    UnblockUserTemplateAdminActionType,
+    UpdateUserTemplateVisibilityActionType,
+)
 from baserow.core.user_templates.archive import (
     new_template_archive_name,
     template_archive_dir,
@@ -298,6 +305,62 @@ def cache_settings(settings):
 def turn_user_templates(data_fixture, on):
     admin = data_fixture.create_user(is_staff=True)
     CoreHandler().update_settings(admin, allow_user_templates=on)
+
+
+def get_state(root):
+    latest = UserTemplateHandler().get_latest_revision(Template.objects.get(id=root.id))
+    return UserTemplateHandler().get_template_state(latest)[0]
+
+
+CURRENT = object()
+
+
+def review(
+    action,
+    admin,
+    root,
+    revision_id,
+    seen_state=None,
+    seen_listed=None,
+    seen_reviewed_on=CURRENT,
+):
+    seen_state = seen_state or get_state(root)
+    if seen_listed is None:
+        seen_listed = Template.objects.get(id=root.id).public_revision_id is not None
+    if seen_reviewed_on is CURRENT:
+        seen_reviewed_on = Template.objects.get(id=revision_id).reviewed_on
+    seen = (seen_state, seen_listed, seen_reviewed_on)
+    if action == "approve":
+        return action_type_registry.get_by_type(ApproveUserTemplateAdminActionType).do(
+            admin, root.id, revision_id, *seen
+        )
+    return action_type_registry.get_by_type(RejectUserTemplateAdminActionType).do(
+        admin, root.id, revision_id, "Off topic", *seen
+    )
+
+
+def latest_id(root):
+    return UserTemplateHandler().get_latest_revision(root).id
+
+
+def block(admin, root, reason="Spam", revision_id=None):
+    return action_type_registry.get_by_type(BlockUserTemplateAdminActionType).do(
+        admin, root.id, revision_id or latest_id(root), reason
+    )
+
+
+def unblock(admin, root, revision_id=None):
+    return action_type_registry.get_by_type(UnblockUserTemplateAdminActionType).do(
+        admin, root.id, revision_id or latest_id(root)
+    )
+
+
+def notified(notification_type):
+    return list(
+        NotificationRecipient.objects.filter(notification__type=notification_type.type)
+        .order_by("recipient_id", "notification_id")
+        .values_list("recipient_id", "notification__data")
+    )
 
 
 def store_archive(name="template.zip"):

@@ -10,9 +10,11 @@ export const FF_USER_TEMPLATES = 'user_templates'
 export const FF_AUTOMATIC_SNAPSHOTS = 'automatic_snapshots'
 
 function getFeatureFlags(env) {
-  return (env.FEATURE_FLAGS || '')
+  const flags = (env.FEATURE_FLAGS || '')
     .split(',')
     .map((flag) => flag.trim().toLowerCase())
+  // Agents run as identities, so turning the agent builder on turns both on.
+  return flags.includes(FF_AGENT_BUILDER) ? [...flags, FF_IDENTITIES] : flags
 }
 
 export function featureFlagIsEnabled(featureFlags, flag, store) {

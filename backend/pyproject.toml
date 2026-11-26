@@ -28,6 +28,8 @@ dependencies = [
     "itsdangerous==2.2.0",
     "pillow==13.0.0",
     "drf-spectacular==0.30.0",
+    # drf-spectacular's classic script template requires a sidecar with ReDoc 2.x.
+    "drf-spectacular-sidecar==2026.10.1",
     "asgiref==3.11.0",
     "channels[daphne]==4.3.2",
     "channels-redis==4.3.0",

@@ -56,7 +56,7 @@ async function mountRefinements(props = {}) {
     global: { stubs: { Teleport: false } },
   })
   if (props.small !== false) {
-    await wrapper.find('.header__filter-link').trigger('click')
+    await wrapper.find('.service-form__refinement-chip').trigger('click')
   }
   await flushPromises()
   const filters =
@@ -100,17 +100,22 @@ test.each([true, false])(
     const dispatch = vi.spyOn(testApp.store, 'dispatch')
     const { wrapper, filters } = await mountRefinements({ small })
     if (small) {
-      expect(wrapper.find('.header__filter-name').text()).toBe(
-        'serviceRefinementForms.filterTabTitle - 3'
+      expect(wrapper.find('.service-form__refinement-count').text()).toBe('3')
+      expect(
+        wrapper.find('.service-form__refinement-chip').classes()
+      ).toContain('service-form__refinement-chip--active')
+      // The inherited dashboard filters apply, so there's no empty state.
+      expect(filters.text()).not.toContain(
+        'serviceRefinementForms.noFiltersTitle'
       )
-      expect(wrapper.find('.header__filter-link').classes()).toContain('active')
+    } else {
+      expect(filters.text()).toContain(
+        'localBaserowTableServiceConditionalForm.noFilterTitle'
+      )
+      expect(filters.text()).toContain(
+        'localBaserowTableServiceConditionalForm.noFilterText'
+      )
     }
-    expect(filters.text()).toContain(
-      'localBaserowTableServiceConditionalForm.noFilterTitle'
-    )
-    expect(filters.text()).toContain(
-      'localBaserowTableServiceConditionalForm.noFilterText'
-    )
     const inherited = filters.find('.dashboard-widget-filters__other')
     expect(inherited.findAll('.dashboard-widget-filters__source')).toHaveLength(
       1
@@ -176,13 +181,11 @@ test('follows owner renames, condition changes, unlinking and deletion', async (
   })
   await flushPromises()
   expect(filters.find('.dashboard-widget-filters__other').exists()).toBe(false)
-  expect(wrapper.find('.header__filter-name').text()).toBe(
-    'serviceRefinementForms.filterTabTitle - 0'
-  )
-  expect(wrapper.find('.header__filter-link').classes()).not.toContain('active')
-  expect(filters.text()).toContain(
-    'localBaserowTableServiceConditionalForm.noFilterTitle'
-  )
+  expect(wrapper.find('.service-form__refinement-count').exists()).toBe(false)
+  expect(
+    wrapper.find('.service-form__refinement-chip').classes()
+  ).not.toContain('service-form__refinement-chip--active')
+  expect(filters.text()).toContain('serviceRefinementForms.noFiltersTitle')
 
   testApp.store.commit('dashboardApplication/UPDATE_WIDGET', {
     widgetId: 2,
@@ -193,9 +196,7 @@ test('follows owner renames, condition changes, unlinking and deletion', async (
   testApp.store.commit('dashboardApplication/DELETE_WIDGET', 2)
   await flushPromises()
   expect(filters.find('.dashboard-widget-filters__other').exists()).toBe(false)
-  expect(wrapper.find('.header__filter-name').text()).toBe(
-    'serviceRefinementForms.filterTabTitle - 0'
-  )
+  expect(wrapper.find('.service-form__refinement-count').exists()).toBe(false)
 })
 
 test('uses the current store prefix for inherited groups and their formula labels', async () => {

@@ -8,6 +8,14 @@
       tooltip-position="bottom-left"
       @click="openPanel()"
     />
+    <ButtonText
+      v-else-if="variant === 'text'"
+      class="custom-style__button"
+      icon="baserow-icon-settings"
+      @click="openPanel()"
+    >
+      <slot></slot>
+    </ButtonText>
     <ButtonIcon
       v-else
       v-tooltip="$t('customStyle.configureThemeOverrides')"
@@ -34,7 +42,7 @@ export default {
       type: String,
       default: 'float',
       validator: function (value) {
-        return ['float', 'normal'].includes(value)
+        return ['float', 'normal', 'text'].includes(value)
       },
     },
     theme: { type: Object, required: true },

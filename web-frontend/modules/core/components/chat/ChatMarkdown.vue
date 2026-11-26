@@ -16,6 +16,9 @@ function parseUrl(href) {
   }
 }
 
+// The query parameters that sign S3, GCS, CloudFront and Azure links.
+const SIGNED = /^(x-amz-signature|x-goog-signature|signature|sig)$/i
+
 // A rendered image would load any URL, which can carry conversation data away.
 const markdown = new MarkdownIt({ html: false, linkify: true }).disable('image')
 markdown.renderer.rules.link_open = (tokens, index, options, env, renderer) => {
@@ -25,8 +28,11 @@ markdown.renderer.rules.link_open = (tokens, index, options, env, renderer) => {
     const url = parseUrl(href)
     if (url) {
       token.attrSet('rel', 'noopener noreferrer')
-      url.searchParams.set('utm_source', 'baserow.io')
-      token.attrSet('href', url.href)
+      // Rewriting a signed link's query would break its signature.
+      if (![...url.searchParams.keys()].some((key) => SIGNED.test(key))) {
+        url.searchParams.set('utm_source', 'baserow.io')
+        token.attrSet('href', url.href)
+      }
     }
   }
   return renderer.renderToken(tokens, index, options)

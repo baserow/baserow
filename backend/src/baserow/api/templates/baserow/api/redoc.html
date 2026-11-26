@@ -1,0 +1,10 @@
+{% extends "drf_spectacular/redoc.html" %}
+
+{% block head %}
+  <title>{{ title|default:"Redoc" }}</title>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  {# ReDoc embeds a remote logo next to its text attribution. #}
+  <meta http-equiv="Content-Security-Policy" content="img-src 'self' data:">
+  <style>body { margin: 0; padding: 0; }</style>
+{% endblock head %}

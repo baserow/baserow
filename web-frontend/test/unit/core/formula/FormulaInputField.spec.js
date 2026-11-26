@@ -1,3 +1,4 @@
+import { flushPromises } from '@vue/test-utils'
 import { TestApp } from '@baserow/test/helpers/testApp'
 import { RuntimeFunctionCollection } from '@baserow/modules/core/functionCollection'
 import { ToTipTapVisitor } from '@baserow/modules/core/formula/tiptap/toTipTapVisitor'
@@ -743,12 +744,153 @@ describe('FormulaInputField reveals clicked nodes in the explorer', () => {
   it('reveals a clicked data node', async () => {
     const wrapper = await mountField("get('data_source.projects')")
 
-    await wrapper.find('.get-formula-component > div').trigger('click')
+    await wrapper.find('.get-formula-component__content').trigger('click')
 
     expect(wrapper.vm.revealNode).toEqual({
       type: 'data',
       path: 'data_source.projects',
     })
+  })
+
+  it('shows a data path as its source, its steps and the data', async () => {
+    const nodesHierarchy = [
+      {
+        name: 'Data',
+        nodes: [
+          {
+            name: 'Previous node',
+            identifier: 'previous_node',
+            icon: 'iconoir-flash',
+            nodes: [
+              {
+                name: 'List rows',
+                identifier: '65',
+                icon: 'iconoir-question-mark',
+                sourceIcon: 'iconoir-list',
+                type: 'array',
+                nodes: [
+                  {
+                    name: 'Customer',
+                    identifier: 'field_1',
+                    type: 'array',
+                    nodes: [{ name: 'Email', identifier: 'field_2' }],
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      },
+    ]
+    const wrapper = await testApp.mount(FormulaInputField, {
+      props: {
+        value: "get('previous_node.65.0.field_1.*.field_2')",
+        mode: 'advanced',
+        nodesHierarchy,
+      },
+    })
+    await wrapper.vm.$nextTick()
+
+    const chip = wrapper.find('.get-formula-component')
+    const source = chip.find('.get-formula-component__source')
+    expect(source.text()).toBe('List rows')
+    expect(source.find('.iconoir-list').exists()).toBe(true)
+    expect(
+      chip.findAll('.get-formula-component__index').map((i) => i.text())
+    ).toEqual(['#1', 'common.all'])
+    expect(chip.find('.get-formula-component__step').text()).toBe('Customer')
+    expect(chip.find('.get-formula-component__leaf').text()).toBe('Email')
+    expect(chip.text()).not.toContain('Previous node')
+  })
+
+  it('shows a provider that is its own source by its short name', async () => {
+    const nodesHierarchy = [
+      {
+        name: 'Data',
+        nodes: [
+          {
+            name: 'Data source: Products',
+            identifier: 'current_record',
+            chipSourceName: 'Current record',
+            sourceIcon: 'iconoir-repeat',
+            nodes: [{ name: 'Name', identifier: 'field_1' }],
+          },
+        ],
+      },
+    ]
+    const wrapper = await testApp.mount(FormulaInputField, {
+      props: {
+        value: "get('current_record.field_1')",
+        mode: 'advanced',
+        nodesHierarchy,
+      },
+    })
+    await wrapper.vm.$nextTick()
+
+    const chip = wrapper.find('.get-formula-component')
+    const source = chip.find('.get-formula-component__source')
+    expect(source.text()).toBe('Current record')
+    expect(source.find('.iconoir-repeat').exists()).toBe(true)
+    expect(chip.find('.get-formula-component__leaf').text()).toBe('Name')
+    expect(chip.text()).not.toContain('Data source')
+  })
+
+  it('shortens a data chip that does not fit on one line', async () => {
+    const nodesHierarchy = [
+      {
+        name: 'Data',
+        nodes: [
+          {
+            name: 'Data source: Products',
+            identifier: 'current_record',
+            chipSourceName: 'Current record',
+            sourceIcon: 'iconoir-repeat',
+            nodes: [
+              {
+                name: 'Category',
+                identifier: 'field_1',
+                nodes: [{ name: 'value', identifier: 'value' }],
+              },
+            ],
+          },
+        ],
+      },
+    ]
+    // Every chip overflows its field, whatever it shows.
+    const scrollWidth = vi
+      .spyOn(HTMLElement.prototype, 'scrollWidth', 'get')
+      .mockReturnValue(300)
+    const clientWidth = vi
+      .spyOn(HTMLElement.prototype, 'clientWidth', 'get')
+      .mockReturnValue(100)
+    try {
+      const wrapper = await testApp.mount(FormulaInputField, {
+        props: {
+          value: "get('current_record.field_1.value')",
+          mode: 'advanced',
+          nodesHierarchy,
+        },
+      })
+      await new Promise((resolve) => setTimeout(resolve, 50))
+      await flushPromises()
+
+      const chip = wrapper.find('.get-formula-component')
+      expect(chip.classes()).toContain('get-formula-component--compact-3')
+      // The source keeps its name, which the styles cut off, so every chip
+      // has the same shape.
+      const source = chip.find('.get-formula-component__source')
+      expect(source.find('.iconoir-repeat').exists()).toBe(true)
+      expect(source.find('.get-formula-component__source-name').text()).toBe(
+        'Current record'
+      )
+      const step = chip.find('.get-formula-component__step')
+      expect(step.text()).toBe('…')
+      expect(step.attributes('aria-label')).toBe('Category')
+      expect(chip.find('.get-formula-component__leaf').text()).toBe('value')
+    } finally {
+      scrollWidth.mockRestore()
+      clientWidth.mockRestore()
+    }
   })
 
   it('reveals the function of a clicked closing parenthesis', async () => {

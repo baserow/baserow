@@ -739,15 +739,20 @@ class GoogleGenerativeAIModelType(GenerativeAIModelType):
         workspace: Optional[Workspace] = None,
         settings_override: Optional[dict[str, Any]] = None,
     ) -> Any:
+        from google.genai.types import HttpRetryOptions
         from pydantic_ai.models.google import GoogleModel
         from pydantic_ai.providers.google import GoogleProvider
 
         api_key = self.get_api_key(workspace, settings_override)
         if not api_key:
             raise ValueError("A Google Gemini API key is required.")
+        # The Google SDK never retries unless told to. Two retries of a 429,
+        # 503 or other transient error, as the OpenAI and Anthropic SDKs do.
         return GoogleModel(
             model_name,
-            provider=GoogleProvider(api_key=api_key),
+            provider=GoogleProvider(
+                api_key=api_key, retry_options=HttpRetryOptions(attempts=3)
+            ),
         )
 
     def get_known_models(self) -> list[str]:

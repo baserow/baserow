@@ -1160,7 +1160,7 @@ def test_kuma_says_when_the_agents_identity_is_gone(data_fixture):
 
 @pytest.mark.django_db
 def test_without_identities_turned_on_kuma_creates_none(data_fixture, settings):
-    settings.FEATURE_FLAGS = ["agent-builder"]
+    settings.FEATURE_FLAGS = []
     user = data_fixture.create_user()
     workspace = data_fixture.create_workspace(user=user)
     ctx = _ctx(user, workspace)

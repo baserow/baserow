@@ -378,6 +378,33 @@ class NotificationHandler:
         return notification_recipient
 
     @classmethod
+    def mark_recipients_as_read(cls, recipients: QuerySet) -> None:
+        """
+        Marks the unread notifications of many recipients as read, as a side effect
+        of another action, so the real time event also reaches the session that
+        triggered it, like `mark_notification_as_read` with
+        `include_user_in_signal`.
+
+        :param recipients: The notification recipients to mark as read.
+        """
+
+        unread = list(
+            recipients.filter(read=False).select_related("notification", "recipient")
+        )
+        NotificationRecipient.objects.filter(
+            id__in=[recipient.id for recipient in unread]
+        ).update(read=True, email_scheduled=False)
+        for recipient in unread:
+            recipient.read = True
+            notification_marked_as_read.send(
+                sender=cls,
+                notification=recipient.notification,
+                notification_recipient=recipient,
+                user=recipient.recipient,
+                ignore_web_socket_id=None,
+            )
+
+    @classmethod
     def mark_all_notifications_as_read(cls, user: AbstractUser, workspace: Workspace):
         """
         Marks all the notifications as read for the given workspace and user.

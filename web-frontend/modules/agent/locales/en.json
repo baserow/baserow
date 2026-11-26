@@ -367,7 +367,7 @@
     "toolListViewsRequestedTable": "List views of {table}",
     "approvalRequest": "{name} asks for your approval",
     "approvalRequestReadOnly": "{name} asks for approval",
-    "approvalReviewed": "Reviewed by you",
+    "approvalReviewed": "Reviewed",
     "approvalRunningCount": "{count} running",
     "approvalCompletedCount": "{count} completed",
     "approvalInterruptedCount": "{count} interrupted",

@@ -1,0 +1,9 @@
+{
+    "type": "feature",
+    "message": "Redesigns the filter, sort and search controls in the automation and dashboard sidebars",
+    "issue_origin": "github",
+    "issue_number": null,
+    "domain": "integration",
+    "bullet_points": [],
+    "created_at": "2026-11-25"
+}

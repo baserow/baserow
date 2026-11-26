@@ -199,7 +199,18 @@
     "noTableChosenForFiltering": "Choose a table to begin using data source filters.",
     "noTableChosenForGrouping": "Choose a table to begin using data source groups.",
     "noTableChosenForSorting": "Choose a table to begin using data source sorts.",
-    "refinements": "Refinements"
+    "refinements": "Refine rows",
+    "filterPopoverTitle": "Filter rows",
+    "filterPopoverDescription": "Only rows that match are used.",
+    "noFiltersTitle": "No filters yet",
+    "noFiltersDescription": "Every row in the table is used.",
+    "groupPopoverTitle": "Group rows",
+    "sortPopoverTitle": "Sort rows",
+    "sortPopoverDescription": "Choose the order rows come back in.",
+    "noSortsTitle": "No sorting yet",
+    "noSortsDescription": "Rows come back in the table's default order.",
+    "searchPopoverTitle": "Search rows",
+    "searchPopoverDescription": "Only rows containing this text in any field are used."
   },
   "localBaserowAggregateRowsForm": {
     "aggregationFieldLabel": "Field",

@@ -68,6 +68,17 @@ export class CollectionFieldType extends Registerable {
     return Boolean(this.getErrorMessage(params))
   }
 
+  /**
+   * How a column of this type can be styled: the theme config blocks its style
+   * form shows and the extra arguments it's opened with. `null` when the
+   * column can't be styled.
+   * @param {object} field the collection field.
+   * @returns {{configBlockTypes: Array<string>, extraArgs: object}|null}
+   */
+  getStyleConfig(field) {
+    return null
+  }
+
   getStyleOverride({ colorVariables, field, theme }) {
     return ThemeConfigBlockType.getAllStyles(
       this.app.$registry.getOrderedList('themeConfigBlock'),
@@ -89,6 +100,13 @@ export class BooleanCollectionFieldType extends CollectionFieldType {
 
   get component() {
     return BooleanField
+  }
+
+  getStyleConfig(field) {
+    return {
+      configBlockTypes: ['table'],
+      extraArgs: { onlyCell: true, noAlignment: true },
+    }
   }
 
   get formComponent() {
@@ -128,6 +146,13 @@ export class TextCollectionFieldType extends CollectionFieldType {
     return TextField
   }
 
+  getStyleConfig(field) {
+    return {
+      configBlockTypes: ['table', 'typography'],
+      extraArgs: { onlyCell: true, onlyBody: true, noAlignment: true },
+    }
+  }
+
   get formComponent() {
     return TextFieldForm
   }
@@ -159,6 +184,17 @@ export class LinkCollectionFieldType extends CollectionFieldType {
 
   get component() {
     return LinkField
+  }
+
+  getStyleConfig(field) {
+    // A column just changed to a link has no variant yet, and shows as a link.
+    return {
+      configBlockTypes: [
+        'table',
+        field.variant === LINK_VARIANTS.BUTTON ? 'button' : 'link',
+      ],
+      extraArgs: { onlyCell: true, noAlignment: true },
+    }
   }
 
   get formComponent() {
@@ -237,6 +273,13 @@ export class TagsCollectionFieldType extends CollectionFieldType {
     return TagsField
   }
 
+  getStyleConfig(field) {
+    return {
+      configBlockTypes: ['table', 'typography'],
+      extraArgs: { onlyCell: true, onlyBody: true, noAlignment: true },
+    }
+  }
+
   get formComponent() {
     return TagsFieldForm
   }
@@ -276,6 +319,13 @@ export class ButtonCollectionFieldType extends CollectionFieldType {
 
   get component() {
     return ButtonField
+  }
+
+  getStyleConfig(field) {
+    return {
+      configBlockTypes: ['table', 'button'],
+      extraArgs: { onlyCell: true, noAlignment: true },
+    }
   }
 
   get formComponent() {

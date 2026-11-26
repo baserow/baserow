@@ -361,6 +361,64 @@ def test_anthropic_prepare_files_large_text_is_skipped():
 # --- Google (embed-only) ---
 
 
+def test_a_google_model_survives_one_unavailable_answer(monkeypatch):
+    """Google answers a busy model with 503, which is over a moment later."""
+
+    import json
+    import threading
+    from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+
+    from pydantic_ai import Agent
+
+    seen = []
+    answer = {
+        "candidates": [
+            {
+                "content": {"role": "model", "parts": [{"text": "hello"}]},
+                "finishReason": "STOP",
+                "index": 0,
+            }
+        ],
+        "usageMetadata": {"promptTokenCount": 1, "totalTokenCount": 2},
+    }
+
+    class Handler(BaseHTTPRequestHandler):
+        def do_POST(self):
+            self.rfile.read(int(self.headers["Content-Length"]))
+            seen.append(self.path)
+            status, body = (
+                (503, {"error": {"code": 503, "status": "UNAVAILABLE"}})
+                if len(seen) == 1
+                else (200, answer)
+            )
+            payload = json.dumps(body).encode()
+            self.send_response(status)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(payload)))
+            self.end_headers()
+            self.wfile.write(payload)
+
+        def log_message(self, *args):
+            pass
+
+    server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+    threading.Thread(target=server.serve_forever, daemon=True).start()
+    try:
+        monkeypatch.setenv(
+            "GOOGLE_GEMINI_BASE_URL", f"http://127.0.0.1:{server.server_address[1]}"
+        )
+        model = GoogleGenerativeAIModelType().get_ai_model(
+            "gemini-2.5-flash", None, {"api_key": "key"}
+        )
+        output = Agent(model=model).run_sync("hi").output
+    finally:
+        server.shutdown()
+        server.server_close()
+
+    assert output == "hello"
+    assert len(seen) == 2
+
+
 def test_google_supports_files():
     assert GoogleGenerativeAIModelType().supports_files is True
 

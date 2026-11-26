@@ -122,6 +122,13 @@
   width: 100%;
 }
 
+// The editor shrinks to the field, so a data chip that doesn't fit is
+// shortened instead of widening the field.
+/* stylelint-disable-next-line selector-class-pattern */
+.formula-input-field .ProseMirror {
+  min-width: 0;
+}
+
 /* stylelint-disable-next-line selector-class-pattern */
 .formula-input-field--formula-empty .ProseMirror div:first-child::before {
   content: var(--formula-placeholder);
