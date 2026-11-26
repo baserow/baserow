@@ -166,7 +166,7 @@ describe('Agent tool approvals', () => {
   const openWaitingReply = (approvals, ...later) =>
     openReply(reply('waiting', approvals), ...later)
 
-  test('a collapsed rename approval shows the current and proposed names', async () => {
+  async function useEnglishAgentCopy() {
     const { createI18n } = await vi.importActual('vue-i18n')
     const english = createI18n({
       legacy: false,
@@ -179,11 +179,15 @@ describe('Agent tool approvals', () => {
       return {
         ...composer,
         t: (key, ...values) =>
-          key.startsWith('agent.toolUpdateDatabase')
+          key.startsWith('agent.')
             ? english(key, ...values)
             : composer.t(key, ...values),
       }
     })
+  }
+
+  test('a collapsed rename approval shows the current and proposed names', async () => {
+    await useEnglishAgentCopy()
     const rename = {
       ...heldStep(1, 'waiting'),
       tool: 'update_database',
@@ -691,11 +695,12 @@ describe('Agent tool approvals', () => {
         runId: 'run-2',
       })
     )
+    await useEnglishAgentCopy()
     const wrapper = await openWaitingReply([approval(1), approval(2)])
     const reads = configurationReads()
     expect(alwaysAllow(wrapper).text()).toBe('agent.alwaysAllow')
     expect(alwaysAllow(wrapper).attributes('title')).toBe(
-      'agent.toolCreateRows'
+      'Approve now and let this agent use Create rows without asking for approval again.'
     )
 
     expect(alwaysAllow(wrapper).element.tagName).toBe('BUTTON')
@@ -733,6 +738,9 @@ describe('Agent tool approvals', () => {
       'agent.reject',
       'agent.approve',
     ])
+    expect(itemButtons(pending)[0].attributes('title')).toBe(
+      alwaysAllow(wrapper).attributes('title')
+    )
     await itemButtons(pending)[0].trigger('click')
     await flushPromises()
     expect(sentBodies(testApp)).toEqual([
@@ -740,7 +748,8 @@ describe('Agent tool approvals', () => {
     ])
   })
 
-  test('always allow summarizes multiple tools and names only distinct pending tools on hover', async () => {
+  test('the tooltip names each pending tool once and explains future approval', async () => {
+    await useEnglishAgentCopy()
     const wrapper = await openWaitingReply([
       approval(1),
       approval(2, 'pending', { tool: 'delete_rows' }),
@@ -750,8 +759,26 @@ describe('Agent tool approvals', () => {
 
     expect(alwaysAllow(wrapper).text()).toBe('agent.alwaysAllow')
     expect(alwaysAllow(wrapper).attributes('title')).toBe(
-      'agent.toolCreateRows and agent.toolDeleteRows'
+      'Approve now and let this agent use Create rows and Delete rows without asking for approval again.'
     )
+  })
+
+  test('the last pending MCP tool is named with its server on both buttons', async () => {
+    await useEnglishAgentCopy()
+    const tool = 'mcp_1_send'
+    const step = {
+      ...heldStep(1, 'waiting'),
+      tool,
+      input: { tool: 'Send email', server: 'Mail' },
+    }
+    const wrapper = await openReply(
+      reply('waiting', [approval(1, 'pending', { tool })], { steps: [step] })
+    )
+    const buttons = card(wrapper).findAll('.agent-approval__always-allow')
+    expect(buttons.map((button) => button.attributes('title'))).toEqual([
+      'Approve now and let this agent use Send email in Mail without asking for approval again.',
+      'Approve now and let this agent use Send email in Mail without asking for approval again.',
+    ])
   })
 
   test('always allow is offered only to members who can edit the configuration', async () => {
@@ -1126,6 +1153,7 @@ describe('Agent tool approvals', () => {
   test.each([false, true])(
     'batch labels stay the same in compact mode (%s)',
     async (compact) => {
+      await useEnglishAgentCopy()
       const items = ['create_rows', 'delete_rows'].map((tool, index) => ({
         id: index + 1,
         status: 'pending',
@@ -1142,6 +1170,11 @@ describe('Agent tool approvals', () => {
         'agent.rejectAll',
         'agent.approveAll',
       ])
+      expect(
+        header.get('.agent-approval__always-allow').attributes('title')
+      ).toBe(
+        'Approve now and let this agent use Create rows and Delete rows without asking for approval again.'
+      )
       expect(card.classes('agent-approval--compact')).toBe(compact)
     }
   )

@@ -162,7 +162,7 @@
             size="small"
             :disabled="locked"
             :aria-describedby="itemTitleId(item)"
-            :title="toolLabel(item)"
+            :title="alwaysAllowTitle"
             @click="approve([item], { alwaysAllow: true })"
           >
             {{ $t('agent.alwaysAllow') }}
@@ -255,11 +255,13 @@ const { $registry } = useNuxtApp()
 const { locale, t } = useI18n()
 const toolLabel = (item) =>
   item.toolLabel || agentToolLabel(item.tool, $registry, t)
-const alwaysAllowTitle = computed(() =>
-  new Intl.ListFormat(locale.value, { type: 'conjunction' }).format([
-    ...new Set(pending.value.map(toolLabel)),
-  ])
-)
+const alwaysAllowTitle = computed(() => {
+  const names = [...new Set(pending.value.map(toolLabel))]
+  const tools = new Intl.ListFormat(locale.value, {
+    type: 'conjunction',
+  }).format(names)
+  return t('agent.alwaysApproveTooltip', { tools })
+})
 const OUTCOME_ICONS = {
   [STEP_STATUS.RUNNING]: 'chat-step-group__spinner',
   [STEP_STATUS.DONE]: 'iconoir-check-circle chat-step-group__icon--done',

@@ -380,6 +380,7 @@
     "approveAll": "Approve all",
     "rejectAll": "Reject all",
     "alwaysAllow": "Always approve",
+    "alwaysApproveTooltip": "Approve now and let this agent use {tools} without asking for approval again.",
     "approved": "Approved",
     "rejected": "Rejected",
     "showDetails": "Show details",
