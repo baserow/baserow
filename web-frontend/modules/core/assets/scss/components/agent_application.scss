@@ -467,26 +467,33 @@
   flex-basis: 160px;
 }
 
-.agent-approval__always-allow.button {
-  height: auto;
-  min-height: $button-small-height;
-  padding-block: 5px;
+.agent-approval__actions,
+.agent-approval__item-actions {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(0, 1fr);
+  gap: 6px;
+  width: max-content;
+  max-width: 100%;
+  margin-inline-start: auto;
+
+  .button {
+    justify-content: center;
+    width: 100px;
+    height: auto;
+    min-height: $button-small-height;
+    padding: 4px 2px;
+  }
 
   .button__label {
     white-space: normal;
-    text-align: left;
+    overflow-wrap: anywhere;
   }
 }
 
-.agent-approval__actions,
-.agent-approval__item-actions,
 .agent-approval__summary {
   display: flex;
-  flex-shrink: 0;
   gap: 8px;
-}
-
-.agent-approval__summary {
   font-size: 12px;
   color: $palette-neutral-700;
 }
@@ -498,6 +505,10 @@
 }
 
 .agent-approval__item {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
   padding: 12px 16px;
 
   &:not(:last-child) {
@@ -512,14 +523,9 @@
   gap: 12px;
 }
 
-.agent-approval__item-head .agent-approval__item-title {
-  flex-basis: 100px;
-}
-
-.agent-approval__item-actions {
-  flex-wrap: wrap;
-  flex-shrink: 1;
-  justify-content: flex-end;
+.agent-approval__item-info {
+  flex: 1 1 160px;
+  min-width: 0;
 }
 
 .agent-approval__decision {
@@ -554,6 +560,7 @@
 
 .agent-approval__item-meta {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 8px;
   margin-top: 6px;
@@ -583,6 +590,7 @@
 }
 
 .agent-approval__tool {
+  overflow-wrap: anywhere;
   padding: 0 4px;
   border-radius: 4px;
   background: $palette-neutral-100;
@@ -592,7 +600,8 @@
 }
 
 .agent-approval__input {
-  margin-top: 8px;
+  flex-basis: 100%;
+  min-width: 0;
 }
 
 .agent-reject-modal__description {
@@ -1416,10 +1425,6 @@
   .agent-approval__title {
     flex-basis: 100px;
     display: flex;
-  }
-
-  .agent-approval__always-allow.button {
-    flex-shrink: 0;
   }
 }
 

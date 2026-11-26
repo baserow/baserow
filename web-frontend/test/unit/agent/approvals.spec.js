@@ -96,8 +96,9 @@ const card = (wrapper) => wrapper.get('.agent-approval')
 const cards = (wrapper) => wrapper.findAll('.agent-approval')
 const texts = (elements) => elements.map((element) => element.text())
 const title = (wrapper) => card(wrapper).get('.agent-approval__title').text()
-const headerButtons = (wrapper) =>
-  card(wrapper).findAll('.agent-approval__actions button')
+const batchDecisions =
+  '.agent-approval__actions button:not(.agent-approval__always-allow)'
+const headerButtons = (wrapper) => card(wrapper).findAll(batchDecisions)
 const items = (wrapper) => card(wrapper).findAll('.agent-approval__item')
 const itemButtons = (item) =>
   item.findAll('.agent-approval__item-actions button')
@@ -302,9 +303,7 @@ describe('Agent tool approvals', () => {
       expect(decisions(wrapper)).toEqual(['agent.approved'])
       expect(activity(wrapper).text()).toBe('agent.waitingForApproval')
       expect(composer(wrapper).element.disabled).toBe(true)
-      await wrapper
-        .findAll('.agent-approval__actions button')[1]
-        .trigger('click')
+      await wrapper.findAll(batchDecisions)[1].trigger('click')
       await flushPromises()
       expect(sentBodies(testApp).at(-1)).toEqual({
         decisions: [{ id: 2, approved: true }],
@@ -335,14 +334,14 @@ describe('Agent tool approvals', () => {
     )
     reading.resolve(200, page([prompt, paused]))
     await flushPromises()
-    await wrapper.findAll('.agent-approval__actions button')[1].trigger('click')
+    await wrapper.findAll(batchDecisions)[1].trigger('click')
     await flushPromises()
     expect(decisions(wrapper)).toEqual(['agent.approved', 'agent.approved'])
 
     await finish('run-2', paused)
 
     expect(decisions(wrapper)).toEqual(['agent.approved', 'agent.approved'])
-    expect(wrapper.findAll('.agent-approval__actions button')).toHaveLength(0)
+    expect(wrapper.findAll(batchDecisions)).toHaveLength(0)
     expect(stop(wrapper).exists()).toBe(true)
   })
 
@@ -375,7 +374,7 @@ describe('Agent tool approvals', () => {
 
     expect(cards(wrapper)).toHaveLength(2)
     expect(decisions(wrapper)).toEqual(['agent.approved'])
-    expect(texts(wrapper.findAll('.agent-approval__actions button'))).toEqual([
+    expect(texts(wrapper.findAll(batchDecisions))).toEqual([
       'agent.rejectAll',
       'agent.approveAll',
     ])
@@ -477,9 +476,10 @@ describe('Agent tool approvals', () => {
     expect(
       cards(wrapper).map((item) => item.get('.agent-approval__title').text())
     ).toEqual(['agent.approvalReviewed', 'agent.approvalRequest'])
-    expect(
-      texts(cards(wrapper)[1].findAll('.agent-approval__actions button'))
-    ).toEqual(['agent.rejectAll', 'agent.approveAll'])
+    expect(texts(cards(wrapper)[1].findAll(batchDecisions))).toEqual([
+      'agent.rejectAll',
+      'agent.approveAll',
+    ])
   })
 
   test('a read between the held writes of a pause follows their card', async () => {
