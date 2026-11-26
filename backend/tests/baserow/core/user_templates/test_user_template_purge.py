@@ -96,7 +96,6 @@ def create_family(data_fixture, *, marked_for_deletion_at=None, revisions=2):
         )
     Template.objects.filter(id=root.id).update(
         public_revision=root,
-        shared_revision=family[1] if len(family) > 1 else root,
         marked_for_deletion_at=marked_for_deletion_at,
     )
 

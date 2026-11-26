@@ -17,6 +17,7 @@ from baserow.core.user_templates.exceptions import TemplateUpdated
 from baserow.core.user_templates.handler import UserTemplateHandler
 from baserow.core.user_templates.models import DownloadUserTemplateJob
 from tests.baserow.core.user_templates.utils import (
+    cache_settings,
     create_template,
     download,
     install_marks,
@@ -209,13 +210,14 @@ def test_get_downloadable_revision(
 
 @pytest.mark.django_db
 def test_get_downloadable_revision_through_private_link(
-    data_fixture, django_assert_num_queries
+    data_fixture, django_assert_num_queries, settings
 ):
     template = data_fixture.set_user_template_state(
         create_template(data_fixture, data_fixture.create_user()), "shared"
     )
     latest = add_revision(data_fixture, template)
     user = data_fixture.create_user()
+    cache_settings(settings)
 
     with django_assert_num_queries(3):
         revision = UserTemplateHandler().get_downloadable_revision(

@@ -19,6 +19,7 @@
         :categories="selectedTemplateCategories"
         :workspace="workspace"
         :owner-actions="selectedOwnerActions"
+        :delete-only="!userTemplatesAllowed"
         show-back
         class="templates__body"
         @back="selectTemplate(null)"
@@ -37,7 +38,7 @@
         class="templates__body"
         @selected="selectTemplate"
       >
-        <template v-if="showTabs" #head>
+        <template v-if="showSegments" #head>
           <SegmentControl
             :segments="tabs"
             :active-index="tabIndex"
@@ -80,6 +81,7 @@
           !makingPublic &&
           !makingPrivate
         "
+        :delete-only="!userTemplatesAllowed"
         class="templates__body"
         @selected="selectTemplate($event, true)"
         @create="openCreateModal"
@@ -218,6 +220,9 @@ export default {
       sharedSearch: '',
       // The list of the user's templates is loaded when its tab is opened first.
       userTemplatesOpened: false,
+      // Whether the user has templates of their own, only checked while user
+      // templates are turned off.
+      ownsTemplates: false,
       // While a template is created, its modal takes the search shortcut.
       creating: false,
       // The user's template that is or was last updated. It's kept after the
@@ -252,24 +257,35 @@ export default {
         this.$store.getters['auth/isAuthenticated']
       )
     },
+    userTemplatesAllowed() {
+      return Boolean(this.$store.getters['settings/get'].allow_user_templates)
+    },
     tabs() {
-      return [
+      const tabs = [
         {
           value: 'official',
           label: this.$t('templateModal.officialTemplates'),
           icon: 'baserow-icon-templates',
         },
-        {
+      ]
+      if (this.userTemplatesAllowed) {
+        tabs.push({
           value: 'public',
           label: this.$t('templateModal.publicTemplates'),
           icon: 'iconoir-group',
-        },
-        {
+        })
+      }
+      if (this.userTemplatesAllowed || this.ownsTemplates) {
+        tabs.push({
           value: 'own',
           label: this.$t('templateModal.yourTemplates'),
           icon: 'iconoir-box',
-        },
-      ]
+        })
+      }
+      return tabs
+    },
+    showSegments() {
+      return this.showTabs && this.tabs.length > 1
     },
     // A computed, because the list reads it only when it's mounted, as soon as
     // the categories are loaded.
@@ -319,10 +335,10 @@ export default {
      * slug, or else on the list (on the default template without user templates).
      */
     async show(templateId = null, ...args) {
-      const listError = await this.openAndLoad(...args)
+      const { listError, ownsError } = await this.openAndLoad(...args)
       const linked = typeof templateId === 'string'
-      if (listError && !linked) {
-        this.failLoading(listError)
+      if (ownsError || (listError && !linked)) {
+        this.failLoading(ownsError ?? listError)
         return
       }
       const opensDefault =
@@ -368,19 +384,22 @@ export default {
       }
     },
     async showShared(search) {
-      const listError = await this.openAndLoad()
-      if (listError) {
-        this.failLoading(listError)
+      const { listError, ownsError } = await this.openAndLoad()
+      if (ownsError || listError) {
+        this.failLoading(ownsError ?? listError)
         return
       }
-      this.sharedSearch = search
-      this.tab = 'public'
+      if (this.userTemplatesAllowed) {
+        this.sharedSearch = search
+        this.tab = 'public'
+      }
     },
     /**
      * Opens the modal and fetches all the templates and their categories, so
-     * that the user can browse them.
+     * that the user can browse them, and whether the user owns templates.
      *
-     * @returns {Promise<Error|null>} The error if they couldn't be fetched.
+     * @returns {Promise<{listError?: Error, ownsError?: Error}>} The error of
+     *   each that couldn't be fetched.
      */
     async openAndLoad(...args) {
       modal.methods.show.call(this, ...args)
@@ -391,15 +410,27 @@ export default {
       this.tab = 'official'
       this.sharedSearch = ''
       this.userTemplatesOpened = false
+      this.ownsTemplates = false
 
-      try {
-        const { data } = await TemplateService(this.$client).fetchAll()
-        this.categories = data
+      const [list, owns] = await Promise.allSettled([
+        TemplateService(this.$client).fetchAll(),
+        this.fetchOwnsTemplates(),
+      ])
+      if (list.status === 'fulfilled' && owns.status === 'fulfilled') {
+        this.categories = list.value.data
+        this.ownsTemplates = owns.value
         this.loading = false
-        return null
-      } catch (error) {
-        return error
       }
+      return { listError: list.reason, ownsError: owns.reason }
+    },
+    async fetchOwnsTemplates() {
+      if (!this.showTabs || this.userTemplatesAllowed) {
+        return false
+      }
+      const { data } = await TemplateService(this.$client).fetchOwn({
+        limit: 1,
+      })
+      return data.count > 0
     },
     failLoading(error) {
       notifyIf(error, 'templates')
@@ -582,6 +613,26 @@ export default {
       if (this.updatedTemplate?.id === templateId) {
         this.updatedTemplate = null
         this.updating = false
+      }
+      this.recheckOwnsTemplates()
+    },
+    /**
+     * While user templates are off, drops the "Your templates" tab and opens the
+     * official templates once the user has none left. Only an answer of none
+     * changes the tab: none can be created while off, so a later answer of some
+     * is an older one, and a failed check keeps the tab.
+     */
+    async recheckOwnsTemplates() {
+      if (!this.ownsTemplates) {
+        return
+      }
+      const ownsTemplates = await this.fetchOwnsTemplates().catch(() => true)
+      if (!ownsTemplates) {
+        this.ownsTemplates = false
+        this.userTemplatesOpened = false
+        if (this.tab === 'own') {
+          this.selectTab('official')
+        }
       }
     },
     /**

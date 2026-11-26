@@ -98,6 +98,7 @@ from baserow.core.user_templates.exceptions import (
     TemplateRejectReasonRequired,
     TemplateSlugGenerationFailed,
     TemplateUpdated,
+    UserTemplatesDisabled,
 )
 from baserow.core.user_templates.file_transfer import (
     TemplateContent,
@@ -1718,17 +1719,40 @@ class UserTemplateHandler:
             and secrets.compare_digest(token.encode(), root.private_link_token.encode())
         )
 
+    def check_user_templates_allowed(
+        self, user: AbstractUser, *, allow_instance_admin: bool = False
+    ) -> None:
+        """
+        Raises if user templates are turned off on this instance, see
+        `Settings.allow_user_templates`.
+
+        :param user: The user who acts on a user template.
+        :param allow_instance_admin: Whether an instance admin may act anyway, as
+            they still install and download user templates while turned off.
+        :raises UserTemplatesDisabled: If user templates are turned off.
+        """
+
+        if allow_instance_admin and is_instance_admin(user):
+            return
+        if not CoreHandler().get_settings().allow_user_templates:
+            raise UserTemplatesDisabled(
+                "User templates have been turned off by the instance administrator."
+            )
+
     def _check_install_access(
         self,
         user: AbstractUser,
         root: Template,
         latest: bool = False,
         private_link_token: Optional[str] = None,
+        download: bool = False,
     ) -> InstallAccess:
         """
         Raises if the user may not install the template: TemplateDoesNotExist
         without access, or when asking for the `latest` revision without owning
-        it, before TemplateBlocked for a blocked owner who isn't an instance admin.
+        it, before UserTemplatesDisabled while user templates are turned off,
+        unless they're an instance admin or the owner downloads it, and
+        TemplateBlocked for a blocked owner who isn't an instance admin.
 
         :return: Why the user may install the template.
         """
@@ -1736,6 +1760,8 @@ class UserTemplateHandler:
         access = self._get_install_access(user, root, private_link_token)
         if access is None or (latest and access != InstallAccess.OWNER):
             raise TemplateDoesNotExist(f"The template {root.id} does not exist.")
+        if not (download and access == InstallAccess.OWNER):
+            self.check_user_templates_allowed(user, allow_instance_admin=True)
         if (
             access == InstallAccess.OWNER
             and root.blocked_at is not None
@@ -1767,6 +1793,8 @@ class UserTemplateHandler:
             or asks for the latest revision without owning it.
         :raises TemplateBlocked: If the user owns the template and it's blocked,
             unless they're an instance admin.
+        :raises UserTemplatesDisabled: If user templates are turned off, unless
+            the user is an instance admin.
         :raises TemplateHasNoContent: If the revision has no application to copy.
         :return: The revision to install, with its root selected.
         """
@@ -1825,6 +1853,8 @@ class UserTemplateHandler:
             for a revision of another template.
         :raises TemplateBlocked: If the user owns the template and it's blocked,
             unless they're an instance admin.
+        :raises UserTemplatesDisabled: If user templates are turned off, unless
+            the user owns the template or is an instance admin.
         :raises TemplateUpdated: If the user neither owns the template nor is an
             instance admin, and the revision isn't the one install picks anymore.
         :raises TemplateHasNoContent: If the revision has no application to copy.
@@ -1835,7 +1865,7 @@ class UserTemplateHandler:
         if root is None:
             raise TemplateDoesNotExist(f"The template with slug {slug} does not exist.")
         access = self._check_install_access(
-            user, root, private_link_token=private_link_token
+            user, root, private_link_token=private_link_token, download=True
         )
         revision = None
         if access == InstallAccess.LISTED:
@@ -1864,7 +1894,7 @@ class UserTemplateHandler:
         return revision
 
     def recheck_admitted_install_access(
-        self, user: AbstractUser, revision: Template
+        self, user: AbstractUser, revision: Template, download: bool = False
     ) -> None:
         """
         Checks again, when an install or download job admitted earlier runs, that
@@ -1875,17 +1905,21 @@ class UserTemplateHandler:
 
         :param user: The user who installs the template.
         :param revision: The pinned revision, with its root selected.
+        :param download: Whether the job downloads the template, which its owner
+            may do while user templates are turned off.
         :raises TemplateDoesNotExist: If the user lost access to the template, or
             it's marked for deletion.
         :raises TemplateBlocked: If the user owns the template and it's blocked,
             unless they're an instance admin.
+        :raises UserTemplatesDisabled: If user templates are turned off, unless
+            the user is an instance admin or the owner downloads it.
         """
 
         root = revision.get_root()
         if root.marked_for_deletion_at is not None:
             raise TemplateDoesNotExist(f"The template {root.id} does not exist.")
         self._check_install_access(
-            user, root, private_link_token=root.private_link_token
+            user, root, private_link_token=root.private_link_token, download=download
         )
 
     def mark_owned_templates_for_deletion(self, user: AbstractUser) -> None:
@@ -2305,9 +2339,7 @@ class UserTemplateHandler:
 
             # The protected revisions can only be deleted once nothing points at
             # them.
-            Template.objects.filter(id=root.id).update(
-                public_revision=None, shared_revision=None
-            )
+            Template.objects.filter(id=root.id).update(public_revision=None)
 
             # Revisions that only differ in their details share their content.
             distinct_contents = {

@@ -132,7 +132,6 @@ def test_create_template_root(data_fixture):
     assert set(template.categories.all()) == {category_1, category_2}
     assert template.review_state == Template.ReviewState.NOT_SUBMITTED
     assert template.public_revision is None
-    assert template.shared_revision is None
     assert template.private_link_token is None
     assert not template.archive
     assert UserTemplateHandler().get_template_state(template) == (

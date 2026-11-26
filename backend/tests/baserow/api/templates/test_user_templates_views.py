@@ -19,6 +19,7 @@ from rest_framework.status import (
 from rest_framework.test import APIClient
 
 from baserow.core.admin.users.handler import UserAdminHandler
+from baserow.core.handler import CoreHandler
 from baserow.core.models import Template, TemplateCategory
 from baserow.core.user.handler import UserHandler
 from baserow.core.user_templates.job_types import CreateUserTemplateJobType
@@ -471,7 +472,7 @@ def test_get_user_template_shows_others_its_public_revision(
             ["Sales"],
             public.created_on,
         )
-    with django_assert_num_queries(4):
+    with django_assert_num_queries(5):
         get_shown(staff_headers)
 
     for changes, state in [
@@ -1445,6 +1446,7 @@ def test_listed_templates_fields_and_paging(api_client, data_fixture):
         return revision
 
     revision = create_listed("CRM")
+    CoreHandler().get_settings()
     with CaptureQueriesContext(connection) as one_template:
         response = list_templates(api_client, type="user", listed="true")
     [result] = response.json()["results"]

@@ -40,6 +40,7 @@ class SettingsSerializer(serializers.ModelSerializer):
             "verify_import_signature",
             "allow_reporting_abuse",
             "user_templates_require_approval",
+            "allow_user_templates",
             "inbound_email_enabled",
             "email_delivery_enabled",
         )
@@ -62,6 +63,14 @@ class SettingsSerializer(serializers.ModelSerializer):
                 "admin could approve, except the ones rejected since their last "
                 "approval. Can only be changed with the user templates feature "
                 "enabled.",
+            },
+            "allow_user_templates": {
+                "required": False,
+                "help_text": "Whether user templates can be created, shared, opened "
+                "and installed. While off, only instance admins can open, "
+                "install and download them, and authors can only delete theirs. "
+                "Nothing is deleted. Can only be changed with the user templates "
+                "feature enabled.",
             },
         }
 

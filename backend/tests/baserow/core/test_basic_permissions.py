@@ -58,6 +58,10 @@ from baserow.core.user_sources.operations import (
     LoginUserSourceOperationType,
     UpdateUserSourceOperationType,
 )
+from tests.baserow.core.user_templates.utils import (
+    cache_settings,
+    turn_user_templates,
+)
 
 
 @pytest.mark.parametrize("actor", [None, AnonymousUser(), User(id=1)])
@@ -1557,8 +1561,9 @@ def create_templates_of_each_state(data_fixture, owner, with_links=False):
     the others (not the owner, a link holder or an admin), anyone with the token of
     the private link of the template, see `get_link_token`, the owner, and an
     instance admin who isn't the owner. With `allow_instance_admin`, which only the
-    checks of a single template pass, the admin opens what the owner opens. Only the
-    official ones open while user templates are disabled.
+    checks of a single template pass, the admin opens what the owner opens. While
+    user templates are turned off, only the official ones open, except with
+    `allow_instance_admin`.
 
     :param with_links: Whether the templates that can have a private link get one.
     """
@@ -1654,14 +1659,21 @@ def get_template_actors(data_fixture, owner):
 
 
 @pytest.mark.django_db
-@pytest.mark.parametrize("user_templates_enabled", [True, False])
+@pytest.mark.parametrize(
+    "user_templates_enabled,setting",
+    [(True, "on"), (False, "on"), (True, "off"), (True, "back on")],
+)
 def test_allow_if_template_permission_manager_allows_openable_templates(
-    data_fixture, settings, user_templates_enabled
+    data_fixture, settings, user_templates_enabled, setting
 ):
     if not user_templates_enabled:
         settings.FEATURE_FLAGS = []
     owner = data_fixture.create_user()
     templates = create_templates_of_each_state(data_fixture, owner, with_links=True)
+    if setting != "on":
+        turn_user_templates(data_fixture, False)
+    if setting == "back on":
+        turn_user_templates(data_fixture, True)
     not_a_template = (data_fixture.create_workspace(), False, False)
     manager = AllowIfTemplatePermissionManagerType()
 
@@ -1676,48 +1688,56 @@ def test_allow_if_template_permission_manager_allows_openable_templates(
             as_admin = OWNER if column == ADMIN else None
             checked = row[as_admin or column]
             checked_listed = row[as_admin or listed_column]
+            hidden = setting == "off" and template.type == Template.Type.USER
+            hidden_from_actor = hidden and column != ADMIN
             opener = PermissionCheck(actor, ReadWorkspaceOperationType.type).actor
             reason = (template.name, actor, has_link)
             assert (
                 Template.objects.openable(opener, private_link_token=token)
                 .filter(id=template.id)
                 .exists()
-            ) is (allowed and in_lists), reason
+            ) is (allowed and in_lists and not hidden), reason
             assert (
                 Template.objects.openable(
                     opener, private_link_token=token, allow_instance_admin=True
                 )
                 .filter(id=template.id)
                 .exists()
-            ) is checked, reason
-            assert (
-                workspace.has_openable_template(opener, allow_instance_admin=True)
-                is checked_listed
-            ), reason
+            ) is (checked and not hidden_from_actor), reason
+            assert workspace.has_openable_template(
+                opener, allow_instance_admin=True
+            ) is (checked_listed and not hidden_from_actor), reason
             assert (
                 Template.objects.openable(opener).filter(id=template.id).exists()
-            ) is (listed and in_lists), reason
+            ) is (listed and in_lists and not hidden), reason
+            assert (
+                Template.objects.openable(opener, include_own=True)
+                .filter(id=template.id)
+                .exists()
+            ) is (listed and in_lists and (not hidden or column == OWNER)), reason
             for operation in manager.OPERATION_ALLOWED_ON_TEMPLATES:
                 check = PermissionCheck(actor, operation, workspace)
                 queryset = workspace.application_set.all()
                 reason = (template.name, actor, has_link, operation)
 
+                opens = checked and not hidden_from_actor
+
                 with private_link_token(token):
                     assert manager.check_multiple_permissions([check], workspace) == (
-                        {check: True} if checked else {}
+                        {check: True} if opens else {}
                     ), reason
                     assert (
                         manager.filter_queryset(
                             check.actor, operation, queryset, workspace
                         )
                         is not None
-                    ) is checked, reason
+                    ) is opens, reason
                     assert (
                         workspace.id
                         in manager.filter_queryset_for_workspaces(
                             check.actor, operation, queryset, [workspace]
                         )
-                    ) is checked, reason
+                    ) is opens, reason
 
         workspace = not_a_template[0]
         check = PermissionCheck(actor, ReadWorkspaceOperationType.type, workspace)
@@ -1799,7 +1819,7 @@ def test_allow_if_template_permission_manager_refuses_template_once_marked(
 
 @pytest.mark.django_db
 def test_openable_template_check_uses_prefetched_templates(
-    data_fixture, django_assert_num_queries
+    data_fixture, django_assert_num_queries, settings
 ):
     owner = data_fixture.create_user()
     templates = create_templates_of_each_state(data_fixture, owner)
@@ -1811,6 +1831,7 @@ def test_openable_template_check_uses_prefetched_templates(
     )
 
     admin = data_fixture.create_user(is_staff=True)
+    cache_settings(settings)
 
     with django_assert_num_queries(0):
         openable = {w.id for w in workspaces if w.has_openable_template(owner)}
@@ -1863,7 +1884,7 @@ def test_allow_if_template_permissions_object_lists_a_shared_workspace_once(
 
 @pytest.mark.django_db
 def test_openable_template_check_selects_the_root_of_a_revision(
-    data_fixture, django_assert_num_queries
+    data_fixture, django_assert_num_queries, settings
 ):
     owner = data_fixture.create_user()
     user_template = data_fixture.create_user_template(user=owner)
@@ -1871,6 +1892,8 @@ def test_openable_template_check_selects_the_root_of_a_revision(
     workspace = Workspace.objects.get(id=revision.workspace_id)
     # The template types of the workspace are cached by the first check.
     workspace.get_template_types()
+
+    cache_settings(settings)
 
     with django_assert_num_queries(1):
         assert workspace.has_openable_template(owner)
@@ -1881,7 +1904,7 @@ def test_openable_template_check_selects_the_root_of_a_revision(
     "latest_state,openable", [("private", False), ("in_review", True)]
 )
 def test_openable_template_check_queries_the_review_queue_once_for_an_admin(
-    data_fixture, django_assert_num_queries, latest_state, openable
+    data_fixture, django_assert_num_queries, settings, latest_state, openable
 ):
     admin = data_fixture.create_user(is_staff=True)
     user_template = data_fixture.create_user_template()
@@ -1893,13 +1916,15 @@ def test_openable_template_check_queries_the_review_queue_once_for_an_admin(
     workspace = Workspace.objects.get(id=user_template.workspace_id)
     workspace.get_template_types()
 
+    cache_settings(settings)
+
     with django_assert_num_queries(2):
         assert workspace.has_openable_template(admin) is openable
 
 
 @pytest.mark.django_db
 def test_allow_if_template_permission_manager_checks_a_user_template_once(
-    data_fixture, django_assert_num_queries
+    data_fixture, django_assert_num_queries, settings
 ):
     owner = data_fixture.create_user()
     workspace = data_fixture.create_user_template(user=owner).workspace
@@ -1910,6 +1935,8 @@ def test_allow_if_template_permission_manager_checks_a_user_template_once(
         PermissionCheck(owner, operation, workspace)
         for operation in manager.OPERATION_ALLOWED_ON_TEMPLATES
     ]
+
+    cache_settings(settings)
 
     with django_assert_num_queries(1):
         assert manager.check_multiple_permissions(checks, workspace) == {

@@ -154,6 +154,7 @@ class UserTemplateService:
         :param job_id: The id of the create user template job making the template
             public, which it only does while the job still asks for it.
         :raises TemplateDoesNotExist: If the user doesn't own the template.
+        :raises UserTemplatesDisabled: If user templates are turned off.
         :raises TemplateBlocked: If the template is blocked.
         :raises UserTemplatePublicListingConsentRequired: If the template is made
             public without the consent.
@@ -209,6 +210,7 @@ class UserTemplateService:
         :param template_id: The id of the template, which is its root.
         :param enabled: Whether the template must have a private link.
         :raises TemplateDoesNotExist: If the user doesn't own the template.
+        :raises UserTemplatesDisabled: If user templates are turned off.
         :raises TemplateBlocked: If the template is blocked.
         :return: The latest revision, and whether the link changed.
         """
@@ -229,6 +231,7 @@ class UserTemplateService:
         :param user: The owner of the template.
         :param template_id: The id of the template, which is its root.
         :raises TemplateDoesNotExist: If the user doesn't own the template.
+        :raises UserTemplatesDisabled: If user templates are turned off.
         :raises TemplateBlocked: If the template is blocked.
         :return: The latest revision, and whether the token was replaced.
         """
@@ -239,9 +242,9 @@ class UserTemplateService:
         return handler.get_latest_revision_of_locked_root(root), rotated
 
     def _get_own_unblocked_root(self, user: AbstractUser, template_id: int) -> Template:
-        root = UserTemplateHandler().get_own_template(
-            user, template_id, for_update=True
-        )
+        handler = UserTemplateHandler()
+        root = handler.get_own_template(user, template_id, for_update=True)
+        handler.check_user_templates_allowed(user)
         if root.blocked_at is not None:
             raise TemplateBlocked(f"The template {root.id} is blocked.")
         return root

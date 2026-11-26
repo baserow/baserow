@@ -264,6 +264,7 @@ class CoreHandler:
                 "verify_import_signature",
                 "allow_reporting_abuse",
                 "user_templates_require_approval",
+                "allow_user_templates",
             ]
             if name in kwargs
         ]
@@ -2836,7 +2837,7 @@ class CoreHandler:
         :return: The templates.
         """
 
-        templates = Template.objects.openable(actor)
+        templates = Template.objects.openable(actor, include_own=owned)
         # Without the feature, user templates are only opened through their link.
         lists_user_templates = feature_flag_is_enabled(FF_USER_TEMPLATES, user=actor)
         if template_type == Template.Type.USER:

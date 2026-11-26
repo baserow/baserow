@@ -12,6 +12,9 @@
       </slot>
     </div>
     <div class="user-template-list__body">
+      <Alert v-if="deleteOnly" type="info-neutral" class="margin-bottom-0">
+        <p>{{ $t('userTemplateList.turnedOff') }}</p>
+      </Alert>
       <div v-if="!loaded" class="user-template-list__loading">
         <div class="loading"></div>
       </div>
@@ -33,11 +36,13 @@
           icon="iconoir-box"
           :title="$t('userTemplateList.emptyTitle')"
           :description="
-            createDisabledReason || $t('userTemplateList.emptyDescription')
+            deleteOnly
+              ? ''
+              : createDisabledReason || $t('userTemplateList.emptyDescription')
           "
         >
           <Button
-            v-if="!createDisabledReason"
+            v-if="!deleteOnly && !createDisabledReason"
             icon="iconoir-plus"
             @click="emit('create')"
           >
@@ -57,7 +62,10 @@
             icon-left="iconoir-search"
             :placeholder="$t('userTemplateList.search')"
           ></FormInput>
-          <span v-tooltip:[TOOLTIP_OPTIONS]="createDisabledReason || null">
+          <span
+            v-if="!deleteOnly"
+            v-tooltip:[TOOLTIP_OPTIONS]="createDisabledReason || null"
+          >
             <Button
               icon="iconoir-plus"
               :disabled="!!createDisabledReason"
@@ -101,16 +109,17 @@
               v-for="template in templates"
               :key="template.id"
               class="user-template-list__row"
-              @click="emit('selected', template)"
+              :class="{ 'user-template-list__row--static': deleteOnly }"
+              @click="select(template)"
             >
               <!-- The name takes the keyboard, so that the actions button isn't
               nested in another interactive element. -->
               <div
                 class="user-template-list__cell user-template-list__name"
-                role="button"
-                tabindex="0"
-                @keydown.enter.prevent="emit('selected', template)"
-                @keydown.space.prevent="emit('selected', template)"
+                :role="deleteOnly ? null : 'button'"
+                :tabindex="deleteOnly ? null : 0"
+                @keydown.enter.prevent="select(template)"
+                @keydown.space.prevent="select(template)"
               >
                 <div class="user-template-list__icon">
                   <i :class="template.icon || 'iconoir-view-grid'"></i>
@@ -162,7 +171,7 @@
               </div>
               <div class="user-template-list__cell user-template-list__actions">
                 <ButtonIcon
-                  v-if="template.state !== 'blocked'"
+                  v-if="!deleteOnly && template.state !== 'blocked'"
                   type="secondary"
                   size="small"
                   icon="iconoir-link"
@@ -189,7 +198,7 @@
           </InfiniteScroll>
           <Context ref="actionsContext" @hidden="focusedTemplate = null">
             <ul class="context__menu">
-              <li class="context__menu-item">
+              <li v-if="!deleteOnly" class="context__menu-item">
                 <a
                   class="context__menu-item-link"
                   @click.prevent="edit('details')"
@@ -198,7 +207,7 @@
                   {{ $t('userTemplateList.editDetails') }}
                 </a>
               </li>
-              <li class="context__menu-item">
+              <li v-if="!deleteOnly" class="context__menu-item">
                 <a
                   class="context__menu-item-link"
                   @click.prevent="edit('content')"
@@ -208,7 +217,7 @@
                 </a>
               </li>
               <li
-                v-if="canMakePublic(focusedTemplate)"
+                v-if="!deleteOnly && canMakePublic(focusedTemplate)"
                 class="context__menu-item"
               >
                 <a
@@ -224,7 +233,7 @@
                 </a>
               </li>
               <li
-                v-if="canMakePrivate(focusedTemplate)"
+                v-if="!deleteOnly && canMakePrivate(focusedTemplate)"
                 class="context__menu-item"
               >
                 <a
@@ -236,7 +245,7 @@
                 </a>
               </li>
               <li
-                v-if="focusedCopyLinkItem"
+                v-if="!deleteOnly && focusedCopyLinkItem"
                 class="context__menu-item context__menu-item--with-separator"
               >
                 <a
@@ -252,7 +261,8 @@
                 v-if="canInstall(focusedTemplate, isStaff)"
                 class="context__menu-item"
                 :class="{
-                  'context__menu-item--with-separator': !focusedCopyLinkItem,
+                  'context__menu-item--with-separator':
+                    !deleteOnly && !focusedCopyLinkItem,
                 }"
               >
                 <a
@@ -267,7 +277,13 @@
                   {{ $t('userTemplateList.download') }}
                 </a>
               </li>
-              <li class="context__menu-item context__menu-item--with-separator">
+              <li
+                class="context__menu-item"
+                :class="{
+                  'context__menu-item--with-separator':
+                    !deleteOnly || canInstall(focusedTemplate, isStaff),
+                }"
+              >
                 <a
                   class="context__menu-item-link context__menu-item-link--delete"
                   @click.prevent="askToDelete()"
@@ -335,6 +351,11 @@ const props = defineProps({
     type: Boolean,
     required: false,
     default: true,
+  },
+  deleteOnly: {
+    type: Boolean,
+    required: false,
+    default: false,
   },
 })
 
@@ -464,6 +485,12 @@ function fetchNextPage() {
  */
 function refresh() {
   return fetchPage(0, search.value, true)
+}
+
+function select(template) {
+  if (!props.deleteOnly) {
+    emit('selected', template)
+  }
 }
 
 /**

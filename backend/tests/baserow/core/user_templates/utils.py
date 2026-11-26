@@ -290,6 +290,16 @@ def make_private(user, template):
     )
 
 
+def cache_settings(settings):
+    settings.BASEROW_CACHE_TTL_SECONDS = 60
+    CoreHandler().get_settings()
+
+
+def turn_user_templates(data_fixture, on):
+    admin = data_fixture.create_user(is_staff=True)
+    CoreHandler().update_settings(admin, allow_user_templates=on)
+
+
 def store_archive(name="template.zip"):
     return get_default_storage().save(
         f"template-revisions/{name}", ContentFile(b"archive")

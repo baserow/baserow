@@ -431,38 +431,48 @@ def test_allow_reporting_abuse_setting(api_client, data_fixture):
 
 @pytest.mark.django_db
 @pytest.mark.parametrize("flag", [True, False])
-def test_user_templates_require_approval_setting(
-    api_client, data_fixture, settings, flag
-):
+@pytest.mark.parametrize(
+    "name,label",
+    [
+        ("user_templates_require_approval", "User templates require approval"),
+        ("allow_user_templates", "Allow user templates"),
+    ],
+)
+def test_user_templates_settings(api_client, data_fixture, settings, flag, name, label):
     if not flag:
         settings.FEATURE_FLAGS = []
     token = data_fixture.create_user_and_token(is_staff=True)[1]
+    other_token = data_fixture.create_user_and_token()[1]
     response = api_client.get(reverse("api:settings:get"))
-    assert response.json()["user_templates_require_approval"] is True
+    assert response.json()[name] is True
+
+    response = api_client.patch(
+        reverse("api:settings:update"),
+        {name: False},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {other_token}",
+    )
+    assert response.status_code == HTTP_403_FORBIDDEN
+    assert getattr(CoreHandler().get_settings(), name) is True
 
     with recorded_actions() as actions:
         response = api_client.patch(
             reverse("api:settings:update"),
-            {"user_templates_require_approval": False, "allow_new_signups": True},
+            {name: False, "allow_new_signups": True},
             format="json",
             HTTP_AUTHORIZATION=f"JWT {token}",
         )
 
     if flag:
         assert response.status_code == HTTP_200_OK
-        assert actions == [
-            (
-                "admin_update_settings",
-                {"settings": {"user_templates_require_approval": False}},
-            )
-        ]
+        assert actions == [("admin_update_settings", {"settings": {name: False}})]
         assert UpdateAdminSettingsActionType.get_long_description(actions[0][1]) == (
-            "Settings updated: User templates require approval: off"
+            f"Settings updated: {label}: off"
         )
     else:
         assert response.status_code == HTTP_403_FORBIDDEN
         assert response.json()["error"] == "ERROR_FEATURE_DISABLED"
-    assert CoreHandler().get_settings().user_templates_require_approval is not flag
+    assert getattr(CoreHandler().get_settings(), name) is not flag
 
 
 @pytest.mark.django_db

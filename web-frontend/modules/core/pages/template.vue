@@ -16,6 +16,7 @@ const route = useRoute()
 definePageMeta({
   key: 'template',
   middleware: [
+    'settings',
     (to) => {
       const { $store, $featureFlagIsEnabled } = useNuxtApp()
       if (
