@@ -21,26 +21,30 @@
   color: $palette-neutral-700;
 }
 
+.agent-channels__picker {
+  width: 280px;
+}
+
 .agent-channels__list {
   display: flex;
   flex-direction: column;
   gap: 16px;
 }
 
-.agent-public-chat-card {
+.agent-channel-card {
   background: $palette-neutral-25;
 
   @include rounded($rounded-md);
 }
 
-.agent-public-chat-card__header {
+.agent-channel-card__header {
   display: flex;
   align-items: center;
   gap: 12px;
   padding: 8px 12px;
 }
 
-.agent-public-chat-card__toggle {
+.agent-channel-card__toggle {
   display: flex;
   flex: 1;
   align-items: center;
@@ -63,12 +67,12 @@
   }
 }
 
-.agent-public-chat-card__icon {
+.agent-channel-card__icon {
   flex-shrink: 0;
   color: $palette-neutral-600;
 }
 
-.agent-public-chat-card__name {
+.agent-channel-card__name {
   @extend %ellipsis;
 
   min-width: 0;
@@ -78,22 +82,35 @@
   color: $palette-neutral-1200;
 }
 
-.agent-public-chat-card__saving-slot {
+.agent-channel-card__type {
+  flex-shrink: 0;
+  font-size: 12px;
+  line-height: 20px;
+  color: $palette-neutral-700;
+}
+
+.agent-channel-card__saving-slot {
   display: flex;
   flex: 0 0 14px;
 }
 
-.agent-public-chat-card__saving {
+.agent-channel-card__saving {
   display: flex;
 
   @include loading-spinner($palette-neutral-700, 14px);
 }
 
-.agent-public-chat-card__switch {
+.agent-channel-card__switch {
   flex-shrink: 0;
 }
 
-.agent-public-chat-card__section {
+.agent-channel-card__footer {
+  display: flex;
+  padding: 8px 12px;
+  border-top: 1px solid $palette-neutral-200;
+}
+
+.agent-channel-section {
   display: flow-root;
   padding: 16px 12px;
 
@@ -102,7 +119,7 @@
   }
 }
 
-.agent-public-chat-card__field {
+.agent-channel-section__field {
   margin-bottom: 0;
 
   & + & {
@@ -110,7 +127,12 @@
   }
 }
 
-.agent-public-chat-card__link-description {
+.agent-channel-copy-field {
+  display: flex;
+  align-items: center;
+}
+
+.agent-channel-copy-field__note {
   margin: 0 0 8px;
   font-size: 12px;
   font-weight: 400;
@@ -118,12 +140,7 @@
   color: $palette-neutral-900;
 }
 
-.agent-public-chat-card__link {
-  display: flex;
-  align-items: center;
-}
-
-.agent-public-chat-card__link-box {
+.agent-channel-copy-field__text {
   @extend %ellipsis;
 
   flex: 1;
@@ -140,7 +157,7 @@
   @include rounded($rounded);
 }
 
-.agent-public-chat-card__copy {
+.agent-channel-copy-field__copy {
   position: relative;
   flex-shrink: 0;
   width: 32px;
@@ -158,11 +175,11 @@
   }
 }
 
-.agent-public-chat-card__password {
+.agent-public-chat-form__password {
   @include flex-align-items(4px);
 }
 
-.agent-public-chat-card__password-change {
+.agent-public-chat-form__password-change {
   margin-left: 8px;
   font-size: 14px;
   color: $palette-neutral-900;
@@ -173,14 +190,8 @@
   }
 }
 
-.agent-public-chat-card__color[inert] {
+.agent-channel-color-field[inert] {
   opacity: 0.6;
-}
-
-.agent-public-chat-card__footer {
-  display: flex;
-  padding: 8px 12px;
-  border-top: 1px solid $palette-neutral-200;
 }
 
 .agent-public-chat-password-modal__input {

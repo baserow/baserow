@@ -373,6 +373,20 @@ describe('usePublicAgentChat', () => {
     }
   )
 
+  test('in a website widget, Escape asks the widget to close', async () => {
+    const postMessage = vi
+      .spyOn(window.parent, 'postMessage')
+      .mockImplementation(() => {})
+    const wrapper = await mountSuspended(PublicAgentChatPage, {
+      route: `/public/agent-chat/${SLUG}?embedded=true`,
+    })
+    await flushPromises()
+
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }))
+    expect(postMessage).toHaveBeenCalledWith('baserow-agent-chat:close', '*')
+    wrapper.unmount()
+  })
+
   test('a stored access token shows neither the password nor the chat until its check ends', async () => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify({ accessToken: 'access' }))
     let answerInfo

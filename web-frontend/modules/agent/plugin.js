@@ -44,6 +44,7 @@ export default defineNuxtPlugin({
     nuxtApp.$registry.registerNamespace('agentConfigurationSection')
     nuxtApp.$registry.registerNamespace('agentDataProvider')
     nuxtApp.$registry.registerNamespace('agentTriggerType')
+    nuxtApp.$registry.registerNamespace('agentChannelType')
     for (const TriggerType of [
       HTTPAgentTriggerType,
       InboundEmailAgentTriggerType,

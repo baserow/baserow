@@ -175,7 +175,7 @@
 </template>
 
 <script setup>
-import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { createError, useAsyncData, useNuxtApp, useState } from '#app'
 import { useHead } from '#imports'
@@ -197,10 +197,14 @@ definePageMeta({
 
 const SEND_ERROR_ID = 'public-agent-chat-send-error'
 const NEAR_BOTTOM_PX = 80
+// Read by the website widget's script, which closes its panel.
+const CLOSE_MESSAGE = 'baserow-agent-chat:close'
 
 const route = useRoute()
 const { $i18n } = useNuxtApp()
 const slug = route.params.slug
+// A website widget shows the page in its panel and closes it on Escape.
+const embedded = route.query.embedded === 'true'
 
 const originalLocale = ref($i18n.locale.value)
 const detectedLocale = useState('public-agent-chat-detected-locale', () => {
@@ -326,7 +330,18 @@ watch(messages, async () => {
   if (nearBottom) element.scrollTop = element.scrollHeight
 })
 
+function askToClose(event) {
+  if (event.key === 'Escape' && !event.isComposing) {
+    window.parent.postMessage(CLOSE_MESSAGE, '*')
+  }
+}
+
+onMounted(() => {
+  if (embedded) document.addEventListener('keydown', askToClose)
+})
+
 onBeforeUnmount(() => {
+  document.removeEventListener('keydown', askToClose)
   $i18n.locale.value = originalLocale.value
 })
 </script>

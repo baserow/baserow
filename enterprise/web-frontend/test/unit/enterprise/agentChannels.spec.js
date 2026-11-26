@@ -11,17 +11,34 @@ vi.mock('@baserow_enterprise/services/agentChannels', () => ({
   default: () => mocks.service,
 }))
 
-const publicChat = (values = {}) => ({
-  id: 1,
-  type: 'public_chat',
+const chatSettings = {
   enabled: true,
-  slug: 'support',
-  has_password: false,
   title: 'Support',
   welcome_text: '',
   accent_color: '',
   background: 'gradient',
   background_color: '',
+}
+
+const publicChat = (values = {}) => ({
+  id: 1,
+  type: 'public_chat',
+  slug: 'support',
+  has_password: false,
+  ...chatSettings,
+  ...values,
+})
+
+const websiteWidget = (values = {}) => ({
+  id: 2,
+  type: 'website_widget',
+  slug: 'widget',
+  enabled: true,
+  title: 'Support',
+  welcome_text: '',
+  accent_color: '',
+  button_text: 'Chat with us',
+  button_position: 'bottom_right',
   ...values,
 })
 
@@ -104,18 +121,28 @@ describe('agent channels', () => {
   }
 
   const titleInput = (wrapper) =>
-    wrapper.get('.agent-public-chat-card__title-input input')
+    wrapper.get('.agent-public-chat-content__title-input input')
   const inModal = (selector) => document.body.querySelector(selector)
+
+  async function addFromMenu(wrapper, label) {
+    await wrapper.get('.agent-channels__add').trigger('click')
+    await flushPromises()
+    const item = [
+      ...document.body.querySelectorAll('.menu-list__item-button'),
+    ].find((button) => button.textContent.includes(label))
+    item.click()
+    await flushPromises()
+  }
 
   test('lists the agent channels, and says nobody outside can talk without any', async () => {
     const wrapper = await mountSection()
     expect(mocks.service.list).toHaveBeenCalledWith(8)
-    expect(wrapper.findAll('.agent-public-chat-card')).toHaveLength(1)
-    expect(wrapper.get('.agent-public-chat-card__name').text()).toBe('Support')
+    expect(wrapper.findAll('.agent-channel-card')).toHaveLength(1)
+    expect(wrapper.get('.agent-channel-card__name').text()).toBe('Support')
 
     mocks.service.list.mockResolvedValue({ data: [] })
     const empty = await mountSection()
-    expect(empty.find('.agent-public-chat-card').exists()).toBe(false)
+    expect(empty.find('.agent-channel-card').exists()).toBe(false)
     expect(empty.get('.agent-channels__empty').text()).toBe(
       'agentChannels.empty'
     )
@@ -126,24 +153,23 @@ describe('agent channels', () => {
     expect(preview.find('.agent-channels__empty').exists()).toBe(true)
   })
 
-  test('adds a public chat and opens its card', async () => {
+  test('adds a channel of the type picked in the menu and opens its card', async () => {
     mocks.service.list.mockResolvedValue({ data: [] })
     mocks.service.create.mockResolvedValue({
       data: publicChat({ id: 5, title: '' }),
     })
     const wrapper = await mountSection()
-    await wrapper.get('.agent-channels__add').trigger('click')
-    await flushPromises()
+    await addFromMenu(wrapper, 'agentChannels.publicChat')
 
     expect(mocks.service.create).toHaveBeenCalledWith(8, {
       type: 'public_chat',
     })
-    const card = wrapper.get('.agent-public-chat-card')
-    expect(card.get('.agent-public-chat-card__name').text()).toBe(
+    const card = wrapper.get('.agent-channel-card')
+    expect(card.get('.agent-channel-card__name').text()).toBe(
       'agentChannels.publicChat'
     )
     expect(
-      card.get('.agent-public-chat-card__toggle').attributes('aria-expanded')
+      card.get('.agent-channel-card__toggle').attributes('aria-expanded')
     ).toBe('true')
   })
 
@@ -169,7 +195,7 @@ describe('agent channels', () => {
       [8, 1, { title: 'Help desk' }],
     ])
     expect(input.element.value).toBe('Support')
-    expect(wrapper.get('.agent-public-chat-card__name').text()).toBe('Support')
+    expect(wrapper.get('.agent-channel-card__name').text()).toBe('Support')
   })
 
   test('copies the public address of the chat', async () => {
@@ -177,7 +203,7 @@ describe('agent channels', () => {
       .spyOn(navigator.clipboard, 'writeText')
       .mockResolvedValue()
     const wrapper = await mountSection()
-    await wrapper.get('.agent-public-chat-card__copy').trigger('click')
+    await wrapper.get('.agent-channel-copy-field__copy').trigger('click')
 
     expect(writeText).toHaveBeenCalledWith(
       `${app.nuxtApp.$config.public.baserowEmbeddedShareUrl}/public/agent-chat/support`
@@ -191,7 +217,7 @@ describe('agent channels', () => {
       .mockRejectedValueOnce(failure())
     const wrapper = await mountSection()
     const protection = () =>
-      wrapper.get('.agent-public-chat-card__password-switch')
+      wrapper.get('.agent-public-chat-form__password-switch')
     await protection().trigger('click')
     const password = inModal('.agent-public-chat-password-modal__input input')
     password.value = 'long secret'
@@ -240,14 +266,14 @@ describe('agent channels', () => {
 
   test('without Advanced or Enterprise, a chat can only be switched off and deleted', async () => {
     const wrapper = await mountSection({ licensed: false })
-    const enabled = () => wrapper.get('.agent-public-chat-card__switch')
+    const enabled = () => wrapper.get('.agent-channel-card__switch')
 
     expect(titleInput(wrapper).element.disabled).toBe(true)
     expect(wrapper.findComponent(RichTextEditor).props('editable')).toBe(false)
     expect(
-      wrapper.get('.agent-public-chat-card__password-switch').classes()
+      wrapper.get('.agent-public-chat-form__password-switch').classes()
     ).toContain('switch--disabled')
-    expect(wrapper.find('.agent-public-chat-card__delete').exists()).toBe(true)
+    expect(wrapper.find('.agent-channel-card__delete').exists()).toBe(true)
     await enabled().trigger('click')
     await flushPromises()
 
@@ -263,7 +289,7 @@ describe('agent channels', () => {
       .mockReturnValueOnce(new Promise((resolve) => (answerFirst = resolve)))
       .mockRejectedValueOnce(failure())
     const wrapper = await mountSection()
-    const enabled = () => wrapper.get('.agent-public-chat-card__switch')
+    const enabled = () => wrapper.get('.agent-channel-card__switch')
     await enabled().trigger('click')
     await enabled().trigger('click')
     await flushPromises()
@@ -284,11 +310,11 @@ describe('agent channels', () => {
   test('starts on Gradient and lets the builder choose Plain', async () => {
     const wrapper = await mountSection()
     const [gradient, plain] = wrapper.findAll(
-      '.agent-public-chat-card__background .segment-control__button'
+      '.agent-public-chat-form__background .segment-control__button'
     )
     expect(gradient.classes()).toContain('segment-control__button--active')
     expect(gradient.text()).toBe('agentChannels.backgroundGradient')
-    expect(wrapper.findAll('.agent-public-chat-card__color')).toHaveLength(2)
+    expect(wrapper.findAll('.agent-channel-color-field')).toHaveLength(2)
     await plain.trigger('click')
     await flushPromises()
     expect(mocks.service.update.mock.calls).toEqual([
@@ -298,14 +324,14 @@ describe('agent channels', () => {
 
   test('without Advanced or Enterprise, the appearance cannot be changed', async () => {
     const wrapper = await mountSection({ licensed: false })
-    const card = wrapper.get('.agent-public-chat-card')
+    const card = wrapper.get('.agent-channel-card')
 
-    expect(
-      card.get('.agent-public-chat-card__color').attributes()
-    ).toHaveProperty('inert')
+    expect(card.get('.agent-channel-color-field').attributes()).toHaveProperty(
+      'inert'
+    )
     expect(
       card
-        .findAll('.agent-public-chat-card__background .segment-control__button')
+        .findAll('.agent-public-chat-form__background .segment-control__button')
         .every((button) => button.attributes('disabled') !== undefined)
     ).toBe(true)
   })
@@ -317,6 +343,62 @@ describe('agent channels', () => {
     expect(titleInput(wrapper).element.disabled).toBe(true)
     expect(wrapper.findComponent(RichTextEditor).props('editable')).toBe(false)
     expect(wrapper.findAll('.switch--disabled')).toHaveLength(2)
-    expect(wrapper.find('.agent-public-chat-card__delete').exists()).toBe(false)
+    expect(wrapper.find('.agent-channel-card__delete').exists()).toBe(false)
+  })
+
+  describe('website widget', () => {
+    beforeEach(() => {
+      mocks.service.list.mockResolvedValue({ data: [websiteWidget()] })
+      mocks.service.update.mockImplementation((agentId, channelId, values) =>
+        Promise.resolve({ data: websiteWidget(values) })
+      )
+    })
+
+    test('is added with the translated button text, an accent color only, and its embed code', async () => {
+      mocks.service.list.mockResolvedValue({ data: [] })
+      mocks.service.create.mockResolvedValue({ data: websiteWidget() })
+      const writeText = vi
+        .spyOn(navigator.clipboard, 'writeText')
+        .mockResolvedValue()
+      const wrapper = await mountSection()
+      await addFromMenu(wrapper, 'agentChannels.websiteWidget')
+
+      expect(mocks.service.create).toHaveBeenCalledWith(8, {
+        type: 'website_widget',
+        button_text: 'agentChannels.defaultButtonText',
+      })
+      expect(wrapper.find('.agent-public-chat-form__password').exists()).toBe(
+        false
+      )
+      expect(wrapper.find('.agent-public-chat-form__background').exists()).toBe(
+        false
+      )
+      expect(wrapper.findAll('.agent-channel-color-field')).toHaveLength(1)
+      await wrapper.get('.agent-channel-copy-field__copy').trigger('click')
+      expect(writeText).toHaveBeenCalledWith(
+        `<script src="${app.nuxtApp.$config.public.publicBackendUrl}/api/agent/public-chat/widget/widget.js" async></script>`
+      )
+    })
+
+    test('saves a trimmed button text, an empty one, and its position', async () => {
+      const wrapper = await mountSection()
+      const text = wrapper.get('.agent-website-widget-form__button-text input')
+      await text.setValue('  Ask us  ')
+      await text.trigger('blur')
+      await text.setValue('   ')
+      await text.trigger('blur')
+      const [left] = wrapper.findAll(
+        '.agent-website-widget-form__position .segment-control__button'
+      )
+      await left.trigger('click')
+      await flushPromises()
+
+      expect(text.element.value).toBe('')
+      expect(mocks.service.update.mock.calls).toEqual([
+        [8, 2, { button_text: 'Ask us' }],
+        [8, 2, { button_text: '' }],
+        [8, 2, { button_position: 'bottom_left' }],
+      ])
+    })
   })
 })
