@@ -42,7 +42,7 @@
         :title="alwaysAllowTitle"
         @click="approve(pending, { alwaysAllow: true })"
       >
-        {{ alwaysAllowLabel }}
+        {{ $t('agent.alwaysAllow') }}
       </Button>
       <div v-if="pending.length" class="agent-approval__actions">
         <Button
@@ -51,16 +51,15 @@
           :disabled="locked"
           @click="askToReject(pending, $event)"
         >
-          {{ $t(decidesAll ? 'agent.rejectAll' : 'agent.reject') }}
+          {{ $t('agent.rejectAll') }}
         </Button>
         <Button
-          ref="headerApprove"
           type="primary"
           size="small"
           :disabled="locked"
           @click="approve(pending)"
         >
-          {{ $t(decidesAll ? 'agent.approveAll' : 'agent.approve') }}
+          {{ $t('agent.approveAll') }}
         </Button>
       </div>
       <div v-else class="agent-approval__summary">
@@ -98,9 +97,20 @@
             {{ $t('agent.rejected') }}
           </span>
           <div
-            v-else-if="pending.length > 1"
+            v-else-if="item.status === APPROVAL_STATUS.PENDING"
             class="agent-approval__item-actions"
           >
+            <Button
+              v-if="canAlwaysAllow"
+              type="secondary"
+              size="small"
+              :disabled="locked"
+              :aria-describedby="itemTitleId(item)"
+              :title="toolLabel(item)"
+              @click="approve([item], { alwaysAllow: true })"
+            >
+              {{ $t('agent.alwaysAllow') }}
+            </Button>
             <Button
               type="secondary"
               size="small"
@@ -206,7 +216,7 @@ const props = defineProps({
   canAlwaysAllow: { type: Boolean, default: false },
   /** A decision about these steps is being saved. */
   deciding: { type: Boolean, default: false },
-  /** Short button labels, for lists of several cards. */
+  /** Compact layout for the pending approvals menu. */
   compact: { type: Boolean, default: false },
   /** A visitor started the conversation through a channel. */
   startedByChannel: { type: Boolean, default: false },
@@ -216,7 +226,6 @@ const emit = defineEmits(['decide'])
 const agent = inject('agentApplication')
 const titleId = useId()
 const card = ref(null)
-const headerApprove = ref(null)
 const itemApproves = new Map()
 const rejectModal = ref(null)
 const expanded = reactive(new Set())
@@ -230,26 +239,12 @@ const pending = computed(() =>
 )
 const { $registry } = useNuxtApp()
 const { locale, t } = useI18n()
-const pendingToolNames = computed(() => [
-  ...new Set(
-    pending.value.map(
-      (item) => item.toolLabel || agentToolLabel(item.tool, $registry, t)
-    )
-  ),
-])
-const decidesAll = computed(() => !props.compact && pending.value.length > 1)
-const alwaysAllowLabel = computed(() => {
-  if (props.compact) return t('agent.alwaysAllow')
-  return pendingToolNames.value.length > 1
-    ? t('agent.alwaysAllowAllPendingTools')
-    : t('agent.alwaysAllowTools', { tools: pendingToolNames.value[0] })
-})
+const toolLabel = (item) =>
+  item.toolLabel || agentToolLabel(item.tool, $registry, t)
 const alwaysAllowTitle = computed(() =>
-  props.compact || pendingToolNames.value.length > 1
-    ? new Intl.ListFormat(locale.value, { type: 'conjunction' }).format(
-        pendingToolNames.value
-      )
-    : null
+  new Intl.ListFormat(locale.value, { type: 'conjunction' }).format([
+    ...new Set(pending.value.map(toolLabel)),
+  ])
 )
 const countOf = (status) =>
   props.items.filter((item) => item.status === status).length
@@ -326,11 +321,8 @@ function settle() {
   if (active && active !== document.body && !card.value.contains(active)) {
     return
   }
-  const next =
-    pending.value.length > 1
-      ? itemApproves.get(pending.value[0].id)
-      : headerApprove.value
-  ;(next || card.value).focus()
+  const next = itemApproves.get(pending.value[0]?.id) || card.value
+  next.focus()
 }
 
 watch(

@@ -150,25 +150,6 @@ describe('Agent tool approvals', () => {
       ({ url }) => url === '/agent/10/configuration/'
     ).length
 
-  function showAlwaysAllowTools() {
-    const useI18n = vueI18n.useI18n
-    vi.spyOn(vueI18n, 'useI18n').mockImplementation((...args) => {
-      const composer = useI18n(...args)
-      return {
-        ...composer,
-        t: (key, values, ...rest) => {
-          if (key === 'agent.alwaysAllowTools') {
-            return `Always allow ${values.tools}`
-          }
-          if (key === 'agent.alwaysAllowAllPendingTools') {
-            return 'Always allow all pending tools'
-          }
-          return composer.t(key, values, ...rest)
-        },
-      }
-    })
-  }
-
   async function openReply(saved, ...later) {
     mockConversations(
       testApp,
@@ -255,9 +236,9 @@ describe('Agent tool approvals', () => {
       await flushPromises()
 
       if (status === 'approved') {
-        await itemButtons(items(wrapper)[0])[1].trigger('click')
+        await itemButtons(items(wrapper)[0])[2].trigger('click')
       } else {
-        await itemButtons(items(wrapper)[0])[0].trigger('click')
+        await itemButtons(items(wrapper)[0])[1].trigger('click')
         await flushPromises()
         modalButton('agent.reject').click()
       }
@@ -395,8 +376,8 @@ describe('Agent tool approvals', () => {
     expect(cards(wrapper)).toHaveLength(2)
     expect(decisions(wrapper)).toEqual(['agent.approved'])
     expect(texts(wrapper.findAll('.agent-approval__actions button'))).toEqual([
-      'agent.reject',
-      'agent.approve',
+      'agent.rejectAll',
+      'agent.approveAll',
     ])
   })
 
@@ -431,14 +412,18 @@ describe('Agent tool approvals', () => {
     expect(wrapper.findAll('.chat-step-group')).toHaveLength(1)
     expect(title(wrapper)).toBe('agent.approvalRequest')
     expect(texts(headerButtons(wrapper))).toEqual([
-      'agent.reject',
-      'agent.approve',
+      'agent.rejectAll',
+      'agent.approveAll',
     ])
     const [item] = items(wrapper)
     expect(item.get('.agent-approval__item-title').text()).toBe(
       'agent.toolCreateRowsRequestedCount - 3'
     )
-    expect(itemButtons(item)).toHaveLength(0)
+    expect(texts(itemButtons(item))).toEqual([
+      'agent.alwaysAllow',
+      'agent.reject',
+      'agent.approve',
+    ])
     expect(item.get('.agent-approval__tool').text()).toBe('create_rows')
     expect(item.find('pre').exists()).toBe(false)
     await item.get('.agent-approval__details-toggle').trigger('click')
@@ -471,8 +456,8 @@ describe('Agent tool approvals', () => {
       'agent.approveAll',
     ])
     expect(items(wrapper).map((item) => texts(itemButtons(item)))).toEqual([
-      ['agent.reject', 'agent.approve'],
-      ['agent.reject', 'agent.approve'],
+      ['agent.alwaysAllow', 'agent.reject', 'agent.approve'],
+      ['agent.alwaysAllow', 'agent.reject', 'agent.approve'],
     ])
     expect(activity(wrapper).text()).toBe('agent.waitingForApprovalSteps - 2')
     expect(composer(wrapper).element.disabled).toBe(true)
@@ -494,7 +479,7 @@ describe('Agent tool approvals', () => {
     ).toEqual(['agent.approvalReviewed', 'agent.approvalRequest'])
     expect(
       texts(cards(wrapper)[1].findAll('.agent-approval__actions button'))
-    ).toEqual(['agent.reject', 'agent.approve'])
+    ).toEqual(['agent.rejectAll', 'agent.approveAll'])
   })
 
   test('a read between the held writes of a pause follows their card', async () => {
@@ -574,7 +559,7 @@ describe('Agent tool approvals', () => {
       card(wrapper)
         .findAll('button:not(.agent-approval__details-toggle)')
         .map((button) => button.element.disabled)
-    ).toEqual(Array(7).fill(true))
+    ).toEqual(Array(9).fill(true))
     expect(
       card(wrapper).get('.agent-approval__saving').attributes('role')
     ).toBe('status')
@@ -627,13 +612,12 @@ describe('Agent tool approvals', () => {
         runId: 'run-2',
       })
     )
-    showAlwaysAllowTools()
     const wrapper = await openWaitingReply([approval(1), approval(2)])
     const reads = configurationReads()
-    expect(alwaysAllow(wrapper).text()).toBe(
-      'Always allow agent.toolCreateRows'
+    expect(alwaysAllow(wrapper).text()).toBe('agent.alwaysAllow')
+    expect(alwaysAllow(wrapper).attributes('title')).toBe(
+      'agent.toolCreateRows'
     )
-    expect(alwaysAllow(wrapper).attributes('title')).toBeUndefined()
 
     expect(alwaysAllow(wrapper).element.tagName).toBe('BUTTON')
     await alwaysAllow(wrapper).trigger('click')
@@ -652,8 +636,30 @@ describe('Agent tool approvals', () => {
     expect(alwaysAllow(wrapper).exists()).toBe(false)
   })
 
+  test.each(['approved', 'pending'])(
+    'always approving a row submits only that call when its sibling is %s',
+    async (status) => {
+      mockApprovals(
+        testApp,
+        chat.uuid,
+        reply('running', [approval(1, 'approved'), approval(2, 'approved')])
+      )
+      const wrapper = await openWaitingReply([approval(1, status), approval(2)])
+      const [sibling, pending] = items(wrapper)
+      expect(itemButtons(sibling)).toHaveLength(status === 'approved' ? 0 : 3)
+      expect(texts(headerButtons(wrapper))).toEqual([
+        'agent.rejectAll',
+        'agent.approveAll',
+      ])
+      await itemButtons(pending)[0].trigger('click')
+      await flushPromises()
+      expect(sentBodies(testApp)).toEqual([
+        { decisions: [{ id: 2, approved: true }], always_allow: true },
+      ])
+    }
+  )
+
   test('always allow summarizes multiple tools and names only distinct pending tools on hover', async () => {
-    showAlwaysAllowTools()
     const wrapper = await openWaitingReply([
       approval(1),
       approval(2, 'pending', { tool: 'delete_rows' }),
@@ -661,7 +667,7 @@ describe('Agent tool approvals', () => {
       approval(4, 'approved', { tool: 'update_rows' }),
     ])
 
-    expect(alwaysAllow(wrapper).text()).toBe('Always allow all pending tools')
+    expect(alwaysAllow(wrapper).text()).toBe('agent.alwaysAllow')
     expect(alwaysAllow(wrapper).attributes('title')).toBe(
       'agent.toolCreateRows and agent.toolDeleteRows'
     )
@@ -774,7 +780,7 @@ describe('Agent tool approvals', () => {
     expect(inModal('.box__title').textContent).toBe('agent.rejectStepsTitle')
     modalButton('action.cancel').click()
     await flushPromises()
-    await itemButtons(items(wrapper)[0])[0].trigger('click')
+    await itemButtons(items(wrapper)[0])[1].trigger('click')
     expect(inModal('.box__title').textContent).toBe('agent.rejectStepTitle')
     const reason = inModal('.agent-reject-modal textarea')
     expect(reason.maxLength).toBe(1000)
@@ -788,8 +794,8 @@ describe('Agent tool approvals', () => {
     ])
     expect(decisions(wrapper)).toEqual(['agent.rejected'])
     expect(texts(headerButtons(wrapper))).toEqual([
-      'agent.reject',
-      'agent.approve',
+      'agent.rejectAll',
+      'agent.approveAll',
     ])
     expect(activity(wrapper).text()).toBe('agent.waitingForApproval')
   })
@@ -944,7 +950,7 @@ describe('Agent tool approvals', () => {
       [approval(1), approval(2)],
       page([prompt, latest])
     )
-    await itemButtons(items(wrapper)[0])[1].trigger('click')
+    await itemButtons(items(wrapper)[0])[2].trigger('click')
     await flushPromises()
     await updatedElsewhere(chat, 0)
     expect(waitingDot(wrapper)).toBe(false)
@@ -1036,19 +1042,9 @@ describe('Agent tool approvals', () => {
     expect(selected(wrapper).text()).toContain('Idle')
   })
 
-  test.each([
-    [
-      false,
-      [
-        'agent.alwaysAllowAllPendingTools',
-        'agent.rejectAll',
-        'agent.approveAll',
-      ],
-    ],
-    [true, ['agent.alwaysAllow', 'agent.reject', 'agent.approve']],
-  ])(
-    'a compact card (%s) keeps short header labels',
-    async (compact, labels) => {
+  test.each([false, true])(
+    'batch labels stay the same in compact mode (%s)',
+    async (compact) => {
       const items = ['create_rows', 'delete_rows'].map((tool, index) => ({
         id: index + 1,
         status: 'pending',
@@ -1060,9 +1056,11 @@ describe('Agent tool approvals', () => {
         global: { provide: { agentApplication: ref(agent) } },
       })
       const header = card.get('.agent-approval__header')
-      expect(header.findAll('button').map((button) => button.text())).toEqual(
-        labels
-      )
+      expect(header.findAll('button').map((button) => button.text())).toEqual([
+        'agent.alwaysAllow',
+        'agent.rejectAll',
+        'agent.approveAll',
+      ])
       expect(card.classes('agent-approval--compact')).toBe(compact)
     }
   )
@@ -1204,7 +1202,7 @@ describe('Agent tool approvals', () => {
       const pendingCount = () =>
         testApp.store.getters['application/get'](agentData.id).pending_count
 
-      await itemButtons(items(wrapper)[0])[1].trigger('click')
+      await itemButtons(items(wrapper)[0])[2].trigger('click')
       expect(pendingCount()).toBe(3)
       await flushPromises()
       if (committed) {
@@ -1301,12 +1299,14 @@ describe('Agent tool approvals', () => {
       })
     )
     const wrapper = await openWaitingReply([approval(1), approval(2)])
-    const approveFirst = itemButtons(items(wrapper)[0])[1]
+    const approveFirst = itemButtons(items(wrapper)[0])[2]
 
     approveFirst.element.focus()
     await approveFirst.trigger('click')
     await flushPromises()
-    expect(document.activeElement).toBe(headerButtons(wrapper)[1].element)
+    expect(document.activeElement).toBe(
+      itemButtons(items(wrapper)[1])[2].element
+    )
     expect(announcement(wrapper)).toBe('agent.approved')
 
     await headerButtons(wrapper)[1].trigger('click')

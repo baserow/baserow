@@ -507,23 +507,19 @@
 
 .agent-approval__item-head {
   display: flex;
+  flex-wrap: wrap;
   align-items: flex-start;
   gap: 12px;
 }
 
+.agent-approval__item-head .agent-approval__item-title {
+  flex-basis: 100px;
+}
+
 .agent-approval__item-actions {
-  opacity: 0;
-}
-
-.agent-approval__item:hover .agent-approval__item-actions,
-.agent-approval__item:focus-within .agent-approval__item-actions {
-  opacity: 1;
-}
-
-@media (hover: none) {
-  .agent-approval__item-actions {
-    opacity: 1;
-  }
+  flex-wrap: wrap;
+  flex-shrink: 1;
+  justify-content: flex-end;
 }
 
 .agent-approval__decision {
@@ -1417,12 +1413,8 @@
 }
 
 .agent-approval--compact {
-  .agent-approval__header {
-    flex-wrap: nowrap;
-  }
-
   .agent-approval__title {
-    flex-basis: 0;
+    flex-basis: 100px;
     display: flex;
   }
 
