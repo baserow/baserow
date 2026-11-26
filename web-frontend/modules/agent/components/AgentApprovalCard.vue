@@ -63,6 +63,9 @@
         </Button>
       </div>
       <div v-else class="agent-approval__summary">
+        <span v-if="failedCount">
+          {{ $t('agent.approvalFailedCount', { count: failedCount }) }}
+        </span>
         <span v-if="approvedCount">
           {{ $t('agent.approvalApprovedCount', { count: approvedCount }) }}
         </span>
@@ -78,15 +81,13 @@
             <span :id="itemTitleId(item)" class="agent-approval__item-title">
               {{ item.title }}
             </span>
-            <template v-if="item.status === APPROVAL_STATUS.APPROVED">
-              <ChatToolFailure
-                v-if="item.stepStatus === STEP_STATUS.FAILED"
-                :reason="
-                  item.failureHint || $t('toolPresentation.failureFailed')
-                "
-              />
+            <ChatToolFailure
+              v-if="displayStatus(item) === STEP_STATUS.FAILED"
+              :reason="item.failureHint || $t('toolPresentation.failureFailed')"
+            />
+            <template v-else-if="item.status === APPROVAL_STATUS.APPROVED">
               <span
-                v-else-if="outcomeIcon(item)"
+                v-if="outcomeIcon(item)"
                 class="agent-approval__step-status"
               >
                 <i :class="outcomeIcon(item)" aria-hidden="true" />
@@ -260,8 +261,14 @@ const alwaysAllowTitle = computed(() =>
     ...new Set(pending.value.map(toolLabel)),
   ])
 )
+const displayStatus = (item) =>
+  item.status === APPROVAL_STATUS.APPROVED &&
+  item.stepStatus === STEP_STATUS.FAILED
+    ? STEP_STATUS.FAILED
+    : item.status
 const countOf = (status) =>
-  props.items.filter((item) => item.status === status).length
+  props.items.filter((item) => displayStatus(item) === status).length
+const failedCount = computed(() => countOf(STEP_STATUS.FAILED))
 const approvedCount = computed(() => countOf(APPROVAL_STATUS.APPROVED))
 const rejectedCount = computed(() => countOf(APPROVAL_STATUS.REJECTED))
 const OUTCOME_ICONS = {

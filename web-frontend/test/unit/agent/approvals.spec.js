@@ -505,7 +505,7 @@ describe('Agent tool approvals', () => {
     ['stopped', 'statusStopped', 'iconoir-minus-circle'],
     ['failed', 'statusFailed', 'iconoir-warning-triangle'],
   ])(
-    'an approved step that ended %s says so next to the decision',
+    'an approved step displays its %s outcome',
     async (stepStatus, label, icon) => {
       const wrapper = await openReply(
         reply('failed', [approval(1, 'approved')], { stepStatus })
@@ -522,7 +522,9 @@ describe('Agent tool approvals', () => {
       expect(item.get('.agent-approval__item-title').text()).toBe(
         'agent.toolCreateRowsRequestedCount - 3'
       )
-      expect(decisions(wrapper)).toEqual(['agent.approved'])
+      expect(decisions(wrapper)).toEqual(
+        stepStatus === 'failed' ? [] : ['agent.approved']
+      )
     }
   )
 
@@ -557,6 +559,34 @@ describe('Agent tool approvals', () => {
       )
     }
   )
+
+  test('a reviewed batch counts each call once when an approved call fails', async () => {
+    const wrapper = await openReply(
+      reply(
+        'completed',
+        [
+          approval(1, 'approved'),
+          approval(2, 'approved'),
+          approval(3, 'rejected'),
+        ],
+        {
+          steps: [
+            heldStep(1, 'failed'),
+            heldStep(2, 'done'),
+            heldStep(3, 'rejected'),
+          ],
+        }
+      )
+    )
+    expect(
+      texts(card(wrapper).findAll('.agent-approval__summary span'))
+    ).toEqual([
+      'agent.approvalFailedCount - 1',
+      'agent.approvalApprovedCount - 1',
+      'agent.approvalRejectedCount - 1',
+    ])
+    expect(decisions(wrapper)).toEqual(['agent.approved', 'agent.rejected'])
+  })
 
   test('an approved step that partly failed lists the items it missed', async () => {
     const partlyDone = {

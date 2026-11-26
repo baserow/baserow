@@ -368,6 +368,7 @@
     "approvalRequest": "{name} asks for your approval",
     "approvalRequestReadOnly": "{name} asks for approval",
     "approvalReviewed": "Reviewed by you",
+    "approvalFailedCount": "{count} failed",
     "approvalApprovedCount": "{count} approved",
     "approvalRejectedCount": "{count} rejected",
     "approve": "Approve",
