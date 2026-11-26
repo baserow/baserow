@@ -35,7 +35,9 @@
               )
             "
             class="tree__sub-add"
-            @click="$refs.createAutomationWorkflowModal.show()"
+            @click="
+              whenMounted(() => $refs.createAutomationWorkflowModal.show())
+            "
           >
             <i class="tree__sub-add-icon iconoir-plus"></i>
             {{ $t('sidebarComponentAutomation.createAutomationWorkflow') }}
@@ -58,6 +60,7 @@ import CreateAutomationWorkflowModal from '@baserow/modules/automation/component
 
 import { mapGetters } from 'vuex'
 import { notifyIf } from '@baserow/modules/core/utils/error'
+import whenMounted from '@baserow/modules/core/mixins/whenMounted'
 
 export default {
   name: 'SidebarComponentAutomation',
@@ -66,6 +69,7 @@ export default {
     SidebarItemAutomation,
     CreateAutomationWorkflowModal,
   },
+  mixins: [whenMounted],
   props: {
     application: {
       type: Object,

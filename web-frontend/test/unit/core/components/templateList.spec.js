@@ -107,6 +107,25 @@ describe('TemplateList', () => {
     )
   })
 
+  test('selects all templates when a search starts, narrows on a category click and keeps it when cleared', async () => {
+    const wrapper = await mountComponent({ initialCategoryId: 1 })
+    const selected = () =>
+      wrapper.find('.template-list__category-link--active').text()
+
+    await wrapper.find('input').setValue('o')
+    expect(selected()).toBe('templateCategories.allTemplates')
+    expect(cardNames(wrapper)).toStrictEqual(['Project Tracker', 'Recipe Book'])
+
+    await wrapper.findAll('.template-list__category-link')[2].trigger('click')
+    await wrapper.find('input').setValue('oo')
+    expect(selected()).toBe('Personal')
+    expect(cardNames(wrapper)).toStrictEqual(['Recipe Book'])
+
+    await wrapper.find('input').setValue('')
+    expect(selected()).toBe('Personal')
+    expect(cardNames(wrapper)).toStrictEqual(['Recipe Book'])
+  })
+
   test('collapses a section', async () => {
     const wrapper = await mountComponent()
 

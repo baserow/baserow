@@ -45,8 +45,10 @@
             icon="iconoir-plus"
             tag="a"
             @click="
-              $refs.createApplicationContext.toggle(
-                $refs.createApplicationContextLink
+              whenMounted(() =>
+                $refs.createApplicationContext.toggle(
+                  $refs.createApplicationContextLink
+                )
               )
             "
             >{{ $t('dashboard.addNew') }}</Button
@@ -73,9 +75,9 @@
                 class="dashboard__resource"
                 role="button"
                 tabindex="0"
-                @click="$refs.templateModal.show()"
-                @keydown.enter.prevent="$refs.templateModal.show()"
-                @keydown.space.prevent="$refs.templateModal.show()"
+                @click="openTemplateModal"
+                @keydown.enter.prevent="openTemplateModal"
+                @keydown.space.prevent="openTemplateModal"
               >
                 <div class="dashboard__resource-inner">
                   <span class="dashboard__resource-icon">
@@ -158,8 +160,10 @@
                   icon="iconoir-plus"
                   tag="a"
                   @click="
-                    $refs.createApplicationContext.toggle(
-                      $refs.createApplicationContextLink2
+                    whenMounted(() =>
+                      $refs.createApplicationContext.toggle(
+                        $refs.createApplicationContextLink2
+                      )
                     )
                   "
                   >{{ $t('dashboard.addNew') }}</Button
@@ -191,8 +195,10 @@
                 icon="iconoir-plus"
                 tag="a"
                 @click="
-                  $refs.createApplicationContext.toggle(
-                    $refs.createApplicationContextLink2
+                  whenMounted(() =>
+                    $refs.createApplicationContext.toggle(
+                      $refs.createApplicationContextLink2
+                    )
                   )
                 "
                 >{{ $t('dashboard.addNew') }}</Button
@@ -224,10 +230,11 @@
 </template>
 
 <script setup>
-import { ref, computed, watchEffect } from 'vue'
+import { ref, computed, watchEffect, onMounted } from 'vue'
 import { useRoute, useNuxtApp, createError } from '#app'
 import { workspaceLearningResources } from '@baserow/modules/core/utils/workspaceLearningResources'
 import { visibleApplications } from '@baserow/modules/core/utils/workspace'
+import { createWhenMounted } from '@baserow/modules/core/utils/whenMounted'
 import { useHead } from '#imports'
 import { usePageAsyncData } from '@baserow/modules/core/composables/usePageAsyncData'
 
@@ -442,6 +449,13 @@ const workspaceExists = computed(() => {
 // ----------------------------------------------------------------------------
 // METHODS
 // ----------------------------------------------------------------------------
+const { whenMounted, mounted } = createWhenMounted()
+onMounted(mounted)
+
+function openTemplateModal() {
+  whenMounted(() => templateModal.value.show())
+}
+
 async function workspaceUpdated(workspace) {
   const extraData = await fetchWorkspaceExtraData(workspace)
   workspaceComponentArguments.value = extraData.workspaceComponentArguments

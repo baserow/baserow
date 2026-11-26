@@ -124,6 +124,11 @@ TEMPLATE_PRIVATE_LINK_SCHEMA_PARAMETER = OpenApiParameter(
 class TemplatesView(APIView, SearchableViewMixin):
     permission_classes = (AllowAny,)
     search_fields = ["name", "description"]
+    listed_search_fields = [
+        *search_fields,
+        "author__first_name",
+        "root__author__first_name",
+    ]
 
     @extend_schema(
         tags=["Templates"],
@@ -158,8 +163,9 @@ class TemplatesView(APIView, SearchableViewMixin):
                 name="search",
                 location=OpenApiParameter.QUERY,
                 type=OpenApiTypes.STR,
-                description="Only templates whose name or description contains "
-                "this value. Only with `view=flat`.",
+                description="Only templates whose name or description, and for "
+                "listed templates the author's name, contains this value. Only "
+                "with `view=flat`.",
             ),
             OpenApiParameter(
                 name="listed",
@@ -265,7 +271,12 @@ class TemplatesView(APIView, SearchableViewMixin):
             listed=query_params["listed"],
             category_id=query_params.get("category"),
         )
-        templates = self.apply_search(query_params.get("search"), templates)
+        search_fields = (
+            self.listed_search_fields if query_params["listed"] else self.search_fields
+        )
+        templates = self.apply_search(
+            query_params.get("search"), templates, search_fields
+        )
 
         paginator = LimitOffsetPagination()
         paginator.default_limit = 20

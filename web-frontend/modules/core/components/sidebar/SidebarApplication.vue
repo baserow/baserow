@@ -41,7 +41,11 @@
       <a
         ref="contextLink"
         class="tree__options"
-        @click="$refs.context.toggle($refs.contextLink, 'bottom', 'right', 0)"
+        @click="
+          whenMounted(() =>
+            $refs.context.toggle($refs.contextLink, 'bottom', 'right', 0)
+          )
+        "
         @mousedown.stop
       >
         <i class="baserow-icon-more-vertical"></i>
@@ -92,6 +96,7 @@ import SidebarDuplicateApplicationContextItem from '@baserow/modules/core/compon
 import TrashModal from '@baserow/modules/core/components/trash/TrashModal'
 import SnapshotsModal from '@baserow/modules/core/components/snapshots/SnapshotsModal'
 import application from '@baserow/modules/core/mixins/application'
+import whenMounted from '@baserow/modules/core/mixins/whenMounted'
 
 export default {
   name: 'SidebarApplication',
@@ -101,7 +106,7 @@ export default {
     SidebarDuplicateApplicationContextItem,
     SnapshotsModal,
   },
-  mixins: [application],
+  mixins: [application, whenMounted],
   props: {
     application: {
       type: Object,

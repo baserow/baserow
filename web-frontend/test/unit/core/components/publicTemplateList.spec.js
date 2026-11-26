@@ -295,40 +295,50 @@ describe('PublicTemplateList', () => {
     expect(updated.attributes('title')).toBe(updated.text())
   })
 
-  test('loads the first page again with the chosen category and search', async () => {
+  test('loads the first page again in all templates when a search starts, then with the chosen category', async () => {
     const first = Array.from({ length: 20 }, (_, i) => listed(i + 1, `T${i}`))
     mockPages(
       page(first, true),
       page([listed(21, 'Last')]),
       page([listed(30, 'Agile Board')]),
-      page([])
+      page([]),
+      page([listed(30, 'Agile Board')])
     )
     const wrapper = await mountComponent()
+    const selected = () =>
+      wrapper.find('.template-list__category-link--active').text()
+    const agile = () =>
+      wrapper
+        .findAll('.template-list__category-link')
+        .find((link) => link.text() === 'Agile')
 
     wrapper.findComponent(InfiniteScroll).vm.$emit('load-next-page', 2)
     await flushPromises()
     expect(wrapper.findAll('.template-list__card')).toHaveLength(21)
 
-    const agile = wrapper
-      .findAll('.template-list__category-link')
-      .find((link) => link.text() === 'Agile')
-    await agile.trigger('click')
+    await agile().trigger('click')
     await flushPromises()
 
     vi.useFakeTimers()
     await wrapper.find('.template-list__search input').setValue('board')
     await vi.runAllTimersAsync()
     await flushPromises()
+    expect(selected()).toBe('templateCategories.allTemplates')
+    expect(wrapper.find('.template-empty-state__icon i').classes()).toContain(
+      'iconoir-search'
+    )
+
+    await agile().trigger('click')
+    await flushPromises()
+    expect(selected()).toBe('Agile')
 
     expect(requests).toStrictEqual([
       { offset: 0, limit: 20 },
       { offset: 20, limit: 20 },
       { offset: 0, limit: 20, category: 7 },
+      { offset: 0, limit: 20, search: 'board' },
       { offset: 0, limit: 20, category: 7, search: 'board' },
     ])
-    expect(wrapper.find('.template-empty-state__icon i').classes()).toContain(
-      'iconoir-search'
-    )
   })
 
   test('captures no search it was opened with', async () => {

@@ -47,7 +47,12 @@
         $t('sidebar.workspaceActions', { workspace: workspace.name })
       "
       :aria-expanded="actionsOpen"
-      @click="$refs.context.toggle($event.currentTarget, 'bottom', 'left', 4)"
+      @click="
+        whenMounted(
+          (trigger) => $refs.context.toggle(trigger, 'bottom', 'left', 4),
+          $event.currentTarget
+        )
+      "
     >
       <i class="baserow-icon-more-vertical" aria-hidden="true"></i>
     </button>
@@ -72,11 +77,12 @@
 import Editable from '@baserow/modules/core/components/Editable.vue'
 import WorkspaceContext from '@baserow/modules/core/components/workspace/WorkspaceContext.vue'
 import editWorkspace from '@baserow/modules/core/mixins/editWorkspace'
+import whenMounted from '@baserow/modules/core/mixins/whenMounted'
 
 export default {
   name: 'SidebarWorkspacePickerRow',
   components: { Editable, WorkspaceContext },
-  mixins: [editWorkspace],
+  mixins: [editWorkspace, whenMounted],
   props: {
     workspace: {
       type: Object,

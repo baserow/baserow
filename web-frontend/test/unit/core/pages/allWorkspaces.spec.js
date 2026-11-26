@@ -1,8 +1,23 @@
 import flushPromises from 'flush-promises'
+import { mockNuxtImport } from '@nuxt/test-utils/runtime'
 import { TestApp } from '@baserow/test/helpers/testApp'
 import AllWorkspaces from '@baserow/modules/core/pages/allWorkspaces'
 import AllWorkspacesHeader from '@baserow/modules/core/components/allWorkspaces/AllWorkspacesHeader'
 import { CORE_ACTION_SCOPES } from '@baserow/modules/core/utils/undoRedoConstants'
+
+const { flags } = vi.hoisted(() => ({ flags: { userTemplatesOff: false } }))
+mockNuxtImport('useNuxtApp', (original) => () => {
+  const nuxtApp = original()
+  if (!flags.userTemplatesOff) {
+    return nuxtApp
+  }
+  return new Proxy(nuxtApp, {
+    get: (target, property, receiver) =>
+      property === '$featureFlagIsEnabled'
+        ? () => false
+        : Reflect.get(target, property, receiver),
+  })
+})
 
 describe('All workspaces page', () => {
   let testApp = null
@@ -16,6 +31,7 @@ describe('All workspaces page', () => {
   })
 
   afterEach(async () => {
+    flags.userTemplatesOff = false
     await testApp.afterEach()
   })
 
@@ -52,26 +68,51 @@ describe('All workspaces page', () => {
     expect(offered).not.toContain('agent')
   })
 
-  test('opens the linked template in the Templates modal', async () => {
+  const mountLinked = async (route) => {
     testApp.authenticate({ id: 1, preferences: {}, completed_onboarding: true })
     testApp.mock.onGet('/settings/').reply(200, {})
     testApp.mock.onGet('/workspaces/').reply(200, [])
     testApp.mock.onGet('/applications/').reply(200, [])
     testApp.mock.onGet(/\/jobs\//).reply(200, { jobs: [] })
-    const show = vi.fn()
-    await testApp.mount(AllWorkspaces, {
-      route: '/all-workspaces?template=sprint-tracker',
+    const methods = { show: vi.fn(), showOwn: vi.fn() }
+    const wrapper = await testApp.mount(AllWorkspaces, {
+      route,
       global: {
         stubs: {
-          TemplateModal: { template: '<div />', methods: { show } },
+          TemplateModal: { template: '<div class="modal" />', methods },
         },
       },
     })
     await flushPromises()
+    return { wrapper, methods }
+  }
 
-    expect(show).toHaveBeenCalledWith('sprint-tracker')
-    await vi.waitFor(() =>
-      expect(useRouter().currentRoute.value.query).toStrictEqual({})
-    )
+  test.each([
+    [
+      'the linked template',
+      '?template=sprint-tracker',
+      [['sprint-tracker']],
+      [],
+    ],
+    ['your templates', '?templates=own', [], [[]]],
+  ])(
+    'opens %s in the Templates modal',
+    async (_name, query, showCalls, showOwnCalls) => {
+      const { methods } = await mountLinked(`/all-workspaces${query}`)
+
+      expect(methods.show.mock.calls).toStrictEqual(showCalls)
+      expect(methods.showOwn.mock.calls).toStrictEqual(showOwnCalls)
+      await vi.waitFor(() =>
+        expect(useRouter().currentRoute.value.query).toStrictEqual({})
+      )
+    }
+  )
+
+  test('opens no Templates modal from a link without user templates', async () => {
+    flags.userTemplatesOff = true
+
+    const { wrapper } = await mountLinked('/all-workspaces?templates=own')
+
+    expect(wrapper.find('.modal').exists()).toBe(false)
   })
 })

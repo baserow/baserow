@@ -23,7 +23,12 @@
       v-show="!builder._.loading"
       v-if="showOptions"
       class="tree__options"
-      @click="$refs.context.toggle($event.currentTarget, 'bottom', 'right', 0)"
+      @click="
+        whenMounted(
+          (trigger) => $refs.context.toggle(trigger, 'bottom', 'right', 0),
+          $event.currentTarget
+        )
+      "
       @mousedown.stop
     >
       <i class="baserow-icon-more-vertical"></i>
@@ -100,9 +105,11 @@ import { mapGetters } from 'vuex'
 import { VISIBILITY_LOGGED_IN } from '@baserow/modules/builder/constants'
 import { pageFinished } from '@baserow/modules/core/utils/routing'
 import { nextTick, useNuxtApp } from '#imports'
+import whenMounted from '@baserow/modules/core/mixins/whenMounted'
 
 export default {
   name: 'SidebarItemBuilder',
+  mixins: [whenMounted],
   props: {
     builder: {
       type: Object,

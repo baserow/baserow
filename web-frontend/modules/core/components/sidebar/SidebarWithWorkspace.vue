@@ -45,7 +45,9 @@
                 "
                 :ref="'createApplicationModalToggle' + applicationGroup.type"
                 class="tree__heading-add"
-                @click="openCreateApplicationModal(applicationGroup.type)"
+                @click="
+                  whenMounted(openCreateApplicationModal, applicationGroup.type)
+                "
               >
                 <i class="iconoir-plus"></i>
                 <component
@@ -129,8 +131,10 @@
         ref="createApplicationContextLink"
         class="sidebar__new"
         @click="
-          $refs.createApplicationContext.toggle(
-            $refs.createApplicationContextLink
+          whenMounted(() =>
+            $refs.createApplicationContext.toggle(
+              $refs.createApplicationContextLink
+            )
           )
         "
       >
@@ -149,10 +153,12 @@
 import { useId } from 'vue'
 import { notifyIf } from '@baserow/modules/core/utils/error'
 import CreateApplicationContext from '@baserow/modules/core/components/application/CreateApplicationContext'
+import whenMounted from '@baserow/modules/core/mixins/whenMounted'
 
 export default {
   name: 'SidebarWithWorkspace',
   components: { CreateApplicationContext },
+  mixins: [whenMounted],
   props: {
     applications: {
       type: Array,

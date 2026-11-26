@@ -16,7 +16,11 @@
         v-if="deactivated"
         href="#"
         class="tree__link"
-        @click="deactivatedModal ? $refs.deactivatedModal.show() : null"
+        @click="
+          deactivatedModal
+            ? whenMounted(() => $refs.deactivatedModal.show())
+            : null
+        "
       >
         <i class="tree__icon iconoir-lock"></i>
         <span class="tree__link-text">
@@ -62,10 +66,12 @@
 
 <script>
 import BadgeCounter from '@baserow/modules/core/components/BadgeCounter'
+import whenMounted from '@baserow/modules/core/mixins/whenMounted'
 
 export default {
   name: 'SidebarAdminItem',
   components: { BadgeCounter },
+  mixins: [whenMounted],
   props: {
     adminType: {
       required: true,

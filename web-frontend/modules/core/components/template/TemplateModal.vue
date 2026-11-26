@@ -164,6 +164,7 @@ import { notifyIf } from '@baserow/modules/core/utils/error'
 import { FF_USER_TEMPLATES } from '@baserow/modules/core/plugins/featureFlags'
 import { isOwnTemplate } from '@baserow/modules/core/utils/userTemplate'
 import { captureTemplateEvent } from '@baserow/modules/core/utils/templateAnalytics'
+import { MOST_POPULAR_CATEGORY_NAME } from '@baserow/modules/core/utils/templateCategory'
 import {
   TEMPLATE_MODERATION,
   useTemplateModeration,
@@ -178,8 +179,6 @@ import TemplateDetails from '@baserow/modules/core/components/template/TemplateD
 import TemplateList from '@baserow/modules/core/components/template/TemplateList'
 import UpdateUserTemplateModal from '@baserow/modules/core/components/template/UpdateUserTemplateModal'
 import UserTemplateList from '@baserow/modules/core/components/template/UserTemplateList'
-
-const MOST_POPULAR_CATEGORY_NAME = '🔥 Most Popular'
 
 export default {
   name: 'TemplateModal',
@@ -403,6 +402,17 @@ export default {
       if (this.userTemplatesAllowed) {
         this.sharedSearch = search
         this.tab = 'public'
+      }
+      this.captureOpened()
+    },
+    async showOwn() {
+      const { listError, ownsError } = await this.openAndLoad()
+      if (ownsError || listError) {
+        this.failLoading(ownsError ?? listError)
+        return
+      }
+      if (this.tabs.some((tab) => tab.value === 'own')) {
+        this.selectTab('own')
       }
       this.captureOpened()
     },
