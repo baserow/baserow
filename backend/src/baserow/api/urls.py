@@ -26,7 +26,7 @@ from .notifications import urls as notifications_urls
 from .search import urls as search_urls
 from .settings import urls as settings_urls
 from .snapshots import urls as snapshots_urls
-from .spectacular.views import CachedSpectacularJSONAPIView
+from .spectacular.views import CachedSpectacularJSONAPIView, redoc_asset
 from .templates import urls as templates_urls
 from .trash import urls as trash_urls
 from .two_factor_auth import urls as two_factor_urls
@@ -43,9 +43,12 @@ urlpatterns = (
         path("schema.json", CachedSpectacularJSONAPIView.as_view(), name="json_schema"),
         path(
             "redoc/",
-            SpectacularRedocView.as_view(url_name="api:json_schema"),
+            SpectacularRedocView.as_view(
+                url_name="api:json_schema", template_name="baserow/api/redoc.html"
+            ),
             name="redoc",
         ),
+        path("redoc/bundles/<str:filename>", redoc_asset, name="redoc_asset"),
         path("settings/", include(settings_urls, namespace="settings")),
         path("abuse-reports/", include(abuse_reports_urls, namespace="abuse_reports")),
         path("identities/", include(identities_urls, namespace="identities")),
