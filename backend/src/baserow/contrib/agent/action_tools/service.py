@@ -124,6 +124,7 @@ class AgentActionService:
         service_type = action_type.service_type
         if action_type.acts_as_run_identity:
             values.pop("integration_id", None)
+        values = service_type.resolve_integration(agent, values)
         prepared = service_type.prepare_values(values, user, instance)
         integration = prepared.get(
             "integration", getattr(instance, "integration", None)

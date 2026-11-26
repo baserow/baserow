@@ -46,6 +46,7 @@ from baserow.contrib.database.fields.field_constraints import (
 from baserow.contrib.database.fields.handler import FieldHandler
 from baserow.contrib.database.rows.handler import RowHandler
 from baserow.contrib.database.table.handler import TableHandler
+from baserow.contrib.integrations.ai.integration_types import AIIntegrationType
 from baserow.contrib.integrations.local_baserow.service_types import (
     LocalBaserowUpsertRowServiceType,
 )
@@ -57,6 +58,7 @@ from baserow.core.formula.types import (
     BaserowFormulaObject,
 )
 from baserow.core.graph.types import GraphPointPosition
+from baserow.core.integrations.service import IntegrationService
 from baserow.core.services.types import DispatchResult
 
 
@@ -3123,6 +3125,69 @@ def _create_mismatched_integration(data_fixture, kind, user, builder):
         )
     # A builder in a workspace the user isn't a member of.
     return data_fixture.create_local_baserow_integration()
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("service_kind", ["local_baserow", "ai"])
+def test_workflow_action_answers_integration_of_another_application_as_missing(
+    api_client, data_fixture, service_kind
+):
+    user, token = data_fixture.create_user_and_token()
+    page = data_fixture.create_builder_page(user=user)
+    element = data_fixture.create_builder_button_element(page=page)
+    other_user = data_fixture.create_user()
+    other_builder = data_fixture.create_builder_application(user=other_user)
+    missing_integration_id = 9999999
+
+    # Besides the integration, the values are ones the type validates through it.
+    if service_kind == "local_baserow":
+        database = data_fixture.create_database_application(
+            workspace=page.builder.workspace
+        )
+        other_integration = data_fixture.create_local_baserow_integration(
+            application=other_builder, authorized_user=other_user
+        )
+        action_type = CreateRowWorkflowActionType.type
+        service_values = {
+            "table_id": data_fixture.create_database_table(database=database).id
+        }
+    else:
+        other_integration = IntegrationService().create_integration(
+            other_user, AIIntegrationType(), application=other_builder, ai_settings={}
+        )
+        action_type = "ai_agent"
+        service_values = {
+            "ai_generative_ai_type": "openai",
+            "ai_generative_ai_model": "some-model",
+        }
+
+    # An integration of another application is answered like one that doesn't exist.
+    for integration_id in [other_integration.id, missing_integration_id]:
+        response = api_client.post(
+            reverse("api:builder:workflow_action:list", kwargs={"page_id": page.id}),
+            {
+                "type": action_type,
+                "event": "click",
+                "element_id": element.id,
+                "service": {"integration_id": integration_id, **service_values},
+            },
+            format="json",
+            HTTP_AUTHORIZATION=f"JWT {token}",
+        )
+        assert response.status_code == HTTP_400_BAD_REQUEST
+        assert response.json() == {
+            "error": "ERROR_REQUEST_BODY_VALIDATION",
+            "detail": {
+                "integration_id": [
+                    {
+                        "detail": f"The integration with ID {integration_id} does "
+                        "not exist.",
+                        "code": "invalid_integration",
+                    }
+                ]
+            },
+        }
+    assert not BuilderWorkflowAction.objects.filter(page=page).exists()
 
 
 @pytest.mark.django_db

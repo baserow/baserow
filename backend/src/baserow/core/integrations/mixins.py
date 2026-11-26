@@ -16,6 +16,12 @@ def _invalid_integration(detail: str) -> RequestBodyValidationException:
     )
 
 
+def _integration_does_not_exist(integration_id: int) -> RequestBodyValidationException:
+    return _invalid_integration(
+        f"The integration with ID {integration_id} does not exist."
+    )
+
+
 class IntegrationConsumerMixin:
     """
     For a type whose instances read through an integration, such as a service or a
@@ -49,16 +55,35 @@ class IntegrationConsumerMixin:
                         )
                     )
                 except IntegrationDoesNotExist as exc:
-                    raise _invalid_integration(
-                        f"The integration with ID {integration_id} does not exist."
-                    ) from exc
+                    raise _integration_does_not_exist(integration_id) from exc
 
+        return values
+
+    def resolve_integration(
+        self, application: Application, values: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """
+        Replaces `integration_id` in the values with the integration, and validates
+        it against the application. Called before `prepare_values`, so that no
+        validation of the type reads through an integration of another application.
+
+        :param application: The application the instance belongs to.
+        :param values: The provided values.
+        :raises RequestBodyValidationException: When the integration doesn't exist,
+            or doesn't fit.
+        :return: The updated values.
+        """
+
+        values = self.prepare_integration_values(values)
+        self.check_integration(application, values)
         return values
 
     def check_integration(self, application: Application, values: Dict[str, Any]):
         """
         Validates that the prepared integration belongs to the given application and
-        is of `integration_type`.
+        is of `integration_type`. An integration of another application is answered
+        like one that doesn't exist, so that the answer says nothing about what the
+        other application holds.
 
         :param application: The application the instance belongs to.
         :param values: The prepared values, as returned by `prepare_values`.
@@ -78,10 +103,7 @@ class IntegrationConsumerMixin:
                 ),
             )
         except IntegrationNotInApplication as exc:
-            raise _invalid_integration(
-                f"The integration with ID {integration.id} is not related to the "
-                f"given application {application.id}."
-            ) from exc
+            raise _integration_does_not_exist(integration.id) from exc
         except IntegrationTypeNotAllowed as exc:
             raise _invalid_integration(
                 f"The integration with ID {integration.id} is not a "

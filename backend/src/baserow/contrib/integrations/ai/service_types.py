@@ -228,8 +228,11 @@ class AIAgentServiceType(ServiceType):
         ai_model = values.get("ai_generative_ai_model") or (
             instance.ai_generative_ai_model if instance else None
         )
-        integration_id = values.get("integration_id") or (
-            instance.integration_id if instance else None
+        # The caller may have resolved the integration already.
+        integration_id = (
+            getattr(values.get("integration"), "id", None)
+            or values.get("integration_id")
+            or (instance.integration_id if instance else None)
         )
         selection_changed = instance is None or (
             ai_type != instance.ai_generative_ai_type

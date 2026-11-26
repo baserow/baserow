@@ -416,6 +416,10 @@ class AutomationNodeType(
         # If we received any service values, prepare them.
         service_values = values.pop("service", None) or {}
         workflow = instance.workflow if instance else values.get("workflow", None)
+        if workflow:
+            service_values = service_type.resolve_integration(
+                workflow.automation, service_values
+            )
         prepared_service_values = service_type.prepare_values(
             service_values, user, service if instance else None
         )

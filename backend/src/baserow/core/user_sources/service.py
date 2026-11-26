@@ -183,8 +183,8 @@ class UserSourceService:
             context=application,
         )
 
+        kwargs = user_source_type.resolve_integration(application, kwargs)
         prepared_values = user_source_type.prepare_values(kwargs, user)
-        user_source_type.check_integration(application, prepared_values)
 
         try:
             new_user_source = self.handler.create_user_source(
@@ -251,8 +251,8 @@ class UserSourceService:
             )
             new_values["auth_providers"] = kwargs["auth_providers"]
 
+        kwargs = user_source_type.resolve_integration(user_source.application, kwargs)
         prepared_values = user_source_type.prepare_values(kwargs, user, user_source)
-        user_source_type.check_integration(user_source.application, prepared_values)
 
         # Detect if a user re-count is required. Per user source type
         # we track which properties changing triggers a recount.

@@ -1981,6 +1981,35 @@ def test_prepare_values_rejects_unknown_env_model_without_database_provider(
 
 
 @pytest.mark.django_db
+def test_prepare_values_validates_model_of_an_already_resolved_integration(
+    data_fixture, settings
+):
+    settings.BASEROW_OPENAI_API_KEY = "sk-env-key"
+    settings.BASEROW_OPENAI_MODELS = ["env-model"]
+    user = data_fixture.create_user()
+    application = data_fixture.create_builder_application(user=user)
+    service_type = AIAgentServiceType()
+    integration = IntegrationService().create_integration(
+        user, AIIntegrationType(), application=application, ai_settings={}
+    )
+    service = ServiceHandler().create_service(service_type)
+
+    # The caller resolves the integration before the values are prepared.
+    for instance in [None, service]:
+        values = service_type.resolve_integration(
+            application,
+            {
+                "integration_id": integration.id,
+                "ai_generative_ai_type": "openai",
+                "ai_generative_ai_model": "unknown-model",
+            },
+        )
+        assert values["integration"] == integration
+        with pytest.raises(DRFValidationError, match="unknown-model.*not available"):
+            service_type.prepare_values(values, user, instance)
+
+
+@pytest.mark.django_db
 def test_prepare_values_rejects_partial_override_model_not_in_legacy_allowlist(
     data_fixture, settings
 ):
