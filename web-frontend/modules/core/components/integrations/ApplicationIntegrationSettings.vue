@@ -36,7 +36,7 @@
       </h3>
     </template>
     <template v-if="integrations.length > 0">
-      <p class="margin-top-3">
+      <p class="integration-settings__section-description">
         {{ $t('integrationSettings.integrationMessage') }}
       </p>
       <div
@@ -80,7 +80,7 @@
         />
       </div>
     </template>
-    <p v-else class="margin-top-3">
+    <p v-else class="integration-settings__section-description">
       {{ $t('integrationSettings.noIntegrationMessage') }}
     </p>
     <WorkspaceSettingsModal
