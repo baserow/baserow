@@ -3,7 +3,10 @@ from rest_framework import serializers
 from baserow.api.chat_runs.serializers import ChatRunStreamQuerySerializer
 from baserow.contrib.agent.api.serializers import AgentMessageContentSerializer
 from baserow.contrib.agent.models import AgentMessage
-from baserow_enterprise.agent.constants import PUBLIC_CHAT_START_KEY_PATTERN
+from baserow_enterprise.agent.constants import (
+    PUBLIC_CHAT_PASSWORD_MAX_LENGTH,
+    PUBLIC_CHAT_START_KEY_PATTERN,
+)
 
 
 class PublicChatInfoSerializer(serializers.Serializer):
@@ -23,7 +26,9 @@ class PublicChatInfoSerializer(serializers.Serializer):
 
 
 class PublicChatAuthRequestSerializer(serializers.Serializer):
-    password = serializers.CharField(trim_whitespace=False)
+    password = serializers.CharField(
+        trim_whitespace=False, max_length=PUBLIC_CHAT_PASSWORD_MAX_LENGTH
+    )
 
 
 class PublicChatConversationStartSerializer(AgentMessageContentSerializer):

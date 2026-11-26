@@ -15,6 +15,7 @@ from rest_framework.test import APIClient
 from baserow.config.db_routers import clear_db_state, set_db_alias
 from baserow.contrib.agent.models import AgentApplication, AgentConversation
 from baserow.core.chat_runs.models import ChatRun
+from baserow_enterprise.agent.constants import PUBLIC_CHAT_PASSWORD_MAX_LENGTH
 from baserow_enterprise.agent.models import PublicChatAgentChannel
 from baserow_enterprise.agent.public_chat_tokens import (
     encode_access_token,
@@ -306,12 +307,18 @@ def test_a_protected_chat_needs_the_token_from_auth(api_client, create_chat):
     chat = create_chat(password="secret")
 
     wrong = api_client.post(url(chat.slug, "auth"), {"password": "nope"}, format="json")
+    too_long = api_client.post(
+        url(chat.slug, "auth"),
+        {"password": "x" * (PUBLIC_CHAT_PASSWORD_MAX_LENGTH + 1)},
+        format="json",
+    )
     token = api_client.post(
         url(chat.slug, "auth"), {"password": "secret"}, format="json"
     ).json()["access_token"]
 
     assert start(api_client, chat).status_code == 401
     assert wrong.status_code == 401
+    assert too_long.status_code == 400
     assert start(api_client, chat, **bearer(token)).status_code == 200
 
 
