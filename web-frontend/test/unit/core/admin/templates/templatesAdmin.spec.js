@@ -1,6 +1,7 @@
 import { flushPromises } from '@vue/test-utils'
 import { defineComponent, h, nextTick, ref } from 'vue'
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
+import { useRouter } from '#app'
 
 import { TestApp } from '@baserow/test/helpers/testApp'
 import { heldBack } from '@baserow/test/helpers/heldBack'
@@ -79,6 +80,7 @@ describe('TemplatesAdminTable', () => {
       count = rows.length,
       counts = { in_review: 1, public: 1, rejected: 0, blocked: 0, private: 0 },
       component = TemplatesAdminTable,
+      route = '/',
     } = {}
   ) => {
     testApp.mock.onGet('/admin/templates/').reply(200, { count, results: rows })
@@ -86,7 +88,7 @@ describe('TemplatesAdminTable', () => {
       .onGet('/admin/templates/counts/')
       .reply(counts ? 200 : 500, counts ?? {})
     testApp.mock.onGet('/applications/workspace/9/').reply(200, [])
-    const wrapper = await testApp.mount(component)
+    const wrapper = await testApp.mount(component, { route })
     await flushPromises()
     return wrapper
   }
@@ -215,6 +217,54 @@ describe('TemplatesAdminTable', () => {
     expect(requestsTo('/admin/templates/counts/').length).toBe(3)
     expect(headers()).toContain('templatesAdmin.reason')
   })
+
+  test('opens on the tab in the URL and keeps the chosen tab in it', async () => {
+    const wrapper = await mountTable([], { route: '/?tab=blocked' })
+    const router = useRouter()
+    const listStates = () =>
+      requestsTo('/admin/templates/').map((request) => request.params.state)
+
+    expect(listStates()).toEqual(['blocked'])
+
+    const navigated = new Promise((resolve) => {
+      const removeHook = router.afterEach(() => {
+        removeHook()
+        resolve()
+      })
+    })
+    await wrapper.findAll('.tabs__item').at(1).trigger('click')
+    await navigated
+
+    expect(router.currentRoute.value.query).toEqual({ tab: 'public' })
+
+    await router.push({ query: { tab: 'blocked' } })
+    await flushPromises()
+
+    expect(listStates()).toEqual(['blocked', 'public', 'blocked'])
+  })
+
+  test.each(['/?tab=in_review', '/'])(
+    'a notification link to the open tab from %s reloads rows and counts',
+    async (route) => {
+      await mountTable([], { route })
+      const router = useRouter()
+      const loads = () => [
+        requestsTo('/admin/templates/').length,
+        requestsTo('/admin/templates/counts/').length,
+      ]
+      const before = loads()
+
+      for (const times of [1, 2]) {
+        await router.push({ query: { tab: 'in_review', template: 3 } })
+        await flushPromises()
+
+        await vi.waitFor(() =>
+          expect(router.currentRoute.value.query).toEqual({ tab: 'in_review' })
+        )
+        expect(loads()).toEqual([before[0] + times, before[1] + times])
+      }
+    }
+  )
 
   test('tells when the tab has no templates', async () => {
     const wrapper = await mountTable([], {

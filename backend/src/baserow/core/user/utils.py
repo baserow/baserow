@@ -2,8 +2,10 @@ import unicodedata
 from dataclasses import asdict, dataclass
 from typing import Dict, Optional, Union
 
+from django.contrib.auth import get_user_model
 from django.contrib.auth.models import AbstractUser
 from django.core.signing import TimestampSigner
+from django.db.models import QuerySet
 
 from rest_framework_simplejwt.exceptions import TokenError
 from rest_framework_simplejwt.settings import api_settings as jwt_settings
@@ -32,6 +34,18 @@ def get_actor_language(actor: Actor) -> str | None:
     """
 
     return actor.profile.language if isinstance(actor, AbstractUser) else None
+
+
+def active_instance_admins() -> QuerySet:
+    """
+    The instance admins who can act now: active and not marked for deletion.
+
+    :return: A queryset of the users.
+    """
+
+    return get_user_model().objects.filter(
+        is_staff=True, is_active=True, profile__to_be_deleted=False
+    )
 
 
 def normalize_email_address(email):

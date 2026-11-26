@@ -5,6 +5,7 @@ import WorkspaceInvitationAcceptedNotification from '@baserow/modules/core/compo
 import WorkspaceInvitationRejectedNotification from '@baserow/modules/core/components/notifications/WorkspaceInvitationRejectedNotification'
 import BaserowVersionUpgradeNotification from '@baserow/modules/core/components/notifications/BaserowVersionUpgradeNotification'
 import AbuseReportCreatedNotification from '@baserow/modules/core/components/notifications/AbuseReportCreatedNotification'
+import UserTemplateNotification from '@baserow/modules/core/components/notifications/UserTemplateNotification'
 import NotificationImgIcon from '@baserow/modules/core/components/notifications/NotificationImgIcon'
 import BaserowIcon from '@baserow/modules/core/static/img/logoOnly.svg?url'
 
@@ -112,5 +113,136 @@ export class AbuseReportCreatedNotificationType extends NotificationType {
 
   getContentComponent() {
     return AbuseReportCreatedNotification
+  }
+}
+
+export class UserTemplateNotificationType extends NotificationType {
+  getIconComponent() {
+    return NotificationImgIcon
+  }
+
+  getIconComponentProps() {
+    return { icon: BaserowIcon }
+  }
+
+  getContentComponent() {
+    return UserTemplateNotification
+  }
+
+  getTitleKey() {
+    throw new Error('getTitleKey not implemented')
+  }
+}
+
+export class UserTemplateAdminNotificationType extends UserTemplateNotificationType {
+  getAdminTab() {
+    throw new Error('getAdminTab not implemented')
+  }
+
+  getRoute(notificationData) {
+    return {
+      name: 'admin-templates',
+      query: {
+        tab: this.getAdminTab(),
+        template: notificationData.template_id,
+      },
+    }
+  }
+}
+
+export class UserTemplateInReviewNotificationType extends UserTemplateAdminNotificationType {
+  static getType() {
+    return 'user_template_in_review'
+  }
+
+  getTitleKey() {
+    return 'userTemplateNotification.inReview'
+  }
+
+  getAdminTab() {
+    return 'in_review'
+  }
+}
+
+export class BlockedUserTemplateChangedNotificationType extends UserTemplateAdminNotificationType {
+  static getType() {
+    return 'blocked_user_template_changed'
+  }
+
+  getTitleKey() {
+    return 'userTemplateNotification.blockedChanged'
+  }
+
+  getAdminTab() {
+    return 'blocked'
+  }
+}
+
+export class UserTemplateAuthorNotificationType extends UserTemplateNotificationType {
+  getRoute(notificationData) {
+    return {
+      name: 'template',
+      params: { slug: notificationData.template_slug },
+    }
+  }
+}
+
+export class UserTemplateApprovedNotificationType extends UserTemplateAuthorNotificationType {
+  static getType() {
+    return 'user_template_approved'
+  }
+
+  getTitleKey() {
+    return 'userTemplateNotification.approved'
+  }
+}
+
+export class UserTemplateRejectedNotificationType extends UserTemplateAuthorNotificationType {
+  static getType() {
+    return 'user_template_rejected'
+  }
+
+  getTitleKey() {
+    return 'userTemplateNotification.rejected'
+  }
+}
+
+export class UserTemplateChangeRejectedNotificationType extends UserTemplateAuthorNotificationType {
+  static getType() {
+    return 'user_template_change_rejected'
+  }
+
+  getTitleKey() {
+    return 'userTemplateNotification.changeRejected'
+  }
+}
+
+export class UserTemplateUnlistedNotificationType extends UserTemplateAuthorNotificationType {
+  static getType() {
+    return 'user_template_unlisted'
+  }
+
+  getTitleKey() {
+    return 'userTemplateNotification.unlisted'
+  }
+}
+
+export class UserTemplateBlockedNotificationType extends UserTemplateAuthorNotificationType {
+  static getType() {
+    return 'user_template_blocked'
+  }
+
+  getTitleKey() {
+    return 'userTemplateNotification.blocked'
+  }
+}
+
+export class UserTemplateUnblockedNotificationType extends UserTemplateAuthorNotificationType {
+  static getType() {
+    return 'user_template_unblocked'
+  }
+
+  getTitleKey() {
+    return 'userTemplateNotification.unblocked'
   }
 }
