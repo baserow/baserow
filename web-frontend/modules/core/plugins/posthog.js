@@ -1,10 +1,12 @@
 import { nextTick } from 'vue'
 import { useNuxtApp, useRouter, useRuntimeConfig } from '#imports'
 
+import { carriesPrivateLinkToken } from '@baserow/modules/core/utils/templatePrivateLink'
 import {
-  carriesPrivateLinkToken,
-  redactPrivateLinks,
-} from '@baserow/modules/core/utils/templatePrivateLink'
+  getPosthogOptions,
+  getPublishedPageViewProperties,
+  isPublishedSite,
+} from '@baserow/modules/core/utils/publishedSite'
 
 export default defineNuxtPlugin({
   name: 'posthog',
@@ -21,17 +23,25 @@ export default defineNuxtPlugin({
       return
     }
 
+    const publishedSite = isPublishedSite(
+      window.location.hostname,
+      runtimeConfig.public
+    )
+
     const { default: posthog } = await import('posthog-js')
-    posthog.init(projectApiKey, {
-      api_host: host,
-      capture_pageview: false,
-      capture_pageleave: false,
-      disable_session_recording: true,
-      autocapture: {
-        css_selector_allowlist: ['[ph-autocapture]'],
-      },
-      before_send: redactPrivateLinks,
-    })
+    posthog.init(projectApiKey, getPosthogOptions({ host, publishedSite }))
+
+    if (publishedSite) {
+      // A published application only reports its page views. The rest of the app
+      // gets this function instead of `$posthog`, so nothing else can be captured.
+      nuxtApp.provide('capturePublishedPageView', (page) => {
+        posthog.capture(
+          '$pageview',
+          getPublishedPageViewProperties(window.location, page)
+        )
+      })
+      return
+    }
 
     nuxtApp.provide('posthog', posthog)
 

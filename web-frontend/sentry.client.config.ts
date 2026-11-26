@@ -9,6 +9,10 @@ import {
   redactPrivateLinks,
 } from './modules/core/utils/templatePrivateLink'
 import { dropRouteParams } from './modules/core/utils/sentryTransactions'
+import {
+  getReplayOptions,
+  isPublishedSite,
+} from './modules/core/utils/publishedSite'
 import * as Sentry from '@sentry/nuxt'
 
 const config = useRuntimeConfig()
@@ -98,7 +102,9 @@ if (dsn && dsn !== '') {
       loadReplayIntegration: () =>
         import('@sentry/replay').then((module) => module.replayIntegration),
       addIntegration: Sentry.addIntegration,
-      replayOptions: { maskAllText: true, blockAllMedia: true },
+      replayOptions: getReplayOptions({
+        publishedSite: isPublishedSite(window.location.hostname, config.public),
+      }),
     })
   }
 }

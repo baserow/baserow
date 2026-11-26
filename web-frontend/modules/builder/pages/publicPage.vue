@@ -11,7 +11,7 @@
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { computed, onMounted } from 'vue'
 import { useStore } from 'vuex'
 import {
   useAsyncData,
@@ -396,4 +396,11 @@ const currentPage = computed(() => asyncDataResult.value?.currentPage)
 const path = computed(() => asyncDataResult.value?.path)
 const params = computed(() => asyncDataResult.value?.params)
 const pageMode = computed(() => asyncDataResult.value?.mode)
+
+// Only provided on a published application, where the page views are anonymous.
+onMounted(() => {
+  if (currentPage.value) {
+    nuxtApp.$capturePublishedPageView?.(currentPage.value)
+  }
+})
 </script>

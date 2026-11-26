@@ -1,0 +1,9 @@
+{
+    "type": "feature",
+    "message": "Published applications no longer store analytics or monitoring identifiers in the browser of their visitors, and only collect anonymous page views",
+    "issue_origin": "github",
+    "issue_number": 6839,
+    "domain": "builder",
+    "bullet_points": [],
+    "created_at": "2026-11-26"
+}
