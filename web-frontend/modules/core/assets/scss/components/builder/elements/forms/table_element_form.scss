@@ -1,3 +1,13 @@
 .table-element-form__refresh-fields-button {
   margin-bottom: 6px;
 }
+
+// A column's actions: Delete on the left, Styling on the right.
+.table-element-form__field-footer {
+  display: flex;
+  align-items: center;
+}
+
+.table-element-form__field-style {
+  margin-left: auto;
+}

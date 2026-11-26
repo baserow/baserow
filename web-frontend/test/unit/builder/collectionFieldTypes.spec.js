@@ -11,6 +11,37 @@ describe('Builder collection field types', () => {
     await testApp.afterEach()
   })
 
+  describe('getStyleConfig', () => {
+    test('says how each column type can be styled', () => {
+      const registry = testApp.getRegistry()
+      const config = (type, field = {}) =>
+        registry.get('collectionField', type).getStyleConfig({ type, ...field })
+
+      expect(config('text').configBlockTypes).toEqual(['table', 'typography'])
+      expect(config('text').extraArgs).toEqual({
+        onlyCell: true,
+        onlyBody: true,
+        noAlignment: true,
+      })
+      expect(config('boolean').configBlockTypes).toEqual(['table'])
+      expect(config('button').configBlockTypes).toEqual(['table', 'button'])
+      expect(config('tags').configBlockTypes).toEqual(['table', 'typography'])
+      expect(config('link', { variant: 'link' }).configBlockTypes).toEqual([
+        'table',
+        'link',
+      ])
+      expect(config('link', { variant: 'button' }).configBlockTypes).toEqual([
+        'table',
+        'button',
+      ])
+      // A column just changed to a link has no variant yet.
+      expect(config('link').configBlockTypes).toEqual(['table', 'link'])
+      // Images and ratings have no column style.
+      expect(config('image')).toBeNull()
+      expect(config('rating')).toBeNull()
+    })
+  })
+
   describe('LinkCollectionFieldType getErrorMessage', () => {
     test('is in error when custom navigation URL is missing', () => {
       const fieldType = testApp.getRegistry().get('collectionField', 'link')

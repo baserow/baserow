@@ -11,17 +11,6 @@
         v-model="values.label"
         :placeholder="$t('buttonFieldForm.labelPlaceholder')"
       />
-      <template #after-input>
-        <CustomStyleButton
-          v-model="values.styles"
-          style-key="cell"
-          :config-block-types="['table', 'button']"
-          :theme="baseTheme"
-          :on-styles-changed="onFieldStylesChanged"
-          :extra-args="{ onlyCell: true, noAlignment: true }"
-          variant="normal"
-        />
-      </template>
     </FormGroup>
     <Alert>
       {{ $t('buttonFieldForm.infoMessage') }}
@@ -32,11 +21,10 @@
 <script>
 import collectionFieldForm from '@baserow/modules/builder/mixins/collectionFieldForm'
 import InjectedFormulaInput from '@baserow/modules/core/components/formula/InjectedFormulaInput'
-import CustomStyleButton from '@baserow/modules/builder/components/elements/components/forms/style/CustomStyleButton'
 
 export default {
   name: 'ButtonFieldForm',
-  components: { InjectedFormulaInput, CustomStyleButton },
+  components: { InjectedFormulaInput },
   mixins: [collectionFieldForm],
   data() {
     return {

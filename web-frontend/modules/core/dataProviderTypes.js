@@ -176,7 +176,58 @@ export class DataProviderType extends Registerable {
     if (schema === null) {
       return {}
     }
-    return this._toNode(applicationContext, [this.type], schema)
+    let providerNode = this._toNode(applicationContext, [this.type], schema)
+    if (this.chipSourceName) {
+      providerNode = {
+        ...providerNode,
+        chipSourceName: this.chipSourceName,
+        sourceIcon: this.chipSourceIcon,
+      }
+    }
+    if (!providerNode.nodes) {
+      return providerNode
+    }
+    return {
+      ...providerNode,
+      nodes: providerNode.nodes.map((node) => {
+        const sourceIcon = this.getSourceIcon(
+          applicationContext,
+          node.identifier
+        )
+        return sourceIcon ? { ...node, sourceIcon } : node
+      }),
+    }
+  }
+
+  /**
+   * When the provider itself is the source of its data, like the record a
+   * repeat or a table is iterating on, the short name a data chip shows for it
+   * instead of the provider's first part. `null` when the provider's first
+   * level holds the sources, like data sources or automation nodes.
+   * @returns {String|null}
+   */
+  get chipSourceName() {
+    return null
+  }
+
+  /**
+   * The icon a data chip shows next to `chipSourceName`.
+   * @returns {String|null} an icon class.
+   */
+  get chipSourceIcon() {
+    return null
+  }
+
+  /**
+   * The icon of the source a first-level node stands for, like the automation
+   * node or the data source it's the data of. A data chip shows it next to the
+   * source's name. `null` when the provider's first level isn't a source.
+   * @param {Object} applicationContext the application context.
+   * @param {String} identifier the identifier of the first-level node.
+   * @returns {String|null} an icon class.
+   */
+  getSourceIcon(applicationContext, identifier) {
+    return null
   }
 
   /**

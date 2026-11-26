@@ -96,6 +96,10 @@
 
   .control--horizontal & {
     flex-basis: 100%;
+
+    // Lets wide content, like a formula's data chip, shrink to the row
+    // instead of pushing the row wider than the sidebar.
+    min-width: 0;
   }
 
   .control--horizontal.control--after-input & {
