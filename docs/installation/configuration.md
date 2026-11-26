@@ -577,6 +577,12 @@ domain than your Baserow, you need to make sure CORS is configured correctly.
 | POSTHOG\_PROJECT\_API\_KEY | Set this to your Posthog project API key for product analytics. |          |
 | POSTHOG\_HOST              | Set this to your Posthog host for product analytics.            |          |
 
+Published applications don't store anything from Posthog in the browser of their
+visitors and only send anonymous page views, using the
+[cookieless tracking](https://posthog.com/docs/privacy/cookieless-tracking) of Posthog.
+It must be enabled in the settings of your Posthog project, otherwise Posthog discards
+the page views of published applications.
+
 Grouped aggregation data sources in Dashboard and Application Builder can save a bucket
 limit, including the Other bucket. `BASEROW_PREMIUM_GROUPED_AGGREGATE_SERVICE_MAX_AGG_BUCKETS`
 (default: `10`) caps this value and is used when no limit is saved. Saved limits are

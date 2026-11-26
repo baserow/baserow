@@ -1,4 +1,5 @@
 import { BUILDER_PREVIEW_PATH_PREFIX } from '@baserow/modules/builder/utils/preview'
+import { isBuilderPreviewHostname as isPreviewHostname } from '@baserow/modules/core/utils/publishedSite'
 
 /**
  * Make sure only baserow routes are available for instance public hostname.
@@ -38,11 +39,10 @@ export default defineNuxtPlugin({
     const runtimeConfig = useRuntimeConfig()
     const { $isWebFrontendHostname } = nuxtApp
     const requestUrl = useRequestURL()
-    const requestHostname = requestUrl.hostname
-    const builderPreviewHostname = new URL(
-      runtimeConfig.public.builderPreviewUrl
-    ).hostname
-    const isBuilderPreviewHostname = builderPreviewHostname === requestHostname
+    const isBuilderPreviewHostname = isPreviewHostname(
+      requestUrl.hostname,
+      runtimeConfig.public
+    )
     const isBuilderPreviewPath =
       requestUrl.pathname === BUILDER_PREVIEW_PATH_PREFIX ||
       requestUrl.pathname.startsWith(`${BUILDER_PREVIEW_PATH_PREFIX}/`)

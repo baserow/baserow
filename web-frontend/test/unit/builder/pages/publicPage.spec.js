@@ -3,6 +3,7 @@ import { ref } from 'vue'
 import { beforeEach, describe, expect, test, vi } from 'vitest'
 
 const {
+  capturePublishedPageView,
   getTokenIfEnoughTimeLeft,
   navigateTo,
   reloadNuxtApp,
@@ -10,6 +11,7 @@ const {
   store,
   useAsyncData,
 } = vi.hoisted(() => ({
+  capturePublishedPageView: vi.fn(),
   getTokenIfEnoughTimeLeft: vi.fn(),
   navigateTo: vi.fn(),
   reloadNuxtApp: vi.fn(),
@@ -50,6 +52,7 @@ vi.mock('#app', async (importOriginal) => ({
     $i18n: { t: (key) => key },
     $registry: { getAll: vi.fn(() => []) },
     $config: { public: {} },
+    $capturePublishedPageView: capturePublishedPageView,
   }),
 }))
 
@@ -109,6 +112,26 @@ describe('PublicPage', () => {
     const wrapper = await mountSuspended(PublicPage.default)
 
     expect(wrapper.html()).toMatchInlineSnapshot(`"<!--v-if-->"`)
+  })
+
+  test('captures the page view of the loaded page once', async () => {
+    const page = { id: 2, path: '/event/:id' }
+    useAsyncData.mockReturnValue({
+      data: ref({ currentPage: page }),
+      error: ref(null),
+      pending: ref(false),
+    })
+
+    await mountSuspended(PublicPage.default)
+
+    expect(capturePublishedPageView).toHaveBeenCalledOnce()
+    expect(capturePublishedPageView).toHaveBeenCalledWith(page)
+  })
+
+  test('does not capture a page view without a loaded page', async () => {
+    await mountSuspended(PublicPage.default)
+
+    expect(capturePublishedPageView).not.toHaveBeenCalled()
   })
 
   test('stops loading a stale non-home page after logout', async () => {
