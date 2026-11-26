@@ -88,7 +88,9 @@ class AutomaticSnapshotScheduleService:
         visible_applications = CoreHandler().filter_queryset(
             user,
             ListApplicationsWorkspaceOperationType.type,
-            Application.objects.filter(workspace=workspace, id__in=application_ids),
+            Application.objects_without_shared.filter(
+                workspace=workspace, id__in=application_ids
+            ),
             workspace=workspace,
         )
         applications = specific_iterator(
@@ -189,7 +191,7 @@ class AutomaticSnapshotScheduleService:
         visible_applications = CoreHandler().filter_queryset(
             user,
             ListApplicationsWorkspaceOperationType.type,
-            Application.objects.filter(workspace=workspace),
+            Application.objects_without_shared.filter(workspace=workspace),
             workspace=workspace,
         )
         return self.handler.list_workspace_schedules(workspace).filter(

@@ -208,6 +208,70 @@ def test_run_due_schedules_queues_every_covered_application(
 
 
 @pytest.mark.django_db
+def test_workspace_default_does_not_cover_the_shared_application(
+    enterprise_data_fixture,
+):
+    workspace = enterprise_data_fixture.create_workspace()
+    enterprise_data_fixture.create_shared_application(workspace=workspace)
+    database = enterprise_data_fixture.create_database_application(workspace=workspace)
+    handler = AutomaticSnapshotScheduleHandler()
+    default = handler.create_schedule(workspace, **DAILY)
+
+    assert [app.id for app in handler.get_covered_applications(default)] == [
+        database.id
+    ]
+
+
+@pytest.mark.django_db
+def test_run_due_schedules_does_not_queue_the_shared_application(
+    enterprise_data_fixture,
+    enable_enterprise,
+    delay_mock,
+    django_capture_on_commit_callbacks,
+):
+    workspace = enterprise_data_fixture.create_workspace()
+    set_default_max_snapshots(workspace, 1)
+    enterprise_data_fixture.create_shared_application(workspace=workspace)
+    database = enterprise_data_fixture.create_database_application(workspace=workspace)
+    with freeze_time("2026-11-04 01:00"):
+        schedule = AutomaticSnapshotScheduleHandler().create_schedule(
+            workspace, **DAILY
+        )
+
+    with (
+        freeze_time("2026-11-04 02:00"),
+        django_capture_on_commit_callbacks(execute=True),
+    ):
+        AutomaticSnapshotScheduleHandler().run_due_schedules()
+
+    delay_mock.assert_called_once_with(schedule.id, database.id, [])
+
+
+@pytest.mark.django_db
+def test_create_automatic_snapshot_records_no_failure_for_the_shared_application(
+    enterprise_data_fixture, enable_enterprise
+):
+    user = enterprise_data_fixture.create_user()
+    workspace = enterprise_data_fixture.create_workspace(user=user)
+    set_default_max_snapshots(workspace, 1)
+    shared_application = enterprise_data_fixture.create_shared_application(
+        workspace=workspace
+    )
+    handler = AutomaticSnapshotScheduleHandler()
+    schedule = handler.create_schedule(workspace, **DAILY)
+
+    # Even a task that was already queued for it does nothing.
+    with freeze_time("2026-11-04 02:00"):
+        handler.create_automatic_snapshot(schedule.id, shared_application.id)
+
+    assert not schedule.last_runs.exists()
+    assert not Snapshot.objects.filter(
+        snapshot_from_application_id=shared_application.id
+    ).exists()
+    assert not Notification.objects.filter(type="automatic_snapshot_failed").exists()
+
+
+@pytest.mark.django_db
 def test_run_due_schedules_skips_workspaces_without_the_license(
     enterprise_data_fixture, delay_mock, django_capture_on_commit_callbacks
 ):

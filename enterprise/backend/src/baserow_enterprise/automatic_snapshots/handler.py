@@ -409,7 +409,9 @@ class AutomaticSnapshotScheduleHandler:
         :return: The queryset of covered applications.
         """
 
-        applications = Application.objects.filter(workspace_id=schedule.workspace_id)
+        applications = Application.objects_without_shared.filter(
+            workspace_id=schedule.workspace_id
+        )
         if schedule.is_workspace_default:
             return applications.exclude(automatic_snapshot_schedules__isnull=False)
         return applications.filter(id=schedule.application_id)
