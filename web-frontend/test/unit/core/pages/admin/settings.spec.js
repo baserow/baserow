@@ -89,9 +89,27 @@ describe('AdminSettings', () => {
     )
   })
 
+  test('locks the approval setting while user templates are off', async () => {
+    const wrapper = await mountSettings('allow_user_templates', false)
+    const toggle = item(
+      wrapper,
+      'settings.settingUserTemplatesRequireApprovalName'
+    ).find('.switch')
+
+    await toggle.trigger('click')
+    await flushPromises()
+
+    expect(toggle.classes()).toContain('switch--disabled')
+    expect(testApp.mock.history.patch).toHaveLength(0)
+    expect(
+      testApp.store.getters['settings/get'].user_templates_require_approval
+    ).toBe(true)
+  })
+
   test('hides the user template toggles without their feature flag', async () => {
     const wrapper = await mountSettings('allow_user_templates', true, false)
 
+    expect(wrapper.text()).not.toContain('settings.userTemplates')
     expect(
       item(wrapper, 'settings.settingAllowUserTemplatesName')
     ).toBeUndefined()

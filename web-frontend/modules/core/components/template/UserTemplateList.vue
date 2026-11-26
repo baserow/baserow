@@ -258,10 +258,11 @@
                 </a>
               </li>
               <li
-                v-if="!deleteOnly && canInstall(focusedTemplate, isStaff)"
+                v-if="canInstall(focusedTemplate, isStaff)"
                 class="context__menu-item"
                 :class="{
-                  'context__menu-item--with-separator': !focusedCopyLinkItem,
+                  'context__menu-item--with-separator':
+                    !deleteOnly && !focusedCopyLinkItem,
                 }"
               >
                 <a
@@ -278,7 +279,10 @@
               </li>
               <li
                 class="context__menu-item"
-                :class="{ 'context__menu-item--with-separator': !deleteOnly }"
+                :class="{
+                  'context__menu-item--with-separator':
+                    !deleteOnly || canInstall(focusedTemplate, isStaff),
+                }"
               >
                 <a
                   class="context__menu-item-link context__menu-item-link--delete"

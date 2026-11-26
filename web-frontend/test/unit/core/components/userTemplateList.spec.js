@@ -914,9 +914,13 @@ describe('UserTemplateList', () => {
   })
 
   describe('delete only', () => {
-    test.each(['private', 'public'])(
-      'tells that user templates are off and only deletes a %s one',
-      async (state) => {
+    test.each([
+      ['private', ['userTemplateList.download', 'userTemplateList.delete']],
+      ['public', ['userTemplateList.download', 'userTemplateList.delete']],
+      ['blocked', ['userTemplateList.delete']],
+    ])(
+      'tells that user templates are off and only downloads or deletes a %s one',
+      async (state, actions) => {
         const template = userTemplate(1, 'Sprint Tracker', state, {
           private_link_token: 'token',
           can_make_public: true,
@@ -939,14 +943,12 @@ describe('UserTemplateList', () => {
 
         await wrapper.find('.user-template-list__more').trigger('click')
         const links = wrapper.findAll('.context__menu-item-link')
-        expect(links.map((link) => link.text())).toStrictEqual([
-          'userTemplateList.delete',
-        ])
+        expect(links.map((link) => link.text())).toStrictEqual(actions)
         expect(wrapper.find('.context__menu-item').classes()).not.toContain(
           'context__menu-item--with-separator'
         )
 
-        await links[0].trigger('click')
+        await links.at(-1).trigger('click')
 
         expect(wrapper.emitted('delete')).toStrictEqual([[template]])
         expect(wrapper.emitted('selected')).toBeUndefined()

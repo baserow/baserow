@@ -962,7 +962,7 @@
     "makePrivate": "Make private",
     "privateLink": "Private link",
     "delete": "Delete",
-    "turnedOff": "User templates are turned off on this instance."
+    "turnedOff": "User templates are turned off on this instance. You can still download and delete templates you’ve created."
   },
   "publicTemplateList": {
     "title": "Shared templates",
@@ -1246,10 +1246,11 @@
     "settingsVerifyImportSignatureDescription": "When enabled, the signature of the imported data is verified to ensure the data has not been tampered with.",
     "settingAllowReportingAbuseName": "Allow reporting abuse",
     "settingAllowReportingAbuseDescription": "When enabled, visitors of publicly shared views, forms, dashboards and published applications can report them for abuse, and all instance admins are notified about the report.",
+    "userTemplates": "User templates",
     "settingAllowUserTemplatesName": "Allow user templates",
     "settingAllowUserTemplatesDescription": "When enabled, people can create, share and install user templates. When disabled, user templates are hidden and only instance admins can open them. Nothing is deleted.",
     "settingAllowUserTemplatesOffTitle": "Turn off user templates?",
-    "settingAllowUserTemplatesOffMessage": "Nobody except instance admins can open, install or download user templates, and nobody can create or share them. Authors can still delete their own. Turning it back on restores everything.",
+    "settingAllowUserTemplatesOffMessage": "Nobody except instance admins can open, install or download user templates, and nobody can create or share them. Authors can still download and delete their own. Turning it back on restores everything.",
     "settingAllowUserTemplatesOff": "Turn off",
     "settingUserTemplatesRequireApprovalName": "Templates need approval",
     "settingUserTemplatesRequireApprovalDescription": "When enabled, a template made public is listed in the template browser only after an instance admin approves it, and so is every change to a listed template.",

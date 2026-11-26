@@ -77,10 +77,15 @@
             >
           </div>
         </div>
-        <div
-          v-if="$featureFlagIsEnabled(FF_USER_TEMPLATES)"
-          class="admin-settings__item"
-        >
+      </div>
+      <div
+        v-if="$featureFlagIsEnabled(FF_USER_TEMPLATES)"
+        class="admin-settings__group"
+      >
+        <h2 class="admin-settings__group-title">
+          {{ $t('settings.userTemplates') }}
+        </h2>
+        <div class="admin-settings__item">
           <div class="admin-settings__label">
             <div class="admin-settings__name">
               {{ $t('settings.settingAllowUserTemplatesName') }}
@@ -105,10 +110,7 @@
             @confirm="turnOffUserTemplates"
           />
         </div>
-        <div
-          v-if="$featureFlagIsEnabled(FF_USER_TEMPLATES)"
-          class="admin-settings__item"
-        >
+        <div class="admin-settings__item">
           <div class="admin-settings__label">
             <div class="admin-settings__name">
               {{ $t('settings.settingUserTemplatesRequireApprovalName') }}
@@ -122,6 +124,7 @@
           <div class="admin-settings__control">
             <SwitchInput
               :value="settings.user_templates_require_approval"
+              :disabled="!settings.allow_user_templates"
               @input="setUserTemplatesRequireApproval"
               >{{ $t('settings.enabled') }}</SwitchInput
             >

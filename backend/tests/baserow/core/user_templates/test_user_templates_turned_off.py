@@ -78,12 +78,14 @@ def test_running_jobs_fail_when_turned_off(data_fixture, job_type, window):
     user = data_fixture.create_user()
     workspace = data_fixture.create_workspace(user=user)
     database = data_fixture.create_database_application(workspace=workspace)
-    template = create_template(data_fixture, user)
+    template = create_template(
+        data_fixture, user, "public" if job_type == "download" else "private"
+    )
     templates_before = set(Template.objects.values_list("id", flat=True))
     job = {
         "create": lambda: request_create(user, workspace, database),
         "install": lambda: request_install(user, workspace, template),
-        "download": lambda: request_download(user, template),
+        "download": lambda: request_download(data_fixture.create_user(), template),
     }[job_type]()
     if window == "start":
         turn_off_elsewhere(data_fixture)

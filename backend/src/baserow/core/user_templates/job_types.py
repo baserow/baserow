@@ -659,7 +659,9 @@ class DownloadUserTemplateJobType(JobType):
         revision = job.revision
         if revision is None:
             raise TemplateDoesNotExist("The template was deleted.")
-        UserTemplateHandler().recheck_admitted_install_access(job.user, revision)
+        UserTemplateHandler().recheck_admitted_install_access(
+            job.user, revision, download=True
+        )
         # A repeated download reuses the archive.
         if has_valid_archive(revision):
             progress.increment(progress.total)

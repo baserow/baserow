@@ -87,8 +87,13 @@ ROWS = [
         ),
         REFUSED,
     ),
-    ("download", "download building the archive", download, REFUSED),
-    ("download", "download of a built archive", download, REFUSED),
+    (
+        "download",
+        "download building the archive",
+        download,
+        (HTTP_202_ACCEPTED, None),
+    ),
+    ("download", "download of a built archive", download, (HTTP_200_OK, None)),
     (
         "rotate_private_link_token",
         "rotate the private link",
@@ -166,7 +171,7 @@ ROWS = [
                 "revision_id": ctx["template"].id,
             }
         ),
-        REFUSED,
+        (HTTP_200_OK, None),
     ),
     (
         "jobs",
@@ -253,3 +258,32 @@ def test_instance_admin_installs_and_downloads_but_cannot_share_while_off(
     rotate = api_client.post(slug_url("rotate_private_link_token", own))
 
     assert (rotate.status_code, rotate.json()["error"]) == REFUSED
+
+
+@install_marks
+def test_only_the_author_downloads_a_user_template_while_off(api_client, data_fixture):
+    author, token = data_fixture.create_user_and_token()
+    _, other_token = data_fixture.create_user_and_token()
+    template = create_template(data_fixture, author, "public")
+    turn_user_templates(data_fixture, False)
+
+    def download_as(jwt):
+        api_client.credentials(HTTP_AUTHORIZATION=f"JWT {jwt}")
+        return api_client.post(
+            slug_url("download", template), {"revision_id": template.id}, format="json"
+        )
+
+    refused = download_as(other_token)
+
+    assert (refused.status_code, refused.json()["error"]) == REFUSED
+
+    with queued():
+        build = download_as(token)
+    job = run_job(Job.objects.get(id=build.json()["id"]).specific)
+
+    assert job.state == JOB_FINISHED, job.human_readable_error
+
+    archive = download_as(token)
+
+    assert archive.status_code == HTTP_200_OK, archive.json()
+    assert archive.json()["url"]
