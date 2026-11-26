@@ -398,6 +398,8 @@ const params = computed(() => asyncDataResult.value?.params)
 const pageMode = computed(() => asyncDataResult.value?.mode)
 
 // Only provided on a published application, where the page views are anonymous.
+// A page is counted once when it opens, and not again when only the query string
+// changes, because the query string isn't part of the page view.
 onMounted(() => {
   if (currentPage.value) {
     nuxtApp.$capturePublishedPageView?.(currentPage.value)
