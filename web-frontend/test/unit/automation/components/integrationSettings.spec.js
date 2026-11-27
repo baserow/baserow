@@ -25,6 +25,12 @@ const smtpIntegration = {
   port: 587,
 }
 
+// Renders the row menu in place, and lets a test see it without positioning.
+const contextStub = {
+  template: '<div><slot /></div>',
+  methods: { show() {}, hide() {}, toggle() {} },
+}
+
 // Every permission is granted in unit tests, so only the workspace being in the
 // store decides here.
 describe('Automation IntegrationSettings', () => {
@@ -43,7 +49,15 @@ describe('Automation IntegrationSettings', () => {
     await testApp.afterEach()
   })
 
-  const promoteButtons = (wrapper) => wrapper.findAll('.iconoir-share-android')
+  // The promotion is offered from the menu of the integration.
+  const openMenu = async (wrapper) => {
+    await wrapper.get('.workspace-integrations-table__more').trigger('click')
+    await flushPromises()
+  }
+  const promoteItem = (wrapper) =>
+    wrapper
+      .findAll('.context__menu-item-link')
+      .find((link) => link.text() === 'promoteIntegration.action')
 
   const mountSettings = async (show = () => {}) => {
     testApp.mock
@@ -62,6 +76,7 @@ describe('Automation IntegrationSettings', () => {
       },
       global: {
         stubs: {
+          Context: contextStub,
           PromoteIntegrationModal: {
             name: 'PromoteIntegrationModal',
             props: ['application', 'integration'],
@@ -80,7 +95,8 @@ describe('Automation IntegrationSettings', () => {
     const show = vi.fn()
     const wrapper = await mountSettings(show)
 
-    await promoteButtons(wrapper)[0].trigger('click')
+    await openMenu(wrapper)
+    await promoteItem(wrapper).trigger('click')
     await flushPromises()
 
     const modal = wrapper.findComponent({ name: 'PromoteIntegrationModal' })
@@ -122,8 +138,9 @@ describe('Automation IntegrationSettings', () => {
   test('offers no promotion outside a workspace of the user', async () => {
     // Like a template preview.
     const wrapper = await mountSettings()
+    await openMenu(wrapper)
 
-    expect(promoteButtons(wrapper)).toHaveLength(0)
+    expect(promoteItem(wrapper)).toBeUndefined()
     expect(
       wrapper.findComponent({ name: 'PromoteIntegrationModal' }).exists()
     ).toBe(false)
