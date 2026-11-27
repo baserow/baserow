@@ -57,7 +57,7 @@ class Command(BaseCommand):
                     regenerated += 1
                 except Exception as error:
                     if not isinstance(error, IOError) and not is_missing_file_error(
-                        error
+                        error, storage
                     ):
                         raise
 

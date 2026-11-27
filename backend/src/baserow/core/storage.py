@@ -5,9 +5,6 @@ from typing import BinaryIO, Collection, Iterator
 
 from django.core.files.storage import FileSystemStorage, Storage, default_storage
 
-from azure.core.exceptions import ResourceNotFoundError
-from botocore.exceptions import ClientError
-from google.api_core.exceptions import NotFound
 from loguru import logger
 
 # This import is necessary to handle the creation of zip files in a standardized way
@@ -28,10 +25,34 @@ def get_default_storage() -> Storage:
     return default_storage
 
 
-def is_missing_file_error(error: BaseException) -> bool:
+S3_MISSING_OBJECT_CODES = {"NoSuchKey", "404", "NotFound"}
+
+
+def _s3_bucket_exists(storage: Storage) -> bool:
+    from botocore.exceptions import ClientError
+
+    try:
+        storage.connection.meta.client.head_bucket(Bucket=storage.bucket_name)
+    except ClientError:
+        return False
+    return True
+
+
+def is_missing_file_error(error: BaseException, storage: Storage) -> bool:
+    if isinstance(error, FileNotFoundError):
+        return True
+
+    from azure.core.exceptions import ResourceNotFoundError
+    from botocore.exceptions import ClientError
+    from google.api_core.exceptions import NotFound
+
     if isinstance(error, ClientError):
-        return error.response.get("ResponseMetadata", {}).get("HTTPStatusCode") == 404
-    return isinstance(error, (FileNotFoundError, ResourceNotFoundError, NotFound))
+        # A HEAD request has no body, so a missing bucket also comes back as "404".
+        code = error.response.get("Error", {}).get("Code")
+        return code in S3_MISSING_OBJECT_CODES and _s3_bucket_exists(storage)
+    if isinstance(error, ResourceNotFoundError):
+        return getattr(error, "error_code", None) != "ContainerNotFound"
+    return isinstance(error, NotFound)
 
 
 class OverwritingStorageHandler:

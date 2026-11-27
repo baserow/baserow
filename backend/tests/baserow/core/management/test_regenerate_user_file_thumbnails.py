@@ -131,12 +131,35 @@ def test_regenerating_thumbnails_on_remote_storage_skips_images_without_an_origi
     assert "1 thumbnails have been regenerated." in output
 
 
+def s3_storage_without_bucket(read_error):
+    storage = s3_storage(read_error)
+    storage._connections.connection.meta.client.head_bucket.side_effect = s3_error(404)
+    return storage
+
+
+def container_not_found():
+    error = ResourceNotFoundError()
+    error.error_code = "ContainerNotFound"
+    return error
+
+
 @pytest.mark.django_db
-def test_regenerating_thumbnails_stops_on_other_storage_errors(data_fixture):
+@pytest.mark.parametrize(
+    "create_storage,read_error",
+    [
+        (s3_storage, s3_error(403)),
+        (s3_storage_without_bucket, s3_error(404)),
+        (azure_storage, container_not_found()),
+    ],
+    ids=["s3-denied", "s3-no-bucket", "azure-no-container"],
+)
+def test_regenerating_thumbnails_stops_on_other_storage_errors(
+    data_fixture, create_storage, read_error
+):
     data_fixture.create_user_file(is_image=True)
 
-    with pytest.raises(ClientError):
-        regenerate_on(s3_storage(s3_error(403)))
+    with pytest.raises(type(read_error)):
+        regenerate_on(create_storage(read_error))
 
 
 @pytest.mark.django_db

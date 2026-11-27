@@ -8,10 +8,12 @@ import Sidebar from '@baserow/modules/core/components/sidebar/Sidebar'
 import SidebarAllWorkspacesMenu from '@baserow/modules/core/components/sidebar/SidebarAllWorkspacesMenu'
 import DatabaseSidebar from '@baserow/modules/database/components/sidebar/Sidebar'
 import WorkspacePage from '@baserow/modules/core/pages/workspace'
+import AppLayout from '@baserow/modules/core/layouts/app'
 
 mockNuxtImport('useRoute', () => () => ({
   params: { workspaceId: '1' },
   query: {},
+  meta: {},
   matched: [],
 }))
 
@@ -147,5 +149,37 @@ describe('clicks before the page finished loading', () => {
     await flushPromises()
 
     expect(wrapper.find('.workspace-picker-stub').exists()).toBe(true)
+  })
+
+  test('opens the workspace search clicked before the page finished loading', async () => {
+    testApp.store.commit(
+      'workspace/SET_SELECTED',
+      testApp.store.getters['workspace/get'](1)
+    )
+    const { wrapper, content, finishLoading } = await mountBesideLoadingPage(
+      AppLayout,
+      {},
+      {
+        Toasts: true,
+        GuidedTour: true,
+        RightSidebar: true,
+        Sidebar: defineComponent({
+          emits: ['open-workspace-search'],
+          render() {
+            return h('button', {
+              class: 'sidebar-search-stub',
+              onClick: () => this.$emit('open-workspace-search'),
+            })
+          },
+        }),
+        WorkspaceSearchModal: openableStub('workspace-search-stub'),
+      }
+    )
+    await content.find('.sidebar-search-stub').trigger('click')
+
+    finishLoading()
+    await flushPromises()
+
+    expect(wrapper.find('.workspace-search-stub').exists()).toBe(true)
   })
 })

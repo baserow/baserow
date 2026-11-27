@@ -42,7 +42,7 @@ class TemplateFilesTransfer:
                 shutil.copyfileobj(stored_file, spooled_file)
         except BaseException as exc:
             spooled_file.close()
-            if is_missing_file_error(exc):
+            if is_missing_file_error(exc, self.storage):
                 raise KeyError(name) from exc
             raise
 

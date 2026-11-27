@@ -108,6 +108,7 @@ import {
   keyboardShortcutsToPriorityEventBus,
 } from '@baserow/modules/core/utils/events'
 import { notifyIf } from '@baserow/modules/core/utils/error'
+import { createWhenMounted } from '@baserow/modules/core/utils/whenMounted'
 import { SIDEBAR_TYPES } from '@baserow/modules/core/utils/constants'
 import { provideWorkspaceSidebarVisible } from '@baserow/modules/core/composables/useWorkspaceSidebar'
 
@@ -129,6 +130,7 @@ const col3Visible = ref(false)
 const app = ref()
 
 const workspaceSearchModal = ref(null)
+const mountQueue = createWhenMounted()
 
 const workspaces = computed(() => store.getters['workspace/getAll'])
 const selectedWorkspace = computed(() => store.getters['workspace/getSelected'])
@@ -198,9 +200,11 @@ if (route.query.token) {
 }
 
 function openWorkspaceSearch() {
-  if (selectedWorkspace.value?.id && workspaceSearchModal.value) {
-    workspaceSearchModal.value.show()
-  }
+  mountQueue.whenMounted(() => {
+    if (selectedWorkspace.value?.id) {
+      workspaceSearchModal.value.show()
+    }
+  })
 }
 
 function resizeCol1(width) {
@@ -262,6 +266,8 @@ onMounted(() => {
   store.dispatch('job/initializePoller')
 
   $bus.$on('toggle-right-sidebar', toggleRightSidebar)
+
+  mountQueue.mounted()
 })
 
 onBeforeUnmount(() => {
