@@ -1277,6 +1277,14 @@ def test_web_fetch_leaves_out_a_script_cut_off_before_its_opening_tag_ends():
     assert NON_TEXT_TAGS.sub("", page_text) == "<p>Visible text</p>"
 
 
+def test_web_fetch_keeps_a_custom_element_named_like_a_left_out_tag():
+    page_text = "<p>Intro</p><svg-icon></svg-icon><h1>Pricing</h1><svg>x</svg>"
+
+    assert NON_TEXT_TAGS.sub("", page_text) == (
+        "<p>Intro</p><svg-icon></svg-icon><h1>Pricing</h1>"
+    )
+
+
 @pytest.mark.django_db
 def test_a_reply_opens_a_limited_number_of_pages(
     mocker, data_fixture, configured_agent

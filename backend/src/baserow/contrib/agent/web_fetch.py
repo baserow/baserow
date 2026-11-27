@@ -51,9 +51,10 @@ MARKDOWN_MEDIA_TYPES = {"text/markdown", "text/x-markdown"}
 # The converter drops these tags but keeps their text, which on most pages is
 # mostly script. A tag cut off by the size limit runs to the end, even one cut
 # off before its `>`, so an opener never fails after scanning to the end, which
-# would make many of them take quadratic time.
+# would make many of them take quadratic time. A custom element such as
+# `<svg-icon>` is not one of them.
 NON_TEXT_TAGS = re.compile(
-    r"<(script|style|noscript|template|svg)\b[^>]*(?:>.*?(?:</\1\s*>|\Z)|\Z)",
+    r"<(script|style|noscript|template|svg)(?=[\s/>]|\Z)[^>]*(?:>.*?(?:</\1\s*>|\Z)|\Z)",
     re.IGNORECASE | re.DOTALL,
 )
 MEDIA_TYPE = re.compile(

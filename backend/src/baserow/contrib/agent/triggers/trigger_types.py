@@ -9,16 +9,12 @@ from baserow.core.services.models import Service
 from .data_providers import rows_as_text, trigger_data_as_text
 from .registries import AgentTriggerType
 
-ROWS_TRIGGER_TYPES = (
-    "local_baserow_rows_created",
-    "local_baserow_rows_updated",
-    "local_baserow_rows_deleted",
-)
 ROWS_EVENT_REASONS = {
     "local_baserow_rows_created": "rows were created",
     "local_baserow_rows_updated": "rows were updated",
     "local_baserow_rows_deleted": "rows were deleted",
 }
+ROWS_TRIGGER_TYPES = tuple(ROWS_EVENT_REASONS)
 
 
 class PeriodicAgentTriggerType(AgentTriggerType):

@@ -40,7 +40,7 @@ export const rootChildRoutes = [
 export const publicRoutes = [
   {
     name: 'agent-public-chat',
-    path: '/public/agent-chat/:slug',
+    path: '/public/agent-chat/:slug([-\\w]+)',
     file: path.resolve(__dirname, 'pages/publicAgentChat.vue'),
   },
 ]
