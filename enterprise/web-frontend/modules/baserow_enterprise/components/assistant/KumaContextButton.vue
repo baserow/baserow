@@ -68,6 +68,7 @@ watchEffect(
     const panel = editor.panel.value
     const origin = trigger.value?.closest('.context, .modal__wrapper')
     if (!selected.value || !panel || !origin) return
+    let availableWidth
     const position = () => {
       const edge = panel.getBoundingClientRect().left
       if (origin.matches('.modal__wrapper')) {
@@ -76,11 +77,20 @@ watchEffect(
           window.innerWidth - edge + 'px'
         )
       } else {
+        const width = Math.max(0, edge - 16)
+        if (width !== availableWidth) {
+          origin.removeAttribute('data-kuma-constrained')
+          availableWidth = width
+        }
+        if (origin.offsetWidth > width) {
+          origin.style.setProperty('--kuma-editor-width', width + 'px')
+          origin.setAttribute('data-kuma-constrained', '')
+        }
         const left = origin.offsetLeft
         const shift = Math.min(0, edge - 8 - left - origin.offsetWidth)
         origin.style.setProperty(
           '--kuma-editor-offset',
-          Math.max(-left, shift) + 'px'
+          Math.max(8 - left, shift) + 'px'
         )
       }
     }
@@ -94,6 +104,8 @@ watchEffect(
       window.removeEventListener('resize', position)
       origin.style.removeProperty('--kuma-sidebar-width')
       origin.style.removeProperty('--kuma-editor-offset')
+      origin.style.removeProperty('--kuma-editor-width')
+      origin.removeAttribute('data-kuma-constrained')
     })
   },
   { flush: 'post' }

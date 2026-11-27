@@ -9,7 +9,7 @@ exports[`Table Component Tests > Adding a row to a table increases the row count
         <!--v-if-->
         <li class="header__filter-item header__filter-item--grids"><a class="header__filter-link active" data-highlight="views"><i class="header__filter-icon header-filter-icon--view color-primary iconoir-menu"></i><span class="header__filter-name header__filter-name--forced"><span contenteditable="false" placeholder="" class="">mock_view_1</span></span><i class="header__sub-icon iconoir-nav-arrow-down"></i></a>
           <teleport-stub to="body">
-            <div class="select context visibility-hidden" header-overflow="false">
+            <div data-kuma-scope="" class="select context visibility-hidden" header-overflow="false">
               <!--v-if-->
             </div>
           </teleport-stub>
@@ -25,7 +25,7 @@ exports[`Table Component Tests > Adding a row to a table increases the row count
         <li class="header__filter-item" data-highlight="view-filters">
           <div><a class="header__filter-link"><i class="header__filter-icon iconoir-filter"></i><span class="header__filter-name">viewFilter.filter - 0</span></a>
             <teleport-stub to="body">
-              <div class="filters context visibility-hidden">
+              <div class="filters context visibility-hidden" tabindex="-1" role="region" aria-label="viewFilter.filter - 0">
                 <!--v-if-->
               </div>
             </teleport-stub>
@@ -355,7 +355,7 @@ exports[`Table Component Tests > Adding a row to a table increases the row count
         <!--v-if-->
         <li class="header__filter-item header__filter-item--grids"><a class="header__filter-link active" data-highlight="views"><i class="header__filter-icon header-filter-icon--view color-primary iconoir-menu"></i><span class="header__filter-name header__filter-name--forced"><span contenteditable="false" placeholder="" class="">mock_view_1</span></span><i class="header__sub-icon iconoir-nav-arrow-down"></i></a>
           <teleport-stub to="body">
-            <div class="select context visibility-hidden" header-overflow="false">
+            <div data-kuma-scope="" class="select context visibility-hidden" header-overflow="false">
               <!--v-if-->
             </div>
           </teleport-stub>
@@ -371,7 +371,7 @@ exports[`Table Component Tests > Adding a row to a table increases the row count
         <li class="header__filter-item" data-highlight="view-filters">
           <div><a class="header__filter-link"><i class="header__filter-icon iconoir-filter"></i><span class="header__filter-name">viewFilter.filter - 0</span></a>
             <teleport-stub to="body">
-              <div class="filters context visibility-hidden">
+              <div class="filters context visibility-hidden" tabindex="-1" role="region" aria-label="viewFilter.filter - 0">
                 <!--v-if-->
               </div>
             </teleport-stub>

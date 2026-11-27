@@ -20,6 +20,7 @@
       />
     </template>
     <FormTextarea
+      class="agent-create__instructions"
       :model-value="modelValue.instructions"
       :rows="6"
       @update:model-value="update({ instructions: $event })"

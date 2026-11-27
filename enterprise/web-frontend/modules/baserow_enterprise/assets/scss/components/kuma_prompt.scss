@@ -34,8 +34,15 @@
     translate: var(--kuma-editor-offset, 0) 0;
   }
 
+  .context[data-kuma-constrained] {
+    min-width: 0;
+    max-width: var(--kuma-editor-width);
+    overflow-x: auto;
+  }
+
   .modal__wrapper:has(.kuma-context-button[aria-pressed='true']) {
     right: var(--kuma-sidebar-width, 0);
+    padding-inline: 12px;
   }
 }
 

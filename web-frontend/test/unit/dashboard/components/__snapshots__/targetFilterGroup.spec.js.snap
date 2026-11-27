@@ -1,7 +1,7 @@
 // Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
 exports[`adding conditions after a permanent group is saved keeps its persistent group ID 1`] = `
-"<div>
+"<div data-kuma-scope="">
   <!--v-if-->
   <div class="filters__items filters__items--full-width filters__items">
     <div class="filters__group-item-wrapper">
@@ -369,7 +369,7 @@ exports[`adding conditions after a permanent group is saved keeps its persistent
 `;
 
 exports[`read-only groups keep constants, formulas and nested conditions locked 1`] = `
-"<div>
+"<div data-kuma-scope="">
   <!--v-if-->
   <div class="filters__items filters__items--full-width filters__items">
     <div class="filters__item-wrapper">

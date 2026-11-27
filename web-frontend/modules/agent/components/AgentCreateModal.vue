@@ -1,5 +1,11 @@
 <template>
-  <Modal ref="modal" small :can-close="!loading" @show="reset">
+  <Modal
+    ref="modal"
+    class="agent-create__modal"
+    small
+    :can-close="!loading"
+    @show="reset"
+  >
     <h2 class="box__title">{{ $t(TITLES[step]) }}</h2>
     <form @submit.self.prevent="next">
       <Error :error="error" />

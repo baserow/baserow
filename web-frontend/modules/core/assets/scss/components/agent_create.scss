@@ -1,3 +1,12 @@
+.agent-create__modal {
+  padding-inline: 12px;
+}
+
+.agent-create__instructions {
+  max-width: 100%;
+  resize: vertical;
+}
+
 .agent-create__suggestions {
   display: flex;
   flex-wrap: wrap;

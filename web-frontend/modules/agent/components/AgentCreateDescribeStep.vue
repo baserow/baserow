@@ -30,6 +30,7 @@
       />
     </template>
     <FormTextarea
+      class="agent-create__instructions"
       :model-value="modelValue.instructions"
       :placeholder="$t('agent.setupInstructionsPlaceholder')"
       :rows="5"
