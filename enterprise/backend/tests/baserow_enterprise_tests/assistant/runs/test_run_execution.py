@@ -79,6 +79,34 @@ async def _crash(run: ChatRun, journal: ChatRunJournal) -> None:
 
 
 @pytest.mark.django_db(transaction=True)
+def test_queued_editor_followup_loses_its_target_before_the_worker_starts(
+    assistant_run, enterprise_data_fixture, mocker
+):
+    run = assistant_run()
+    chat = AssistantChat.objects.get(pk=run.chat_id)
+    database = enterprise_data_fixture.create_database_application(
+        workspace=run.workspace
+    )
+    table = enterprise_data_fixture.create_database_table(database=database)
+    view = enterprise_data_fixture.create_grid_view(table=table)
+    chat.editor_context = {
+        "action": "edit_view_filters",
+        "target": {"view_id": view.id},
+        "location": {"view": {"id": view.id}},
+        "label": view.name,
+    }
+    chat.save(update_fields=["editor_context"])
+    view.delete()
+    resolve_model = mocker.patch(
+        "baserow_enterprise.assistant.chat_run_type.resolve_assistant_model"
+    )
+    execute_chat_run(str(run.id))
+    run.refresh_from_db()
+    assert run.status == ChatRunStatus.FAILED and run.error_code == ERROR_ACCESS_LOST
+    resolve_model.assert_not_called()
+
+
+@pytest.mark.django_db(transaction=True)
 def test_the_first_background_reply_continues_existing_history_without_replaying_it(
     enterprise_data_fixture,
     assistant_test_model,

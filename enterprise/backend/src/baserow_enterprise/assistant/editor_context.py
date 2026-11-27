@@ -4,16 +4,33 @@ from baserow.contrib.database.fields.operations import (
     ListFieldsOperationType,
     ReadFieldOperationType,
 )
+from baserow.contrib.database.table.models import Table
 from baserow.contrib.database.tools.tables import get_database, get_table
 from baserow.contrib.database.tools.views import get_view
+from baserow.contrib.database.views.exceptions import ViewDoesNotExist
+from baserow.contrib.integrations.local_baserow.service_filters.exceptions import (
+    ServiceFilterTargetDoesNotExist,
+    ServiceFilterTargetNotSupported,
+)
 from baserow.contrib.integrations.local_baserow.service_filters.handler import (
     resolve_service_filter_target,
 )
+from baserow.core.exceptions import ApplicationDoesNotExist, PermissionException
 from baserow.core.handler import CoreHandler
 from baserow.core.tools.applications import get_application_in_workspace
 
 from .exceptions import EditorGenerationFailed
 from .types import UIContext
+
+EDITOR_ACCESS_ERRORS = (
+    PermissionException,
+    ApplicationDoesNotExist,
+    Table.DoesNotExist,
+    ViewDoesNotExist,
+    ServiceFilterTargetDoesNotExist,
+    ServiceFilterTargetNotSupported,
+    EditorGenerationFailed,
+)
 
 
 def _named(obj):
