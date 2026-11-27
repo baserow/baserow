@@ -14,10 +14,16 @@ from baserow.core.sentry import (
     before_send,
     drop_expected_asyncio_disconnect_events,
     ignore_sentry_exceptions,
+    ignore_sentry_exceptions_if,
     log_sentry_event_to_console,
+    was_sent_to_sentry,
 )
 from baserow.core.sentry_transport import ConsoleSentryTransport
-from baserow.test_utils.sentry import TEST_SENTRY_DSN, collect_sentry_events
+from baserow.test_utils.sentry import (
+    TEST_SENTRY_DSN,
+    collect_sentry_events,
+    raised_from,
+)
 
 
 def test_sentry_sdk_is_not_loaded_when_sentry_is_disabled():
@@ -324,3 +330,37 @@ def test_ignore_sentry_exceptions_resolves_lazy_types_only_with_sentry(
         sentry_sdk.capture_exception(ValueError("kept"))
 
     assert _sent(sentry_events) == ["kept"]
+
+
+def test_ignore_sentry_exceptions_if_drops_only_the_matching_exceptions(
+    sentry_events,
+):
+    def is_dropped(exc: BaseException) -> bool:
+        return str(exc).startswith("dropped")
+
+    with ignore_sentry_exceptions_if(is_dropped):
+        sentry_sdk.capture_exception(ValueError("dropped"))
+        sentry_sdk.capture_exception(ValueError("kept"))
+        sentry_sdk.capture_message("kept message")
+
+    sentry_sdk.capture_exception(ValueError("dropped, but outside"))
+
+    assert _sent(sentry_events) == ["kept", "kept message", "dropped, but outside"]
+
+
+def test_was_sent_to_sentry_tells_the_exceptions_kept_inside_the_block(
+    sentry_events,
+):
+    kept = ValueError("kept")
+    dropped = ValueError("dropped")
+    outside = ValueError("outside")
+
+    with ignore_sentry_exceptions_if(lambda exc: exc is dropped):
+        sentry_sdk.capture_exception(kept)
+        sentry_sdk.capture_exception(dropped)
+    sentry_sdk.capture_exception(outside)
+
+    assert was_sent_to_sentry(kept)
+    assert was_sent_to_sentry(raised_from(RuntimeError("wrapper"), kept))
+    assert not was_sent_to_sentry(dropped)
+    assert not was_sent_to_sentry(outside)

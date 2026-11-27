@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Stop reporting AI provider errors like an invalid key, no credits left or a rate limit as server errors in AI fields, AI formulas, AI prompt actions, agents and the assistant",
+    "issue_origin": "github",
+    "issue_number": null,
+    "domain": "core",
+    "bullet_points": [],
+    "created_at": "2026-11-18"
+}

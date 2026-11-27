@@ -11,10 +11,7 @@ from typing import TYPE_CHECKING, Any, Literal, Optional, get_args, get_origin
 
 from django.conf import settings
 
-import httpx
-import httpx2
 from loguru import logger
-from pydantic_ai.exceptions import ModelAPIError, ModelHTTPError
 
 from baserow.core.ai_provider.constants import (
     AI_PROVIDER_TYPES,
@@ -29,7 +26,14 @@ from baserow.core.models import Workspace
 from baserow.core.registry import Instance, Registry
 
 from .constants import REASONING_EFFORTS, ProviderFailure, ReasoningEffort
-from .exceptions import GenerativeAITypeDoesNotExist, get_user_friendly_error_message
+from .exceptions import (
+    GenerativeAITypeDoesNotExist,
+    find_provider_error,
+    get_provider_status_code,
+    get_user_friendly_error_message,
+    is_out_of_credits,
+    is_transport_failure,
+)
 from .lifecycle import run_agent_sync_with_model
 from .usage import AIUsageScope, UsageReportingModel
 
@@ -55,25 +59,6 @@ class GenerativeAIModelConfiguration:
 
 
 _DEFAULT_MODEL_CONFIGURATION = GenerativeAIModelConfiguration()
-
-_TRANSPORT_ERRORS = (httpx.TransportError, httpx2.TransportError)
-
-
-def _is_transport_failure(error: BaseException) -> bool:
-    """
-    A provider can also report a failure inside a 200 answer, without a status, so
-    only a failed connection proves the request got no answer.
-
-    :param error: What the model raised.
-    :return: Whether the connection to the provider failed or broke.
-    """
-
-    cause = error.__cause__
-    while cause is not None:
-        if isinstance(cause, _TRANSPORT_ERRORS):
-            return True
-        cause = cause.__cause__
-    return False
 
 
 def call_with_supported_kwargs(method: Any, **kwargs) -> Any:
@@ -1008,15 +993,21 @@ class GenerativeAIModelType(Instance):
         :return: The failure, or None when it is none of the named ones.
         """
 
-        if isinstance(error, ModelHTTPError):
-            if error.status_code == 401:
-                return ProviderFailure.AUTH_FAILED
-            if error.status_code == 429:
-                return ProviderFailure.RATE_LIMITED
-            if error.status_code == 408 or error.status_code >= 500:
+        provider_error = find_provider_error(error)
+        if provider_error is None:
+            return None
+        if is_out_of_credits(provider_error):
+            return ProviderFailure.OUT_OF_CREDITS
+        status_code = get_provider_status_code(provider_error)
+        if status_code is None:
+            if is_transport_failure(provider_error):
                 return ProviderFailure.UNAVAILABLE
             return None
-        if isinstance(error, ModelAPIError) and _is_transport_failure(error):
+        if status_code == 401:
+            return ProviderFailure.AUTH_FAILED
+        if status_code == 429:
+            return ProviderFailure.RATE_LIMITED
+        if status_code in (408, 409) or status_code >= 500:
             return ProviderFailure.UNAVAILABLE
         return None
 
@@ -1254,7 +1245,10 @@ class GenerativeAIModelType(Instance):
             validated output_type instance.
         """
 
-        from .exceptions import GenerativeAIPromptError
+        from .exceptions import (
+            GenerativeAIPromptError,
+            ignore_provider_faults_in_sentry,
+        )
 
         try:
             resolved = self.resolve_model_settings(model, workspace, settings_override)
@@ -1278,13 +1272,14 @@ class GenerativeAIModelType(Instance):
                 ),
             )
 
-            result = run_agent_sync_with_model(
-                agent,
-                user_prompt,
-                model=ai_model,
-                model_settings=model_settings,
-                timeout_seconds=timeout_seconds,
-            )
+            with ignore_provider_faults_in_sentry():
+                result = run_agent_sync_with_model(
+                    agent,
+                    user_prompt,
+                    model=ai_model,
+                    model_settings=model_settings,
+                    timeout_seconds=timeout_seconds,
+                )
 
             if self._is_choices(output_type):
                 return self._resolve_choices(result.output, output_type)

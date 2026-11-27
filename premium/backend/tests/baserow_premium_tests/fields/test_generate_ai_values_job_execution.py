@@ -2,12 +2,16 @@
 Tests for GenerateAIValuesJob execution in all modes.
 """
 
+from datetime import datetime, timezone
 from unittest.mock import patch
 
 import pytest
 
 from baserow.contrib.database.rows.handler import RowHandler
+from baserow.core.generative_ai.exceptions import GenerativeAIPromptError
 from baserow.core.jobs.handler import JobHandler
+from baserow.test_utils.sentry import make_openai_error, raised_from
+from baserow_premium.fields.job_types import AIValueGenerator, AIValueUpdate
 from baserow_premium.fields.models import GenerateAIValuesJob
 
 
@@ -313,8 +317,6 @@ def test_job_execution_handles_errors(patched_error_signal, premium_data_fixture
 
     rows = RowHandler().create_rows(user, table, rows_values=[{}]).created_rows
 
-    from baserow.core.generative_ai.exceptions import GenerativeAIPromptError
-
     with pytest.raises(GenerativeAIPromptError):
         JobHandler().create_and_start_job(
             user,
@@ -351,3 +353,111 @@ def test_job_progress_tracking(premium_data_fixture):
     # After completion, should be at 100%
     assert job.progress_percentage == 100
     assert job.state == "finished"
+
+
+def _prompt_error_from(cause):
+    # Like `GenerativeAIModelType.prompt`, which raises its own error from the
+    # provider error.
+    return raised_from(GenerativeAIPromptError(str(cause)), cause)
+
+
+def _create_ai_field_with_rows(premium_data_fixture, count=1):
+    premium_data_fixture.register_fake_generate_ai_type()
+    user = premium_data_fixture.create_user()
+    database = premium_data_fixture.create_database_application(user=user)
+    table = premium_data_fixture.create_database_table(database=database)
+    field = premium_data_fixture.create_ai_field(table=table, ai_prompt="'Test'")
+    rows = RowHandler().create_rows(user, table, rows_values=[{}] * count)
+    return user, field, rows.created_rows
+
+
+@pytest.mark.django_db
+@pytest.mark.field_ai
+@patch("baserow.contrib.database.rows.signals.rows_ai_values_generation_error.send")
+def test_job_fails_without_raising_when_the_provider_is_at_fault(
+    patched_error_signal, premium_data_fixture
+):
+    user, field, rows = _create_ai_field_with_rows(premium_data_fixture)
+    error = _prompt_error_from(make_openai_error(429, "You have no credits remaining."))
+
+    with patch(
+        "baserow.test_utils.fixtures.generative_ai.TestGenerativeAIModelType.prompt",
+        side_effect=error,
+    ):
+        job = JobHandler().create_and_start_job(
+            user,
+            "generate_ai_values",
+            sync=True,
+            field_id=field.id,
+            row_ids=[rows[0].id],
+        )
+
+    # The error is shown on the row and the job, so it isn't raised to the task
+    # runner, which would report it to Sentry.
+    assert job.state == "failed"
+    assert job.error_code == "AIFieldProviderError"
+    assert job.human_readable_error == "You have no credits remaining."
+    assert patched_error_signal.call_count == 1
+
+
+@pytest.mark.django_db
+@pytest.mark.field_ai
+@pytest.mark.parametrize(
+    "patched_path,side_effect",
+    [
+        # The provider rejected the request Baserow built.
+        (
+            "baserow.test_utils.fixtures.generative_ai."
+            "TestGenerativeAIModelType.prompt",
+            _prompt_error_from(make_openai_error(400, "Invalid schema")),
+        ),
+        (
+            "baserow_premium.fields.handler.AIFieldHandler.update_generated_value",
+            RuntimeError("could not save the generated value"),
+        ),
+    ],
+)
+@patch("baserow.contrib.database.rows.signals.rows_ai_values_generation_error.send")
+def test_job_raises_errors_not_caused_by_the_provider(
+    patched_error_signal, premium_data_fixture, patched_path, side_effect
+):
+    user, field, rows = _create_ai_field_with_rows(premium_data_fixture)
+
+    # Raised to the task runner, which reports it to Sentry.
+    with patch(patched_path, side_effect=side_effect):
+        with pytest.raises(GenerativeAIPromptError) as exc_info:
+            JobHandler().create_and_start_job(
+                user,
+                "generate_ai_values",
+                sync=True,
+                field_id=field.id,
+                row_ids=[rows[0].id],
+            )
+
+    assert type(exc_info.value) is GenerativeAIPromptError
+    assert GenerateAIValuesJob.objects.get().state == "failed"
+
+
+@pytest.mark.django_db
+@pytest.mark.field_ai
+@pytest.mark.parametrize("provider_fails_last", [True, False])
+def test_generator_raises_when_any_row_failed_because_of_baserow(
+    premium_data_fixture, provider_fails_last
+):
+    user, field, rows = _create_ai_field_with_rows(premium_data_fixture, count=2)
+    generator = AIValueGenerator(user, field)
+    errors = [
+        _prompt_error_from(TypeError("unexpected keyword argument 'timeout'")),
+        _prompt_error_from(make_openai_error(429, "You have no credits remaining.")),
+    ]
+    if not provider_fails_last:
+        errors.reverse()
+
+    now = datetime.now(tz=timezone.utc)
+    for row, error in zip(rows, errors):
+        generator.in_process.add(row.id)
+        generator.handle_result(AIValueUpdate(row, error, now, now))
+
+    with pytest.raises(GenerativeAIPromptError) as exc_info:
+        generator.raise_if_error()
+    assert type(exc_info.value) is GenerativeAIPromptError

@@ -222,6 +222,7 @@
     "replyFailed": "The agent couldn’t reply. Send your message again.",
     "replyProviderAuthFailed": "The AI provider rejected the API key. Ask an admin to check it in AI providers, then send your message again.",
     "replyProviderRateLimited": "The AI provider is limiting requests or its quota ran out. Try again later.",
+    "replyProviderOutOfCredits": "The AI provider account has no credits left. Ask an admin to add credits with the provider, then send your message again.",
     "replyProviderUnavailable": "The AI provider couldn’t be reached or is having problems. Try again shortly.",
     "replyInProgress": "The agent is still replying in this conversation.",
     "agentsBusy": "Too many Agent replies are in progress. Try again shortly.",

@@ -10,6 +10,7 @@ describe('replyOutcome', () => {
     ['channel_off', 'agent.replyChannelOff'],
     ['provider_auth_failed', 'agent.replyProviderAuthFailed'],
     ['provider_rate_limited', 'agent.replyProviderRateLimited'],
+    ['provider_out_of_credits', 'agent.replyProviderOutOfCredits'],
     ['provider_unavailable', 'agent.replyProviderUnavailable'],
     ['usage_limit_exceeded', 'agent.replyUsageLimitExceeded'],
     ['unknown', 'agent.replyFailed'],

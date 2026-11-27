@@ -1012,6 +1012,36 @@ def test_a_rejected_api_key_is_not_retried_without_search(
 
 
 @pytest.mark.django_db
+def test_no_credits_left_is_not_retried_without_search(
+    mocker, data_fixture, configured_agent
+):
+    user = data_fixture.create_user()
+    seen = []
+
+    async def stream(messages, info):
+        seen.append(1)
+        raise ModelHTTPError(
+            400,
+            "m",
+            body={"error": {"message": "Your credit balance is too low."}},
+        )
+        yield "never"
+
+    use_stream(mocker, stream)
+    agent = configured_agent(
+        user=user,
+        web_search_enabled=True,
+        provider_type="anthropic",
+        available_model=("anthropic", "test-model"),
+    )
+
+    reply = answer(user, agent)
+
+    assert (reply.status, reply.error_code) == ("failed", "provider_out_of_credits")
+    assert len(seen) == 1
+
+
+@pytest.mark.django_db
 def test_copies_keep_web_search_and_imports_from_elsewhere_turn_it_off(
     data_fixture, configured_agent
 ):

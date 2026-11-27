@@ -5,6 +5,7 @@ from asgiref.sync import async_to_sync
 from pydantic_ai import Agent
 
 from baserow.core.ai_provider.constants import AI_PROVIDER_TEST_TIMEOUT_SECONDS
+from baserow.core.generative_ai.exceptions import ignore_provider_faults_in_sentry
 
 
 class ModelToolCallingNotSupportedError(Exception):
@@ -84,7 +85,8 @@ def test_model_text_and_tool_calling(
                     )
 
     try:
-        async_to_sync(run_test)()
+        with ignore_provider_faults_in_sentry():
+            async_to_sync(run_test)()
     except TimeoutError as exc:
         raise TimeoutError(
             f"The model compatibility test timed out after {timeout_seconds:g} seconds."

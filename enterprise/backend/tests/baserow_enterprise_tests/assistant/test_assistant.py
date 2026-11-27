@@ -9,8 +9,11 @@ from uuid import uuid4
 
 from django.test.utils import override_settings
 
+import httpx2
 import pytest
+import sentry_sdk
 from asgiref.sync import async_to_sync
+from google.genai import errors as google_errors
 from pydantic_ai import ModelRetry
 from pydantic_ai.exceptions import ModelAPIError, ModelHTTPError, UsageLimitExceeded
 from pydantic_ai.messages import (
@@ -47,6 +50,11 @@ from baserow.core.ai_provider.handler import AIProviderHandler
 from baserow.core.ai_provider.models import AIProviderConfig, AIProviderModel
 from baserow.core.chat_runs.handler import ChatRunHandler
 from baserow.core.chat_runs.models import ChatRunStatus
+from baserow.test_utils.sentry import (
+    make_openai_error,
+    raised_from,
+    sent_exception_types,
+)
 from baserow_enterprise.assistant.action_memory import (
     MAX_VERIFIED_TOOL_OUTCOMES_CHARS,
     get_mutation_evidence,
@@ -2829,6 +2837,18 @@ def _run_chat(chat, workspace, user, content="Question"):
     return outcome
 
 
+def _anthropic_error(status_code: int):
+    import anthropic
+    import httpx2
+
+    request = httpx2.Request("POST", "https://api.anthropic.com/v1/messages")
+    return anthropic.APIStatusError(
+        "Provider error",
+        response=httpx2.Response(status_code, request=request),
+        body=None,
+    )
+
+
 def _captured_trace(mock_get_client):
     return next(
         call.kwargs["properties"]
@@ -2874,7 +2894,17 @@ class TestAssistantRunFailures:
             (ModelHTTPError(status_code=429, model_name="m", body="slow"), False),
             (ModelHTTPError(status_code=503, model_name="m", body="down"), False),
             (ModelHTTPError(status_code=529, model_name="m", body="busy"), False),
-            (ModelAPIError(model_name="m", message="read timed out"), False),
+            (
+                raised_from(
+                    ModelAPIError(model_name="m", message="read timed out"),
+                    httpx2.ReadTimeout("read timed out"),
+                ),
+                False,
+            ),
+            # An error in a stream has no status: only an outage or a rate limit
+            # is the provider's fault.
+            (ModelAPIError(model_name="m", message="server_error: Retry."), False),
+            (ModelAPIError(model_name="m", message="invalid_prompt: flagged"), True),
             (UsageLimitExceeded("request_limit of 200"), True),
         ],
     )
@@ -2905,6 +2935,66 @@ class TestAssistantRunFailures:
         assert (
             _captured_trace(mock_get_client)["$ai_error_type"] == type(error).__name__
         )
+
+    @pytest.mark.parametrize(
+        "cause, captured_by_sentry, raised_from_cause, status_code, sent",
+        [
+            # The provider's fault isn't reported at all.
+            (google_errors.ClientError(429, {"error": {}}), True, True, 429, []),
+            # A request the provider rejects is reported once, by its integration.
+            (
+                google_errors.ClientError(400, {"error": {}}),
+                True,
+                True,
+                400,
+                ["ClientError"],
+            ),
+            # Or once by the assistant, when no integration captured it, like for
+            # Anthropic, whose client pydantic-ai calls isn't patched by Sentry.
+            (_anthropic_error(400), False, True, 400, ["ModelHTTPError"]),
+            # A sub-agent's rejected request is reported even if the run goes on,
+            # here to fail for the provider's fault.
+            (make_openai_error(400), True, False, 429, ["BadRequestError"]),
+            # A Baserow bug during the run is still reported where it happens.
+            (TypeError("unexpected keyword"), True, False, 429, ["TypeError"]),
+        ],
+    )
+    @patch("baserow_enterprise.assistant.telemetry.get_posthog_client")
+    @patch("baserow_enterprise.assistant.agents.main_agent.run_stream_events")
+    def test_provider_errors_are_reported_to_sentry_once(
+        self,
+        mock_run_stream_events,
+        mock_get_client,
+        cause,
+        captured_by_sentry,
+        raised_from_cause,
+        status_code,
+        sent,
+        sentry_events,
+        enterprise_data_fixture,
+        scoped_assistant_model,
+    ):
+        user = enterprise_data_fixture.create_user()
+        workspace = enterprise_data_fixture.create_workspace(user=user)
+        chat = AssistantChat.objects.create(
+            user=user, workspace=workspace, title="Chat"
+        )
+
+        error = ModelHTTPError(status_code=status_code, model_name="m", body="")
+
+        def fail_like_an_ai_client(*args, **kwargs):
+            if captured_by_sentry:
+                # Like the Sentry AI client integrations, which capture the client
+                # error before pydantic-ai turns it into a ModelHTTPError.
+                sentry_sdk.capture_exception(cause)
+            raise error from (cause if raised_from_cause else None)
+
+        mock_run_stream_events.side_effect = fail_like_an_ai_client
+
+        outcome = _run_chat(chat, workspace, user)
+        assert outcome.status == ChatRunStatus.FAILED
+
+        assert sent_exception_types(sentry_events) == sent
 
     @patch("baserow_enterprise.assistant.telemetry.get_posthog_client")
     @patch("baserow_enterprise.assistant.agents.main_agent.run_stream_events")
@@ -2995,6 +3085,44 @@ class TestAssistantRunFailures:
         trace = _captured_trace(mock_get_client)
         assert trace["$ai_error"] == "Content filter triggered"
         assert "private user data" not in json.dumps(trace["$ai_output_state"])
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "error, sent",
+    [
+        # The title stays provisional, so the provider's fault isn't sent.
+        (make_openai_error(429), []),
+        (make_openai_error(400), ["BadRequestError"]),
+    ],
+)
+@patch("baserow_enterprise.assistant.agents.title_agent.run")
+@patch("baserow_enterprise.assistant.agents.main_agent.run_stream_events")
+def test_a_failed_chat_title_reports_only_errors_not_caused_by_the_provider(
+    mock_run_stream_events,
+    mock_title_run,
+    error,
+    sent,
+    sentry_events,
+    enterprise_data_fixture,
+    scoped_assistant_model,
+):
+    user = enterprise_data_fixture.create_user()
+    workspace = enterprise_data_fixture.create_workspace(user=user)
+    chat = AssistantChat.objects.create(user=user, workspace=workspace, title="")
+    mock_run_stream_events.side_effect = make_mock_run_stream_events_side_effect("Hi")
+
+    async def fail_like_an_ai_client(*args, **kwargs):
+        # Like the Sentry AI client integrations, which capture the client error
+        # before re-raising it.
+        sentry_sdk.capture_exception(error)
+        raise error
+
+    mock_title_run.side_effect = fail_like_an_ai_client
+
+    _run_chat(chat, workspace, user)
+
+    assert sent_exception_types(sentry_events) == sent
 
 
 @pytest.mark.django_db
