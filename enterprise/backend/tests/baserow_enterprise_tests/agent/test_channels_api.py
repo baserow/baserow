@@ -80,6 +80,9 @@ def test_a_builder_creates_lists_changes_and_deletes_a_public_chat(
         "has_password": True,
         "title": "Support",
         "welcome_text": "",
+        "accent_color": "",
+        "background": "gradient",
+        "background_color": "",
     }
 
     assert created == expected
@@ -91,6 +94,45 @@ def test_a_builder_creates_lists_changes_and_deletes_a_public_chat(
     assert chat.check_password("opensesame")
     assert api_client.delete(channels_url(agent, chat.id)).status_code == 204
     assert api_client.get(channels_url(agent)).json() == []
+
+
+@pytest.mark.django_db
+def test_a_builder_changes_the_appearance(api_client, agent, create_chat):
+    appearance = {
+        "accent_color": "#FF6600",
+        "background": "plain",
+        "background_color": "#F0F0F0",
+    }
+
+    changed = api_client.patch(
+        channels_url(agent, create_chat()["id"]), appearance, format="json"
+    ).json()
+
+    assert {name: changed[name] for name in appearance} == {
+        **appearance,
+        "accent_color": "#ff6600",
+        "background_color": "#f0f0f0",
+    }
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "values",
+    [
+        {"accent_color": "red"},
+        {"background_color": "#12345"},
+        {"background": "video"},
+    ],
+)
+def test_an_invalid_appearance_is_refused(api_client, agent, create_chat, values):
+    response = api_client.patch(
+        channels_url(agent, create_chat()["id"]), values, format="json"
+    )
+
+    assert (response.status_code, response.json()["error"]) == (
+        400,
+        "ERROR_REQUEST_BODY_VALIDATION",
+    )
 
 
 @pytest.mark.django_db

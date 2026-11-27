@@ -53,6 +53,7 @@ class AgentConfiguration:
 
     readiness: AgentReadinessState
     instructions: str
+    suggested_messages: list[str]
     provider_type: str | None
     model_identifier: str | None
     reasoning_effort: str | None

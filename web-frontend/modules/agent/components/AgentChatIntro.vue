@@ -9,6 +9,7 @@
       </template>
     </i18n-t>
     <p>{{ $t('agent.chatDescription') }}</p>
+    <slot />
   </div>
 </template>
 

@@ -2,10 +2,11 @@
   <iframe
     ref="frame"
     class="html-element__preview"
+    :class="{ 'html-element__preview--interactive': interactive }"
     :title="$t('htmlElement.previewTitle')"
     :srcdoc="html"
     sandbox="allow-same-origin"
-    tabindex="-1"
+    :tabindex="interactive ? null : -1"
     :height="height"
     @load="onLoad"
   />
@@ -16,6 +17,7 @@ import { onBeforeUnmount, ref, watch } from 'vue'
 
 const props = defineProps({
   html: { type: String, required: true },
+  interactive: { type: Boolean, default: false },
 })
 
 const frame = ref(null)
@@ -61,8 +63,8 @@ function onLoad() {
       document.body.scrollHeight,
       document.body.getBoundingClientRect().height
     )
-    // Keep viewport-relative or very tall snippets from growing the editor
-    // indefinitely. Preview and publication use the content's natural height.
+    // A finite cap prevents viewport-relative content from resizing its own
+    // viewport indefinitely. Taller content remains scrollable inside the frame.
     height.value = Math.min(600, Math.max(48, Math.ceil(contentHeight)))
   }
   observer = new ResizeObserver(resize)

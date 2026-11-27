@@ -6,6 +6,8 @@ from rest_framework import serializers
 from baserow.api.mixins import UnknownFieldRaisesExceptionSerializerMixin
 from baserow.api.pagination import KeysetCursorField, PageNumberPagination
 from baserow.contrib.agent.constants import (
+    AGENT_SUGGESTED_MESSAGE_MAX_LENGTH,
+    AGENT_SUGGESTED_MESSAGES_MAX,
     ASK_PERSON_ANSWER_MAX_LENGTH,
     RUN_AS_SUBJECT_TYPES,
     AgentConfigurationErrorCode,
@@ -44,9 +46,14 @@ class AgentApplicationSerializer(serializers.ModelSerializer):
         "Installing it as a template creates the identity when the installer may."
     )
 
+    suggested_messages = serializers.ListField(
+        child=serializers.CharField(),
+        help_text="The messages a new conversation suggests, in display order.",
+    )
+
     class Meta:
         model = AgentApplication
-        fields = ("name", "readiness", "waits_for_identity")
+        fields = ("name", "readiness", "waits_for_identity", "suggested_messages")
 
     @extend_schema_field(serializers.BooleanField())
     def get_waits_for_identity(self, instance: AgentApplication) -> bool:
@@ -115,6 +122,10 @@ class AgentConfigurationSerializer(serializers.Serializer):
     # including after PATCH. Application payloads expose readiness to all readers.
     readiness = serializers.ChoiceField(choices=READINESS_CHOICES)
     instructions = serializers.CharField(allow_blank=True, trim_whitespace=False)
+    suggested_messages = serializers.ListField(
+        child=serializers.CharField(),
+        help_text="The messages a new conversation suggests, in display order.",
+    )
     provider_type = serializers.CharField(allow_null=True)
     model_identifier = serializers.CharField(allow_null=True)
     reasoning_effort = serializers.ChoiceField(
@@ -263,6 +274,12 @@ class AgentConfigurationUpdateSerializer(
         help_text="The names of all the tools the agent may call. Tools left out "
         "are turned off. Without a selected Run as identity, all tools stay off.",
     )
+    suggested_messages = serializers.ListField(
+        child=serializers.CharField(max_length=AGENT_SUGGESTED_MESSAGE_MAX_LENGTH),
+        max_length=AGENT_SUGGESTED_MESSAGES_MAX,
+        required=False,
+        help_text="The messages a new conversation suggests, in display order.",
+    )
     ask_first_tools = serializers.ListField(
         child=serializers.CharField(),
         required=False,
@@ -285,6 +302,7 @@ class AgentConfigurationUpdateSerializer(
             "web_search_enabled",
             "web_fetch_enabled",
             "ask_first_tools",
+            "suggested_messages",
         )
         extra_kwargs = {
             "instructions": {

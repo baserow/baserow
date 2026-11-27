@@ -14,6 +14,10 @@
   width: 100%;
   border: none;
   pointer-events: none;
+
+  &--interactive {
+    pointer-events: auto;
+  }
 }
 
 .html-element__hint {

@@ -42,6 +42,7 @@ class AgentApplication(Application):
     web_search_enabled = models.BooleanField(default=False, db_default=False)
     # Pages are fetched by Baserow itself, so every model can open them.
     web_fetch_enabled = models.BooleanField(default=False, db_default=False)
+    suggested_messages = models.JSONField(default=list, blank=True, db_default=[])
     # The tool choices of an imported Agent, which arrives without an identity.
     # They're applied when an identity is first picked, see `update_configuration`.
     pending_tool_choices = models.JSONField(null=True, blank=True, db_default=None)

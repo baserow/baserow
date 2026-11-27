@@ -176,6 +176,14 @@ export class EnterprisePlugin extends BaserowPlugin {
     return []
   }
 
+  hasBuilderAuthorCode({ builder }) {
+    return Boolean(
+      builder.custom_code?.js ||
+      builder.has_head_html ||
+      builder.scripts?.some((s) => s.type === 'javascript' && s.url)
+    )
+  }
+
   /**
    * Adds the custom CSS/JS defined for this builder.
    */
@@ -190,6 +198,8 @@ export class EnterprisePlugin extends BaserowPlugin {
         : `${this.app.$config.public.publicBackendUrl}/api/custom_code/${builder.id}`
     const css = `${customCodeBase}/css/${mode === 'preview' ? '' : 'public/'}`
     const js = `${customCodeBase}/js/${mode === 'preview' ? '' : 'public/'}`
+
+    const runJS = !this.app.$isAuthorCodeRestricted()
 
     const script = []
     const link = []
@@ -206,7 +216,7 @@ export class EnterprisePlugin extends BaserowPlugin {
             ? 'anonymous'
             : null
 
-      if (s.type === 'javascript') {
+      if (s.type === 'javascript' && runJS) {
         script.push({
           src: s.url,
           crossorigin,
@@ -234,7 +244,7 @@ export class EnterprisePlugin extends BaserowPlugin {
         tagPosition: 'bodyClose',
       })
     }
-    if (builder.custom_code.js) {
+    if (builder.custom_code.js && runJS) {
       script.push({
         src: js,
         crossorigin: mode === 'preview' ? 'use-credentials' : null,

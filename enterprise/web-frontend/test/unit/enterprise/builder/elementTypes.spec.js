@@ -428,6 +428,12 @@ describe('Enterprise builder element types', () => {
   })
 })
 
+test('the HTML element holds author code', () => {
+  const elementType = useNuxtApp().$registry.get('element', 'html')
+
+  expect(elementType.hasAuthorCode({})).toBe(true)
+})
+
 describe('Enterprise automation and workflow action types', () => {
   test('code and xls deactivation modal checks tolerate a missing workspace', () => {
     const testApp = useNuxtApp()

@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Restricts custom JavaScript, HTML element scripts and iframe embeds on the editor hostname",
+    "issue_origin": "github",
+    "issue_number": null,
+    "domain": "builder",
+    "bullet_points": [],
+    "created_at": "2026-11-26"
+}

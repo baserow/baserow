@@ -101,6 +101,38 @@ describe('Agent conversations', () => {
     expect(document.activeElement).toBe(composer(wrapper).element)
   })
 
+  test('fills the composer from a picked suggested message', async () => {
+    mockConfiguration(
+      testApp,
+      completeConfiguration({
+        suggested_messages: ['What can you do?', 'Summarize my week'],
+      })
+    )
+    const wrapper = await mount()
+
+    await wrapper.findAll('.chat-suggestions__item')[1].trigger('click')
+    await flushPromises()
+
+    const input = composer(wrapper).element
+    expect(input.value).toBe('Summarize my week')
+    expect(document.activeElement).toBe(input)
+    expect(input.selectionStart).toBe('Summarize my week'.length)
+    expect(sentBodies(testApp)).toEqual([])
+  })
+
+  test('hides suggestions when the member has no usable composer', async () => {
+    mockConfiguration(testApp, {
+      ...incompleteConfiguration('instructions'),
+      suggested_messages: ['Where is my order?'],
+    })
+    const wrapper = await mount()
+    expect(wrapper.findComponent({ name: 'AgentChatIntro' }).exists()).toBe(
+      true
+    )
+    expect(composerExists(wrapper)).toBe(false)
+    expect(wrapper.find('.chat-suggestions__item').exists()).toBe(false)
+  })
+
   test('collapses and reopens the list while keeping the selected conversation and draft', async () => {
     twoConversations()
     mockMessages(testApp, 'conversation-b', page([message('m1', 'Hello')]))

@@ -5,13 +5,18 @@ import {
   useRuntimeConfig,
 } from '#imports'
 import { getBuilderPreviewApiPath } from '@baserow/modules/builder/utils/preview'
-import { previewSharesEditorHostname } from '@baserow_enterprise/utils/builderHeadHtml'
 
 export async function fetchBuilderHeadHtml(
-  { builder, mode, requestUrl, config, previewSsrCookieHeader },
+  { builder, mode, requestUrl, config, previewSsrCookieHeader, restricted },
   fetch = $fetch
 ) {
-  if (builder.untrusted_content || !builder.has_head_html) {
+  // `restricted` is `$isAuthorCodeRestricted()`. Anything but `false`
+  // counts as restricted.
+  if (
+    builder.untrusted_content ||
+    !builder.has_head_html ||
+    restricted !== false
+  ) {
     return ''
   }
 
@@ -19,7 +24,6 @@ export async function fetchBuilderHeadHtml(
   let path
   if (mode === 'preview') {
     if (
-      previewSharesEditorHostname(config.public) ||
       requestUrl.origin !== new URL(config.public.builderPreviewUrl).origin ||
       !previewSsrCookieHeader
     ) {
@@ -64,6 +68,7 @@ export default defineNuxtPlugin({
         requestUrl,
         config,
         previewSsrCookieHeader: nuxtApp.$builderPreviewSsrCookieHeader,
+        restricted: nuxtApp.$isAuthorCodeRestricted(),
       })
       if (fragment) {
         event.context.baserowBuilderHeadHtml = fragment

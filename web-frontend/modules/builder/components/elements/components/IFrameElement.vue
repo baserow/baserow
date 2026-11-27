@@ -57,7 +57,7 @@
       <ElementPreviewHint
         v-if="shouldShowEditorEmbedHint"
         class="iframe-element__editor-hint"
-        :message="$t('iframeElementForm.editorEmbedHint')"
+        :message="authorCodeEditorHint"
       />
     </template>
   </div>
@@ -68,6 +68,9 @@ import ElementPreviewHint from '@baserow/modules/builder/components/elements/Ele
 import element from '@baserow/modules/builder/mixins/element'
 import { IFRAME_SOURCE_TYPES } from '@baserow/modules/builder/enums'
 import { ensureString } from '@baserow/modules/core/utils/validator'
+import { isWebFrontendHostname } from '@baserow/modules/core/utils/publishedSite'
+
+const RESTRICTED_SANDBOX = 'allow-scripts allow-forms allow-popups'
 
 export default {
   name: 'IFrameElement',
@@ -113,10 +116,12 @@ export default {
           : ''
       }
       if (this.element.source_type !== IFRAME_SOURCE_TYPES.URL) {
-        return null
+        // An unsandboxed embed shares the page's origin, so its scripts could
+        // act as the logged-in editor.
+        return this.isAuthorCodeRestricted ? RESTRICTED_SANDBOX : null
       }
 
-      const permissions = ['allow-scripts', 'allow-forms', 'allow-popups']
+      const permissions = RESTRICTED_SANDBOX.split(' ')
 
       if (
         this.element.allow_same_origin &&
@@ -128,6 +133,7 @@ export default {
 
       return permissions.join(' ')
     },
+    /** Whether the URL uses a hostname outside this page and the web frontend. */
     isExternalURL() {
       if (typeof window === 'undefined') {
         return false
@@ -135,9 +141,13 @@ export default {
 
       try {
         const url = new URL(this.resolvedURL)
+
+        // Cookies ignore ports, so a different origin on a frontend hostname
+        // must not gain cookie access through allow-same-origin.
         return (
           ['http:', 'https:'].includes(url.protocol) &&
-          url.origin !== window.location.origin
+          url.hostname !== window.location.hostname &&
+          !isWebFrontendHostname(url.hostname, this.$config.public)
         )
       } catch {
         return false

@@ -1,3 +1,4 @@
+import { isWebFrontendHostname } from '@baserow/modules/core/utils/publishedSite'
 import { getCookieName } from '@baserow/modules/core/utils/cookie'
 
 export const BUILDER_PREVIEW_COOKIE_BASE_NAME = 'baserow_builder_preview'
@@ -49,3 +50,21 @@ export const getBuilderPreviewUserSourceAuthConfig = (
     sameSite: 'Lax',
   },
 })
+
+/**
+ * Compare the Preview hostname with the main and additional configured web
+ * frontend hostnames. Cookies are scoped by hostname, not port, so a different
+ * port does not isolate Preview from web frontend cookies. An invalid URL
+ * counts as shared.
+ *
+ * @param {object} publicConfig The public runtime config.
+ * @returns {boolean} Whether Preview uses a configured web frontend hostname.
+ */
+export const previewSharesWebFrontendHostname = (publicConfig) => {
+  try {
+    const previewHostname = new URL(publicConfig.builderPreviewUrl).hostname
+    return isWebFrontendHostname(previewHostname, publicConfig)
+  } catch {
+    return true
+  }
+}

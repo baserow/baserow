@@ -21,12 +21,14 @@ export default defineNuxtModule({
     nuxt.options.runtimeConfig.public ||= {}
     nuxt.options.runtimeConfig.public.builderPreviewUrl ??=
       'http://localhost:3000'
+    nuxt.options.runtimeConfig.public.builderDangerousRelaxPreviewSecurity ??= false
 
     // Add main plugin
     addPlugin(resolve('./plugin.js'))
 
     // Add global plugin
     addPlugin(resolve('./plugins/global.js'))
+    addPlugin(resolve('./plugins/authorCode.js'))
     addPlugin(resolve('./plugins/previewClientHandler.js'))
     addPlugin(resolve('./plugins/publishedSiteClientHandler.js'))
     addPlugin(resolve('./plugins/router.js'))

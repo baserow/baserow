@@ -1,6 +1,14 @@
+from django.db import models
+
 PUBLIC_CHAT_TITLE_MAX_LENGTH = 160
 PUBLIC_CHAT_WELCOME_TEXT_MAX_LENGTH = 2000
 PUBLIC_CHAT_PASSWORD_MIN_LENGTH = 8
 PUBLIC_CHAT_PASSWORD_MAX_LENGTH = 256
 PUBLIC_CHAT_CONVERSATION_CLAIM = "conversation"
 PUBLIC_CHAT_START_KEY_PATTERN = r"^[0-9a-f-]{32,128}$"
+PUBLIC_CHAT_COLOR_PATTERN = r"^#[0-9a-fA-F]{6}$"
+
+
+class PublicChatBackground(models.TextChoices):
+    GRADIENT = "gradient"
+    PLAIN = "plain"

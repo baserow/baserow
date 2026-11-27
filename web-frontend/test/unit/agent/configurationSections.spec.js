@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, test } from 'vitest'
 import { defineComponent, h, markRaw } from 'vue'
 import { TestApp } from '@baserow/test/helpers/testApp'
 import AgentConfigurationSidebar from '@baserow/modules/agent/components/AgentConfigurationSidebar'
+import AgentInstructionsSection from '@baserow/modules/agent/components/configuration/AgentInstructionsSection'
 import { AgentConfigurationSectionType } from '@baserow/modules/agent/configurationSectionTypes'
 import { completeConfiguration } from './helpers'
 
@@ -175,5 +176,76 @@ describe('Agent configuration sections', () => {
     expect(wrapper.findAll('.agent-configuration__group')).toHaveLength(3)
     expect(wrapper.findAll('.skeleton-block')).toHaveLength(27)
     expect(wrapper.find('.menu-list__item-button').exists()).toBe(false)
+  })
+
+  describe('suggested messages', () => {
+    const mountInstructions = (extra = {}) =>
+      testApp.mount(AgentInstructionsSection, {
+        props: {
+          configuration: completeConfiguration({
+            suggested_messages: ['What can you do?'],
+          }),
+          errors: {},
+          sectionType: testApp
+            .getRegistry()
+            .get('agentConfigurationSection', 'instructions'),
+          editable: true,
+          ...extra,
+        },
+      })
+    const addButton = (wrapper) =>
+      wrapper.find('.agent-suggested-messages__add')
+    const rowInputs = (wrapper) =>
+      wrapper.findAll('.agent-suggested-messages__item input')
+
+    test('emits the trimmed list and leaves blank rows out', async () => {
+      const wrapper = await mountInstructions()
+
+      await addButton(wrapper).trigger('click')
+      expect(rowInputs(wrapper)[1].element.labels[0].textContent).toContain(
+        'agent.suggestedMessageLabel'
+      )
+      expect(document.activeElement).toBe(rowInputs(wrapper)[1].element)
+      await rowInputs(wrapper)[1].setValue('  Summarize my week ')
+      await addButton(wrapper).trigger('click')
+      await rowInputs(wrapper)[2].setValue(' ')
+      await rowInputs(wrapper)[2].trigger('blur')
+      expect(rowInputs(wrapper)).toHaveLength(2)
+      await wrapper
+        .findAll('button[aria-label="agent.removeSuggestedMessage"]')[0]
+        .trigger('click')
+
+      expect(wrapper.emitted('change')).toEqual([
+        [{ suggested_messages: ['What can you do?', 'Summarize my week'] }],
+        [{ suggested_messages: ['What can you do?', 'Summarize my week'] }],
+        [{ suggested_messages: ['Summarize my week'] }],
+      ])
+      expect(wrapper.emitted('flush')).toHaveLength(3)
+    })
+
+    test('hides Add once there are four messages', async () => {
+      const wrapper = await mountInstructions({
+        configuration: completeConfiguration({
+          suggested_messages: ['One', 'Two', 'Three'],
+        }),
+      })
+
+      await addButton(wrapper).trigger('click')
+
+      expect(rowInputs(wrapper)).toHaveLength(4)
+      expect(addButton(wrapper).exists()).toBe(false)
+    })
+
+    test('shows the messages read-only without buttons', async () => {
+      const wrapper = await mountInstructions({ editable: false })
+
+      expect(rowInputs(wrapper)[0].element.disabled).toBe(true)
+      expect(addButton(wrapper).exists()).toBe(false)
+      expect(
+        wrapper
+          .find('button[aria-label="agent.removeSuggestedMessage"]')
+          .exists()
+      ).toBe(false)
+    })
   })
 })

@@ -413,4 +413,13 @@ export class BaserowPlugin extends Registerable {
   getBuilderApplicationHeaderAddition({ builder, mode }) {
     return {}
   }
+
+  /**
+   * Whether the plugin adds code written by the application's editors to every
+   * page of a builder application, such as custom JavaScript. Preview tells the
+   * editor when that code is restricted there.
+   */
+  hasBuilderAuthorCode({ builder }) {
+    return false
+  }
 }
