@@ -19,6 +19,16 @@
       @update:model-value="$emit('change', { instructions: $event })"
       @blur="$emit('flush')"
     />
+    <EditorPrompt
+      v-if="editable && agent"
+      action="generate_agent_instructions"
+      :workspace-id="agent?.workspace.id"
+      :parameters="{
+        workspace_id: agent?.workspace.id,
+        current: configuration.instructions || '',
+      }"
+      @completed="emit('change', { instructions: $event.instructions })"
+    />
   </FormGroup>
   <section class="agent-suggested-messages">
     <div class="agent-suggested-messages__header">
@@ -76,7 +86,8 @@
 </template>
 
 <script setup>
-import { nextTick, ref, watch } from 'vue'
+import EditorPrompt from '@baserow/modules/core/components/EditorPrompt'
+import { inject, nextTick, ref, watch } from 'vue'
 import isEqual from 'lodash/isEqual'
 import { uuid } from '@baserow/modules/core/utils/string'
 import {
@@ -93,6 +104,7 @@ const props = defineProps({
 })
 const emit = defineEmits(['change', 'flush'])
 const instructionsInput = ref(null)
+const agent = inject('agentApplication', null)
 const rowInputs = {}
 
 const toRows = (messages) =>

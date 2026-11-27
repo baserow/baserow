@@ -1,11 +1,11 @@
 import { flushPromises } from '@vue/test-utils'
 import { mountSuspended } from '@nuxt/test-utils/runtime'
 import { afterEach, describe, expect, test, vi } from 'vitest'
-import { computed, ref } from 'vue'
+import { ref } from 'vue'
 
 import ServiceFilterKumaPrompt from '@baserow_enterprise/components/assistant/ServiceFilterKumaPrompt'
 
-// The prompt itself is tested with `KumaInlinePrompt`. These tests cover what the
+// The prompt itself is tested with `KumaPrompt`. These tests cover what the
 // filter form adds: the target, its suggestions, the unsaved changes and freezing.
 const mocks = vi.hoisted(() => ({
   runAction: null,
@@ -41,6 +41,7 @@ async function mount({
   const filterForm = { setFrozen: vi.fn() }
   const wrapper = await mountSuspended(ServiceFilterKumaPrompt, {
     global: {
+      stubs: { teleport: true },
       provide: {
         serviceFilterTarget: target,
         serviceFilters,
@@ -52,20 +53,18 @@ async function mount({
 }
 
 async function openAndType(wrapper, text) {
-  await wrapper.find('.kuma-inline-prompt__link').trigger('click')
+  await wrapper.find('.prompt-context__trigger').trigger('click')
   await wrapper.find('textarea').setValue(text)
 }
 
 async function send(wrapper, text) {
   await openAndType(wrapper, text)
-  await wrapper
-    .find('.kuma-inline-prompt__actions button:last-child')
-    .trigger('click')
+  await wrapper.find('.prompt-context__input button').trigger('click')
   await flushPromises()
 }
 
 function warning(wrapper) {
-  return wrapper.find('.kuma-inline-prompt__notice--warning')
+  return wrapper.find('.prompt-context__notice')
 }
 
 describe('ServiceFilterKumaPrompt', () => {
@@ -76,34 +75,7 @@ describe('ServiceFilterKumaPrompt', () => {
   test('renders nothing without a data source or node to filter', async () => {
     const { wrapper } = await mount({ target: null })
 
-    expect(wrapper.find('.kuma-inline-prompt').exists()).toBe(false)
-  })
-
-  test('offers suggestions that fit the data source', async () => {
-    const { wrapper } = await mount()
-    await wrapper.find('.kuma-inline-prompt__link').trigger('click')
-
-    expect(
-      wrapper.findAll('.kuma-inline-prompt__suggestion').map((s) => s.text())
-    ).toEqual([
-      'serviceFilterKumaPrompt.suggestion_pageParameter',
-      'serviceFilterKumaPrompt.suggestion_user',
-      'serviceFilterKumaPrompt.suggestion_change',
-    ])
-  })
-
-  test('accepts the target as a computed', async () => {
-    const { wrapper } = await mount({
-      target: computed(() => ({ kind: 'automation_node', id: 3 })),
-    })
-    await wrapper.find('.kuma-inline-prompt__link').trigger('click')
-
-    expect(
-      wrapper.findAll('.kuma-inline-prompt__suggestion').map((s) => s.text())
-    ).toEqual([
-      'serviceFilterKumaPrompt.suggestion_previousNode',
-      'serviceFilterKumaPrompt.suggestion_change',
-    ])
+    expect(wrapper.find('.prompt-context__trigger').exists()).toBe(false)
   })
 
   test('asks Kuma to change the filters of the target', async () => {
@@ -122,7 +94,7 @@ describe('ServiceFilterKumaPrompt', () => {
     )
     // Frozen while the request was written and sent, then released.
     expect(filterForm.setFrozen.mock.calls).toEqual([[true], [false]])
-    expect(wrapper.find('.kuma-inline-prompt__done').text()).toContain(
+    expect(wrapper.find('.kuma-prompt__result').text()).toContain(
       'Added a filter on Name.'
     )
   })
@@ -171,18 +143,18 @@ describe('ServiceFilterKumaPrompt', () => {
     const unsavedChanges = ref(false)
     const { wrapper } = await mount({ unsavedChanges })
     await send(wrapper, 'only done tasks')
-    expect(wrapper.find('.kuma-inline-prompt__done').exists()).toBe(true)
+    expect(wrapper.find('.kuma-prompt__result').exists()).toBe(true)
 
     // The user edits a filter: undo would now revert their edit, not Kuma's.
     unsavedChanges.value = true
     await flushPromises()
 
-    expect(wrapper.find('.kuma-inline-prompt__done').exists()).toBe(false)
+    expect(wrapper.find('.kuma-prompt__result').exists()).toBe(false)
   })
 
   test('releases the filters when unmounted', async () => {
     const { wrapper, filterForm } = await mount()
-    await wrapper.find('.kuma-inline-prompt__link').trigger('click')
+    await wrapper.find('.prompt-context__trigger').trigger('click')
 
     wrapper.unmount()
 

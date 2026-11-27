@@ -8,17 +8,6 @@ export default (client) => {
         { row_ids: rowIds }
       )
     },
-    generateAIFormula(tableId, aiType, aiModel, temperature, prompt) {
-      return client.post(
-        `/database/fields/table/${tableId}/generate-ai-formula/`,
-        {
-          ai_type: aiType,
-          ai_model: aiModel,
-          ai_temperature: temperature || null,
-          ai_prompt: prompt,
-        }
-      )
-    },
     generateAIValues(fieldId, { viewId, rowIds, onlyEmpty }) {
       const payload = {
         type: 'generate_ai_values',

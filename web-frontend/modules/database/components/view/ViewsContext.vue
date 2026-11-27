@@ -68,6 +68,19 @@
       class="select__footer"
     >
       <div class="select__footer-create">
+        <EditorPrompt
+          v-if="
+            $hasPermission(
+              'database.table.create_view',
+              table,
+              database.workspace.id
+            )
+          "
+          action="create_view"
+          :workspace-id="database.workspace.id"
+          :parameters="{ table_id: table.id }"
+          @completed="$event.view_id && selectedView({ id: $event.view_id })"
+        />
         <CreateViewLink
           v-for="(viewType, type) in viewTypes"
           :key="type"
@@ -82,6 +95,7 @@
 </template>
 
 <script>
+import EditorPrompt from '@baserow/modules/core/components/EditorPrompt'
 import { mapState } from 'vuex'
 
 import { notifyIf } from '@baserow/modules/core/utils/error'
@@ -94,6 +108,7 @@ import CreateViewLink from '@baserow/modules/database/components/view/CreateView
 export default {
   name: 'ViewsContext',
   components: {
+    EditorPrompt,
     ViewsContextItem,
     CreateViewLink,
   },

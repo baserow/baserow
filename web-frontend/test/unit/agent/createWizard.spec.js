@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 import { flushPromises } from '@vue/test-utils'
+import EditorPrompt from '@baserow/modules/core/components/EditorPrompt'
 import { TestApp } from '@baserow/test/helpers/testApp'
 import { clone } from '@baserow/modules/core/utils/object'
 import AgentCreateModal from '@baserow/modules/agent/components/AgentCreateModal'
@@ -97,6 +98,25 @@ describe('AgentCreateModal', () => {
     // A modal closes on a timer that flushPromises doesn't wait for.
     await new Promise((resolve) => setTimeout(resolve))
   }
+
+  test('carries generated instructions through both wizard editors', async () => {
+    const wrapper = await open()
+    await nameInput(wrapper).setValue('Project assistant')
+    wrapper
+      .getComponent(EditorPrompt)
+      .vm.$emit('completed', { instructions: 'Summarize projects.' })
+    await flushPromises()
+    expect(textarea(wrapper).element.value).toBe('Summarize projects.')
+    await next(wrapper)
+    expect(textarea(wrapper).element.value).toBe('Summarize projects.')
+    wrapper
+      .getComponent(EditorPrompt)
+      .vm.$emit('completed', { instructions: 'Summarize open projects.' })
+    await flushPromises()
+    await back(wrapper)
+    expect(textarea(wrapper).element.value).toBe('Summarize open projects.')
+    expect(testApp.mock.history.patch).toHaveLength(0)
+  })
 
   test('continues once named, and a suggestion fills the setup', async () => {
     const wrapper = await open()

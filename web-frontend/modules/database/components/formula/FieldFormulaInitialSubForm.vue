@@ -17,6 +17,16 @@
         @input="$emit('open-advanced-context', $refs.formInput.$refs.input)"
       ></FormInput>
 
+      <EditorPrompt
+        action="generate_formula"
+        :workspace-id="database.workspace.id"
+        :parameters="{
+          table_id: table.id,
+          field_name: fieldName,
+          current: formula,
+        }"
+        @completed="$emit('update-formula', $event.formula)"
+      />
       <component
         :is="component"
         v-for="(component, index) in additionalInputComponents"
@@ -57,6 +67,7 @@
   </div>
 </template>
 <script>
+import EditorPrompt from '@baserow/modules/core/components/EditorPrompt'
 import form from '@baserow/modules/core/mixins/form'
 
 import fieldSubForm from '@baserow/modules/database/mixins/fieldSubForm'
@@ -66,10 +77,12 @@ import { FormulaFieldType } from '@baserow/modules/database/fieldTypes'
 export default {
   name: 'FieldFormulaInitialSubForm',
   components: {
+    EditorPrompt,
     FormulaTypeSubForms,
   },
   mixins: [form, fieldSubForm],
   props: {
+    fieldName: { type: String, required: true },
     loading: {
       type: Boolean,
       required: true,

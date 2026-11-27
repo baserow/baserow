@@ -18,6 +18,14 @@ and optionally enable knowledge-base lookups through an embeddings server.
 - The assistant has been mostly tested with the `gpt-oss-120b` family. Other models can
   work as well.
 
+With Kuma enabled, editors can ask for a database formula, a new view, changes to
+view or service filters, or Agent instructions. Open the Kuma button beside the
+setting, describe the change, and click **Send** or press **Enter**. Use **Shift+Enter**
+for another line. Generated formulas and Agent instructions appear in their editors.
+View and filter changes apply immediately.
+
+![Editing a database view filter with Kuma](../assets/kuma_editor_prompt.png)
+
 ## 2) Minimal enablement
 
 For a fresh setup, add a provider and its models under **Admin tools → AI providers**

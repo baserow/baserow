@@ -1,0 +1,69 @@
+.prompt-context {
+  width: min(320px, calc(100vw - 16px));
+  padding: 10px;
+
+  &:focus-within {
+    border-color: $palette-cyan-600;
+  }
+
+  .prompt-context__input {
+    display: flex;
+    align-items: flex-end;
+    gap: 8px;
+
+    .form-textarea {
+      min-width: 0;
+      flex: 1;
+      padding: 2px 4px;
+      border: 0;
+      box-shadow: none;
+      field-sizing: content;
+      min-height: 40px;
+      max-height: 100px;
+      resize: none;
+      font-size: 13px;
+      line-height: 18px;
+    }
+  }
+}
+
+.prompt-context__trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 13px;
+  font-weight: 500;
+  padding: 3px 7px;
+  border: 0;
+  background: transparent;
+  color: $palette-neutral-1000;
+  cursor: pointer;
+
+  @include rounded($rounded);
+
+  i {
+    color: $palette-cyan-700;
+  }
+
+  &:hover,
+  &[aria-expanded='true'] {
+    background: $palette-cyan-50;
+    color: $palette-cyan-900;
+  }
+}
+
+.prompt-context__notice {
+  margin: 8px 0 0;
+  color: $palette-neutral-900;
+  font-size: 12px;
+  line-height: 16px;
+}
+
+.kuma-prompt__result {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  font-size: 12px;
+  color: $palette-neutral-900;
+}

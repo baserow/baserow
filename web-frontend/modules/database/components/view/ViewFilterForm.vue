@@ -63,6 +63,21 @@
         {{ $t('viewFilterContext.copyFromView') }}</ButtonText
       >
 
+      <EditorPrompt
+        v-if="
+          !readOnly &&
+          !isPublicView &&
+          $hasPermission(
+            'database.table.view.create_filter',
+            view,
+            database.workspace.id
+          )
+        "
+        action="edit_view_filters"
+        :workspace-id="database.workspace.id"
+        :parameters="{ view_id: view.id }"
+        @completed="$emit('changed')"
+      />
       <div v-if="view.filters.length > 0" class="margin-left-auto">
         <SwitchInput
           small
@@ -81,6 +96,7 @@
 </template>
 
 <script>
+import EditorPrompt from '@baserow/modules/core/components/EditorPrompt'
 import { notifyIf } from '@baserow/modules/core/utils/error'
 import { ulid } from 'ulid'
 import ViewFieldConditionsForm from '@baserow/modules/database/components/view/ViewFieldConditionsForm'
@@ -92,6 +108,7 @@ import viewFilterTypes from '@baserow/modules/database/mixins/viewFilterTypes'
 export default {
   name: 'ViewFilterForm',
   components: {
+    EditorPrompt,
     ViewFieldConditionsForm,
     CopyViewConfigurationModal,
   },

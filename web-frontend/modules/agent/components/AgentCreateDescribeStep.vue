@@ -21,6 +21,15 @@
       :rows="5"
       @update:model-value="update({ instructions: $event })"
     />
+    <EditorPrompt
+      action="generate_agent_instructions"
+      :workspace-id="workspace.id"
+      :parameters="{
+        workspace_id: workspace.id,
+        current: modelValue.instructions || '',
+      }"
+      @completed="update({ instructions: $event.instructions })"
+    />
   </FormGroup>
   <div class="agent-create__suggestions">
     <button
@@ -37,6 +46,7 @@
 </template>
 
 <script setup>
+import EditorPrompt from '@baserow/modules/core/components/EditorPrompt'
 import { computed, nextTick, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useStore } from 'vuex'

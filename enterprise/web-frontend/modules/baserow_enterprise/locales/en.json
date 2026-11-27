@@ -1230,32 +1230,28 @@
     "title": "Automatic snapshot of {name} failed.",
     "description": "{error} Open the application's snapshots modal for details."
   },
+  "kumaPrompt": {
+    "send": "Send",
+    "generate_formula": "Write a formula with Kuma",
+    "generate_formulaPlaceholder": "What should this field calculate?",
+    "edit_view_filters": "Filter with Kuma",
+    "edit_view_filtersPlaceholder": "Describe the rows you want to see…",
+    "create_view": "Create a view with Kuma",
+    "create_viewPlaceholder": "How would you like to see this table?",
+    "generate_agent_instructions": "Write instructions with Kuma",
+    "generate_agent_instructionsPlaceholder": "Describe the agent’s job or a change to its instructions…"
+  },
   "kumaInlinePrompt": {
-    "createWithKuma": "Create with Kuma AI",
+    "createWithKuma": "Create with Kuma",
     "working": "Working…",
-    "workingHint": "Usually takes a few seconds",
-    "keyboardHint": "Enter to send · Shift + Enter for a new line",
-    "tryAgain": "Try again",
-    "tryAgainHint": "Edit your request and try again",
     "undo": "Undo",
-    "close": "Close",
     "dismiss": "Dismiss"
   },
   "serviceFilterKumaPrompt": {
-    "title": "Create a filter with Kuma AI",
-    "placeholder": "Describe the rows to show, e.g. only tasks that are done",
-    "submit": "Create filter",
-    "working": "Reading the table and writing your filter…",
-    "unsavedChanges": "Kuma works from the saved filters. Save your filter changes, or close this and undo them, before asking Kuma.",
-    "unsavedTable": "Kuma works from the saved table. Save the new table, or close this and pick the saved one again, before asking Kuma.",
-    "suggestion_pageParameter": "Use a page parameter",
-    "suggestion_pageParameter_prompt": "Only show rows where [field] equals the [name] page parameter",
-    "suggestion_user": "Only the logged-in user's rows",
-    "suggestion_user_prompt": "Only show the rows that belong to the logged-in user",
-    "suggestion_previousNode": "Use a previous step's value",
-    "suggestion_previousNode_prompt": "Only rows where [field] equals the [field] of the trigger",
-    "suggestion_change": "Change or remove a filter",
-    "suggestion_change_prompt": "Change the [field] filter to "
+    "title": "Filter with Kuma",
+    "placeholder": "Describe the rows you want to see…",
+    "unsavedChanges": "Save or undo your filter changes before asking Kuma.",
+    "unsavedTable": "Save your table selection before asking Kuma."
   },
   "publicAgentChat": {
     "passwordTitle": "This chat is password protected",

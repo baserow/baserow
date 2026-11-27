@@ -3,7 +3,7 @@ import { mountSuspended } from '@nuxt/test-utils/runtime'
 import { afterEach, describe, expect, test, vi } from 'vitest'
 import { ref } from 'vue'
 
-import KumaInlinePrompt from '@baserow_enterprise/components/assistant/KumaInlinePrompt'
+import KumaPrompt from '@baserow_enterprise/components/assistant/KumaPrompt'
 
 const mocks = vi.hoisted(() => ({
   available: true,
@@ -35,12 +35,11 @@ vi.mock('@baserow_enterprise/utils/assistant', () => ({
 }))
 
 function mount(props = {}) {
-  return mountSuspended(KumaInlinePrompt, {
+  return mountSuspended(KumaPrompt, {
+    global: { stubs: { teleport: true } },
     props: {
       title: 'Create a field',
       placeholder: 'Describe the field',
-      submitLabel: 'Create field',
-      workingLabel: 'Writing your field…',
       action: 'create_field',
       parameters: { table_id: 3 },
       ...props,
@@ -49,15 +48,15 @@ function mount(props = {}) {
 }
 
 async function openAndType(wrapper, text) {
-  await wrapper.find('.kuma-inline-prompt__link').trigger('click')
+  await wrapper.find('.prompt-context__trigger').trigger('click')
   await wrapper.find('textarea').setValue(text)
 }
 
 function submitButton(wrapper) {
-  return wrapper.find('.kuma-inline-prompt__actions button:last-child')
+  return wrapper.find('.prompt-context__input button')
 }
 
-describe('KumaInlinePrompt', () => {
+describe('KumaPrompt', () => {
   afterEach(() => {
     mocks.runAction.mockReset()
     mocks.available = true
@@ -66,10 +65,9 @@ describe('KumaInlinePrompt', () => {
   })
 
   test('renders the link when Kuma is available', async () => {
-    const wrapper = await mount({ linkLabel: 'Ask Kuma', withDivider: true })
+    const wrapper = await mount({ label: 'Ask Kuma' })
 
-    expect(wrapper.find('.kuma-inline-prompt__link').text()).toBe('Ask Kuma')
-    expect(wrapper.find('.kuma-inline-prompt__divider').exists()).toBe(true)
+    expect(wrapper.find('.prompt-context__trigger').text()).toBe('Ask Kuma')
     expect(wrapper.find('textarea').exists()).toBe(false)
   })
 
@@ -77,25 +75,30 @@ describe('KumaInlinePrompt', () => {
     mocks.available = false
     const wrapper = await mount()
 
-    expect(wrapper.find('.kuma-inline-prompt').exists()).toBe(false)
+    expect(wrapper.find('.prompt-context__trigger').exists()).toBe(false)
   })
 
   test('renders nothing when the host disables it', async () => {
     const wrapper = await mount({ enabled: false })
 
-    expect(wrapper.find('.kuma-inline-prompt').exists()).toBe(false)
+    expect(wrapper.find('.prompt-context__trigger').exists()).toBe(false)
   })
 
-  test('fills the request with a suggestion', async () => {
-    const wrapper = await mount({
-      suggestions: [{ key: 'a', label: 'Use a date', prompt: 'A date field' }],
+  test('Shift+Enter keeps editing and Enter sends the request', async () => {
+    mocks.runAction.mockResolvedValue({
+      changed: false,
+      summary: '',
+      result: { formula: '1' },
     })
-    await wrapper.find('.kuma-inline-prompt__link').trigger('click')
-
-    const suggestions = wrapper.findAll('.kuma-inline-prompt__suggestion')
-    expect(suggestions.map((s) => s.text())).toEqual(['Use a date'])
-    await suggestions[0].trigger('click')
-    expect(wrapper.find('textarea').element.value).toBe('A date field')
+    const wrapper = await mount()
+    await openAndType(wrapper, 'One')
+    await wrapper
+      .get('textarea')
+      .trigger('keydown', { key: 'Enter', shiftKey: true })
+    expect(mocks.runAction).not.toHaveBeenCalled()
+    await wrapper.get('textarea').trigger('keydown', { key: 'Enter' })
+    await flushPromises()
+    expect(wrapper.emitted('completed')).toEqual([[{ formula: '1' }]])
   })
 
   test('sends the request and shows the summary', async () => {
@@ -115,30 +118,28 @@ describe('KumaInlinePrompt', () => {
     // Active while the request was written and sent.
     expect(wrapper.emitted('active')).toEqual([[true], [false]])
     expect(wrapper.find('textarea').exists()).toBe(false)
-    expect(wrapper.find('.kuma-inline-prompt__done').text()).toContain(
+    expect(wrapper.find('.kuma-prompt__result').text()).toContain(
       'Added a Due date field.'
     )
   })
 
-  test('undoes the change', async () => {
+  test('undoes the saved service filters', async () => {
     mocks.dispatch = vi.fn()
     mocks.runAction.mockResolvedValue({
       changed: true,
       summary: 'Added a field.',
     })
-    const wrapper = await mount()
+    const wrapper = await mount({ action: 'update_service_filters' })
     await openAndType(wrapper, 'a due date')
     await submitButton(wrapper).trigger('click')
     await flushPromises()
 
-    await wrapper
-      .find('.kuma-inline-prompt__done-actions button')
-      .trigger('click')
+    await wrapper.find('.kuma-prompt__result button').trigger('click')
 
     expect(mocks.dispatch).toHaveBeenCalledWith('undoRedo/undo', {
       showLoadingToast: true,
     })
-    expect(wrapper.find('.kuma-inline-prompt__done').exists()).toBe(false)
+    expect(wrapper.find('.kuma-prompt__result').exists()).toBe(false)
   })
 
   test('offers no undo when nothing changed', async () => {
@@ -151,7 +152,7 @@ describe('KumaInlinePrompt', () => {
     await submitButton(wrapper).trigger('click')
     await flushPromises()
 
-    expect(wrapper.find('.kuma-inline-prompt__done').text()).not.toContain(
+    expect(wrapper.find('.kuma-prompt__result').text()).not.toContain(
       'kumaInlinePrompt.undo'
     )
   })
@@ -169,7 +170,7 @@ describe('KumaInlinePrompt', () => {
     wrapper.vm.dismiss()
     await flushPromises()
 
-    expect(wrapper.find('.kuma-inline-prompt__done').exists()).toBe(false)
+    expect(wrapper.find('.kuma-prompt__result').exists()).toBe(false)
   })
 
   test('does nothing while the request is empty', async () => {
@@ -185,9 +186,7 @@ describe('KumaInlinePrompt', () => {
     const wrapper = await mount({ blockedMessage: 'Save first.' })
     await openAndType(wrapper, 'a due date')
 
-    expect(wrapper.find('.kuma-inline-prompt__notice--warning').text()).toBe(
-      'Save first.'
-    )
+    expect(wrapper.find('.prompt-context__notice').text()).toBe('Save first.')
     expect(submitButton(wrapper).attributes('disabled')).toBeDefined()
     await wrapper.find('textarea').trigger('keydown', { key: 'Enter' })
     expect(mocks.runAction).not.toHaveBeenCalled()
@@ -195,8 +194,8 @@ describe('KumaInlinePrompt', () => {
 
   test('is no longer active when closed', async () => {
     const wrapper = await mount()
-    await wrapper.find('.kuma-inline-prompt__link').trigger('click')
-    await wrapper.find('.kuma-inline-prompt__header button').trigger('click')
+    await wrapper.find('.prompt-context__trigger').trigger('click')
+    await wrapper.get('textarea').trigger('keydown', { key: 'Escape' })
 
     expect(wrapper.emitted('active')).toEqual([[true], [false]])
   })
@@ -215,24 +214,23 @@ describe('KumaInlinePrompt', () => {
     await submitButton(wrapper).trigger('click')
     await flushPromises()
 
-    expect(wrapper.find('.kuma-inline-prompt__notice--error').text()).toBe(
+    expect(wrapper.find('.prompt-context__notice').text()).toBe(
       'Kuma could not do it.'
     )
     expect(wrapper.find('textarea').element.value).toBe('a due date')
-    expect(submitButton(wrapper).text()).toBe('kumaInlinePrompt.tryAgain')
     expect(handled).toHaveBeenCalled()
   })
 
   test('closes when Kuma stops being available', async () => {
     const wrapper = await mount()
-    await wrapper.find('.kuma-inline-prompt__link').trigger('click')
+    await wrapper.find('.prompt-context__trigger').trigger('click')
 
     // Kuma's model is switched off: the workspace in the store changes.
     mocks.available = false
     selectedWorkspace.value = { id: 1 }
     await flushPromises()
 
-    expect(wrapper.find('.kuma-inline-prompt').exists()).toBe(false)
+    expect(wrapper.find('.prompt-context__trigger').exists()).toBe(false)
     expect(wrapper.emitted('active').at(-1)).toEqual([false])
   })
 })
@@ -252,5 +250,5 @@ test('runs the action with its parameters', async () => {
     'Only done tasks',
     { kind: 'builder_data_source', id: 12 }
   )
-  expect(wrapper.find('.kuma-inline-prompt__done').text()).toContain('Updated.')
+  expect(wrapper.find('.kuma-prompt__result').text()).toContain('Updated.')
 })

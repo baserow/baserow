@@ -1,3 +1,7 @@
+import {
+  createNewUndoRedoActionGroupId,
+  getUndoRedoActionRequestConfig,
+} from '@baserow/modules/database/utils/action'
 import { createRecordReader } from '@baserow/modules/core/chatRuns/recordReader'
 
 /**
@@ -167,7 +171,12 @@ export default (client) => {
       const { data } = await client.post(
         '/assistant/actions/',
         { action, prompt, parameters },
-        { baseURL: getAssistantBaseURL(client) }
+        {
+          baseURL: getAssistantBaseURL(client),
+          ...getUndoRedoActionRequestConfig({
+            undoRedoActionGroupId: createNewUndoRedoActionGroupId(),
+          }),
+        }
       )
       return data
     },
