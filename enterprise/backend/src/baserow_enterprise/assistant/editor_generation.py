@@ -90,7 +90,9 @@ FILTER_FORMAT = (
     "Each condition has field_id, type, operator, and value. For example, a text "
     'field with id 12 uses {"field_id": 12, "type": "text", "operator": "equal", '
     '"value": "In review"}. Use the real field IDs and field types from the supplied '
-    "schema, including primary_field. The comparison belongs in operator. "
+    "schema, including primary_field. For a formula use its scalar result type "
+    "(formula_type), using text for char and url. Keep the formula field's own ID. "
+    "The comparison belongs in operator. "
     "For a select field use option labels, and for date filters specify mode."
 )
 
@@ -107,7 +109,8 @@ filters_agent = Agent(
     output_type=FilterChanges,
     retries=3,
     instructions="Edit only the requested conditions of this database view. Added "
-    "conditions go at the root. Updates keep their group. For an unsupported request "
+    "conditions go at the root. Reuse an existing blank condition for the requested "
+    "field. Updates keep their group. For an unsupported request "
     "return no changes. Explain the result briefly in the supplied response_language. "
     + FILTER_FORMAT,
 )

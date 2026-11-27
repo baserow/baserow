@@ -28,6 +28,7 @@ from baserow.contrib.database.fields.handler import FieldHandler
 from baserow.contrib.database.fields.models import (
     DateField,
     FileField,
+    FormulaField,
     SingleSelectField,
 )
 from baserow.contrib.database.fields.models import Field as BaserowField
@@ -596,6 +597,15 @@ FilterType = Literal[
     "text", "number", "date", "single_select", "multiple_select", "link_row", "boolean"
 ]
 
+_SCALAR_FORMULA_FILTER_TYPES = {
+    "text": "text",
+    "char": "text",
+    "url": "text",
+    "number": "number",
+    "date": "date",
+    "boolean": "boolean",
+}
+
 _OPERATORS: dict[str, tuple[str, ...]] = {
     "text": ("equal", "not_equal", "contains", "contains_not", "empty", "not_empty"),
     "number": ("equal", "not_equal", "higher_than", "lower_than", "empty", "not_empty"),
@@ -859,7 +869,13 @@ class ViewFilterItemCreate(BaseModel):
     model_config = ConfigDict(extra="forbid", coerce_numbers_to_str=True)
 
     field_id: int = Field(..., description="Field ID to filter on.")
-    type: FilterType = Field(..., description="Must match field type.")
+    type: FilterType = Field(
+        ...,
+        description=(
+            "The field type. For a scalar formula, use its formula_type: text "
+            "(including char and url), number, date, or boolean."
+        ),
+    )
     operator: str = Field(
         ...,
         description=(
@@ -980,17 +996,29 @@ def resolve_view_filter(
             f"Field {view_filter_item.field_id} is not in this view's table.",
             f"Available field IDs: {sorted(table_fields.keys())}",
         )
-    field_type = field_type_registry.get_by_model(field.specific_class)
-    if field_type.type != view_filter_item.type:
+    orm_type = view_filter_item.get_django_orm_type(field)
+    if issubclass(field.specific_class, FormulaField):
+        result_type = field.specific.formula_type
+        expected_type = _SCALAR_FORMULA_FILTER_TYPES.get(result_type)
+        if expected_type is None:
+            raise ToolInputError(
+                f"Filtering a formula with result type '{result_type}' is unsupported."
+            )
+        # Boolean formulas use the grid's boolean filter for equality.
+        if expected_type == "boolean":
+            orm_type = "boolean"
+    else:
+        expected_type = field.get_type().type
+    if expected_type != view_filter_item.type:
         raise ToolInputError(
-            f"Field '{field.name}' is a {field_type.type} field, not "
+            f"Field '{field.name}' is a {expected_type} field, not "
             f"{view_filter_item.type}.",
-            f"Use type '{field_type.type}' for field {field.id}.",
+            f"Use type '{expected_type}' for field {field.id}.",
         )
 
     return (
         field,
-        view_filter_item.get_django_orm_type(field),
+        orm_type,
         view_filter_item.get_django_orm_value(field, timezone=timezone),
     )
 
@@ -1173,12 +1201,11 @@ def create_view_filters(
 ) -> dict[str, Any]:
     """
     Add filters to views, so a view shows only the rows that match all of them.
-    Each filter names a field, its type, which must match the field's type, an
-    operator and a value. A filter whose field is missing from the view's table,
-    has another type, has a value of the wrong format, has a label that matches no
-    select option, or that the view refuses (a form view takes no filters) is not
-    created and is returned in errors with the reason. When a view is not
-    found, nothing is created.
+    Each filter names a field, a type, an operator and a value. For a formula
+    use its scalar result type. For other fields use their field type. A missing
+    field, mismatched type, invalid value, unknown option, or unsupported filter
+    is returned in errors with its reason. When a view is not found, nothing
+    is created.
 
     Value formats by type:
     - text: string

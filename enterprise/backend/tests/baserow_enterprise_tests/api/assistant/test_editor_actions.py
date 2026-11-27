@@ -30,12 +30,18 @@ def editor(enterprise_data_fixture, api_client):
     )
     view = enterprise_data_fixture.create_grid_view(table=table)
 
-    def post(action, *, scope_workspace_id=None, **parameters):
+    def post(
+        action,
+        *,
+        scope_workspace_id=None,
+        prompt="Please make this change",
+        **parameters,
+    ):
         return api_client.post(
             reverse("assistant:actions"),
             {
                 "action": action,
-                "prompt": "Please make this change",
+                "prompt": prompt,
                 "parameters": parameters,
                 **(
                     {"workspace_id": scope_workspace_id}
@@ -127,6 +133,39 @@ def test_create_then_edit_view_filters(editor):
             row_filter.refresh_from_db()
             assert row_filter.value == "green"
     assert not ViewFilter.objects.filter(view=view).exists()
+
+
+def test_edit_blank_filter_on_a_text_formula(editor, enterprise_data_fixture):
+    table, title, view, post = editor
+    title.primary = False
+    title.save()
+    name = enterprise_data_fixture.create_formula_field(
+        table=table, name="Name", primary=True, formula="field('Title')"
+    )
+    existing = enterprise_data_fixture.create_view_filter(
+        view=view, field=name, type="equal", value=""
+    )
+    edit = FilterEdit(
+        filter_id=existing.id,
+        condition=ViewFilterItemCreate(
+            field_id=name.id, type="text", operator="contains", value="propose"
+        ),
+    )
+    with patch(
+        f"{MODULE}._generate",
+        return_value=FilterChanges(update=[edit], summary="Updated."),
+    ):
+        response = post(
+            "edit_view_filters", view_id=view.id, prompt="name containing propose"
+        )
+    assert response.status_code == 200, response.data
+    saved = ViewFilter.objects.get(view=view)
+    assert (saved.id, saved.field_id, saved.type, saved.value) == (
+        existing.id,
+        name.id,
+        "contains",
+        "propose",
+    )
 
 
 def test_invalid_condition_rolls_back_view_and_earlier_condition(editor):
