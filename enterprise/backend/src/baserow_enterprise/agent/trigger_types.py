@@ -12,6 +12,7 @@ from baserow_enterprise.integrations.local_baserow.service_types import (
 
 class RowCommentPostedAgentTriggerType(AgentTriggerType):
     type = LocalBaserowRowCommentPostedTriggerServiceType.type
+    event_reason = "a comment was posted on a row"
 
     def get_event_text(
         self, service: LocalBaserowRowCommentPosted, event_payload: dict[str, Any]

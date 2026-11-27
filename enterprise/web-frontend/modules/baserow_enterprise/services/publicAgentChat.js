@@ -8,6 +8,9 @@ const withToken = (token) =>
     ? { headers: { [PUBLIC_AGENT_CHAT_AUTHORIZATION_HEADER]: `JWT ${token}` } }
     : {}
 
+// The slug comes from the page URL, so it is encoded to stay one path segment.
+const chatPath = (slug) => `/agent/public-chat/${encodeURIComponent(slug)}/`
+
 /**
  * The anonymous endpoints of a public chat, addressed by its slug. The token is
  * the access token of a password protected chat or the token of the visitor's
@@ -16,10 +19,10 @@ const withToken = (token) =>
 export default (client) => {
   return {
     getInfo(slug, token = null) {
-      return client.get(`/agent/public-chat/${slug}/`, withToken(token))
+      return client.get(chatPath(slug), withToken(token))
     },
     authorize(slug, password) {
-      return client.post(`/agent/public-chat/${slug}/auth/`, { password })
+      return client.post(`${chatPath(slug)}auth/`, { password })
     },
     /**
      * Repeating a start with the same key and content answers like the first
@@ -32,16 +35,13 @@ export default (client) => {
      */
     startConversation(slug, values, token = null) {
       return client.post(
-        `/agent/public-chat/${slug}/conversations/`,
+        `${chatPath(slug)}conversations/`,
         values,
         withToken(token)
       )
     },
     getConversation(slug, token) {
-      return client.get(
-        `/agent/public-chat/${slug}/conversation/`,
-        withToken(token)
-      )
+      return client.get(`${chatPath(slug)}conversation/`, withToken(token))
     },
     /**
      * @param {string} slug The slug of the public chat.
@@ -50,14 +50,14 @@ export default (client) => {
      */
     sendMessage(slug, values, token) {
       return client.post(
-        `/agent/public-chat/${slug}/conversation/messages/`,
+        `${chatPath(slug)}conversation/messages/`,
         values,
         withToken(token)
       )
     },
     stop(slug, token) {
       return client.post(
-        `/agent/public-chat/${slug}/conversation/stop/`,
+        `${chatPath(slug)}conversation/stop/`,
         null,
         withToken(token)
       )
@@ -75,11 +75,14 @@ export default (client) => {
      * @returns {Promise<object>} Resolves once every record has been handled.
      */
     stream(slug, runId, cursor, token, onRecord, signal) {
-      return client.get(`/chat-runs/agent-public-chat/${slug}/stream/`, {
-        ...withToken(token),
-        params: { run_id: runId, cursor },
-        adapter: createStreamAdapter(onRecord, signal),
-      })
+      return client.get(
+        `/chat-runs/agent-public-chat/${encodeURIComponent(slug)}/stream/`,
+        {
+          ...withToken(token),
+          params: { run_id: runId, cursor },
+          adapter: createStreamAdapter(onRecord, signal),
+        }
+      )
     },
   }
 }

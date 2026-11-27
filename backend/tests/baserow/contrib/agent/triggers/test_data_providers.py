@@ -129,9 +129,11 @@ def test_resolve_message_resolves_the_default_message_in_the_service_timezone(
 
 
 @pytest.mark.django_db
-@pytest.mark.parametrize("message", ["", "' '"])
+@pytest.mark.parametrize(
+    "message,reason", [("", " because its schedule came due"), ("' '", "")]
+)
 def test_resolve_message_without_text_says_when_the_trigger_fired(
-    data_fixture, message
+    data_fixture, message, reason
 ):
     unnamed = data_fixture.create_agent_trigger(message=message)
     named = data_fixture.create_agent_trigger(message=message, name="Daily digest")
@@ -139,11 +141,11 @@ def test_resolve_message_without_text_says_when_the_trigger_fired(
 
     assert (
         handler.resolve_message(unnamed, PAYLOAD, FIRED_AT)
-        == "Trigger fired at 2026-11-10 09:07 (UTC)"
+        == f"Trigger fired at 2026-11-10 09:07 (UTC){reason}"
     )
     assert (
         handler.resolve_message(named, PAYLOAD, FIRED_AT)
-        == "Daily digest fired at 2026-11-10 09:07 (UTC)"
+        == f"Daily digest fired at 2026-11-10 09:07 (UTC){reason}"
     )
 
 
@@ -248,7 +250,36 @@ def test_a_row_trigger_without_a_message_opens_with_its_event_values_and_rows(
     )
 
     assert content == (
-        "Trigger fired at 2026-11-10 09:07 (UTC)\n\n"
+        "Trigger fired at 2026-11-10 09:07 (UTC) because rows were created\n\n"
         'Trigger data:\n```json\n{\n  "count": 1,\n  "table": "Orders"\n}\n```'
         '\n```json\n[\n{"id": 1, "Name": "Horse", "Notes": ""}\n]\n```'
+    )
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "service_type,reason",
+    [
+        ("local_baserow_rows_created", "rows were created"),
+        ("local_baserow_rows_updated", "rows were updated"),
+        ("local_baserow_rows_deleted", "rows were deleted"),
+    ],
+)
+def test_an_unnamed_row_trigger_without_a_message_says_what_happened_to_its_rows(
+    data_fixture, service_type, reason
+):
+    table = data_fixture.create_database_table(name="Orders")
+    data_fixture.create_text_field(table=table, name="Name")
+    agent = data_fixture.create_agent_application(workspace=table.database.workspace)
+    service = getattr(data_fixture, f"create_{service_type}_service")(
+        table=table, integration=None
+    )
+    trigger = data_fixture.create_agent_trigger(agent=agent, service=service)
+
+    content = AgentTriggerHandler().resolve_message(
+        trigger, rows_payload("Horse"), FIRED_AT
+    )
+
+    assert content.startswith(
+        f"Trigger fired at 2026-11-10 09:07 (UTC) because {reason}\n\nTrigger data:"
     )

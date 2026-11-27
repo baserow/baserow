@@ -14,10 +14,21 @@ ROWS_TRIGGER_TYPES = (
     "local_baserow_rows_updated",
     "local_baserow_rows_deleted",
 )
+ROWS_EVENT_REASONS = {
+    "local_baserow_rows_created": "rows were created",
+    "local_baserow_rows_updated": "rows were updated",
+    "local_baserow_rows_deleted": "rows were deleted",
+}
+
+
+class PeriodicAgentTriggerType(AgentTriggerType):
+    type = "periodic"
+    event_reason = "its schedule came due"
 
 
 class HTTPAgentTriggerType(AgentTriggerType):
     type = "http_trigger"
+    event_reason = "it received an HTTP request"
     # A link preview or a mail scanner opening the URL must not start a run.
     default_service_values = {"exclude_get": True}
     # A firing starts a run in the background, so no caller waits for a response.
@@ -38,6 +49,7 @@ class HTTPAgentTriggerType(AgentTriggerType):
 
 class InboundEmailAgentTriggerType(AgentTriggerType):
     type = "email_trigger"
+    event_reason = "it received an email"
 
     def is_offered(self) -> bool:
         return is_inbound_email_configured()
@@ -65,6 +77,10 @@ class InboundEmailAgentTriggerType(AgentTriggerType):
 
 class RowsAgentTriggerType(AgentTriggerType):
     """Hosts a trigger type whose events are the rows that changed in a table."""
+
+    @property
+    def event_reason(self) -> str:
+        return ROWS_EVENT_REASONS[self.type]
 
     def get_event_text(
         self, service: Service, event_payload: dict[str, Any]
