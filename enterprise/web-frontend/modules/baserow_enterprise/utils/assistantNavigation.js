@@ -57,6 +57,11 @@ function tableTarget({ $store, $client }, workspaceId, location) {
 const NAVIGATION_TARGETS = Object.freeze({
   'database-table': tableTarget,
   'database-view': tableTarget,
+  'database-view-filters': (app, workspaceId, location) => {
+    const target = tableTarget(app, workspaceId, location)
+    target.route.query = { focus: 'filters' }
+    return target
+  },
   'builder-page': ({ $store }, workspaceId, location) => ({
     applicationId: location.application_id,
     findTarget: (builder) =>
@@ -164,7 +169,7 @@ export async function navigateToAssistantLocation(
   isCurrent
 ) {
   if (!isCurrent() || !Object.hasOwn(NAVIGATION_TARGETS, location.type)) return
-  if (location.type === 'database-view') {
+  if (['database-view', 'database-view-filters'].includes(location.type)) {
     const viewType = app.$registry.get('view', location.view_type)
     if (!viewType || viewType.isDeactivated(workspaceId)) return
   }

@@ -1,6 +1,15 @@
 <template>
-  <div class="assistant">
-    <div class="assistant__header">
+  <div
+    ref="panel"
+    class="assistant"
+    :class="{ 'assistant--editor': editorTarget }"
+  >
+    <AssistantEditorSession
+      v-if="editorTarget"
+      :key="editorTarget.id"
+      :target="editorTarget"
+    />
+    <div v-show="!editorTarget" class="assistant__header">
       <a
         v-if="messages.length"
         :title="$t('assistantPanel.back')"
@@ -38,7 +47,11 @@
         ></a>
       </div>
     </div>
-    <div ref="scrollContainer" class="assistant__content">
+    <div
+      v-show="!editorTarget"
+      ref="scrollContainer"
+      class="assistant__content"
+    >
       <AssistantMessageList
         v-if="currentChatId"
         :messages="messages"
@@ -51,7 +64,7 @@
         @prompt="$refs.message.setCurrentMessage($event)"
       ></AssistantWelcomeMessage>
     </div>
-    <div class="assistant__footer">
+    <div v-show="!editorTarget" class="assistant__footer">
       <AssistantInputMessage
         ref="message"
         :ui-context="uiContext"
@@ -60,12 +73,36 @@
         :running-message="assistantRunningMessage"
         @send-message="handleSendMessage"
         @cancel-message="handleCancelMessage"
-      ></AssistantInputMessage>
+      >
+        <template v-if="currentChat?.editorContext" #context>
+          <button
+            v-if="currentChat.editorContext.action === 'edit_view_filters'"
+            v-tooltip="$t('kumaPrompt.openOriginalFilters')"
+            type="button"
+            class="assistant__context-badge assistant__context-badge--link"
+            :aria-label="$t('kumaPrompt.openOriginalFilters')"
+            @click="openOriginalFilters"
+          >
+            <i class="iconoir-filter" aria-hidden="true"></i>
+            <span class="assistant__context-text">{{
+              currentChat.editorContext.label
+            }}</span>
+            <i class="iconoir-nav-arrow-right" aria-hidden="true"></i>
+          </button>
+          <span v-else class="assistant__context-badge">
+            <span class="assistant__context-text"
+              >{{ $t('kumaPrompt.' + currentChat.editorContext.action) }} ·
+              {{ currentChat.editorContext.label }}</span
+            >
+          </span>
+        </template>
+      </AssistantInputMessage>
     </div>
   </div>
 </template>
 
 <script>
+import AssistantEditorSession from './AssistantEditorSession'
 import AssistantWelcomeMessage from '@baserow_enterprise/components/assistant/AssistantWelcomeMessage'
 import AssistantInputMessage from '@baserow_enterprise/components/assistant/AssistantInputMessage'
 import AssistantMessageList from '@baserow_enterprise/components/assistant/AssistantMessageList'
@@ -84,6 +121,7 @@ export default {
   name: 'AssistantPanel',
   emits: ['toggle-right-sidebar'],
   components: {
+    AssistantEditorSession,
     AssistantWelcomeMessage,
     AssistantInputMessage,
     AssistantMessageList,
@@ -96,7 +134,12 @@ export default {
     },
   },
   setup() {
-    return { now: provideNow(1000) }
+    const editor = useNuxtApp().$kumaEditor
+    return {
+      now: provideNow(1000),
+      editorTarget: editor.target,
+      editorPanel: editor.panel,
+    }
   },
   computed: {
     ...mapGetters({
@@ -150,6 +193,8 @@ export default {
   watch: {
     workspace: {
       async handler(newWorkspace) {
+        if (this.editorTarget?.workspaceId !== newWorkspace.id)
+          this.editorTarget = null
         this.resetStore()
         // The selected workspace is an empty object once it goes away.
         if (newWorkspace.id === undefined) return
@@ -166,6 +211,7 @@ export default {
     pendingPrompt: {
       handler(prompt) {
         if (prompt) {
+          this.editorTarget = null
           this.sendPendingPrompt(prompt)
         }
       },
@@ -182,11 +228,12 @@ export default {
     },
     uiLocation: {
       handler(location) {
-        if (!location) return
+        if (!location || this.editorTarget) return
         const workspaceId = this.workspace.id
         const chatId = this.currentChatId
         // Loading may outlive this panel, chat, workspace or navigation event.
         const isCurrent = () =>
+          !this.editorTarget &&
           this.$store.getters['assistant/isPanelOpen'] &&
           this.workspace.id === workspaceId &&
           this.currentChatId === chatId &&
@@ -201,6 +248,7 @@ export default {
     },
   },
   mounted() {
+    this.editorPanel = this.$refs.panel
     this.setPanelOpen(true)
     const container = this.$refs.scrollContainer
     let isUserScrolling = false
@@ -234,6 +282,8 @@ export default {
   },
 
   beforeUnmount() {
+    this.editorTarget = null
+    this.editorPanel = null
     this.setPanelOpen(false)
     if (this.scrollObserver) {
       this.scrollObserver.disconnect()
@@ -292,7 +342,30 @@ export default {
       }
     },
 
+    async openOriginalFilters() {
+      const chat = this.currentChat
+      const { database, table, view } = chat.editorContext.location
+      try {
+        await navigateToAssistantLocation(
+          this,
+          this.workspace.id,
+          {
+            type: 'database-view-filters',
+            database_id: database.id,
+            table_id: table.id,
+            view_id: view.id,
+            view_type: view.type,
+          },
+          () =>
+            this.currentChat?.id === chat.id &&
+            this.workspace.id === chat.editorContext.location.workspace.id
+        )
+      } catch (error) {
+        notifyIf(error)
+      }
+    },
     toggleChatHistoryContext() {
+      this.fetchChats(this.workspace.id).catch(notifyIf)
       this.$refs.chatHistory.toggle(
         this.$refs.chatHistoryButton,
         'bottom',

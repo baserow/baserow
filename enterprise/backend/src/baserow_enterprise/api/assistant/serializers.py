@@ -153,6 +153,7 @@ class AssistantChatSerializer(serializers.ModelSerializer):
         fields = (
             "uuid",
             "chat_id",
+            "editor_context",
             "user_id",
             "workspace_id",
             "title",
@@ -494,21 +495,80 @@ class ServiceFiltersRequestSerializer(serializers.Serializer):
         self.fields["kind"].choices = service_filter_target_type_registry.get_types()
 
 
+class TableActionParameters(serializers.Serializer):
+    table_id = serializers.IntegerField(min_value=1)
+
+
+class FormulaActionParameters(TableActionParameters):
+    field_id = serializers.IntegerField(min_value=1, required=False, allow_null=True)
+    field_name = serializers.CharField(max_length=255, allow_blank=True)
+    current = serializers.CharField(
+        max_length=100000, allow_blank=True, trim_whitespace=False
+    )
+
+
+class ViewFilterActionParameters(serializers.Serializer):
+    view_id = serializers.IntegerField(min_value=1)
+
+
+class AIFieldPromptParameters(TableActionParameters):
+    mode = serializers.ChoiceField(
+        choices=["simple", "advanced", "raw"], default="simple"
+    )
+    field_id = serializers.IntegerField(min_value=1, required=False, allow_null=True)
+    current = serializers.CharField(
+        max_length=100000, allow_blank=True, trim_whitespace=False
+    )
+    output_type = serializers.CharField(max_length=64)
+
+
+class CreateTableParameters(serializers.Serializer):
+    database_id = serializers.IntegerField(min_value=1)
+    name = serializers.CharField(max_length=160, allow_blank=True, default="")
+
+
+class CreateDatabaseParameters(serializers.Serializer):
+    workspace_id = serializers.IntegerField(min_value=1)
+    name = serializers.CharField(max_length=160, allow_blank=True, default="")
+
+
+class InstructionsActionParameters(serializers.Serializer):
+    agent_id = serializers.IntegerField(min_value=1, required=False)
+    agent_name = serializers.CharField(required=False, allow_blank=True, max_length=255)
+    workspace_id = serializers.IntegerField(min_value=1)
+    current = serializers.CharField(
+        max_length=100000, allow_blank=True, trim_whitespace=False
+    )
+
+
+ACTION_PARAMETERS = {
+    "update_service_filters": ServiceFiltersRequestSerializer,
+    "generate_formula": FormulaActionParameters,
+    "generate_ai_field_prompt": AIFieldPromptParameters,
+    "create_table": CreateTableParameters,
+    "create_database": CreateDatabaseParameters,
+    "add_row_color": ViewFilterActionParameters,
+    "edit_view_filters": ViewFilterActionParameters,
+    "create_view": TableActionParameters,
+    "generate_agent_instructions": InstructionsActionParameters,
+}
+
+
 class AssistantActionRequestSerializer(serializers.Serializer):
     """Validate the common envelope and the selected action's parameters."""
 
-    action = serializers.ChoiceField(choices=["update_service_filters"])
+    chat_uuid = serializers.UUIDField(required=False)
+    workspace_id = serializers.IntegerField(min_value=1, required=False)
+    action = serializers.ChoiceField(choices=list(ACTION_PARAMETERS))
     prompt = serializers.CharField(max_length=2000)
     parameters = serializers.DictField()
 
     def validate(self, attrs):
-        # Explicit dispatch keeps this small without introducing another registry.
-        if attrs["action"] == "update_service_filters":
-            serializer = ServiceFiltersRequestSerializer(
-                data={**attrs["parameters"], "prompt": attrs["prompt"]}
-            )
-            serializer.is_valid(raise_exception=True)
-            attrs["parameters"] = serializer.validated_data
+        serializer = ACTION_PARAMETERS[attrs["action"]](
+            data={**attrs["parameters"], "prompt": attrs["prompt"]}
+        )
+        serializer.is_valid(raise_exception=True)
+        attrs["parameters"] = serializer.validated_data
         return attrs
 
 

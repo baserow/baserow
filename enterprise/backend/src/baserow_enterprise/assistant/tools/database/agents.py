@@ -318,7 +318,7 @@ def _link_to_hidden_table(
 
 def get_formula_type_tool(
     user: AbstractUser, workspace: Workspace
-) -> Callable[[str], str]:
+) -> Callable[[int, str, str], str]:
     """
     Build the formula validation tool for the formula generation agent.
 

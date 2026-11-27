@@ -2,7 +2,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 from pydantic import Field
-from pydantic_ai import Agent, ModelRetry, RunContext
+from pydantic_ai import Agent, ModelRetry, PromptedOutput, RunContext
 from pydantic_ai.usage import UsageLimits
 
 from baserow.contrib.integrations.local_baserow.service_filters.state import (
@@ -53,7 +53,7 @@ class ServiceFilterAgentDeps:
 
 service_filter_agent: Agent[ServiceFilterAgentDeps, ServiceFilterChanges] = Agent(
     deps_type=ServiceFilterAgentDeps,
-    output_type=ServiceFilterChanges,
+    output_type=PromptedOutput(ServiceFilterChanges),
     instructions=SERVICE_FILTER_AGENT_INSTRUCTIONS,
     name="service_filter_agent",
     retries=SERVICE_FILTER_AGENT_RETRIES,

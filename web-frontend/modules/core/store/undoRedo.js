@@ -41,13 +41,16 @@ export const mutations = {
 let hideTimeout = null
 
 export const actions = {
-  async undo({ dispatch }, { showLoadingToast }) {
+  async undo({ dispatch }, { showLoadingToast, expectedActionGroupId }) {
     return await dispatch('action', {
       showLoadingToast,
       serviceMethod: 'undo',
+      expectedActionGroupId,
       doingToastState: UNDO_REDO_STATES.UNDOING,
       doneToastState: UNDO_REDO_STATES.UNDONE,
-      nothingToDoToastState: UNDO_REDO_STATES.NO_MORE_UNDO,
+      nothingToDoToastState: expectedActionGroupId
+        ? UNDO_REDO_STATES.HIDDEN
+        : UNDO_REDO_STATES.NO_MORE_UNDO,
       skippedDueToErrorToastState: UNDO_REDO_STATES.ERROR_WITH_UNDO,
       commitName: 'SET_UNDOING',
     })
@@ -68,6 +71,7 @@ export const actions = {
     {
       showLoadingToast,
       serviceMethod,
+      expectedActionGroupId,
       doingToastState,
       doneToastState,
       nothingToDoToastState,
@@ -89,7 +93,8 @@ export const actions = {
 
     try {
       const { data } = await UndoRedoService(this.$client)[serviceMethod](
-        getters.getCurrentScope
+        getters.getCurrentScope,
+        expectedActionGroupId
       )
       const resultCodeToToastState = {
         [UNDO_REDO_RESULT_CODES.SUCCESS]: doneToastState,
@@ -104,6 +109,7 @@ export const actions = {
           root: true,
         }
       )
+      return data.result_code
     } finally {
       hideTimeout = setTimeout(
         () =>

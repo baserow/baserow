@@ -1,8 +1,12 @@
 <template>
   <div class="assistant__input">
-    <div class="assistant__input-status" :class="{ 'is-running': isRunning }">
+    <div
+      v-if="!$slots.context || sending || isRunning"
+      class="assistant__input-status"
+      :class="{ 'is-running': isRunning }"
+    >
       <i class="iconoir-sparks assistant__input-status-icon"></i>
-      <span v-if="!isRunning" class="assistant__status-message">
+      <span v-if="!isRunning && !sending" class="assistant__status-message">
         {{ $t('assistantInputMessage.statusWaiting') }}
       </span>
       <span v-else class="assistant__status-message">
@@ -11,7 +15,9 @@
     </div>
     <div class="assistant__input-section" :class="{ 'is-running': isRunning }">
       <div class="assistant__input-wrapper has-context">
-        <AssistantUiContext :ui-context="uiContext" />
+        <slot name="context"
+          ><AssistantUiContext :ui-context="uiContext"
+        /></slot>
 
         <textarea
           ref="textarea"
@@ -19,6 +25,7 @@
           class="assistant__input-textarea"
           :placeholder="$t('assistantInputMessage.placeholder')"
           :rows="minRows"
+          :maxlength="maxlength"
           @input="adjustHeight"
           @keydown.enter="handleEnter"
         ></textarea>
@@ -26,12 +33,16 @@
         <button
           class="assistant__send-button"
           :class="{
-            'assistant__send-button--disabled':
-              (!currentMessage.trim() && !isRunning) || isCancelling,
+            'assistant__send-button--disabled': isSendDisabled,
             'assistant__send-button--is-running': isRunning,
             'assistant__send-button--is-cancelling': isCancelling,
           }"
-          :disabled="(!currentMessage.trim() && !isRunning) || isCancelling"
+          :disabled="isSendDisabled"
+          :aria-label="
+            isRunning
+              ? $t('assistantInputMessage.stop')
+              : $t('assistantInputMessage.send')
+          "
           :title="
             isRunning
               ? $t('assistantInputMessage.stop')
@@ -57,6 +68,10 @@ export default {
     AssistantUiContext,
   },
   props: {
+    starter: { type: String, default: '' },
+    sending: Boolean,
+    sendDisabled: Boolean,
+    maxlength: { type: Number, default: null },
     uiContext: {
       type: Object,
       default: () => ({}),
@@ -76,14 +91,30 @@ export default {
   },
   data() {
     return {
-      currentMessage: '',
+      currentMessage: this.starter ? this.starter + ' ' : '',
       minRows: 1,
       maxRows: 6,
     }
   },
+  computed: {
+    isSendDisabled() {
+      return (
+        (!this.isRunning &&
+          (!this.currentMessage.trim() ||
+            this.currentMessage.trim() === this.starter.trim())) ||
+        this.isCancelling ||
+        this.sending ||
+        this.sendDisabled
+      )
+    },
+  },
   mounted() {
     this.calculateLineHeight()
     this.adjustHeight()
+    if (this.starter) {
+      const end = this.currentMessage.length
+      this.$refs.textarea.setSelectionRange(end, end)
+    }
   },
   methods: {
     setCurrentMessage(message) {
@@ -100,6 +131,7 @@ export default {
     },
     handleEnter(event) {
       // If shift key is pressed, allow the default behavior (new line)
+      if (event.isComposing || event.keyCode === 229) return
       if (!event.shiftKey) {
         event.preventDefault()
         if (!this.isRunning) {
@@ -116,7 +148,7 @@ export default {
     },
     sendMessage() {
       const message = this.currentMessage.trim()
-      if (!message || this.isRunning) return
+      if (this.isSendDisabled || this.isRunning) return
 
       this.$emit('send-message', message)
 

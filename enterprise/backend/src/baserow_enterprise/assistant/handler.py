@@ -13,7 +13,9 @@ from baserow.core.chat_runs.handler import ChatRunHandler
 from baserow.core.chat_runs.models import ChatRun
 from baserow.core.db import IsolationLevel, transaction_atomic
 from baserow.core.models import Workspace
+from baserow.core.tools import ToolContext
 
+from .editor_context import resume_editor_chat
 from .exceptions import AssistantChatDoesNotExist
 from .messages import assistant_message_payload, list_chat_messages
 from .models import AssistantChat, AssistantChatMessage, AssistantChatPrediction
@@ -260,6 +262,11 @@ class AssistantHandler:
 
         with transaction.atomic():
             chat, _ = self.get_or_create_chat(user, workspace, chat_uuid)
+            if chat.editor_context:
+                chat = AssistantChat.objects.select_for_update().get(pk=chat.pk)
+                ui_context = resume_editor_chat(
+                    ToolContext(user=user, workspace=workspace), chat, ui_context
+                )
             generate_title = _title_is_provisional(chat)
             if not chat.title:
                 chat.title = _provisional_title(content)

@@ -90,6 +90,7 @@ def test_list_assistant_chats(api_client, enterprise_data_fixture):
         assert chat == {
             "uuid": AnyStr(),
             "chat_id": created_chats[i].id,
+            "editor_context": None,
             "user_id": user.id,
             "workspace_id": workspace.id,
             "title": f"Chat {i}",
@@ -113,6 +114,7 @@ def test_list_assistant_chats(api_client, enterprise_data_fixture):
     assert data["results"][0] == {
         "uuid": AnyStr(),
         "chat_id": created_chats[2].id,
+        "editor_context": None,
         "user_id": user.id,
         "workspace_id": workspace.id,
         "title": "Chat 2",

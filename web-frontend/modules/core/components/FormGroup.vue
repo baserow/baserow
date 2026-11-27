@@ -10,6 +10,7 @@
       'control--messages': hasMessages(),
       'control--after-input': hasAfterInputSlot,
       'control--error': hasError,
+      'control--label-action': $slots['label-action'],
     }"
   >
     <label
@@ -47,6 +48,10 @@
         <slot name="after-label" />
       </span>
     </span>
+
+    <div v-if="$slots['label-action']" class="control__label-action">
+      <slot name="label-action" />
+    </div>
 
     <div v-if="protectedEdit && !protectedEditValue">
       <a @click="enableProtectedEdit">{{ $t('formGroup.protectedField') }}</a>

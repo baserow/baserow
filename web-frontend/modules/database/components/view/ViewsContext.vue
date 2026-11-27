@@ -1,17 +1,34 @@
 <template>
   <Context
     ref="context"
+    data-kuma-scope
     class="select"
     max-height-if-outside-viewport
     @shown="shown"
   >
-    <div class="select__search">
+    <div class="select__search select__search--with-action">
       <i class="select__search-icon iconoir-search"></i>
       <input
         v-model="query"
         type="text"
         class="select__search-input"
         :placeholder="$t('viewsContext.searchView')"
+      />
+      <EditorPrompt
+        v-if="
+          !readOnly &&
+          availableViewOwnershipTypesForCreation.length > 0 &&
+          $hasPermission(
+            'database.table.create_view',
+            table,
+            database.workspace.id
+          )
+        "
+        :label="table.name"
+        action="create_view"
+        :workspace-id="database.workspace.id"
+        :parameters="{ table_id: table.id }"
+        @completed="$event.view_id && selectedView({ id: $event.view_id })"
       />
     </div>
     <div v-if="isLoading" class="context--loading">
@@ -82,6 +99,7 @@
 </template>
 
 <script>
+import EditorPrompt from '@baserow/modules/core/components/EditorPrompt'
 import { mapState } from 'vuex'
 
 import { notifyIf } from '@baserow/modules/core/utils/error'
@@ -94,6 +112,7 @@ import CreateViewLink from '@baserow/modules/database/components/view/CreateView
 export default {
   name: 'ViewsContext',
   components: {
+    EditorPrompt,
     ViewsContextItem,
     CreateViewLink,
   },

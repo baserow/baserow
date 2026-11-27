@@ -1,35 +1,22 @@
 <template>
-  <KumaInlinePrompt
+  <KumaContextButton
     ref="kumaPrompt"
+    :key="`${target?.kind}:${target?.id}:${actionParameters.table_id}`"
+    :label="target?.name || ''"
     :enabled="Boolean(target?.id)"
     :title="$t('serviceFilterKumaPrompt.title')"
     :placeholder="$t('serviceFilterKumaPrompt.placeholder')"
-    :submit-label="$t('serviceFilterKumaPrompt.submit')"
-    :working-label="$t('serviceFilterKumaPrompt.working')"
-    :suggestions="suggestions"
     :blocked-message="blockedMessage"
     action="update_service_filters"
     :parameters="actionParameters"
-    error-name="dataSource"
-    with-divider
     @active="filterForm?.setFrozen($event)"
   />
 </template>
 
 <script setup>
 import { computed, inject, onBeforeUnmount, ref, toValue, watch } from 'vue'
-import KumaInlinePrompt from '@baserow_enterprise/components/assistant/KumaInlinePrompt'
+import KumaContextButton from '@baserow_enterprise/components/assistant/KumaContextButton'
 
-/**
- * Lets the user describe the filters they want for a data source or automation
- * node, and has Kuma create, change or remove them. Kuma saves the filters, as
- * the same request in a chat would; the open form picks them up through the
- * realtime update.
- *
- * Kuma works from the saved filters, so the filters are frozen while the request
- * is written and sent, and unsaved filter changes must be saved first. A table
- * picked for a data source without one is sent along, and saved with the filters.
- */
 const app = useNuxtApp()
 const t = (key) => app.$i18n.t(key)
 
@@ -54,8 +41,7 @@ const blockedMessage = computed(() => {
   return ''
 })
 
-// Undo reverts the latest change, which stops being Kuma's once the user edits the
-// filters again, so the summary and its undo go away.
+// A manual edit becomes the latest action in the shared undo history.
 watch(hasUnsavedChanges, (unsaved) => {
   if (unsaved) {
     kumaPrompt.value?.dismiss()
@@ -63,23 +49,9 @@ watch(hasUnsavedChanges, (unsaved) => {
 })
 onBeforeUnmount(() => filterForm?.setFrozen(false))
 
-const SUGGESTIONS = {
-  builder_data_source: ['pageParameter', 'user', 'change'],
-  automation_node: ['previousNode', 'change'],
-  dashboard_data_source: ['change'],
-}
-
-const suggestions = computed(() =>
-  (SUGGESTIONS[target.value?.kind] || []).map((key) => ({
-    key,
-    label: t(`serviceFilterKumaPrompt.suggestion_${key}`),
-    prompt: t(`serviceFilterKumaPrompt.suggestion_${key}_prompt`),
-  }))
-)
-
 const actionParameters = computed(() => ({
   kind: target.value?.kind,
   id: target.value?.id,
-  table_id: serviceFilters?.getUnsavedTableId?.() ?? null,
+  table_id: serviceFilters?.getSelectedTableId?.() ?? null,
 }))
 </script>

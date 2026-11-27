@@ -3,6 +3,7 @@
     <FieldFormulaInitialSubForm
       :default-values="mergedTypeOptions"
       :formula="values.formula"
+      :field-name="name"
       :error="formulaError"
       :formula-type="localOrServerFormulaType"
       :table="table"

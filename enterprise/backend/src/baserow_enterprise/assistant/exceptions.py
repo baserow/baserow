@@ -24,3 +24,7 @@ class AssistantChatMessagePredictionDoesNotExist(AssistantException):
 
 class ServiceFilterGenerationFailed(AssistantException):
     """Raised when the assistant could not produce valid filter changes."""
+
+
+class EditorGenerationFailed(AssistantException):
+    """Kuma could not generate a valid result for the current editor."""

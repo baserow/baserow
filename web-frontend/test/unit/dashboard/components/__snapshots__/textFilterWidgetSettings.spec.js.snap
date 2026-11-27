@@ -11,6 +11,7 @@ exports[`TextFilterWidgetSettings > renders literal settings and saves clearing 
     </div>
     <div data-form-error="false" class="control">
       <!--v-if-->
+      <!--v-if-->
       <div class="control__wrapper">
         <div class="control__elements">
           <div class="control__elements-wrapper">
@@ -65,6 +66,7 @@ exports[`TextFilterWidgetSettings > renders literal settings and saves clearing 
         <!--v-if-->
         <!--v-if-->
       </label>
+      <!--v-if-->
       <div class="control__wrapper">
         <div class="control__elements">
           <div class="control__elements-wrapper">
@@ -84,6 +86,7 @@ exports[`TextFilterWidgetSettings > renders literal settings and saves clearing 
         <!--v-if-->
         <!--v-if-->
       </label>
+      <!--v-if-->
       <div class="control__wrapper">
         <div class="control__elements">
           <div class="control__elements-wrapper">
@@ -108,6 +111,7 @@ exports[`TextFilterWidgetSettings > renders literal settings and saves clearing 
         <!--v-if-->
         <!--v-if-->
       </label>
+      <!--v-if-->
       <div class="control__wrapper">
         <div class="control__elements">
           <div class="control__elements-wrapper">

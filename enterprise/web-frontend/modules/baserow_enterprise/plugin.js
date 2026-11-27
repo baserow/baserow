@@ -1,3 +1,4 @@
+import { shallowRef } from 'vue'
 import {
   AuditLogExportJobType,
   DataScanResultExportJobType,
@@ -181,6 +182,10 @@ export default defineNuxtPlugin({
   setup(nuxtApp) {
     const { $config, $registry, $store } = nuxtApp
 
+    nuxtApp.provide('kumaEditor', {
+      target: shallowRef(null),
+      panel: shallowRef(null),
+    })
     const context = { app: nuxtApp }
 
     $registry.register('plugin', new EnterprisePlugin(context))

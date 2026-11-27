@@ -1,14 +1,10 @@
-import {
-  FieldType,
-  FormulaFieldType,
-} from '@baserow/modules/database/fieldTypes'
+import { FieldType } from '@baserow/modules/database/fieldTypes'
 
 import GridViewFieldAI from '@baserow_premium/components/views/grid/fields/GridViewFieldAI'
 import FunctionalGridViewFieldAI from '@baserow_premium/components/views/grid/fields/FunctionalGridViewFieldAI'
 import RowEditFieldAI from '@baserow_premium/components/row/RowEditFieldAI'
 import RowCardFieldAI from '@baserow_premium/components/card/RowCardFieldAI'
 import FieldAISubForm from '@baserow_premium/components/field/FieldAISubForm'
-import FormulaFieldAI from '@baserow_premium/components/field/FormulaFieldAI'
 import GridViewFieldAIGenerateValuesContextItem from '@baserow_premium/components/views/grid/fields/GridViewFieldAIGenerateValuesContextItem'
 import PremiumFeatures from '@baserow_premium/features'
 import PaidFeaturesModal from '@baserow_premium/components/PaidFeaturesModal'
@@ -277,11 +273,5 @@ export class AIFieldType extends FieldType {
 
   getCompatibleFilterFieldType(field) {
     return this.getBaserowFieldType(field)
-  }
-}
-
-export class PremiumFormulaFieldType extends FormulaFieldType {
-  getAdditionalFormInputComponents() {
-    return [FormulaFieldAI]
   }
 }

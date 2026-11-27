@@ -6,6 +6,7 @@ exports[`TextFilterWidget > renders an accessible input and preserves viewer val
     <!--v-if-->
     <!--v-if-->
   </label>
+  <!--v-if-->
   <div class="control__wrapper">
     <div class="control__elements">
       <div class="control__elements-wrapper">

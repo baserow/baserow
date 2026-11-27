@@ -36,15 +36,6 @@
     min-width: 0;
   }
 
-  // One centred row, so other items added after the links, like Kuma's, line up
-  // with them. Anything wider wraps onto its own line.
-  /* stylelint-disable-next-line selector-class-pattern */
-  .filters_footer {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-  }
-
   .filters__add {
     padding: 9px 0 9px 4px;
   }
@@ -349,8 +340,7 @@
   }
 
   // The add links and Kuma become the popover's footer.
-  /* stylelint-disable-next-line selector-class-pattern */
-  .filters_footer {
+  .filters__footer {
     margin: 12px -16px -12px;
     padding: 6px 8px;
     border-top: 1px solid $palette-neutral-200;

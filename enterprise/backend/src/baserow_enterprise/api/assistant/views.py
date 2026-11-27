@@ -7,12 +7,14 @@ from django.http import StreamingHttpResponse
 
 from drf_spectacular.openapi import OpenApiParameter, OpenApiTypes
 from drf_spectacular.utils import OpenApiResponse, extend_schema
+from rest_framework.exceptions import ValidationError
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.status import HTTP_204_NO_CONTENT
 from rest_framework.views import APIView
 
+from baserow.api.applications.errors import ERROR_APPLICATION_DOES_NOT_EXIST
 from baserow.api.chat_runs.errors import (
     ERROR_CHAT_RUN_IN_PROGRESS,
     ERROR_CHAT_RUN_LIMIT,
@@ -30,6 +32,11 @@ from baserow.api.sessions import (
     set_untrusted_client_session_id_from_request_or_raise_if_invalid,
 )
 from baserow.config.db_routers import set_db_alias
+from baserow.contrib.database.api.tables.errors import ERROR_TABLE_DOES_NOT_EXIST
+from baserow.contrib.database.api.views.errors import ERROR_VIEW_DOES_NOT_EXIST
+from baserow.contrib.database.table.exceptions import TableDoesNotExist
+from baserow.contrib.database.table.models import Table
+from baserow.contrib.database.views.exceptions import ViewDoesNotExist
 from baserow.contrib.integrations.local_baserow.service_filters.exceptions import (
     ServiceFilterTargetDoesNotExist,
     ServiceFilterTargetNotSupported,
@@ -41,19 +48,25 @@ from baserow.core.chat_runs.exceptions import (
 from baserow.core.chat_runs.handler import ChatRunHandler
 from baserow.core.chat_runs.models import ChatRun
 from baserow.core.chat_runs.service import ChatRunService, serialize_run
-from baserow.core.exceptions import UserNotInWorkspace, WorkspaceDoesNotExist
+from baserow.core.exceptions import (
+    ApplicationDoesNotExist,
+    UserNotInWorkspace,
+    WorkspaceDoesNotExist,
+)
 from baserow.core.handler import CoreHandler
 from baserow.core.tools import ToolContext
 from baserow_enterprise.assistant.actions import (
     get_action_workspace,
     run_assistant_action,
 )
+from baserow_enterprise.assistant.editor_chats import run_editor_chat_action
 from baserow_enterprise.assistant.exceptions import (
     AssistantChatDoesNotExist,
     AssistantChatMessagePredictionDoesNotExist,
     AssistantConfiguredModelNotAvailableError,
     AssistantModelDisabledError,
     AssistantModelNotSupportedError,
+    EditorGenerationFailed,
     ServiceFilterGenerationFailed,
 )
 from baserow_enterprise.assistant.handler import AssistantHandler
@@ -73,6 +86,7 @@ from baserow_enterprise.assistant.types import UIContext
 from .errors import (
     ERROR_ASSISTANT_CHAT_DOES_NOT_EXIST,
     ERROR_ASSISTANT_CONFIGURED_MODEL_NOT_AVAILABLE,
+    ERROR_ASSISTANT_EDITOR_GENERATION_FAILED,
     ERROR_ASSISTANT_MODEL_DISABLED,
     ERROR_ASSISTANT_MODEL_NOT_SUPPORTED,
     ERROR_ASSISTANT_SERVICE_FILTER_GENERATION_FAILED,
@@ -198,6 +212,12 @@ class AssistantChatView(APIView):
         {
             UserNotInWorkspace: ERROR_USER_NOT_IN_GROUP,
             WorkspaceDoesNotExist: ERROR_GROUP_DOES_NOT_EXIST,
+            Table.DoesNotExist: ERROR_TABLE_DOES_NOT_EXIST,
+            ViewDoesNotExist: ERROR_VIEW_DOES_NOT_EXIST,
+            ApplicationDoesNotExist: ERROR_APPLICATION_DOES_NOT_EXIST,
+            ServiceFilterTargetDoesNotExist: ERROR_ASSISTANT_SERVICE_FILTER_TARGET_DOES_NOT_EXIST,
+            ServiceFilterTargetNotSupported: ERROR_ASSISTANT_SERVICE_FILTER_TARGET_NOT_SUPPORTED,
+            EditorGenerationFailed: ERROR_ASSISTANT_EDITOR_GENERATION_FAILED,
             AssistantChatDoesNotExist: ERROR_ASSISTANT_CHAT_DOES_NOT_EXIST,
             AssistantModelDisabledError: ERROR_ASSISTANT_MODEL_DISABLED,
             AssistantConfiguredModelNotAvailableError: (
@@ -482,16 +502,30 @@ class AssistantActionsView(APIView):
                     "ERROR_ASSISTANT_CONFIGURED_MODEL_NOT_AVAILABLE",
                     "ERROR_ASSISTANT_SERVICE_FILTER_TARGET_NOT_SUPPORTED",
                     "ERROR_ASSISTANT_SERVICE_FILTER_GENERATION_FAILED",
+                    "ERROR_ASSISTANT_EDITOR_GENERATION_FAILED",
                 ]
             ),
             404: get_error_schema(
-                ["ERROR_ASSISTANT_SERVICE_FILTER_TARGET_DOES_NOT_EXIST"]
+                [
+                    "ERROR_ASSISTANT_SERVICE_FILTER_TARGET_DOES_NOT_EXIST",
+                    "ERROR_TABLE_DOES_NOT_EXIST",
+                    "ERROR_VIEW_DOES_NOT_EXIST",
+                    "ERROR_GROUP_DOES_NOT_EXIST",
+                ]
             ),
         },
     )
     @validate_body(AssistantActionRequestSerializer, return_validated=True)
     @map_exceptions(
         {
+            AssistantChatDoesNotExist: ERROR_ASSISTANT_CHAT_DOES_NOT_EXIST,
+            ChatRunAlreadyActive: ERROR_CHAT_RUN_IN_PROGRESS,
+            TableDoesNotExist: ERROR_TABLE_DOES_NOT_EXIST,
+            Table.DoesNotExist: ERROR_TABLE_DOES_NOT_EXIST,
+            ViewDoesNotExist: ERROR_VIEW_DOES_NOT_EXIST,
+            WorkspaceDoesNotExist: ERROR_GROUP_DOES_NOT_EXIST,
+            EditorGenerationFailed: ERROR_ASSISTANT_EDITOR_GENERATION_FAILED,
+            ApplicationDoesNotExist: ERROR_APPLICATION_DOES_NOT_EXIST,
             UserNotInWorkspace: ERROR_USER_NOT_IN_GROUP,
             AssistantModelDisabledError: ERROR_ASSISTANT_MODEL_DISABLED,
             AssistantConfiguredModelNotAvailableError: (
@@ -530,6 +564,11 @@ class AssistantActionsView(APIView):
             context=workspace,
         )
 
+        if data.get("workspace_id", workspace.id) != workspace.id:
+            raise ValidationError(
+                {"workspace_id": "The editor belongs to another workspace."}
+            )
+
         model_profile = resolve_assistant_model(workspace=workspace)
         check_lm_ready_or_raise(model_profile=model_profile)
 
@@ -537,17 +576,16 @@ class AssistantActionsView(APIView):
         # every open editor of the data source or node picks up the new filters.
         request.user.web_socket_id = None
 
-        result = run_assistant_action(
-            data["action"],
-            ToolContext(
-                user=request.user,
-                workspace=workspace,
-                timezone=request.user.profile.timezone,
-            ),
-            data["prompt"],
-            parameters,
-            model_profile=model_profile,
+        ctx = ToolContext(
+            user=request.user,
+            workspace=workspace,
+            timezone=request.user.profile.timezone,
         )
+        args = (data["action"], ctx, data["prompt"], parameters, model_profile)
+        if chat_uuid := data.get("chat_uuid"):
+            result = run_editor_chat_action(*args, chat_uuid)
+        else:
+            result = run_assistant_action(*args)
 
         serializer = AssistantActionResponseSerializer(result)
         return Response(serializer.data)

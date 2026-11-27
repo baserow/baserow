@@ -19,6 +19,21 @@
   }
 }
 
+.control--label-action {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+}
+
+.control__label-action {
+  display: flex;
+  margin-block: -6px 2px;
+
+  + div {
+    grid-column: 1 / -1;
+  }
+}
+
 .control--error {
   .form-input,
   .dropdown__selected,

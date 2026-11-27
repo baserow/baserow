@@ -147,6 +147,7 @@ export default {
     return {
       serviceFilterTarget: computed(() => ({
         kind: 'dashboard_data_source',
+        name: this.dataSource?.name,
         id: this.dataSource.id,
       })),
     }

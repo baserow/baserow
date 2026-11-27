@@ -157,6 +157,56 @@ def test_a_message_from_an_agents_page_says_which_agent(
 
 
 @pytest.mark.django_db
+@pytest.mark.parametrize("access", ["available", "deleted", "private"])
+def test_resuming_editor_chat_uses_current_access_to_its_original_view(
+    api_client, member, enterprise_data_fixture, access
+):
+    user, token, workspace = member
+    database = enterprise_data_fixture.create_database_application(workspace=workspace)
+    table = enterprise_data_fixture.create_database_table(database=database)
+    view = enterprise_data_fixture.create_grid_view(table=table, name="Original")
+    other = enterprise_data_fixture.create_grid_view(table=table, name="Other view")
+    chat = AssistantChat.objects.create(
+        user=user,
+        workspace=workspace,
+        title="Original filters",
+        editor_context={
+            "action": "edit_view_filters",
+            "target": {"view_id": view.id},
+            "location": {"view": {"id": view.id, "name": "Previous name"}},
+            "label": "Previous name",
+        },
+    )
+    if access == "deleted":
+        view.delete()
+    elif access == "private":
+        view.ownership_type = "personal"
+        view.owned_by = enterprise_data_fixture.create_user()
+        view.save()
+    response = _send(
+        api_client,
+        token,
+        workspace,
+        chat.uuid,
+        content="Please change those filters.",
+        ui_context={
+            "workspace": {"id": workspace.id, "name": workspace.name},
+            "view": {"id": other.id, "type": "grid", "name": other.name},
+        },
+    )
+    if access == "available":
+        assert response.status_code == 200
+        context = ChatRun.objects.get(id=_run_id(response)).context["ui_context"]
+        assert context["view"] == {"id": view.id, "name": "Original", "type": "grid"}
+        assert context["table"]["id"] == table.id
+        assert context["editor"]["target"] == {"view_id": view.id}
+    else:
+        assert response.status_code == (401 if access == "private" else 404)
+        assert not chat.messages.exists()
+        assert not ChatRun.objects.filter(chat_id=chat.pk).exists()
+
+
+@pytest.mark.django_db
 def test_an_old_tab_can_send_without_run_metadata(api_client, member):
     _, token, workspace = member
     response = api_client.post(

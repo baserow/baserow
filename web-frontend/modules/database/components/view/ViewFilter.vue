@@ -18,7 +18,11 @@
     <Context
       ref="context"
       class="filters"
+      tabindex="-1"
+      role="region"
+      :aria-label="$t('viewFilter.filter', { count: view.filters.length })"
       :class="{ 'context--loading-overlay': view._.loading }"
+      :horizontal-viewport-margin="8"
       max-height-if-outside-viewport
     >
       <ViewFilterForm
@@ -68,6 +72,23 @@ export default {
     },
   },
   emits: ['changed'],
+  computed: {
+    focusRequested() {
+      return (
+        !this.isPublicView &&
+        this.$route.query.focus === 'filters' &&
+        Number(this.$route.params.viewId) === this.view.id
+      )
+    },
+  },
+  watch: {
+    focusRequested(requested) {
+      if (requested) this.focusFilters()
+    },
+  },
+  mounted() {
+    if (this.focusRequested) this.focusFilters()
+  },
   beforeMount() {
     this.$bus.$on('view-filter-created', this.filterCreated)
   },
@@ -75,6 +96,24 @@ export default {
     this.$bus.$off('view-filter-created', this.filterCreated)
   },
   methods: {
+    async focusFilters() {
+      await this.$refs.context.show(this.$refs.contextLink, 'bottom', 'left', 4)
+      if (!this.focusRequested) return
+      const query = { ...this.$route.query }
+      delete query.focus
+      await this.$router.replace({
+        path: this.$route.path,
+        hash: this.$route.hash,
+        query,
+      })
+
+      if (
+        this.$refs.context?.open &&
+        Number(this.$route.params.viewId) === this.view.id
+      ) {
+        this.$refs.context.getTeleportedElement()?.focus()
+      }
+    },
     /**
      * When a filter is created via an outside source we want to show the context menu.
      */

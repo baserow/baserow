@@ -19,6 +19,21 @@ describe('Kuma navigation targets', () => {
 
   test.each([
     {
+      application: { type: 'database', tables: [{ id: 20, name: 'Projects' }] },
+      location: {
+        type: 'database-view-filters',
+        database_id: 10,
+        table_id: 20,
+        view_id: 30,
+        view_type: 'grid',
+      },
+      route: {
+        name: 'database-table',
+        params: { workspaceId: 1, databaseId: 10, tableId: 20, viewId: 30 },
+        query: { focus: 'filters' },
+      },
+    },
+    {
       application: {
         type: 'builder',
         pages: [{ id: 20, name: 'Home', path: '/' }],

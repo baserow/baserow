@@ -18,6 +18,22 @@ and optionally enable knowledge-base lookups through an embeddings server.
 - The assistant has been mostly tested with the `gpt-oss-120b` family. Other models can
   work as well.
 
+In a database or Agent editor, hover over the blue **Ask Kuma** sparkle to see what
+it can help with. Click it to open the sidebar, finish or replace the starter
+sentence, then press **Enter** or click the up arrow. Use **Shift+Enter** for a new
+line. The chip names the editor receiving the result.
+
+- In the new table or database form, describe what you want to track. Kuma creates
+  the structure and opens its first table. A name you entered in the form takes
+  precedence over the suggested name.
+- In a formula field, AI field prompt, or Agent instructions, Kuma fills in the
+  current draft for you to review and save.
+- In view creation, view filters, conditional row colors, and service filters,
+  Kuma applies the requested configuration. A new color rule is checked before
+  existing rules.
+
+Remove the context chip to return to your regular conversation.
+
 ## 2) Minimal enablement
 
 For a fresh setup, add a provider and its models under **Admin tools → AI providers**

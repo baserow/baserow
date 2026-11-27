@@ -464,6 +464,55 @@ def _filter_view(data_fixture, table_ctx, field):
 
 @pytest.mark.django_db
 @pytest.mark.parametrize(
+    "formula,condition,stored_type,stored_value",
+    [
+        (
+            "1 + 2",
+            {"type": "number", "operator": "greater_than", "value": 2},
+            "higher_than",
+            "2",
+        ),
+        (
+            "1 = 1",
+            {"type": "boolean", "operator": "equal", "value": True},
+            "boolean",
+            "1",
+        ),
+        (
+            "today()",
+            {"type": "date", "operator": "equal", "mode": "today"},
+            "date_is",
+            "UTC??today",
+        ),
+    ],
+)
+def test_create_view_filter_uses_the_formula_result_type(
+    data_fixture, table_ctx, formula, condition, stored_type, stored_value
+):
+    field = data_fixture.create_formula_field(table=table_ctx[1], formula=formula)
+    view, create = _filter_view(data_fixture, table_ctx, field)
+    assert create(**condition)["errors"] == []
+    saved = ViewFilter.objects.get(view=view)
+    assert (saved.field_id, saved.type, saved.value) == (
+        field.id,
+        stored_type,
+        stored_value,
+    )
+
+
+@pytest.mark.django_db
+def test_create_view_filter_rejects_a_mismatched_formula_result_type(
+    data_fixture, table_ctx
+):
+    field = data_fixture.create_formula_field(table=table_ctx[1], formula="'hello'")
+    view, create = _filter_view(data_fixture, table_ctx, field)
+    (error,) = create(type="number", operator="higher_than", value=2)["errors"]
+    assert error["code"] == "invalid_input"
+    assert not ViewFilter.objects.filter(view=view).exists()
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
     "mode,value,stored",
     [
         ("today", "", "UTC??today"),

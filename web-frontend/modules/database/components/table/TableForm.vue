@@ -1,6 +1,7 @@
 <template>
   <form @submit.prevent="submit">
     <FormGroup
+      data-kuma-scope
       :error="fieldHasErrors('name')"
       required
       small-label
@@ -9,6 +10,12 @@
       <template #label>
         <i class="iconoir-text"></i> {{ $t('tableForm.name') }}</template
       >
+      <template v-if="$slots['label-action']" #label-action>
+        <slot
+          name="label-action"
+          :value="values.name === defaultName ? '' : values.name"
+        />
+      </template>
       <FormInput
         ref="name"
         v-model="v$.values.name.$model"

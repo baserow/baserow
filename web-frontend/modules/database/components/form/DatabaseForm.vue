@@ -40,7 +40,9 @@
     <BlankDatabaseForm
       v-if="importType === 'none'"
       :default-name="defaultName"
+      :workspace="workspace"
       :loading="loading"
+      @created="$emit('hidden')"
       @submitted="$emit('submitted', $event)"
     />
     <ImportFromAirtable

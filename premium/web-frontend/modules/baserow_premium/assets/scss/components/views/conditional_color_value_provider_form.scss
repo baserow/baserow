@@ -106,11 +106,12 @@
 .conditional-color-value-provider-form__colors-header {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  gap: 6px;
   margin: 24px 4px 0;
 }
 
 .conditional-color-value-provider-form__colors-header-title {
+  margin-inline-end: auto;
   font-weight: 600;
   font-size: 14px;
   margin-bottom: 6px;

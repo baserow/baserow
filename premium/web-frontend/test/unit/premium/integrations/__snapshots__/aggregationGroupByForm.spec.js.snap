@@ -14,6 +14,7 @@ exports[`Multiple-select aggregation grouping > selects either mode, restores sa
       <!--v-if-->
       <!--v-if-->
     </label>
+    <!--v-if-->
     <div class="control__wrapper">
       <div class="control__elements">
         <div class="control__elements-wrapper"><select fixed-items="" value="complete">
@@ -29,6 +30,7 @@ exports[`Multiple-select aggregation grouping > selects either mode, restores sa
       <!--v-if-->
       <!--v-if-->
     </label>
+    <!--v-if-->
     <div class="control__wrapper">
       <div class="control__elements">
         <div class="control__elements-wrapper">

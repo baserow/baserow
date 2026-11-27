@@ -7,6 +7,7 @@ exports[`RecordSelectorElement > does not paginate if API returns 400/404 1`] = 
 >
   
   <!--v-if-->
+  <!--v-if-->
   <div
     class="control__wrapper"
   >
@@ -97,6 +98,7 @@ exports[`RecordSelectorElement > does not paginate if API returns 400/404 2`] = 
 >
   
   <!--v-if-->
+  <!--v-if-->
   <div
     class="control__wrapper"
   >
@@ -186,6 +188,7 @@ exports[`RecordSelectorElement > does not paginate if API returns 400/404 3`] = 
   data-form-error="false"
 >
   
+  <!--v-if-->
   <!--v-if-->
   <div
     class="control__wrapper"

@@ -1,5 +1,5 @@
 <template>
-  <div>
+  <div data-kuma-scope>
     <div>
       <div class="conditional-color-value-provider-form__colors-header">
         <div class="conditional-color-value-provider-form__colors-header-title">
@@ -12,6 +12,18 @@
         >
           {{ $t('conditionalColorValueProviderForm.addColor') }}
         </ButtonText>
+        <EditorPrompt
+          v-if="!readOnly"
+          action="add_row_color"
+          :label="view.name"
+          :workspace-id="database.workspace?.id ?? database.workspace_id"
+          :parameters="{ view_id: view.id }"
+          @completed="
+            $emit('update', {
+              colors: [$event.color_rule, ...(options.colors || [])],
+            })
+          "
+        />
       </div>
       <div>
         <div
@@ -111,6 +123,8 @@
 </template>
 
 <script>
+import EditorPrompt from '@baserow/modules/core/components/EditorPrompt'
+
 import ViewFieldConditionsForm from '@baserow/modules/database/components/view/ViewFieldConditionsForm'
 import ColorSelectContext from '@baserow/modules/core/components/ColorSelectContext'
 import { ConditionalColorValueProviderType } from '@baserow_premium/decoratorValueProviders'
@@ -119,7 +133,7 @@ import { createFiltersTree } from '@baserow/modules/database/utils/view'
 export default {
   name: 'ConditionalColorValueProvider',
   emits: ['update'],
-  components: { ViewFieldConditionsForm, ColorSelectContext },
+  components: { EditorPrompt, ViewFieldConditionsForm, ColorSelectContext },
   props: {
     database: {
       type: Object,

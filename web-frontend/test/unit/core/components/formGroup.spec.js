@@ -3,6 +3,16 @@ import { mountSuspended } from '@nuxt/test-utils/runtime'
 import FormGroup from '@baserow/modules/core/components/FormGroup.vue'
 
 describe('FormGroup.vue', () => {
+  it('keeps the label action outside the input label', async () => {
+    const wrapper = await mountSuspended(FormGroup, {
+      props: { label: 'Instructions', required: true },
+      slots: { 'label-action': '<button type="button">Ask Kuma</button>' },
+    })
+
+    expect(wrapper.get('label').text()).toBe('Instructions')
+    expect(wrapper.get('.control__label-action button').text()).toBe('Ask Kuma')
+  })
+
   it('renders the helper text when provided', async () => {
     const wrapper = await mountSuspended(FormGroup, {
       props: {

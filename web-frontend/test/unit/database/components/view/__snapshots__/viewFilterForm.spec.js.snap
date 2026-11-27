@@ -3,6 +3,7 @@
 exports[`ViewFilterForm match snapshots > Default view filter component 1`] = `
 <div
   class="filters__content"
+  data-kuma-scope=""
 >
   <div
     class="filters__none filters__none--scrollable"
@@ -20,40 +21,49 @@ exports[`ViewFilterForm match snapshots > Default view filter component 1`] = `
   </div>
   <!--v-if-->
   <div
-    class="context__footer"
+    class="context__footer filters__footer"
   >
-    <button
-      class="button-text"
+    <div
+      class="filters__footer-actions"
     >
-      <i
-        class="button-text__icon iconoir-plus"
-      />
-      <!--v-if-->
-      <span
-        class="button-text__label"
+      <button
+        class="button-text"
       >
-        
-        viewFilterContext.addFilter
-        
-      </span>
-    </button>
-    <button
-      class="button-text"
+        <i
+          class="button-text__icon iconoir-plus"
+        />
+        <!--v-if-->
+        <span
+          class="button-text__label"
+        >
+          
+          viewFilterContext.addFilter
+          
+        </span>
+      </button>
+      <button
+        class="button-text"
+      >
+        <i
+          class="button-text__icon iconoir-plus"
+        />
+        <!--v-if-->
+        <span
+          class="button-text__label"
+        >
+          
+          viewFilterContext.addFilterGroup
+          
+        </span>
+      </button>
+      <!--v-if-->
+    </div>
+    <div
+      class="filters__footer-end"
     >
-      <i
-        class="button-text__icon iconoir-plus"
-      />
       <!--v-if-->
-      <span
-        class="button-text__label"
-      >
-        
-        viewFilterContext.addFilterGroup
-        
-      </span>
-    </button>
-    <!--v-if-->
-    <!--v-if-->
+      <!--v-if-->
+    </div>
   </div>
   <teleport-stub
     to="body"
@@ -66,6 +76,7 @@ exports[`ViewFilterForm match snapshots > Default view filter component 1`] = `
 exports[`ViewFilterForm match snapshots > Full view filter component 1`] = `
 <div
   class="filters__content"
+  data-kuma-scope=""
 >
   <!--v-if-->
   <div
@@ -1144,41 +1155,45 @@ exports[`ViewFilterForm match snapshots > Full view filter component 1`] = `
     
   </div>
   <div
-    class="context__footer"
+    class="context__footer filters__footer"
   >
-    <button
-      class="button-text"
-    >
-      <i
-        class="button-text__icon iconoir-plus"
-      />
-      <!--v-if-->
-      <span
-        class="button-text__label"
-      >
-        
-        viewFilterContext.addFilter
-        
-      </span>
-    </button>
-    <button
-      class="button-text"
-    >
-      <i
-        class="button-text__icon iconoir-plus"
-      />
-      <!--v-if-->
-      <span
-        class="button-text__label"
-      >
-        
-        viewFilterContext.addFilterGroup
-        
-      </span>
-    </button>
-    <!--v-if-->
     <div
-      class="margin-left-auto"
+      class="filters__footer-actions"
+    >
+      <button
+        class="button-text"
+      >
+        <i
+          class="button-text__icon iconoir-plus"
+        />
+        <!--v-if-->
+        <span
+          class="button-text__label"
+        >
+          
+          viewFilterContext.addFilter
+          
+        </span>
+      </button>
+      <button
+        class="button-text"
+      >
+        <i
+          class="button-text__icon iconoir-plus"
+        />
+        <!--v-if-->
+        <span
+          class="button-text__label"
+        >
+          
+          viewFilterContext.addFilterGroup
+          
+        </span>
+      </button>
+      <!--v-if-->
+    </div>
+    <div
+      class="filters__footer-end"
     >
       <div
         class="switch switch--small switch--color-green"
@@ -1191,6 +1206,7 @@ exports[`ViewFilterForm match snapshots > Full view filter component 1`] = `
           
         </div>
       </div>
+      <!--v-if-->
     </div>
   </div>
   <teleport-stub
@@ -1204,6 +1220,7 @@ exports[`ViewFilterForm match snapshots > Full view filter component 1`] = `
 exports[`ViewFilterForm match snapshots > rating filter 1`] = `
 <div
   class="filters__content"
+  data-kuma-scope=""
 >
   <!--v-if-->
   <div
@@ -1651,41 +1668,45 @@ exports[`ViewFilterForm match snapshots > rating filter 1`] = `
     
   </div>
   <div
-    class="context__footer"
+    class="context__footer filters__footer"
   >
-    <button
-      class="button-text"
-    >
-      <i
-        class="button-text__icon iconoir-plus"
-      />
-      <!--v-if-->
-      <span
-        class="button-text__label"
-      >
-        
-        viewFilterContext.addFilter
-        
-      </span>
-    </button>
-    <button
-      class="button-text"
-    >
-      <i
-        class="button-text__icon iconoir-plus"
-      />
-      <!--v-if-->
-      <span
-        class="button-text__label"
-      >
-        
-        viewFilterContext.addFilterGroup
-        
-      </span>
-    </button>
-    <!--v-if-->
     <div
-      class="margin-left-auto"
+      class="filters__footer-actions"
+    >
+      <button
+        class="button-text"
+      >
+        <i
+          class="button-text__icon iconoir-plus"
+        />
+        <!--v-if-->
+        <span
+          class="button-text__label"
+        >
+          
+          viewFilterContext.addFilter
+          
+        </span>
+      </button>
+      <button
+        class="button-text"
+      >
+        <i
+          class="button-text__icon iconoir-plus"
+        />
+        <!--v-if-->
+        <span
+          class="button-text__label"
+        >
+          
+          viewFilterContext.addFilterGroup
+          
+        </span>
+      </button>
+      <!--v-if-->
+    </div>
+    <div
+      class="filters__footer-end"
     >
       <div
         class="switch switch--small switch--color-green"
@@ -1698,6 +1719,7 @@ exports[`ViewFilterForm match snapshots > rating filter 1`] = `
           
         </div>
       </div>
+      <!--v-if-->
     </div>
   </div>
   <teleport-stub

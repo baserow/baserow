@@ -80,10 +80,28 @@
 
     <FormGroup
       small-label
+      data-kuma-scope
       :label="$t('fieldAISubForm.prompt')"
       :error="v$.values.ai_prompt?.formula.$error || promptInvalid"
       required
     >
+      <template #label-action>
+        <EditorPrompt
+          v-if="!promptInvalid"
+          :key="defaultValues.id"
+          action="generate_ai_field_prompt"
+          :label="defaultValues.name || ''"
+          :workspace-id="database.workspace.id"
+          :parameters="{
+            table_id: table.id,
+            field_id: defaultValues.id,
+            current: formulaStr,
+            mode: localMode,
+            output_type: values.ai_output_type,
+          }"
+          @completed="applyGeneratedPrompt($event.ai_prompt)"
+        />
+      </template>
       <div style="max-width: 366px">
         <FormulaInputField
           :value="formulaStr"
@@ -121,6 +139,8 @@
 </template>
 
 <script>
+import EditorPrompt from '@baserow/modules/core/components/EditorPrompt'
+
 import { useVuelidate } from '@vuelidate/core'
 import { required } from '@vuelidate/validators'
 import form from '@baserow/modules/core/mixins/form'
@@ -134,7 +154,7 @@ import { getDataNodesFromDataProvider } from '@baserow/modules/core/utils/dataPr
 export default {
   name: 'FieldAISubForm',
   emits: ['input'],
-  components: { SelectAIModelForm, FormulaInputField },
+  components: { EditorPrompt, SelectAIModelForm, FormulaInputField },
   mixins: [form, fieldSubForm],
   setup() {
     return { v$: useVuelidate({ $lazy: true }) }
@@ -248,6 +268,10 @@ export default {
     },
   },
   methods: {
+    applyGeneratedPrompt(formula) {
+      if (this.localMode === 'raw') this.updateMode('simple')
+      this.updatedFormulaStr(formula)
+    },
     /**
      * The prompt input only emits parseable formulas, so `values.ai_prompt`
      * would silently keep the last valid one. Block submission while the

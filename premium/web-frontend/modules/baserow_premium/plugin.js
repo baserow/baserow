@@ -67,10 +67,7 @@ import {
   RowCommentNotificationType,
 } from '@baserow_premium/notificationTypes'
 import { CommentsRowModalSidebarType } from '@baserow_premium/rowModalSidebarTypes'
-import {
-  AIFieldType,
-  PremiumFormulaFieldType,
-} from '@baserow_premium/fieldTypes'
+import { AIFieldType } from '@baserow_premium/fieldTypes'
 import {
   ChoiceAIFieldOutputType,
   TextAIFieldOutputType,
@@ -156,7 +153,6 @@ export default defineNuxtPlugin({
       'aiProviderModelFeature',
       new AIFieldsAIProviderModelFeatureType(context)
     )
-    $registry.register('field', new PremiumFormulaFieldType(context))
     $registry.register('view', new KanbanViewType(context))
     $registry.register('view', new CalendarViewType(context))
     $registry.register('view', new TimelineViewType(context))

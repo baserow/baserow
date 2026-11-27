@@ -1,4 +1,4 @@
-from django.urls import re_path
+from django.urls import path, re_path
 
 from .views import (
     AccountView,
@@ -15,6 +15,7 @@ from .views import (
     SendResetPasswordEmailView,
     SendVerifyEmailView,
     ShareOnboardingDetailsWithBaserowView,
+    UndoGroupView,
     UndoView,
     UserPreferencesView,
     UserView,
@@ -59,6 +60,7 @@ urlpatterns = [
     re_path(r"^verify-email/$", VerifyEmailAddressView.as_view(), name="verify_email"),
     re_path(r"^dashboard/$", DashboardView.as_view(), name="dashboard"),
     re_path(r"^undo/$", UndoView.as_view(), name="undo"),
+    path("undo/<uuid:group_id>/", UndoGroupView.as_view(), name="undo_group"),
     re_path(r"^redo/$", RedoView.as_view(), name="redo"),
     re_path(
         r"^share-onboarding-details-with-baserow/$",

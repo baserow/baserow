@@ -1,0 +1,137 @@
+.kuma-context-button {
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: $palette-blue-600;
+  font-size: 16px;
+  cursor: pointer;
+
+  &:hover,
+  &:focus-visible,
+  &[aria-pressed='true'] {
+    background: $palette-blue-100;
+  }
+}
+
+.filters__footer-end .kuma-context-button {
+  width: 28px;
+  height: 28px;
+  background: $palette-blue-50;
+
+  &:hover,
+  &[aria-pressed='true'] {
+    background: $palette-blue-100;
+  }
+
+  &:focus-visible {
+    outline: 2px solid $palette-blue-500;
+    outline-offset: 2px;
+  }
+}
+
+[data-kuma-scope]:has(.kuma-context-button[aria-pressed='true']) {
+  outline: 1px solid $palette-blue-500;
+  outline-offset: 3px;
+  border-radius: 6px;
+}
+
+.layout__col-3:has(.assistant--editor) {
+  z-index: $z-index-modal + 1;
+}
+
+@media (min-width: 768px) {
+  .context:has(.kuma-context-button[aria-pressed='true']) {
+    translate: var(--kuma-editor-offset, 0) 0;
+  }
+
+  .context[data-kuma-constrained] {
+    min-width: 0;
+    max-width: var(--kuma-editor-width);
+    overflow-x: auto;
+  }
+
+  .modal__wrapper:has(.kuma-context-button[aria-pressed='true']) {
+    right: var(--kuma-sidebar-width, 0);
+    padding-inline: 12px;
+  }
+}
+
+.assistant-editor {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+
+  .chat-message__bubble {
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+  }
+}
+
+.assistant-editor__welcome {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+  gap: 16px;
+  padding: 12px;
+
+  h2 {
+    margin: 0;
+    font-size: 18px;
+    line-height: 1.4;
+    font-weight: 600;
+  }
+}
+
+.assistant-editor__chip {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  display: inline-flex;
+  align-items: center;
+  max-width: calc(100% - 16px);
+  gap: 6px;
+  padding: 4px 6px;
+  background: $palette-blue-50;
+  color: $palette-blue-900;
+  border-radius: 6px;
+  font-size: 12px;
+
+  span {
+    @extend %ellipsis;
+  }
+
+  button {
+    display: grid;
+    place-items: center;
+    border: 0;
+    padding: 2px;
+    color: inherit;
+    background: transparent;
+    cursor: pointer;
+  }
+}
+
+.assistant-editor__notice {
+  margin: 0 16px 6px;
+  font-size: 13px;
+  color: $palette-neutral-1000;
+}
+
+.assistant__context-badge--link {
+  cursor: pointer;
+
+  &:hover,
+  &:focus-visible {
+    color: $palette-blue-700;
+  }
+}

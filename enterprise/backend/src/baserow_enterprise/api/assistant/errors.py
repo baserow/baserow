@@ -57,3 +57,10 @@ ERROR_ASSISTANT_SERVICE_FILTER_GENERATION_FAILED = (
     HTTP_400_BAD_REQUEST,
     "Kuma could not create valid filters for this request. Try rephrasing it.",
 )
+
+
+ERROR_ASSISTANT_EDITOR_GENERATION_FAILED = (
+    "ERROR_ASSISTANT_EDITOR_GENERATION_FAILED",
+    HTTP_400_BAD_REQUEST,
+    "Kuma couldn't apply this request. Check the current settings and try again.",
+)

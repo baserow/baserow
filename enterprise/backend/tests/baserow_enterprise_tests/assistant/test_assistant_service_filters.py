@@ -4,11 +4,12 @@ its answer is saved. Applying and validating the operations is tested with the
 shared service filter tools in core.
 """
 
+import json
 from dataclasses import dataclass
 from typing import Any
 
 import pytest
-from pydantic_ai.messages import ModelResponse, RetryPromptPart, ToolCallPart
+from pydantic_ai.messages import ModelResponse, RetryPromptPart, TextPart
 from pydantic_ai.models.function import FunctionModel
 
 from baserow.contrib.integrations.local_baserow.models import (
@@ -103,7 +104,7 @@ def raw(value: str) -> dict:
     return dict(BaserowFormulaObject.create(formula=value, mode="raw"))
 
 
-def fake_profile(monkeypatch, answers: list[dict]):
+def fake_profile(monkeypatch, answers: list[dict | str]):
     """
     Makes Kuma's model answer with each of the given final results in turn, and
     records the prompts it received.
@@ -114,14 +115,10 @@ def fake_profile(monkeypatch, answers: list[dict]):
 
     def respond(messages, info):
         received.append(messages)
+        assert not info.output_tools
+        answer = remaining.pop(0)
         return ModelResponse(
-            parts=[
-                ToolCallPart(
-                    tool_name="final_result",
-                    args=remaining.pop(0),
-                    tool_call_id=f"result_{len(received)}",
-                )
-            ]
+            parts=[TextPart(answer if isinstance(answer, str) else json.dumps(answer))]
         )
 
     monkeypatch.setattr(
@@ -213,6 +210,7 @@ def test_invalid_answer_is_sent_back_to_the_agent(builder_setup, monkeypatch):
     profile, received = fake_profile(
         monkeypatch,
         [
+            "I need to construct a filter...",
             {
                 "operations": [
                     {
@@ -248,7 +246,7 @@ def test_invalid_answer_is_sent_back_to_the_agent(builder_setup, monkeypatch):
 
     assert result.changed is True
     retry = [
-        part for part in received[1][-1].parts if isinstance(part, RetryPromptPart)
+        part for part in received[2][-1].parts if isinstance(part, RetryPromptPart)
     ]
     assert "invalid select option id(s)" in str(retry[0].content)
     assert persisted_filters(s.data_source.service) == [

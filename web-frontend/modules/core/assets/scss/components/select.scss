@@ -38,6 +38,16 @@
   }
 }
 
+.select__search--with-action {
+  > button {
+    margin-right: 6px;
+  }
+
+  .select__search-input {
+    min-width: 0;
+  }
+}
+
 .select__items {
   position: relative;
   list-style: none;

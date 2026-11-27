@@ -1,3 +1,7 @@
+import {
+  createNewUndoRedoActionGroupId,
+  getUndoRedoActionRequestConfig,
+} from '@baserow/modules/database/utils/action'
 import { createRecordReader } from '@baserow/modules/core/chatRuns/recordReader'
 
 /**
@@ -162,14 +166,26 @@ export default (client) => {
       return data.suggestions
     },
 
-    /** Run a targeted Kuma action with the common inline-prompt contract. */
-    async runAction(action, prompt, parameters) {
+    /** Run a targeted Kuma action with the editor context. */
+    async runAction(action, prompt, parameters, workspaceId, chatUuid) {
+      const actionGroupId = createNewUndoRedoActionGroupId()
       const { data } = await client.post(
         '/assistant/actions/',
-        { action, prompt, parameters },
-        { baseURL: getAssistantBaseURL(client) }
+        {
+          action,
+          prompt,
+          parameters,
+          workspace_id: workspaceId,
+          chat_uuid: chatUuid,
+        },
+        {
+          baseURL: getAssistantBaseURL(client),
+          ...getUndoRedoActionRequestConfig({
+            undoRedoActionGroupId: actionGroupId,
+          }),
+        }
       )
-      return data
+      return { ...data, actionGroupId }
     },
   }
 }

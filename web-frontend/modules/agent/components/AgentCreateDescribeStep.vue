@@ -10,12 +10,27 @@
     />
   </FormGroup>
   <FormGroup
+    data-kuma-scope
     class="margin-top-2"
     :label="$t('agent.setupWhatShouldItDo')"
     small-label
     required
   >
+    <template #label-action>
+      <EditorPrompt
+        :label="modelValue.name"
+        action="generate_agent_instructions"
+        :workspace-id="workspace.id"
+        :parameters="{
+          workspace_id: workspace.id,
+          agent_name: modelValue.name || '',
+          current: modelValue.instructions || '',
+        }"
+        @completed="update({ instructions: $event.instructions })"
+      />
+    </template>
     <FormTextarea
+      class="agent-create__instructions"
       :model-value="modelValue.instructions"
       :placeholder="$t('agent.setupInstructionsPlaceholder')"
       :rows="5"
@@ -37,6 +52,7 @@
 </template>
 
 <script setup>
+import EditorPrompt from '@baserow/modules/core/components/EditorPrompt'
 import { computed, nextTick, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useStore } from 'vuex'

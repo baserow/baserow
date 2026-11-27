@@ -1,5 +1,5 @@
 <template>
-  <div class="filters__content">
+  <div data-kuma-scope class="filters__content">
     <div
       v-if="view.filters.length === 0"
       v-auto-overflow-scroll
@@ -43,33 +43,51 @@
         :read-only="readOnly"
       />
     </ViewFieldConditionsForm>
-    <div v-if="!disableFilter" class="context__footer">
-      <ButtonText icon="iconoir-plus" @click.prevent="addFilter()">
-        {{ $t('viewFilterContext.addFilter') }}</ButtonText
-      >
+    <div v-if="!disableFilter" class="context__footer filters__footer">
+      <div class="filters__footer-actions">
+        <ButtonText icon="iconoir-plus" @click.prevent="addFilter()">
+          {{ $t('viewFilterContext.addFilter') }}</ButtonText
+        >
 
-      <ButtonText
-        icon="iconoir-plus"
-        @click.prevent="addFilter({ filterGroupId: sortableUid() })"
-      >
-        {{ $t('viewFilterContext.addFilterGroup') }}</ButtonText
-      >
+        <ButtonText
+          icon="iconoir-plus"
+          @click.prevent="addFilter({ filterGroupId: sortableUid() })"
+        >
+          {{ $t('viewFilterContext.addFilterGroup') }}</ButtonText
+        >
 
-      <ButtonText
-        v-if="canCopyConfiguration"
-        icon="iconoir-copy"
-        @click.prevent="$refs.copyViewConfigurationModal.show(['filters'])"
-      >
-        {{ $t('viewFilterContext.copyFromView') }}</ButtonText
-      >
-
-      <div v-if="view.filters.length > 0" class="margin-left-auto">
+        <ButtonText
+          v-if="canCopyConfiguration"
+          icon="iconoir-copy"
+          @click.prevent="$refs.copyViewConfigurationModal.show(['filters'])"
+        >
+          {{ $t('viewFilterContext.copyFromView') }}</ButtonText
+        >
+      </div>
+      <div class="filters__footer-end">
         <SwitchInput
+          v-if="view.filters.length > 0"
           small
           :value="view.filters_disabled"
           @input="updateView(view, { filters_disabled: $event })"
           >{{ $t('viewFilterContext.disableAllFilters') }}</SwitchInput
         >
+        <EditorPrompt
+          v-if="
+            !readOnly &&
+            !isPublicView &&
+            $hasPermission(
+              'database.table.view.create_filter',
+              view,
+              database.workspace.id
+            )
+          "
+          :label="view.name"
+          action="edit_view_filters"
+          :workspace-id="database.workspace.id"
+          :parameters="{ view_id: view.id }"
+          @completed="$emit('changed')"
+        />
       </div>
     </div>
     <CopyViewConfigurationModal
@@ -81,6 +99,7 @@
 </template>
 
 <script>
+import EditorPrompt from '@baserow/modules/core/components/EditorPrompt'
 import { notifyIf } from '@baserow/modules/core/utils/error'
 import { ulid } from 'ulid'
 import ViewFieldConditionsForm from '@baserow/modules/database/components/view/ViewFieldConditionsForm'
@@ -92,6 +111,7 @@ import viewFilterTypes from '@baserow/modules/database/mixins/viewFilterTypes'
 export default {
   name: 'ViewFilterForm',
   components: {
+    EditorPrompt,
     ViewFieldConditionsForm,
     CopyViewConfigurationModal,
   },

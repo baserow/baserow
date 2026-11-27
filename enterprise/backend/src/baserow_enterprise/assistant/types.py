@@ -72,7 +72,16 @@ class DashboardUIContext(BaseModel):
     name: str
 
 
+class EditorUIContext(BaseModel):
+    """Original editor of a conversation resumed from history."""
+
+    action: str
+    target: dict[str, int | str]
+    label: str
+
+
 class UIContext(BaseModel):
+    editor: EditorUIContext | None = None
     workspace: WorkspaceUIContext
     # database builder context
     database: Optional[ApplicationUIContext] = None
@@ -238,6 +247,13 @@ class ViewNavigationType(BaseModel):
         return _("view %(view_name)s") % {"view_name": self.view_name}
 
 
+class ViewFiltersNavigationType(ViewNavigationType):
+    type: Literal["database-view-filters"]
+
+    def to_localized_string(self) -> str:
+        return _("filters for view %(view_name)s") % {"view_name": self.view_name}
+
+
 class WorkspaceNavigationType(BaseModel):
     type: Literal["workspace"]
 
@@ -289,6 +305,7 @@ AnyNavigationType = Annotated[
     TableNavigationType
     | WorkspaceNavigationType
     | ViewNavigationType
+    | ViewFiltersNavigationType
     | WorkflowNavigationType
     | BuilderPageNavigationType
     | DashboardNavigationType

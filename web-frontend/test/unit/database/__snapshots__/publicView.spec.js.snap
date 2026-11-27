@@ -143,7 +143,10 @@ exports[`Public View Page Tests > Can see a publicly shared grid view 1`] = `
                 to="body"
               >
                 <div
+                  aria-label="viewFilter.filter - 0"
                   class="filters context visibility-hidden"
+                  role="region"
+                  tabindex="-1"
                 >
                   <!--v-if-->
                 </div>

@@ -52,6 +52,30 @@ describe('ConditionalColorValueProviderForm', () => {
 
   afterEach(() => testApp.afterEach())
 
+  test('adds a generated color above the existing fallback', async () => {
+    const fallback = { id: 'old', operator: 'AND', color: 'blue', filters: [] }
+    const wrapper = await testApp.mount(ConditionalColorValueProviderForm, {
+      propsData: {
+        ...basePropsData,
+        view: testView,
+        options: { colors: [fallback] },
+      },
+    })
+    const prompt = wrapper.getComponent({ name: 'EditorPrompt' })
+    expect(prompt.props('parameters')).toEqual({ view_id: viewId })
+    const rule = {
+      id: 'new',
+      color: 'red',
+      filters: [
+        { id: 'condition', field: 10, type: 'contains', value: 'urgent' },
+      ],
+    }
+    prompt.vm.$emit('completed', { color_rule: rule })
+    expect(wrapper.emitted('update')).toEqual([[{ colors: [rule, fallback] }]])
+    await wrapper.setProps({ readOnly: true })
+    expect(wrapper.findComponent({ name: 'EditorPrompt' }).exists()).toBe(false)
+  })
+
   test('can add a condition', async () => {
     const app = testApp.getApp()
     const view = app.$store.getters['view/get'](viewId)

@@ -29,11 +29,13 @@ export default {
   name: 'Context',
   provide() {
     return {
+      isOverlayOpen: () => this.open && (this.parentOverlayOpen?.() ?? true),
       registerChild: this.registerChild,
       unregisterChild: this.unregisterChild,
     }
   },
   inject: {
+    parentOverlayOpen: { from: 'isOverlayOpen', default: null },
     parentRegisterChild: {
       from: 'registerChild',
       default: null,

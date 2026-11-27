@@ -1,5 +1,6 @@
 <template>
   <FormGroup
+    data-kuma-scope
     :label="$t('agent.instructions')"
     :error="Boolean(errors.instructions)"
     :error-message="
@@ -9,6 +10,22 @@
     small-label
     required
   >
+    <template #label-action>
+      <EditorPrompt
+        v-if="editable && agent"
+        :key="agent.id"
+        :label="agent.name"
+        action="generate_agent_instructions"
+        :workspace-id="agent?.workspace.id"
+        :parameters="{
+          workspace_id: agent?.workspace.id,
+          agent_id: agent.id,
+          agent_name: agent.name || '',
+          current: configuration.instructions || '',
+        }"
+        @completed="emit('change', { instructions: $event.instructions })"
+      />
+    </template>
     <FormTextarea
       ref="instructionsInput"
       :model-value="configuration.instructions || ''"
@@ -76,7 +93,8 @@
 </template>
 
 <script setup>
-import { nextTick, ref, watch } from 'vue'
+import EditorPrompt from '@baserow/modules/core/components/EditorPrompt'
+import { inject, nextTick, ref, watch } from 'vue'
 import isEqual from 'lodash/isEqual'
 import { uuid } from '@baserow/modules/core/utils/string'
 import {
@@ -93,6 +111,7 @@ const props = defineProps({
 })
 const emit = defineEmits(['change', 'flush'])
 const instructionsInput = ref(null)
+const agent = inject('agentApplication', null)
 const rowInputs = {}
 
 const toRows = (messages) =>

@@ -3,6 +3,7 @@ from contextlib import contextmanager
 from contextvars import ContextVar
 from datetime import datetime, timedelta, timezone
 from typing import List, Optional, Set, Tuple
+from uuid import UUID
 
 from django.conf import settings
 from django.contrib.auth.models import AbstractUser
@@ -114,7 +115,11 @@ class ActionHandler:
     @classmethod
     @baserow_trace(tracer)
     def undo(
-        cls, user: AbstractUser, scopes: List[ActionScopeStr], session: str
+        cls,
+        user: AbstractUser,
+        scopes: List[ActionScopeStr],
+        session: str,
+        expected_group: UUID | None = None,
     ) -> List[Action]:
         # Un-set the web_socket_id so the user doing this undo will receive any
         # events triggered by the action.
@@ -128,7 +133,10 @@ class ActionHandler:
             .select_for_update(of=("self",))
             .first()
         )
-        if latest_not_undone_action is None:
+        if latest_not_undone_action is None or (
+            expected_group is not None
+            and latest_not_undone_action.action_group != expected_group
+        ):
             return []
 
         if latest_not_undone_action.action_group is None:

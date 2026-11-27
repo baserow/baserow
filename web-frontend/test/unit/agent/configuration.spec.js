@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 import { flushPromises } from '@vue/test-utils'
+import EditorPrompt from '@baserow/modules/core/components/EditorPrompt'
 import { UserSubjectType } from '@baserow/modules/core/subjectTypes'
 import {
   agentData,
@@ -109,6 +110,21 @@ describe('Agent configuration', () => {
         .findAll('.grouped-menu__actions .menu-list__item-button')
         .map((item) => item.text())
     ).toEqual([expect.stringContaining('serviceType.coreSMTPEmail')])
+  })
+
+  test('puts generated instructions in the active configuration editor', async () => {
+    const wrapper = await mount()
+    await openSection(wrapper, 'agent.instructions')
+    const prompt = wrapper.getComponent(EditorPrompt)
+    expect(prompt.props('parameters')).toMatchObject({
+      workspace_id: workspace.id,
+      current: instructions(wrapper).element.value,
+    })
+    prompt.vm.$emit('completed', { instructions: 'Summarize project changes.' })
+    await flushPromises()
+    expect(instructions(wrapper).element.value).toBe(
+      'Summarize project changes.'
+    )
   })
 
   test('keeps the open form when the Agent changes in the background', async () => {

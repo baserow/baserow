@@ -19,8 +19,10 @@ from baserow.core.chat_runs.stream import fold_output
 from baserow.core.chat_runs.types import ChatRunOutcome
 from baserow.core.exceptions import PermissionDenied
 from baserow.core.handler import CoreHandler
+from baserow.core.tools import ToolContext
 
 from .assistant import BackgroundAssistant
+from .editor_context import EDITOR_ACCESS_ERRORS, resume_editor_chat
 from .exceptions import AssistantModelNotSupportedError
 from .history import NOT_STARTED_ANSWER, append_turn, unfinished_answer
 from .messages import assistant_message_payload
@@ -191,6 +193,13 @@ class AssistantChatRunType(ChatRunType):
         ui_context = UIContext.model_validate(run.context["ui_context"])
 
         user = chat.user
+        if chat.editor_context:
+            try:
+                ui_context = resume_editor_chat(
+                    ToolContext(user=user, workspace=chat.workspace), chat, ui_context
+                )
+            except EDITOR_ACCESS_ERRORS as exc:
+                raise PermissionDenied() from exc
         if session_id := run.context["client_session_id"]:
             set_untrusted_client_session_id(user, session_id)
         set_client_undo_redo_action_group_id(user, run.context["action_group_id"])
