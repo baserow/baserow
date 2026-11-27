@@ -259,10 +259,13 @@ const joinLabel = computed(() => {
 useHead({ title: () => pageTitle.value })
 
 /**
- * Navigates away and tells the caller that this page is being left.
+ * Navigates away and tells the caller that this page is being left. It runs in
+ * the context of the Nuxt app, because the caller has awaited something by the
+ * time it gets here, and while rendering on the server that context is only
+ * kept across the awaits of the setup itself.
  */
 async function navigateToPage(to, options) {
-  await navigateTo(to, options)
+  await nuxtApp.runWithContext(() => navigateTo(to, options))
   return true
 }
 
