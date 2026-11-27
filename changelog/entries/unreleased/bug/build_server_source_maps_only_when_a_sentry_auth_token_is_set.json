@@ -1,9 +1,0 @@
-{
-    "type": "bug",
-    "message": "Building the web-frontend needs about half the memory, server source maps are now only built when a Sentry auth token is set",
-    "issue_origin": "github",
-    "issue_number": null,
-    "domain": "core",
-    "bullet_points": [],
-    "created_at": "2026-11-26"
-}
