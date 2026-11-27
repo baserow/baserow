@@ -745,7 +745,6 @@ class TeamInvitationLinksView(APIView):
         responses={
             200: TeamInvitationLinkSerializer(many=True),
             400: get_error_schema(["ERROR_USER_NOT_IN_GROUP"]),
-            403: get_error_schema(["ERROR_FEATURE_DISABLED"]),
             404: get_error_schema(["ERROR_TEAM_DOES_NOT_EXIST"]),
         },
     )
@@ -775,7 +774,6 @@ class TeamInvitationLinksView(APIView):
                     "ERROR_WORKSPACE_INVITATION_LINK_SIGNUPS_DISABLED",
                 ]
             ),
-            403: get_error_schema(["ERROR_FEATURE_DISABLED"]),
             404: get_error_schema(["ERROR_TEAM_DOES_NOT_EXIST"]),
         },
     )
@@ -819,7 +817,6 @@ class TeamInvitationLinkView(APIView):
             400: get_error_schema(
                 ["ERROR_USER_NOT_IN_GROUP", "ERROR_REQUEST_BODY_VALIDATION"]
             ),
-            403: get_error_schema(["ERROR_FEATURE_DISABLED"]),
             404: get_error_schema(
                 [
                     "ERROR_TEAM_DOES_NOT_EXIST",
@@ -861,7 +858,6 @@ class TeamInvitationLinkView(APIView):
         responses={
             204: None,
             400: get_error_schema(["ERROR_USER_NOT_IN_GROUP"]),
-            403: get_error_schema(["ERROR_FEATURE_DISABLED"]),
             404: get_error_schema(
                 [
                     "ERROR_TEAM_DOES_NOT_EXIST",

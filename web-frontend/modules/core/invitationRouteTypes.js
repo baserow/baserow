@@ -1,5 +1,4 @@
 import { Registerable } from '@baserow/modules/core/registry'
-import { FF_RBAC_IMPROVEMENTS } from '@baserow/modules/core/plugins/featureFlags'
 import EmailInvitationRoute from '@baserow/modules/core/components/invitation/EmailInvitationRoute'
 import LinkInvitationRoute from '@baserow/modules/core/components/invitation/LinkInvitationRoute'
 
@@ -97,7 +96,7 @@ export class EmailInvitationRouteType extends InvitationRouteType {
 /**
  * Invites people with permanent links that anyone can use to join. Only offered
  * for targets that support links, while the instance lets people sign up through
- * them, and behind the `RBAC_IMPROVEMENTS` feature flag until links are released.
+ * them.
  */
 export class LinkInvitationRouteType extends InvitationRouteType {
   static getType() {
@@ -124,7 +123,6 @@ export class LinkInvitationRouteType extends InvitationRouteType {
       settings.allow_new_signups ||
       settings.allow_signups_via_workspace_invitations
     return (
-      this.app.$featureFlagIsEnabled(FF_RBAC_IMPROVEMENTS) &&
       signupsAllowed &&
       this.app.$registry
         .get('invitationTarget', target.type)

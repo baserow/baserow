@@ -58,30 +58,22 @@ test('filter refresh targets include only enabled links and support the public l
   expect(type.getTargetWidgetIds({ target_widget_ids: [1, 2] })).toEqual([1, 2])
 })
 
-test.each([false, true])(
-  'filter creation follows its feature flag (%s)',
-  (enabled) => {
-    const featureApp = {
-      ...app,
-      $featureFlagIsEnabled: (flag) => flag === 'dashboard-filters' && enabled,
-    }
-    const filter = new TextFilterWidgetType({ app: featureApp })
-    const summary = new SummaryWidgetType({ app: featureApp })
-    expect(filter.variations.map(({ type }) => type.getType())).toEqual(
-      enabled ? ['text_filter'] : []
-    )
-    expect(summary.variations.map(({ type }) => type.getType())).toEqual([
-      'summary',
-    ])
-    expect(filter.component).toBeDefined()
-  }
-)
+test('filters and summaries can both be added', () => {
+  const filter = new TextFilterWidgetType({ app })
+  const summary = new SummaryWidgetType({ app })
+  expect(filter.variations.map(({ type }) => type.getType())).toEqual([
+    'text_filter',
+  ])
+  expect(summary.variations.map(({ type }) => type.getType())).toEqual([
+    'summary',
+  ])
+  expect(filter.component).toBeDefined()
+})
 
 test('widgets describe themselves in the add widget modal', () => {
-  const featureApp = { ...app, $featureFlagIsEnabled: () => true }
   const variations = [
-    ...new SummaryWidgetType({ app: featureApp }).variations,
-    ...new TextFilterWidgetType({ app: featureApp }).variations,
+    ...new SummaryWidgetType({ app }).variations,
+    ...new TextFilterWidgetType({ app }).variations,
   ]
   expect(variations.map(({ description }) => description)).toEqual([
     'summaryWidget.description',

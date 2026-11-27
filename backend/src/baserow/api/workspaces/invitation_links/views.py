@@ -145,7 +145,6 @@ class WorkspaceInvitationLinksView(APIView):
                     "ERROR_WORKSPACE_INVITATION_LINK_SIGNUPS_DISABLED",
                 ]
             ),
-            403: get_error_schema(["ERROR_FEATURE_DISABLED"]),
             404: get_error_schema(["ERROR_GROUP_DOES_NOT_EXIST"]),
         },
     )
@@ -197,7 +196,6 @@ class ManageableWorkspaceInvitationLinksView(APIView):
         responses={
             200: ManageableWorkspaceInvitationLinkSerializer(many=True),
             400: get_error_schema(["ERROR_USER_NOT_IN_GROUP"]),
-            403: get_error_schema(["ERROR_FEATURE_DISABLED"]),
             404: get_error_schema(["ERROR_GROUP_DOES_NOT_EXIST"]),
         },
     )
@@ -361,7 +359,6 @@ class PublicWorkspaceInvitationLinkView(APIView):
             401: get_error_schema(
                 ["ERROR_WORKSPACE_INVITATION_LINK_PASSWORD_REQUIRED"]
             ),
-            403: get_error_schema(["ERROR_FEATURE_DISABLED"]),
             404: get_error_schema(["ERROR_WORKSPACE_INVITATION_LINK_DOES_NOT_EXIST"]),
         },
     )
@@ -417,7 +414,6 @@ class JoinWorkspaceInvitationLinkView(APIView):
             401: get_error_schema(
                 ["ERROR_WORKSPACE_INVITATION_LINK_PASSWORD_REQUIRED"]
             ),
-            403: get_error_schema(["ERROR_FEATURE_DISABLED"]),
             404: get_error_schema(["ERROR_WORKSPACE_INVITATION_LINK_DOES_NOT_EXIST"]),
         },
     )
@@ -479,7 +475,6 @@ class InvitationLinkAuthView(APIView):
         responses={
             200: InvitationLinkAuthResponseSerializer,
             401: {"description": "The password provided for this link is incorrect"},
-            403: get_error_schema(["ERROR_FEATURE_DISABLED"]),
             404: get_error_schema(["ERROR_WORKSPACE_INVITATION_LINK_DOES_NOT_EXIST"]),
         },
     )

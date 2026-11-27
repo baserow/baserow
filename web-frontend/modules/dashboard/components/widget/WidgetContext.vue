@@ -31,7 +31,6 @@
 <script>
 import { inject } from 'vue'
 import context from '@baserow/modules/core/mixins/context'
-import { FF_DASHBOARD_FILTERS } from '@baserow/modules/core/plugins/featureFlags'
 import { notifyIf } from '@baserow/modules/core/utils/error'
 
 export default {
@@ -68,7 +67,6 @@ export default {
       if (
         !this.createDashboardWidget ||
         !type.isDisplayWidget ||
-        !this.$featureFlagIsEnabled(FF_DASHBOARD_FILTERS) ||
         !this.$hasPermission(
           'dashboard.create_widget',
           this.dashboard,

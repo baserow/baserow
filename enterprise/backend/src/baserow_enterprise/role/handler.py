@@ -21,7 +21,6 @@ from baserow.core.exceptions import (
     PermissionDenied,
     WorkspaceInvitationLinkSignupsDisabled,
 )
-from baserow.core.feature_flags import FF_RBAC_IMPROVEMENTS, feature_flag_is_enabled
 from baserow.core.handler import CoreHandler
 from baserow.core.models import (
     Application,
@@ -2209,7 +2208,6 @@ class RoleAssignmentHandler:
         :param scope: The application, table or view the link gives a role on.
         :param role: The role people get on the scope when they join.
         :param name: A name that reminds the admins what the link is for.
-        :raises FeatureDisabledException: If invitation links aren't enabled.
         :raises ScopeNotExist: If the scope can't get a role through a link.
         :raises InvalidWorkspaceRole: If the role is unavailable or grants no access.
         :raises PermissionDenied: If the user can't manage the roles of the scope.
@@ -2217,8 +2215,6 @@ class RoleAssignmentHandler:
             don't let anyone sign up through the link.
         :return: The created invitation link.
         """
-
-        feature_flag_is_enabled(FF_RBAC_IMPROVEMENTS, raise_if_disabled=True)
 
         self.check_scoped_invitation_permissions(user, workspace, scope)
 

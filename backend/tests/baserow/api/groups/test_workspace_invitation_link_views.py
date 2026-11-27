@@ -7,7 +7,6 @@ from rest_framework.status import (
     HTTP_204_NO_CONTENT,
     HTTP_400_BAD_REQUEST,
     HTTP_401_UNAUTHORIZED,
-    HTTP_403_FORBIDDEN,
     HTTP_404_NOT_FOUND,
 )
 
@@ -126,28 +125,6 @@ def test_create_workspace_invitation_link(api_client, data_fixture):
 
 
 @pytest.mark.django_db
-def test_create_workspace_invitation_link_feature_disabled(
-    api_client, data_fixture, settings
-):
-    admin, admin_token = data_fixture.create_user_and_token()
-    workspace = data_fixture.create_workspace(user=admin)
-    settings.FEATURE_FLAGS = []
-
-    response = api_client.post(
-        reverse(
-            "api:workspaces:invitation_links:list",
-            kwargs={"workspace_id": workspace.id},
-        ),
-        {"permissions": "MEMBER"},
-        format="json",
-        HTTP_AUTHORIZATION=f"JWT {admin_token}",
-    )
-    assert response.status_code == HTTP_403_FORBIDDEN
-    assert response.json()["error"] == "ERROR_FEATURE_DISABLED"
-    assert WorkspaceInvitationLink.objects.count() == 0
-
-
-@pytest.mark.django_db
 def test_create_workspace_invitation_link_signups_disabled(api_client, data_fixture):
     admin, admin_token = data_fixture.create_user_and_token()
     workspace = data_fixture.create_workspace(user=admin)
@@ -262,7 +239,7 @@ def test_delete_workspace_invitation_link(api_client, data_fixture):
 
 
 @pytest.mark.django_db
-def test_get_public_workspace_invitation_link(api_client, data_fixture, settings):
+def test_get_public_workspace_invitation_link(api_client, data_fixture):
     admin = data_fixture.create_user(first_name="Bram")
     workspace = data_fixture.create_workspace(user=admin, name="Widelab")
     invitation_link = data_fixture.create_workspace_invitation_link(
@@ -295,11 +272,6 @@ def test_get_public_workspace_invitation_link(api_client, data_fixture, settings
     TrashHandler.trash(admin, workspace, None, workspace)
     response = api_client.get(url)
     assert response.status_code == HTTP_404_NOT_FOUND
-
-    settings.FEATURE_FLAGS = []
-    response = api_client.get(url)
-    assert response.status_code == HTTP_403_FORBIDDEN
-    assert response.json()["error"] == "ERROR_FEATURE_DISABLED"
 
 
 @pytest.mark.django_db
@@ -368,26 +340,6 @@ def test_join_workspace_via_invitation_link(api_client, data_fixture):
     assert response.status_code == HTTP_200_OK
     assert response.json()["permissions"] == "ADMIN"
     assert WorkspaceUser.objects.filter(workspace=workspace).count() == 2
-
-
-@pytest.mark.django_db
-def test_join_workspace_via_invitation_link_feature_disabled(
-    api_client, data_fixture, settings
-):
-    newcomer, newcomer_token = data_fixture.create_user_and_token()
-    invitation_link = data_fixture.create_workspace_invitation_link()
-    settings.FEATURE_FLAGS = []
-
-    response = api_client.post(
-        reverse(
-            "api:workspaces:invitation_links:join",
-            kwargs={"slug": invitation_link.slug},
-        ),
-        HTTP_AUTHORIZATION=f"JWT {newcomer_token}",
-    )
-    assert response.status_code == HTTP_403_FORBIDDEN
-    assert response.json()["error"] == "ERROR_FEATURE_DISABLED"
-    assert not WorkspaceUser.objects.filter(user=newcomer).exists()
 
 
 @pytest.mark.django_db
@@ -605,22 +557,3 @@ def test_list_manageable_workspace_invitation_links(api_client, data_fixture):
             "created_on": response.json()[0]["created_on"],
         }
     ]
-
-
-@pytest.mark.django_db
-def test_list_manageable_workspace_invitation_links_requires_feature_flag(
-    api_client, data_fixture, settings
-):
-    admin, admin_token = data_fixture.create_user_and_token()
-    workspace = data_fixture.create_workspace(user=admin)
-    settings.FEATURE_FLAGS = []
-
-    response = api_client.get(
-        reverse(
-            "api:workspaces:invitation_links:manageable",
-            kwargs={"workspace_id": workspace.id},
-        ),
-        HTTP_AUTHORIZATION=f"JWT {admin_token}",
-    )
-    assert response.status_code == HTTP_403_FORBIDDEN
-    assert response.json()["error"] == "ERROR_FEATURE_DISABLED"

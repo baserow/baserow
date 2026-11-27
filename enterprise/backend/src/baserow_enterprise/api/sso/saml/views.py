@@ -23,7 +23,6 @@ from baserow.api.exceptions import RequestBodyValidationException
 from baserow.api.schemas import get_error_schema
 from baserow.core.auth_provider.exceptions import DifferentAuthProvider
 from baserow.core.exceptions import (
-    FeatureDisabledException,
     WorkspaceInvitationEmailMismatch,
     WorkspaceInvitationLinkDoesNotExist,
 )
@@ -79,7 +78,6 @@ class AssertionConsumerServiceView(APIView):
             RequestBodyValidationException: SsoErrorCode.INVALID_SAML_RESPONSE,
             WorkspaceInvitationEmailMismatch: SsoErrorCode.GROUP_INVITATION_EMAIL_MISMATCH,
             WorkspaceInvitationLinkDoesNotExist: SsoErrorCode.INVITATION_LINK_INVALID,
-            FeatureDisabledException: SsoErrorCode.INVITATION_LINK_INVALID,
             DisabledSignupError: SsoErrorCode.SIGNUP_DISABLED,
         }
     )

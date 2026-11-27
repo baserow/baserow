@@ -1,5 +1,4 @@
 import { PaidFeature } from '@baserow_premium/paidFeatures'
-import { FF_AUTOMATIC_SNAPSHOTS } from '@baserow/modules/core/plugins/featureFlags'
 
 export class SSOPaidFeature extends PaidFeature {
   static getType() {
@@ -510,9 +509,5 @@ export class AutomaticSnapshotsPaidFeature extends PaidFeature {
 
   getContent() {
     return this.app.$i18n.t('enterpriseFeatures.automaticSnapshotsContent')
-  }
-
-  isEnabled() {
-    return this.app.$featureFlagIsEnabled(FF_AUTOMATIC_SNAPSHOTS)
   }
 }

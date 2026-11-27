@@ -15,7 +15,6 @@ from rest_framework.status import (
 from baserow.contrib.database.table.operations import ReadDatabaseTableOperationType
 from baserow.core.actions import JoinWorkspaceViaInvitationLinkActionType
 from baserow.core.exceptions import (
-    FeatureDisabledException,
     InvalidWorkspaceRole,
     PermissionDenied,
     WorkspaceInvitationLinkDoesNotExist,
@@ -120,16 +119,9 @@ def test_workspace_and_object_admins_can_create_links_to_the_object(data_fixture
 
 
 @pytest.mark.django_db
-def test_create_link_to_object_requires_feature_flag_and_signups(
-    data_fixture, settings
-):
+def test_create_link_to_object_requires_signups(data_fixture):
     admin, workspace, _, table_a, _ = setup_workspace(data_fixture)
 
-    settings.FEATURE_FLAGS = []
-    with pytest.raises(FeatureDisabledException):
-        create_link(admin, workspace, table_a, "EDITOR")
-
-    settings.FEATURE_FLAGS = "*"
     data_fixture.update_settings(
         allow_new_signups=False, allow_signups_via_workspace_invitations=False
     )

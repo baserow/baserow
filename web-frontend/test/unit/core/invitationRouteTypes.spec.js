@@ -1,4 +1,4 @@
-import { describe, expect, test, vi } from 'vitest'
+import { describe, expect, test } from 'vitest'
 
 import {
   EmailInvitationRouteType,
@@ -7,7 +7,6 @@ import {
 
 describe('LinkInvitationRouteType', () => {
   function createRouteType(
-    featureFlagIsEnabled,
     settings = {
       allow_new_signups: true,
       allow_signups_via_workspace_invitations: false,
@@ -19,35 +18,17 @@ describe('LinkInvitationRouteType', () => {
     }
     return new LinkInvitationRouteType({
       app: {
-        $featureFlagIsEnabled: featureFlagIsEnabled,
         $registry: { get: (registry, type) => targetTypes[type] },
         $store: { getters: { 'settings/get': settings } },
       },
     })
   }
 
-  test('is only enabled behind the RBAC_IMPROVEMENTS feature flag', () => {
-    const featureFlagIsEnabled = vi.fn().mockReturnValue(false)
-    const routeType = createRouteType(featureFlagIsEnabled)
-    const workspace = { id: 42 }
-    const workspaceTarget = { type: 'workspace' }
-
-    expect(routeType.isEnabled(workspace, workspaceTarget)).toBe(false)
-    expect(featureFlagIsEnabled).toHaveBeenCalledWith('rbac_improvements')
-
-    featureFlagIsEnabled.mockReturnValue(true)
-    expect(routeType.isEnabled(workspace, workspaceTarget)).toBe(true)
-  })
-
   test('is only enabled while people can sign up through links', () => {
-    const featureFlagIsEnabled = vi.fn().mockReturnValue(true)
     const workspace = { id: 42 }
     const target = { type: 'workspace' }
     const enabled = (settings) =>
-      createRouteType(featureFlagIsEnabled, settings).isEnabled(
-        workspace,
-        target
-      )
+      createRouteType(settings).isEnabled(workspace, target)
 
     expect(
       enabled({
@@ -70,7 +51,7 @@ describe('LinkInvitationRouteType', () => {
   })
 
   test('is only enabled for targets that support links', () => {
-    const routeType = createRouteType(vi.fn().mockReturnValue(true))
+    const routeType = createRouteType()
     const workspace = { id: 42 }
 
     expect(routeType.isEnabled(workspace, { type: 'workspace' })).toBe(true)

@@ -8,7 +8,6 @@ from baserow.core.actions import (
     UpdateWorkspaceInvitationLinkActionType,
 )
 from baserow.core.exceptions import (
-    FeatureDisabledException,
     UserInvalidWorkspacePermissionsError,
     UserNotInWorkspace,
     WorkspaceInvitationLinkDoesNotExist,
@@ -63,18 +62,6 @@ def test_create_workspace_invitation_link_uses_configured_length(
     )
 
     assert re.fullmatch(rf"[A-Za-z0-9]{{{length}}}", invitation_link.slug)
-
-
-@pytest.mark.django_db
-def test_create_workspace_invitation_link_requires_feature_flag(data_fixture, settings):
-    admin = data_fixture.create_user()
-    workspace = data_fixture.create_workspace(user=admin)
-    settings.FEATURE_FLAGS = []
-
-    with pytest.raises(FeatureDisabledException):
-        CoreHandler().create_workspace_invitation_link(admin, workspace, "MEMBER")
-
-    assert WorkspaceInvitationLink.objects.count() == 0
 
 
 @pytest.mark.django_db
@@ -214,7 +201,7 @@ def test_delete_workspace_invitation_link(data_fixture):
 
 
 @pytest.mark.django_db
-def test_get_workspace_invitation_link_by_slug(data_fixture, settings):
+def test_get_workspace_invitation_link_by_slug(data_fixture):
     admin = data_fixture.create_user()
     workspace = data_fixture.create_workspace(user=admin)
     invitation_link = data_fixture.create_workspace_invitation_link(
@@ -231,10 +218,6 @@ def test_get_workspace_invitation_link_by_slug(data_fixture, settings):
 
     TrashHandler.trash(admin, workspace, None, workspace)
     with pytest.raises(WorkspaceInvitationLinkDoesNotExist):
-        CoreHandler().get_workspace_invitation_link_by_slug(invitation_link.slug)
-
-    settings.FEATURE_FLAGS = []
-    with pytest.raises(FeatureDisabledException):
         CoreHandler().get_workspace_invitation_link_by_slug(invitation_link.slug)
 
 
@@ -359,20 +342,6 @@ def test_join_workspace_via_invitation_link_action_records_only_changes(
 
     JoinWorkspaceViaInvitationLinkActionType.do(newcomer, admin_link)
     assert recorded_joins() == ["MEMBER", "ADMIN"]
-
-
-@pytest.mark.django_db
-def test_join_workspace_via_invitation_link_requires_feature_flag(
-    data_fixture, settings
-):
-    newcomer = data_fixture.create_user()
-    invitation_link = data_fixture.create_workspace_invitation_link()
-    settings.FEATURE_FLAGS = []
-
-    with pytest.raises(FeatureDisabledException):
-        CoreHandler().join_workspace_via_invitation_link(newcomer, invitation_link)
-
-    assert not WorkspaceUser.objects.filter(user=newcomer).exists()
 
 
 @pytest.mark.django_db

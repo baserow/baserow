@@ -8,7 +8,6 @@ function mountWidgetContext(
   {
     isDisplayWidget = false,
     tableId = null,
-    flag = true,
     createDashboardWidget = vi.fn(),
     widgetCreation = ref(null),
   } = {}
@@ -25,7 +24,6 @@ function mountWidgetContext(
       },
       mocks: {
         $hasPermission: hasPermission,
-        $featureFlagIsEnabled: () => flag,
         $registry: {
           get: () => ({
             isDisplayWidget,
@@ -65,7 +63,6 @@ describe('WidgetContext', () => {
   test.each([
     [{ isDisplayWidget: true, tableId: 5 }, true],
     [{ isDisplayWidget: true, tableId: null }, false],
-    [{ isDisplayWidget: true, tableId: 5, flag: false }, false],
     [{ isDisplayWidget: false, tableId: 5 }, false],
   ])('offers a filter for a widget showing a table %o', (options, shown) => {
     const wrapper = mountWidgetContext(() => true, options)

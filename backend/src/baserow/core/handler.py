@@ -43,7 +43,6 @@ from baserow.core.cache import get_cached_settings, set_cached_settings
 from baserow.core.db import specific_queryset
 from baserow.core.deferred_callbacks import deferred_callback_context
 from baserow.core.feature_flags import (
-    FF_RBAC_IMPROVEMENTS,
     FF_USER_TEMPLATES,
     feature_flag_is_enabled,
 )
@@ -1935,14 +1934,11 @@ class CoreHandler:
         :param access_token: The token handed out for the password of the link.
         :param check_password: Whether a password protected link requires the
             token. Only the endpoint that checks the password itself skips it.
-        :raises FeatureDisabledException: If invitation links aren't enabled.
         :raises WorkspaceInvitationLinkDoesNotExist: If no usable link has the slug.
         :raises WorkspaceInvitationLinkPasswordRequired: If the link is password
             protected and the token is missing or invalid.
         :return: The workspace invitation link.
         """
-
-        feature_flag_is_enabled(FF_RBAC_IMPROVEMENTS, raise_if_disabled=True)
 
         if not self.invitation_link_signups_allowed():
             raise WorkspaceInvitationLinkDoesNotExist(
@@ -2061,12 +2057,9 @@ class CoreHandler:
 
         :param user: The user on whose behalf the links are listed.
         :param workspace: The workspace of which the links must be returned.
-        :raises FeatureDisabledException: If invitation links aren't enabled.
         :raises UserNotInWorkspace: If the user isn't a member of the workspace.
         :return: The links the user can manage, oldest first.
         """
-
-        feature_flag_is_enabled(FF_RBAC_IMPROVEMENTS, raise_if_disabled=True)
 
         CoreHandler().check_permissions(
             user,
@@ -2164,15 +2157,12 @@ class CoreHandler:
         :param workspace: The workspace that people join through the link.
         :param permissions: The workspace permissions people get when joining.
         :param name: A name that reminds the admins what the link is for.
-        :raises FeatureDisabledException: If invitation links aren't enabled.
         :raises PermissionException: If the user isn't allowed to create links.
         :raises InvalidWorkspaceRole: If the provided permissions are not available.
         :raises WorkspaceInvitationLinkSignupsDisabled: If the instance settings
             don't let anyone sign up through the link.
         :return: The created workspace invitation link.
         """
-
-        feature_flag_is_enabled(FF_RBAC_IMPROVEMENTS, raise_if_disabled=True)
 
         CoreHandler().check_permissions(
             user,
@@ -2343,11 +2333,8 @@ class CoreHandler:
 
         :param user: The user who joins the workspace.
         :param invitation_link: The link the user joins through.
-        :raises FeatureDisabledException: If invitation links aren't enabled.
         :return: The workspace user of the user in the workspace of the link.
         """
-
-        feature_flag_is_enabled(FF_RBAC_IMPROVEMENTS, raise_if_disabled=True)
 
         if invitation_link.scope_type_id is not None:
             scope_type = self.get_invitation_link_scope_type(invitation_link)

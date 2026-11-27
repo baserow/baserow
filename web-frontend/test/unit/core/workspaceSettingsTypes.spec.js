@@ -60,14 +60,13 @@ describe('IntegrationsWorkspaceSettingsType', () => {
 })
 
 describe('InvitationLinksWorkspaceSettingsType', () => {
-  function createSettingsType({ featureFlag = true, canManage = [] } = {}) {
+  function createSettingsType({ canManage = [] } = {}) {
     const targetTypes = canManage.map((value) => ({
       canManageInvitationLinks: vi.fn().mockReturnValue(value),
     }))
     return new InvitationLinksWorkspaceSettingsType({
       app: {
         $i18n: { t: (key) => key },
-        $featureFlagIsEnabled: () => featureFlag,
         $registry: { getAll: () => ({ ...targetTypes }) },
       },
     })
@@ -87,7 +86,6 @@ describe('InvitationLinksWorkspaceSettingsType', () => {
     [{ canManage: [false, true] }, true],
     [{ canManage: [false, false] }, false],
     [{ canManage: [] }, false],
-    [{ canManage: [true], featureFlag: false }, false],
   ])('with %o it is enabled: %s', (options, expected) => {
     expect(createSettingsType(options).isEnabled({ id: 1 })).toBe(expected)
   })
