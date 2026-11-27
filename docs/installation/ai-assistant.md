@@ -26,8 +26,6 @@ Each follow-up uses the latest draft. Formulas and Agent instructions appear in
 their editors. View and filter changes apply immediately. Remove the context chip
 to return to your regular conversation. Editor requests last for the current session.
 
-![Asking Kuma to revise a database formula](../assets/kuma_editor_prompt.png)
-
 ## 2) Minimal enablement
 
 For a fresh setup, add a provider and its models under **Admin tools → AI providers**
