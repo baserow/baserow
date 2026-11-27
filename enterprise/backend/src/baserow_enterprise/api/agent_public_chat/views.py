@@ -1,12 +1,13 @@
 import json
 from collections.abc import AsyncIterator
 from contextlib import aclosing
-from typing import Any
+from typing import Any, TypeVar
 from uuid import UUID
 
 from django.conf import settings
 from django.db import DEFAULT_DB_ALIAS
-from django.http import StreamingHttpResponse
+from django.http import HttpResponse, StreamingHttpResponse
+from django.utils.cache import patch_cache_control
 from django.utils.decorators import method_decorator
 from django.views.decorators.cache import never_cache
 
@@ -60,13 +61,20 @@ from baserow.core.chat_runs.service import serialize_run
 from baserow.core.chat_runs.stream import follow_run
 from baserow.core.exceptions import ApplicationDoesNotExist
 from baserow_enterprise.agent.channel_types import APPEARANCE_FIELDS
-from baserow_enterprise.agent.constants import PUBLIC_CHAT_CONVERSATION_CLAIM
-from baserow_enterprise.agent.models import PublicChatAgentChannel
+from baserow_enterprise.agent.constants import (
+    PUBLIC_CHAT_CONVERSATION_CLAIM,
+    WEBSITE_WIDGET_SCRIPT_MAX_AGE,
+)
+from baserow_enterprise.agent.models import (
+    PublicChatAgentChannel,
+    WebsiteWidgetAgentChannel,
+)
 from baserow_enterprise.agent.public_chat_tokens import (
     decode_token,
     encode_access_token,
     encode_conversation_token,
 )
+from baserow_enterprise.agent.website_widget import build_widget_script
 
 from .serializers import (
     PublicChatAuthRequestSerializer,
@@ -120,21 +128,25 @@ WRITE_ERRORS = {
 }
 
 
-def get_public_chat(slug: str) -> PublicChatAgentChannel:
+PublicChat = TypeVar("PublicChat", bound=PublicChatAgentChannel)
+
+
+def get_public_chat(
+    slug: str, model: type[PublicChat] = PublicChatAgentChannel
+) -> PublicChat:
     """
     :param slug: The link of the public chat.
-    :raises AgentChannelDoesNotExist: When no chat has this link, or it can't be
-        used.
+    :param model: The kind of public chat to look for.
+    :raises AgentChannelDoesNotExist: When no chat of that kind has this link, or
+        it can't be used.
     :return: The chat, with its agent and the agent's workspace.
     """
 
     # A replica can still serve a chat that was just switched off or protected.
     set_db_alias(DEFAULT_DB_ALIAS)
     try:
-        chat = PublicChatAgentChannel.objects.select_related("agent__workspace").get(
-            slug=slug
-        )
-    except PublicChatAgentChannel.DoesNotExist as exc:
+        chat = model.objects.select_related("agent__workspace").get(slug=slug)
+    except model.DoesNotExist as exc:
         raise AgentChannelDoesNotExist from exc
     AgentVisitorService().require_available(chat)
     return chat
@@ -459,4 +471,38 @@ class PublicChatStreamView(PublicChatView):
             content_type="text/event-stream",
         )
         response["X-Accel-Buffering"] = "no"
+        return response
+
+
+class PublicChatWidgetScriptView(APIView):
+    """
+    Loaded by a script tag on any website, so it needs no CORS, and cached for a
+    few minutes since every page view of that website asks for it.
+    """
+
+    permission_classes = (AllowAny,)
+    authentication_classes = ()
+
+    @extend_schema(
+        parameters=[SLUG_PARAMETER],
+        tags=["Agent public chat"],
+        operation_id="get_agent_website_widget_script",
+        description=(
+            "Returns the JavaScript a website adds with a script tag to show the "
+            "button that opens a website widget's chat."
+        ),
+        responses={
+            (200, "text/javascript"): OpenApiTypes.STR,
+            **CHAT_ERRORS,
+        },
+    )
+    @map_exceptions(PUBLIC_CHAT_EXCEPTIONS)
+    def get(self, request: Request, slug: str) -> HttpResponse:
+        widget = get_public_chat(slug, WebsiteWidgetAgentChannel)
+        response = HttpResponse(
+            build_widget_script(widget), content_type="text/javascript; charset=utf-8"
+        )
+        patch_cache_control(
+            response, public=True, max_age=WEBSITE_WIDGET_SCRIPT_MAX_AGE
+        )
         return response

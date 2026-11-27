@@ -6,7 +6,7 @@ $public-agent-chat-password-width: 400px;
   --chat-link-color: #{$palette-blue-700};
   --chat-accent-hover: color-mix(
     in srgb,
-    var(--chat-accent, #{$palette-neutral-1200}) 92%,
+    var(--chat-accent) 85%,
     #{$palette-neutral-1300}
   );
 
@@ -219,5 +219,36 @@ $public-agent-chat-password-width: 400px;
     max-width: none;
     border-radius: 0;
     box-shadow: none;
+  }
+}
+
+@media (max-width: 480px) {
+  .public-agent-chat__messages {
+    padding-top: 16px;
+    padding-bottom: 16px;
+  }
+
+  .public-agent-chat__mark {
+    width: 48px;
+    height: 48px;
+    margin: 0 0 16px;
+    font-size: 22px;
+  }
+
+  .public-agent-chat__suggestions {
+    gap: 8px;
+    margin-top: 20px;
+  }
+
+  .public-agent-chat__suggestions .chat-suggestions__item {
+    gap: 12px;
+    padding: 8px 12px;
+  }
+
+  .public-agent-chat__suggestions .chat-suggestions__icon {
+    flex-basis: 28px;
+    width: 28px;
+    height: 28px;
+    font-size: 14px;
   }
 }

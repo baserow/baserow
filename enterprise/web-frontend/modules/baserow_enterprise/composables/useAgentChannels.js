@@ -4,7 +4,36 @@ import { notifyIf } from '@baserow/modules/core/utils/error'
 import { API_ERROR_CODE } from '@baserow/modules/agent/constants'
 import AgentChannelService from '@baserow_enterprise/services/agentChannels'
 
-export const PUBLIC_CHAT_CHANNEL_TYPE = 'public_chat'
+/** The chat's button colour while the accent colour is blank. */
+export const AUTOMATIC_ACCENT = '#202128'
+
+/**
+ * Drafts of a channel's fields that follow the saved values, for its form.
+ *
+ * @param {object} props The form's props, with `channel` and `canEdit`.
+ * @param {Function} emit The form's emit, which sends `update` with the values to save.
+ * @returns {object} `draftOf(field)`, a ref following the field, and `save(field, value)`.
+ */
+export function useChannelDraft(props, emit) {
+  function draftOf(field) {
+    const draft = ref(props.channel[field])
+    watch(
+      () => props.channel[field],
+      (value) => {
+        draft.value = value
+      }
+    )
+    return draft
+  }
+
+  function save(field, value) {
+    if (props.canEdit && value !== props.channel[field]) {
+      emit('update', { [field]: value })
+    }
+  }
+
+  return { draftOf, save }
+}
 
 /**
  * The channels of one Agent. Changes show at once, and a failed save puts the
@@ -54,13 +83,15 @@ export function useAgentChannels(agent, { load = true } = {}) {
     }
   }
 
-  /** @returns {Promise<object|null>} The new public chat, or null when it failed. */
-  async function createChannel() {
+  /**
+   * @param {string} type The channel type.
+   * @param {object} values The values the channel starts with.
+   * @returns {Promise<object|null>} The new channel, or null when it failed.
+   */
+  async function createChannel(type, values = {}) {
     const agentId = agent.value.id
     try {
-      const { data } = await service.create(agentId, {
-        type: PUBLIC_CHAT_CHANNEL_TYPE,
-      })
+      const { data } = await service.create(agentId, { type, ...values })
       if (agent.value?.id === agentId) {
         track(data)
         allChannels.value.push(data)
@@ -96,7 +127,7 @@ export function useAgentChannels(agent, { load = true } = {}) {
 
   /**
    * @param {object} channel The channel as its card shows it.
-   * @param {object} values Any of `enabled`, `title` and `welcome_text`.
+   * @param {object} values The fields to save.
    */
   async function updateChannel(channel, values) {
     const agentId = agent.value.id

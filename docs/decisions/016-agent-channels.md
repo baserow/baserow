@@ -32,7 +32,7 @@ Agent Builder is behind `FF_AGENT_BUILDER` and has no production users.
 | Term         | Meaning                                                                                  |
 | ------------ | ---------------------------------------------------------------------------------------- |
 | Channel      | A place outside the agent's own page where people talk to it and get its replies.        |
-| Channel type | What a channel is: `public_chat` first, `website_widget` next, a messaging app later.    |
+| Channel type | What a channel is: `public_chat`, `website_widget`, a messaging app later.               |
 | Public chat  | The channel type that is a page with its own link.                                       |
 | Visitor      | The person outside the workspace writing through a channel; anonymous for a public chat. |
 | Run identity | The subject the agent's tools act as (ADR 013). Never the visitor.                       |
@@ -40,8 +40,8 @@ Agent Builder is behind `FF_AGENT_BUILDER` and has no production users.
 In scope: what a channel is and how it differs from a trigger, where a type keeps its
 data, who is behind a visitor's reply, what a visitor sees and how they prove a
 conversation is theirs, and where the code lives. Out of scope: limits of any kind
-(rate, message count, expiry), any type but the public chat, and members writing in a
-visitor's conversation.
+(rate, message count, expiry), types other than the public chat and the website widget,
+and members writing in a visitor's conversation.
 
 ## Decision
 
@@ -144,17 +144,30 @@ Core asks the registry whether a type can be used in a workspace.
 The visitor's stream is mounted under `/api/chat-runs/`, the prefix split deployments
 already route to the async server.
 
+### 7. A website widget is a public chat a website opens
+
+A website widget is a public chat whose page a script tag opens in a panel from a
+button. Its subclass extends the public chat's and adds the button's text and corner;
+the button has the chat's accent colour. It has no password, because a visitor of the
+website couldn't know one, and no background, because the panel shows the chat as a
+phone does, without the page's background. The visitor's API, tokens and page are the
+public chat's.
+
+The script is served by the backend with the widget's settings written into it and is
+cached for five minutes, since every page view of the website asks for it. It draws the
+button in a shadow root, so the website's styles don't reach it.
+
 ## Options considered
 
-| Option                                               | Why not                                                                                           |
-| ---------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
-| A public chat as a trigger service type              | A trigger never continues a conversation; the dispatcher, overlap rule and queue would lie.       |
-| The link, password and title on the channel itself   | A messaging app has none of them; every later type would carry empty columns.                     |
-| A JSON column for what a type needs                  | A request finds its channel by the link, which needs a unique indexed column.                     |
-| The conversation's uuid as the visitor's proof       | It shows in members' addresses and logs, and can't be ended by changing the password.             |
-| Members write in a visitor's conversation            | The visitor would read answers to messages they can't see. Taking over needs a role they can see. |
-| A cookie for the visitor's token                     | Browsers block it when the page is framed on another site.                                        |
-| Every tool asks first in a visitor's conversation    | It overrides what the builder set; the builder chooses per tool, knowing the channel is public.   |
+| Option                                             | Why not                                                                                           |
+| -------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
+| A public chat as a trigger service type            | A trigger never continues a conversation; the dispatcher, overlap rule and queue would lie.       |
+| The link, password and title on the channel itself | A messaging app has none of them; every later type would carry empty columns.                     |
+| A JSON column for what a type needs                | A request finds its channel by the link, which needs a unique indexed column.                     |
+| The conversation's uuid as the visitor's proof     | It shows in members' addresses and logs, and can't be ended by changing the password.             |
+| Members write in a visitor's conversation          | The visitor would read answers to messages they can't see. Taking over needs a role they can see. |
+| A cookie for the visitor's token                   | Browsers block it when the page is framed on another site.                                        |
+| Every tool asks first in a visitor's conversation  | It overrides what the builder set; the builder chooses per tool, knowing the channel is public.   |
 
 ## Consequences
 
@@ -176,9 +189,8 @@ already route to the async server.
   its answer by calling it, only that text goes to the visitor, as it is written, and
   everything else the reply writes stays in the members' view. Members also get a way
   to see a conversation as its visitor saw it.
-- Follow-ups: limits, the Website widget type, how a public chat looks (a logo and a
-  colour), replacing a link without deleting the channel, and members taking over a
-  conversation.
+- Follow-ups: limits, a logo on a public chat, replacing a link without deleting the
+  channel, and members taking over a conversation.
 
 ## Revisit triggers
 

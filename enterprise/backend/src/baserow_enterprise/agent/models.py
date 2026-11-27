@@ -6,7 +6,10 @@ from django.db import models
 from baserow.contrib.agent.models import AgentChannel
 from baserow_enterprise.agent.constants import (
     PUBLIC_CHAT_TITLE_MAX_LENGTH,
+    WEBSITE_WIDGET_BUTTON_TEXT_MAX_LENGTH,
+    WEBSITE_WIDGET_DEFAULT_BUTTON_TEXT,
     PublicChatBackground,
+    WebsiteWidgetButtonPosition,
 )
 
 
@@ -54,3 +57,22 @@ class PublicChatAgentChannel(AgentChannel):
         """
 
         return not self.has_password or hashers.check_password(password, self.password)
+
+
+class WebsiteWidgetAgentChannel(PublicChatAgentChannel):
+    """
+    A public chat that a website opens in a panel from a button, which a script tag
+    adds to the site. It never has a password.
+    """
+
+    # Blank shows only the button's icon.
+    button_text = models.CharField(
+        max_length=WEBSITE_WIDGET_BUTTON_TEXT_MAX_LENGTH,
+        blank=True,
+        default=WEBSITE_WIDGET_DEFAULT_BUTTON_TEXT,
+    )
+    button_position = models.CharField(
+        max_length=16,
+        choices=WebsiteWidgetButtonPosition.choices,
+        default=WebsiteWidgetButtonPosition.BOTTOM_RIGHT,
+    )

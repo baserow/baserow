@@ -120,6 +120,25 @@ describe('Agent conversations', () => {
     expect(sentBodies(testApp)).toEqual([])
   })
 
+  test('hides suggestions while the first message is sent and awaits a retry', async () => {
+    testApp.dontFailOnErrorResponses()
+    mockConfiguration(
+      testApp,
+      completeConfiguration({ suggested_messages: ['What can you do?'] })
+    )
+    const firstSend = deferredReply()
+    mockStartConversation(testApp, firstSend.reply)
+    const wrapper = await mount()
+    await sendMessage(wrapper, 'Hello')
+
+    const suggestions = () => wrapper.find('.chat-suggestions__item')
+    expect(suggestions().exists()).toBe(false)
+    firstSend.resolve(500, {})
+    await flushPromises()
+    expect(composer(wrapper).element.readOnly).toBe(true)
+    expect(suggestions().exists()).toBe(false)
+  })
+
   test('hides suggestions when the member has no usable composer', async () => {
     mockConfiguration(testApp, {
       ...incompleteConfiguration('instructions'),

@@ -11,9 +11,10 @@
         class="agent-channels__add"
         :disabled="creating || loading || loadError"
         :loading="creating"
-        @click="add"
+        :aria-haspopup="licensed ? 'menu' : null"
+        @click="add($event.currentTarget)"
       >
-        {{ $t('agentChannels.addPublicChat') }}
+        {{ $t('agentChannels.addChannel') }}
       </ButtonText>
     </div>
     <AgentCardListHeader
@@ -40,22 +41,31 @@
       {{ $t('agentChannels.empty') }}
     </p>
     <div v-else ref="list" class="agent-channels__list">
-      <AgentPublicChatCard
+      <AgentChannelCard
         v-for="channel in channels"
         :key="channel.id"
         :data-card-id="channel.id"
         :channel="channel"
+        :channel-type="channelTypeOf(channel)"
+        :form-props="formPropsOf(channel)"
         :agent-name="agent?.name || ''"
         :expanded="expandedIds.has(channel.id)"
         :editable="editable"
         :licensed="licensed"
         :saving="savingIds.has(channel.id)"
-        :save-password="(password) => savePassword(channel, password)"
         @toggle="toggle(channel.id)"
         @update="updateChannel(channel, $event)"
         @delete="deleteChannel(channel)"
       />
     </div>
+    <Context ref="picker" class="agent-channels__picker" @shown="focusMenu">
+      <MenuList
+        ref="menu"
+        :items="pickerItems"
+        @select="pick"
+        @close="picker.hide()"
+      />
+    </Context>
     <PaidFeaturesModal
       v-if="workspace"
       ref="paywall"
@@ -66,26 +76,32 @@
 </template>
 
 <script setup>
-import { computed, inject, ref, watch } from 'vue'
+import { computed, inject, nextTick, ref, watch } from 'vue'
 import { useStore } from 'vuex'
+import { useNuxtApp } from '#app'
 import ButtonText from '@baserow/modules/core/components/ButtonText'
+import Context from '@baserow/modules/core/components/Context'
+import MenuList from '@baserow/modules/core/components/MenuList'
 import AgentCardListHeader from '@baserow/modules/agent/components/configuration/AgentCardListHeader'
 import { useAgentCardList } from '@baserow/modules/agent/composables/useExpandedItems'
 import PaidFeaturesModal from '@baserow_premium/components/PaidFeaturesModal'
-import AgentPublicChatCard from '@baserow_enterprise/components/agent/AgentPublicChatCard'
+import AgentChannelCard from '@baserow_enterprise/components/agent/AgentChannelCard'
 import { useAgentChannels } from '@baserow_enterprise/composables/useAgentChannels'
 
 defineOptions({ inheritAttrs: false })
 const props = defineProps({
-  /** The Channels section type, which tells whether public chats can be added. */
+  /** The Channels section type, which tells whether channels can be added. */
   sectionType: { type: Object, required: true },
   /** Whether the user may add, change and delete channels. */
   editable: Boolean,
 })
 const store = useStore()
+const { $registry } = useNuxtApp()
 const agent = inject('agentApplication')
 const templatePreview = inject('agentTemplatePreview', false)
 const paywall = ref(null)
+const picker = ref(null)
+const menu = ref(null)
 const workspace = computed(() =>
   agent.value ? store.getters['workspace/get'](agent.value.workspace.id) : null
 )
@@ -101,8 +117,23 @@ const {
   savePassword,
   deleteChannel,
 } = useAgentChannels(agent, { load: !templatePreview })
+const channelTypeOf = (channel) =>
+  $registry.get('agentChannelType', channel.type)
+const formPropsOf = (channel) =>
+  channelTypeOf(channel).getFormProps({
+    savePassword: (password) => savePassword(channel, password),
+  })
+const pickerItems = computed(() =>
+  $registry.getOrderedList('agentChannelType').map((channelType) => ({
+    id: channelType.getType(),
+    value: channelType.getType(),
+    label: channelType.name,
+    description: channelType.description,
+    icon: channelType.icon,
+  }))
+)
 const { expandedIds, allExpanded, toggle, toggleAll, list, creating, addItem } =
-  useAgentCardList(channels, createChannel)
+  useAgentCardList(channels, (type) => createChannel(type))
 let initializedFor = null
 watch([loading, () => agent.value?.id], ([busy, id]) => {
   if (busy || loadError.value || !id || initializedFor === id) return
@@ -110,8 +141,18 @@ watch([loading, () => agent.value?.id], ([busy, id]) => {
   if (channels.value.length === 1) expandedIds.add(channels.value[0].id)
 })
 
-function add() {
-  if (licensed.value) addItem()
+function add(target) {
+  if (licensed.value) picker.value.toggle(target, 'bottom', 'right', 4)
   else paywall.value?.show()
+}
+
+async function focusMenu() {
+  await nextTick()
+  menu.value?.focus()
+}
+
+function pick(item) {
+  picker.value.hide()
+  addItem(item.value)
 }
 </script>

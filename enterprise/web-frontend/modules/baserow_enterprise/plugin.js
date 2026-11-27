@@ -153,6 +153,10 @@ import {
 } from '@baserow_enterprise/automation/nodeTypes'
 import { RowCommentPostedAgentTriggerType } from '@baserow_enterprise/agent/agentTriggerTypes'
 import {
+  PublicChatAgentChannelType,
+  WebsiteWidgetAgentChannelType,
+} from '@baserow_enterprise/agent/agentChannelTypes'
+import {
   LocalBaserowSemanticSearchServiceType,
   LocalBaserowRowCommentPostedTriggerServiceType,
 } from '@baserow_enterprise/integrations/localBaserow/serviceTypes'
@@ -311,6 +315,14 @@ export default defineNuxtPlugin({
     $registry.register(
       'agentTriggerType',
       new RowCommentPostedAgentTriggerType(context)
+    )
+    $registry.register(
+      'agentChannelType',
+      new PublicChatAgentChannelType(context)
+    )
+    $registry.register(
+      'agentChannelType',
+      new WebsiteWidgetAgentChannelType(context)
     )
     $registry.register('service', new CoreXLSFileReaderServiceType(context))
     $registry.register(
