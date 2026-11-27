@@ -44,7 +44,10 @@ from tests.baserow.core.user_templates.utils import (
     _upload_image,
     add_files_to_source,
     add_password_data,
+    add_source_leftovers,
+    add_unique_rich_text,
     assert_password_data_left_out,
+    assert_source_leftovers_left_out,
     cancel_in_another_connection,
     create_source,
     fail_on_import,
@@ -219,6 +222,28 @@ def test_install_user_template_job(data_fixture, queued_install):
 
 
 @install_marks
+def test_install_user_template_names_a_unique_field_its_mentions_make_equal(
+    data_fixture,
+):
+    owner = data_fixture.create_user()
+    target = data_fixture.create_workspace(user=owner)
+    root = _create_template(data_fixture, owner, names=["First"])
+    editor = data_fixture.create_user(workspace=root.workspace)
+    database = root.workspace.application_set.get().specific
+    add_unique_rich_text(data_fixture, database, editor, ["Ask @1", "Ask @2"])
+
+    job = install(owner, target, root)
+
+    assert job.state == JOB_FAILED
+    assert job.error_code == "TemplateUniqueValuesCollide"
+    assert job.human_readable_error == (
+        'The template can\'t be installed: field "Question" must hold unique values, '
+        "but some of its cells become the same once mentions are replaced."
+    )
+    assert _installed_names(target) == []
+
+
+@install_marks
 def test_install_user_template_empties_password_fields(data_fixture):
     owner = data_fixture.create_user()
     target = data_fixture.create_workspace(user=owner)
@@ -231,12 +256,14 @@ def test_install_user_template_empties_password_fields(data_fixture):
         template_table,
         data_fixture.create_grid_view(table=template_table),
     )
+    add_source_leftovers(data_fixture, template_table.database, owner)
 
     job = install(owner, target, root)
 
     assert job.state == JOB_FINISHED
     installed = Application.objects.get(workspace=target).specific
-    assert_password_data_left_out(installed.table_set.get())
+    assert_password_data_left_out(installed.table_set.get(name=template_table.name))
+    assert_source_leftovers_left_out(installed)
     # The template keeps what it holds.
     assert list(
         template_table.get_model().objects.values_list(

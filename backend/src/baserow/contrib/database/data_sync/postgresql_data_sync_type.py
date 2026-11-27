@@ -214,6 +214,8 @@ class PostgreSQLDataSyncType(DataSyncType):
         connection = None
         validated_ips = []
 
+        self.raise_if_not_connected(instance)
+
         if not settings.TESTS:
             try:
                 validated_ips = resolve_and_validate_hostname(

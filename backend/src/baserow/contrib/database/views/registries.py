@@ -362,7 +362,9 @@ class ViewType(
             ]
 
         if self.can_share:
-            serialized["public"] = view.public
+            serialized["public"] = (
+                view.public and not import_export_config.is_user_template
+            )
 
         if self.can_set_default_values and view.table_id is not None:
             default_row_values = self._export_default_row_values(
@@ -370,6 +372,7 @@ class ViewType(
                 cache,
                 files_zip if import_export_config.is_user_template else None,
                 storage,
+                is_user_template=import_export_config.is_user_template,
             )
             if default_row_values:
                 serialized["default_row_values"] = default_row_values
@@ -644,7 +647,9 @@ class ViewType(
             for field_id, field_object in table.get_model()._field_objects.items()
         }
 
-    def _export_default_row_values(self, view, cache, files_zip, storage):
+    def _export_default_row_values(
+        self, view, cache, files_zip, storage, *, is_user_template=False
+    ):
         """
         Exports the default row values for the given view as a serialized dict.
         Uses the prefetched ``view_default_values`` related manager when
@@ -654,7 +659,8 @@ class ViewType(
         passed through the field type's ``export_serialized_default_value``
         hook so that internal IDs can be converted to portable representations.
         Write-only fields can't have default values, so an entry stored for one,
-        or stored while its field was one, is left out.
+        or stored while its field was one, is left out. A user-template copy also
+        passes each value through ``get_user_template_export_value``.
         """
 
         from baserow.contrib.database.fields.models import Field
@@ -699,6 +705,8 @@ class ViewType(
                     files_zip=files_zip,
                     storage=storage,
                 )
+                if is_user_template:
+                    value = field_type.get_user_template_export_value(field, value)
 
             serialized_values[str(default_value.field_id)] = {
                 "field_id": default_value.field_id,

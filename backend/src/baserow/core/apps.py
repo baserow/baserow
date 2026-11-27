@@ -720,6 +720,16 @@ class CoreConfig(AppConfig):
             dispatch_uid="baserow_core_user_template_archive_stamp",
         )
 
+        from baserow.core.user_templates.receivers import (
+            rebuild_user_templates_after_migrate,
+        )
+
+        post_migrate.connect(
+            rebuild_user_templates_after_migrate,
+            sender=self,
+            dispatch_uid="baserow_core_rebuild_user_templates",
+        )
+
         if settings.CACHALOT_ENABLED:
             pre_migrate.connect(lambda *a, **kw: clear_cachalot_cache(), sender=self)
 

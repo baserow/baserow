@@ -1,4 +1,3 @@
-import re
 from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
 from itertools import chain, groupby
@@ -11,6 +10,9 @@ from django.utils.translation import gettext as _
 from baserow.contrib.database.fields.field_types import (
     LongTextFieldType,
     MultipleCollaboratorsFieldType,
+)
+from baserow.contrib.database.fields.rich_text_utils import (
+    extract_mentioned_user_ids,
 )
 from baserow.contrib.database.rows.handler import (
     RowM2MChangeTracker,
@@ -273,7 +275,7 @@ class UserMentionInRichTextFieldNotificationType(
 
                 # Look for valid user id mentions in the content that are actually
                 # users of the workspace
-                mentioned_user_ids = set(map(int, re.findall(r"@(\d+)", content)))
+                mentioned_user_ids = extract_mentioned_user_ids(content)
                 mentioned_user_ids_in_workspace = (
                     workspace_user_ids & mentioned_user_ids
                 )

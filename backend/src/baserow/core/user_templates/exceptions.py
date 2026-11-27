@@ -34,6 +34,17 @@ class TemplateHasNoContent(Exception):
     """
 
 
+class TemplateUniqueValuesCollide(Exception):
+    """
+    Raised when the cells of a field that must hold unique values become equal in
+    a user-template copy, because replacing the mentions in them made them so.
+    """
+
+    def __init__(self, field_name: str, *args, **kwargs):
+        self.field_name = field_name
+        super().__init__(field_name, *args, **kwargs)
+
+
 class TemplateUpdated(Exception):
     """
     Raised when a user template changed since the user or admin saw it.
@@ -87,4 +98,11 @@ class UserTemplatesDisabled(Exception):
     """
     Raised when user templates are created, changed, shared, installed or
     downloaded while the instance admin turned them off.
+    """
+
+
+class TemplateHasUnfinishedJobs(Exception):
+    """
+    Raised when the content of a user template is rebuilt while a job that reads
+    or writes it is pending or running.
     """

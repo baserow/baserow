@@ -50,6 +50,7 @@ from .exceptions import (
 from .models import DataSync, DataSyncSyncedProperty
 from .operations import SyncTableOperationType
 from .registries import data_sync_type_registry, two_way_sync_strategy_type_registry
+from .utils import is_synced_field_read_only
 
 LARGE_DATA_SYNC_SEARCH_UPDATE_MIN_CHANGED_ROWS = 10_000
 LARGE_DATA_SYNC_SEARCH_UPDATE_THRESHOLD = 0.5
@@ -228,8 +229,8 @@ class DataSyncHandler:
             )
             baserow_field.order = index
             baserow_field.table = table
-            baserow_field.read_only = (
-                data_sync_property.unique_primary or not values.get("two_way_sync")
+            baserow_field.read_only = is_synced_field_read_only(
+                data_sync_property.unique_primary, values.get("two_way_sync")
             )
             baserow_field.immutable_type = True
             baserow_field.immutable_properties = data_sync_property.immutable_properties
@@ -412,6 +413,7 @@ class DataSyncHandler:
 
         data_sync_type = data_sync_type_registry.get_by_model(data_sync)
         data_sync_type.before_sync_table(user, data_sync)
+        data_sync_type.raise_if_not_connected(data_sync)
         all_properties = data_sync_type.get_properties(data_sync)
         key_to_property = {p.key: p for p in all_properties}
         progress.increment(by=1)  # makes the total `1`
@@ -841,7 +843,9 @@ class DataSyncHandler:
                     not isinstance(new_field, existing_field_class)
                     or data_sync_property.immutable_properties
                     != enabled_property.field.immutable_properties
-                    or (data_sync_property.unique_primary or not data_sync.two_way_sync)
+                    or is_synced_field_read_only(
+                        data_sync_property.unique_primary, data_sync.two_way_sync
+                    )
                     != enabled_property.field.read_only
                     or data_sync_property.unique_primary
                     != enabled_property.unique_primary
@@ -895,8 +899,8 @@ class DataSyncHandler:
             baserow_field = data_sync_property.to_baserow_field()
             baserow_field_type = field_type_registry.get_by_model(baserow_field)
             field_kwargs = baserow_field.__dict__
-            field_kwargs["read_only"] = (
-                data_sync_property.unique_primary or not data_sync.two_way_sync
+            field_kwargs["read_only"] = is_synced_field_read_only(
+                data_sync_property.unique_primary, data_sync.two_way_sync
             )
             field_kwargs["immutable_type"] = True
             field_kwargs["immutable_properties"] = (
@@ -933,8 +937,8 @@ class DataSyncHandler:
             baserow_field = data_sync_property.to_baserow_field()
             baserow_field_type = field_type_registry.get_by_model(baserow_field)
             field_kwargs = baserow_field.__dict__
-            field_kwargs["read_only"] = (
-                data_sync_property.unique_primary or not data_sync.two_way_sync
+            field_kwargs["read_only"] = is_synced_field_read_only(
+                data_sync_property.unique_primary, data_sync.two_way_sync
             )
             field_kwargs["immutable_type"] = True
             field_kwargs["immutable_properties"] = (

@@ -92,7 +92,10 @@ def _create_rich_text_rows_with_images(
             user,
             table,
             [
-                {field.db_column: f"intro ![a][{red.name}] and ![b][{blue.name}]"},
+                {
+                    field.db_column: f"intro ![a][{red.name}] and ![b][{blue.name}]"
+                    f" for @{user.id}"
+                },
                 {
                     field.db_column: f"![c][{blue.name}] twice ![d][{blue.name}]\n\n"
                     f"- item ![a][{red.name}]"

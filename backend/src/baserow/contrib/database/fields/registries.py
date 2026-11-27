@@ -1562,6 +1562,19 @@ class FieldType(
 
         return value
 
+    def get_user_template_export_value(self, field: "Field", value: Any) -> Any:
+        """
+        Called with every exported cell value and view default row value of a
+        user-template copy (`ImportExportConfig.is_user_template`). Can be used to
+        leave out what points at the source workspace, like mentions of its users.
+
+        :param field: The field instance the value belongs to.
+        :param value: The serialized value, as exported.
+        :return: The value the user-template copy gets.
+        """
+
+        return value
+
     def import_serialized_default_value(
         self,
         value: Any,

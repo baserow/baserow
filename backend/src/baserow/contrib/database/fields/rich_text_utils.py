@@ -1,4 +1,5 @@
 import re
+import string
 from typing import Callable, Container, Iterator, Optional
 
 from baserow.core.storage import get_default_storage
@@ -33,11 +34,27 @@ MARKDOWN_IMAGE_WITH_URL_REGEX = re.compile(
 
 _ESCAPED_BRACKET_REGEX = re.compile(r"\\([\[\]])")
 
+# The editor reads a mention again after a token ending in ``_``, an escaped
+# character or another mention, so only plain text before it keeps it literal.
+_TEXT_BEFORE_MENTION = frozenset(string.ascii_letters + string.digits + ".%+-")
+_ESCAPE_OR_MENTION = r"(?P<escape>\\.)|@[0-9]+(?![A-Za-z0-9])"
+_MENTION_REGEX = re.compile(_ESCAPE_OR_MENTION)
+# Readers show a link with an unsafe scheme as text, entities decoded.
+_LINK_DESTINATION_CHAR = r"[^()<>\[\]\\|&\s\x00-\x20\x7f]"
+_MENTION_OR_LINK_REGEX = re.compile(
+    r"\[(?P<link_text>(?:[^\[\]\\|\n]|\\[^\n])*)\]"
+    r"(?P<link_target>\([ \t]*(?!(?i:javascript|vbscript|file|data):)"
+    rf"(?:{_LINK_DESTINATION_CHAR}"
+    rf"|\({_LINK_DESTINATION_CHAR}*\))*[ \t]*\))|{_ESCAPE_OR_MENTION}"
+)
+NEUTRAL_MENTION = "@user"
+
 # CommonMark 4.5: a fence is 3+ backticks or tildes indented by up to 3 spaces.
 _FENCE_REGEX = re.compile(r"^ {0,3}(`{3,}|~{3,})")
 _FENCE_CLOSE_TAIL_REGEX = re.compile(r"[ \t]*\r?\n?")
 _LINE_REGEX = re.compile(r"[^\n]*\n|[^\n]+\Z")
 _BACKTICK_RUN_REGEX = re.compile(r"`+")
+_BLANK_LINE_REGEX = re.compile(r"(\n[ \t]*\n)")
 
 
 def _iter_fence_segments(content: str) -> Iterator[tuple[str, bool]]:
@@ -89,7 +106,8 @@ def _iter_inline_code_segments(content: str) -> Iterator[tuple[str, bool]]:
     """
     Splits ``content`` into inline code spans and the text around them. A run
     of ``n`` backticks opens a span that the next run of exactly ``n`` backticks
-    closes (CommonMark 6.1). Runs are matched once each, so this is linear.
+    closes (CommonMark 6.1). A backslash before a run escapes its first backtick,
+    which then can't open a span. Runs are matched once each, so this is linear.
     """
 
     runs = [(m.start(), m.end()) for m in _BACKTICK_RUN_REGEX.finditer(content)]
@@ -106,8 +124,16 @@ def _iter_inline_code_segments(content: str) -> Iterator[tuple[str, bool]]:
     index = 0
     while index < len(runs):
         start, end = runs[index]
+        backslash = start
+        while backslash > position and content[backslash - 1] == "\\":
+            backslash -= 1
+        if (start - backslash) % 2:
+            start += 1
         length = end - start
-        candidates = by_length[length]
+        if not length:
+            index += 1
+            continue
+        candidates = by_length.get(length, [])
         cursor = next_position.get(length, 0)
         while cursor < len(candidates) and candidates[cursor] <= index:
             cursor += 1
@@ -138,7 +164,9 @@ def iter_code_segments(content: str) -> Iterator[tuple[str, bool]]:
         if is_code:
             yield segment, True
         else:
-            yield from _iter_inline_code_segments(segment)
+            for paragraph in _BLANK_LINE_REGEX.split(segment):
+                if paragraph:
+                    yield from _iter_inline_code_segments(paragraph)
 
 
 def map_outside_code(content: str, transform: Callable[[str], str]) -> str:
@@ -345,6 +373,78 @@ def keep_first_image_references(content: Optional[str], limit: int) -> str:
     return map_outside_code(
         content, lambda segment: MARKDOWN_IMAGE_REGEX.sub(_trim, segment)
     )
+
+
+def _is_literal_mention(text: str, start: int) -> bool:
+    before = start - 1
+    if before < 0 or text[before] not in _TEXT_BEFORE_MENTION:
+        return False
+    backslashes = before
+    while backslashes > 0 and text[backslashes - 1] == "\\":
+        backslashes -= 1
+    if (before - backslashes) % 2:
+        return False
+    digits = before
+    while digits >= 0 and text[digits] in string.digits:
+        digits -= 1
+    return digits < 0 or text[digits] != "@"
+
+
+def _map_mentions(
+    text: str, transform: Callable[[re.Match], str], regex: re.Pattern
+) -> str:
+    def _replace(match: re.Match) -> str:
+        if match.groupdict().get("link_target") is not None:
+            link_text = _map_mentions(match.group("link_text"), transform, regex)
+            return f"[{link_text}]{match.group('link_target')}"
+        if match.group("escape") or _is_literal_mention(text, match.start()):
+            return match.group()
+        return transform(match)
+
+    return regex.sub(_replace, text)
+
+
+def _map_all_mentions(content: str, transform: Callable[[re.Match], str]) -> str:
+    # Code spans, autolinks and HTML can hide or break a link in one reader and
+    # not the other, so link destinations only stay literal in plain text.
+    plain = "`" not in content and "<" not in content
+    regex = _MENTION_OR_LINK_REGEX if plain else _MENTION_REGEX
+    return _map_mentions(content, transform, regex)
+
+
+def neutralize_mentions(content: str) -> str:
+    """
+    Replaces every ``@<user id>`` in ``content`` that a reader could show as a
+    mention with ``NEUTRAL_MENTION``, so that it points at no user. Code is
+    rewritten too: no reader shows a mention there, but the backend can't tell
+    code apart from text exactly like both readers. An ``@<digits>`` that every
+    reader keeps as text stays as written: glued to a word or an email-like
+    address, followed by a letter, escaped, or in the destination of a link in
+    text without code or HTML.
+    """
+
+    if "@" not in content:
+        return content
+
+    return _map_all_mentions(content, lambda _: NEUTRAL_MENTION)
+
+
+def extract_mentioned_user_ids(content: str) -> set[int]:
+    """
+    Returns the user ids of every ``@<user id>`` in ``content`` that
+    ``neutralize_mentions`` would replace.
+    """
+
+    user_ids: set[int] = set()
+
+    def _collect(match: re.Match) -> str:
+        if len(match.group()) <= 20:
+            user_ids.add(int(match.group()[1:]))
+        return match.group()
+
+    if "@" in content:
+        _map_all_mentions(content, _collect)
+    return user_ids
 
 
 def is_renderable_user_file(user_file) -> bool:

@@ -1,5 +1,6 @@
 from contextlib import contextmanager
-from datetime import timedelta
+from datetime import datetime, timedelta
+from datetime import timezone as dt_timezone
 from io import BytesIO
 from pathlib import Path
 from unittest.mock import patch
@@ -24,6 +25,8 @@ from baserow.contrib.builder.elements.models import (
 from baserow.contrib.builder.models import Builder
 from baserow.contrib.builder.theme.models import PageThemeConfigBlock
 from baserow.contrib.database.application_types import DatabaseApplicationType
+from baserow.contrib.database.data_sync.models import PostgreSQLDataSync
+from baserow.contrib.database.fields.handler import FieldHandler
 from baserow.contrib.database.fields.models import (
     FileField,
     LongTextField,
@@ -654,6 +657,115 @@ def assert_password_data_left_out(table):
     assert [(default.field_id, default.value) for default in defaults] == [
         (primary_field.id, NOTE_DEFAULT)
     ]
+
+
+LAST_SYNC = datetime(2026, 1, 1, tzinfo=dt_timezone.utc)
+POSTGRESQL_LEFT_OUT = {
+    "postgresql_host": "",
+    "postgresql_username": "",
+    "postgresql_port": 5432,
+    "postgresql_database": "",
+    "postgresql_schema": "public",
+    "postgresql_table": "",
+    "postgresql_sslmode": "prefer",
+    "two_way_sync": False,
+    "last_error": None,
+    "last_sync": LAST_SYNC,
+}
+PLAIN_MENTION = "Call @42"
+
+
+def add_source_leftovers(data_fixture, database, user):
+    synced_table = data_fixture.create_database_table(
+        user=user, database=database, name="PostgreSQL"
+    )
+    key_field = data_fixture.create_text_field(
+        table=synced_table, primary=True, name="Key", read_only=True
+    )
+    name_field = data_fixture.create_text_field(table=synced_table, name="Title")
+    data_fixture.create_text_field(table=synced_table, name="Own notes")
+    synced_table.get_model().objects.create(
+        **{key_field.db_column: "1", name_field.db_column: "Synced"}
+    )
+    data_sync = PostgreSQLDataSync.objects.create(
+        table=synced_table,
+        last_sync=LAST_SYNC,
+        last_error="Connection refused",
+        postgresql_host="db.example.com",
+        postgresql_username="admin",
+        postgresql_port=6543,
+        postgresql_database="crm",
+        postgresql_schema="sales",
+        postgresql_table="people",
+        postgresql_sslmode="require",
+        two_way_sync=True,
+    )
+    data_sync.synced_properties.create(key="key", field=key_field, unique_primary=True)
+    data_sync.synced_properties.create(key="title", field=name_field)
+    shared_table = data_fixture.create_database_table(
+        user=user, database=database, name="Shared"
+    )
+    data_fixture.create_text_field(table=shared_table, primary=True, name="Name")
+    notes_field = data_fixture.create_long_text_field(
+        table=shared_table, name="Notes", long_text_enable_rich_text=True
+    )
+    plain_field = data_fixture.create_long_text_field(table=shared_table, name="Plain")
+    shared_table.get_model().objects.create(
+        **{
+            notes_field.db_column: f"Ask @{user.id}",
+            plain_field.db_column: PLAIN_MENTION,
+        }
+    )
+    grid_view = data_fixture.create_grid_view(table=shared_table, public=True)
+    ViewDefaultValue.objects.create(
+        view=grid_view,
+        field=notes_field,
+        value=f"Ask @{user.id}",
+        field_type="long_text",
+    )
+    data_fixture.create_form_view(table=shared_table, public=True)
+
+
+def assert_source_leftovers_left_out(database):
+    synced_table = database.table_set.get(name="PostgreSQL")
+    data_sync = synced_table.data_sync.specific
+    assert isinstance(data_sync, PostgreSQLDataSync)
+    assert {key: getattr(data_sync, key) for key in POSTGRESQL_LEFT_OUT} == (
+        POSTGRESQL_LEFT_OUT
+    )
+    assert {f.name: f.read_only for f in synced_table.field_set.all()} == {
+        "Key": True,
+        "Title": True,
+        "Own notes": False,
+    }
+    assert synced_table.get_model().objects.count() == 1
+    shared_table = database.table_set.get(name="Shared")
+    assert [view.public for view in shared_table.view_set.all()] == [False, False]
+    notes_field = shared_table.field_set.get(name="Notes")
+    plain_field = shared_table.field_set.get(name="Plain")
+    row = shared_table.get_model().objects.get()
+    assert getattr(row, notes_field.db_column) == "Ask @user"
+    assert getattr(row, plain_field.db_column) == PLAIN_MENTION
+    defaults = ViewDefaultValue.objects.filter(view__table=shared_table)
+    assert [default.value for default in defaults] == ["Ask @user"]
+
+
+def add_unique_rich_text(data_fixture, database, user, values):
+    table = data_fixture.create_database_table(
+        database=database, user=user, name="Questions"
+    )
+    data_fixture.create_text_field(table=table, primary=True, name="Name")
+    field = FieldHandler().create_field(
+        user=user,
+        table=table,
+        type_name="long_text",
+        name="Question",
+        long_text_enable_rich_text=True,
+        field_constraints=[{"type_name": "unique_with_empty"}],
+    )
+    model = table.get_model()
+    for value in values:
+        model.objects.create(**{field.db_column: value})
 
 
 def stored_paths():

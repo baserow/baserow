@@ -5003,12 +5003,14 @@ def test_export_import_leaves_out_default_values_of_write_only_fields(
 ):
     user = data_fixture.create_user()
     table = data_fixture.create_database_table(user=user)
-    note_field = data_fixture.create_text_field(table=table, name="Note")
+    note_field = data_fixture.create_long_text_field(
+        table=table, name="Note", long_text_enable_rich_text=True
+    )
     secret_field = data_fixture.create_password_field(table=table, name="Secret")
     was_secret_field = data_fixture.create_text_field(table=table, name="Was secret")
-    view = data_fixture.create_grid_view(user=user, table=table)
+    view = data_fixture.create_grid_view(user=user, table=table, public=True)
     ViewDefaultValue.objects.create(
-        view=view, field=note_field, value="keep me", field_type="text"
+        view=view, field=note_field, value=f"Ask @{user.id}", field_type="long_text"
     )
     # Stored before password fields lost their default values, the second one
     # while its field was still a password field.
@@ -5023,13 +5025,15 @@ def test_export_import_leaves_out_default_values_of_write_only_fields(
 
     serialized = view_type.export_serialized(view, config, {})
 
+    assert serialized["public"] is not config.is_user_template
+    note_value = "Ask @user" if config.is_user_template else f"Ask @{user.id}"
     assert serialized["default_row_values"] == {
         str(note_field.id): {
             "field_id": note_field.id,
             "enabled": True,
-            "value": "keep me",
+            "value": note_value,
             "function": None,
-            "field_type": "text",
+            "field_type": "long_text",
         }
     }
 
@@ -5054,7 +5058,7 @@ def test_export_import_leaves_out_default_values_of_write_only_fields(
         ViewDefaultValue.objects.filter(view=imported_view).values_list(
             "field_id", "value"
         )
-    ) == [(note_field.id, "keep me")]
+    ) == [(note_field.id, note_value)]
 
 
 @pytest.mark.django_db

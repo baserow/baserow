@@ -28,7 +28,9 @@ from baserow.core.user_templates.handler import UserTemplateHandler
 from tests.baserow.core.user_templates.utils import (
     add_files_to_source,
     add_password_data,
+    add_source_leftovers,
     assert_password_data_left_out,
+    assert_source_leftovers_left_out,
     create_source,
     create_template_with_content,
     download,
@@ -86,6 +88,7 @@ def test_build_template_archive(data_fixture):
         data_fixture, owner, install_count=3
     )
     add_password_data(data_fixture, table, view)
+    add_source_leftovers(data_fixture, table.database, owner)
     updated_on = Template.objects.get(id=template.id).updated_on
 
     # The real build, through the job, like a download.
@@ -106,7 +109,7 @@ def test_build_template_archive(data_fixture):
     importer = data_fixture.create_user()
     applications = import_archive(data_fixture, importer, name)
     assert [application.name for application in applications] == ["Projects"]
-    imported_table = applications[0].specific.table_set.get()
+    imported_table = applications[0].specific.table_set.get(name=table.name)
     primary_field = imported_table.field_set.get(primary=True)
     assert list(
         imported_table.get_model().objects.values_list(
@@ -114,6 +117,7 @@ def test_build_template_archive(data_fixture):
         )
     ) == ["First"]
     assert_password_data_left_out(imported_table)
+    assert_source_leftovers_left_out(applications[0].specific)
 
 
 @install_marks

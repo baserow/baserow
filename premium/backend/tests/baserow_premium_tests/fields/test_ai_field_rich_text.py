@@ -37,6 +37,7 @@ from baserow_premium.fields.field_types import AIFieldType
 from baserow_premium.fields.handler import AIFieldHandler
 from baserow_premium.fields.job_types import AIValueGenerator
 from baserow_premium.fields.models import AIField, GenerateAIValuesJob
+from tests.baserow.core.user_templates.utils import copied_applications, start_job
 
 MISSING_IMAGE_VALUE = "![chart][abc_chart.png]"
 ESCAPED_IMAGE_VALUE = "![chart]\\[abc_chart.png]"
@@ -980,3 +981,26 @@ def test_mention_in_rich_text_ai_field_does_not_notify(premium_data_fixture):
     assert list(Notification.objects.values_list("data__field_id", flat=True)) == [
         long_text.id
     ]
+
+
+@pytest.mark.import_export_workspace
+@pytest.mark.django_db(transaction=True)
+@pytest.mark.usefixtures("use_tmp_media_root")
+@pytest.mark.field_ai
+def test_user_template_copies_rich_text_ai_output_as_generated(premium_data_fixture):
+    user = premium_data_fixture.create_user()
+    workspace = premium_data_fixture.create_workspace(user=user)
+    database = premium_data_fixture.create_database_application(workspace=workspace)
+    table = premium_data_fixture.create_database_table(database=database, user=user)
+    premium_data_fixture.create_text_field(table=table, primary=True, name="Name")
+    ai_field = premium_data_fixture.create_ai_field(
+        table=table, name="Summary", long_text_enable_rich_text=True
+    )
+    table.get_model().objects.create(**{ai_field.db_column: "Compare lots @12 and @15"})
+
+    job = start_job(user, workspace, [database])
+
+    copy = copied_applications(job.template)["database"].table_set.get()
+    copied_field = copy.field_set.get(name="Summary")
+    row = copy.get_model().objects.get()
+    assert getattr(row, copied_field.db_column) == "Compare lots @12 and @15"

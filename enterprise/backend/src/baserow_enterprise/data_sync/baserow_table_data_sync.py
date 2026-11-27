@@ -233,6 +233,11 @@ class LocalBaserowTableDataSyncType(DataSyncType):
         ),
     }
 
+    def get_connection_fields(self) -> List[str]:
+        # The source table, view and user are Baserow references, not settings of an
+        # outside service.
+        return []
+
     def prepare_values(self, user, values):
         # The user that creates the data sync is automatically the one on whose
         # behalf the data is synced in the future.
