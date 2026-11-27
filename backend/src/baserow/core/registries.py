@@ -467,6 +467,17 @@ class ApplicationType(
 
     supports_user_sources = False
 
+    # False for an application Baserow keeps for its workspace, like the shared
+    # application that owns the workspace integrations: nobody renames, duplicates
+    # or deletes it.
+    is_user_managed = True
+
+    # False for an application whose services can't choose their integration
+    # because they always use one of its own, like a dashboard, where every new
+    # data source takes the dashboard's integration. Its integrations never move
+    # to the workspace, since that would leave its new services without one.
+    lets_services_choose_integrations = True
+
     # The order in which this application type is imported in
     # `import_applications_to_workspace`. By default, the priority is `0`, the lowest
     # value. If this property is not overridden, then the instance is imported last.
@@ -509,6 +520,25 @@ class ApplicationType(
         return (
             self.supports_integrations
             and integration_type.supports_application_type(self)
+        )
+
+    def can_use_workspace_integration_type(self, integration_type) -> bool:
+        """
+        Whether this application offers its services the workspace integrations
+        of the given type. It does when its services choose their integration and
+        it accepts the type, so a database, which accepts only what its button
+        actions carry, isn't offered a Local Baserow integration, and a dashboard,
+        whose data sources always use its own, isn't offered any. The workspace
+        integrations listed through an application and the realtime events about
+        them follow this, so nobody sees through an application what it can't use.
+
+        :param integration_type: The type in question.
+        :return: True when the application can use workspace integrations of it.
+        """
+
+        return (
+            self.lets_services_choose_integrations
+            and self.supports_integration_type(integration_type)
         )
 
     def prepare_value_for_db(self, values: dict, instance: "Application | None" = None):
@@ -721,6 +751,12 @@ class ApplicationType(
 
         if "import_workspace_id" not in id_mapping and workspace is not None:
             id_mapping["import_workspace_id"] = workspace.id
+
+        from baserow.core.integrations.handler import IntegrationHandler
+
+        IntegrationHandler().prepare_integration_id_mapping(
+            id_mapping, id_mapping.get("import_workspace_id"), import_export_config
+        )
 
         if "applications" not in id_mapping:
             id_mapping["applications"] = {}

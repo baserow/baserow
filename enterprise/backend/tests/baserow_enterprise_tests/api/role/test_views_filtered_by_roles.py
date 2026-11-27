@@ -3,6 +3,7 @@ from django.shortcuts import reverse
 import pytest
 
 from baserow.core.handler import CoreHandler
+from baserow.test_utils.helpers import without_shared_applications
 from baserow_enterprise.role.handler import RoleAssignmentHandler
 
 
@@ -53,7 +54,7 @@ def test_list_applications_filtered_by_roles(api_client, data_fixture):
         reverse("api:applications:list", kwargs={"workspace_id": workspace_1.id}),
         **{"HTTP_AUTHORIZATION": f"JWT {token}"},
     )
-    response_json = response.json()
+    response_json = without_shared_applications(response.json())
 
     assert len(response_json) == 2
 
@@ -64,7 +65,7 @@ def test_list_applications_filtered_by_roles(api_client, data_fixture):
         reverse("api:applications:list"), **{"HTTP_AUTHORIZATION": f"JWT {token}"}
     )
 
-    response_json = response.json()
+    response_json = without_shared_applications(response.json())
 
     assert len(response_json) == 3
 

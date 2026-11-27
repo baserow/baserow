@@ -47,7 +47,7 @@ export default {
       )
     },
     integrations() {
-      return this.$store.getters['integration/getIntegrations'](
+      return this.$store.getters['integration/getUsableIntegrations'](
         this.application
       ).filter(
         (integration) =>

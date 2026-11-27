@@ -43,6 +43,7 @@ from baserow.contrib.automation.workflows.constants import (
     STALLED_RUN_ERROR,
     STALLED_RUN_SWEEP_BATCH_SIZE,
     WORKFLOW_DIRTY_CACHE_KEY,
+    WORKFLOW_TEST_CLONE_REUSE_SECONDS,
     WorkflowState,
 )
 from baserow.contrib.automation.workflows.exceptions import (
@@ -458,6 +459,7 @@ class AutomationWorkflowHandler:
         progress.increment(by=export_progress)
 
         id_mapping = defaultdict(lambda: MirrorDict())
+        id_mapping["integrations"] = MirrorDict()
         id_mapping["automation_workflows"] = MirrorDict()
 
         new_workflow_clone = self.import_workflow(
@@ -1433,7 +1435,9 @@ class AutomationWorkflowHandler:
         )
 
         is_dirty_key = WORKFLOW_DIRTY_CACHE_KEY.format(workflow.id)
-        is_dirty = global_cache.get(is_dirty_key, default=False)
+        # A missing flag counts as a change. The flags expire, and a copy that may
+        # be older than the workflow must not be tested in its place.
+        is_dirty = global_cache.get(is_dirty_key, default=True)
 
         # If the clone exists and the workflow hasn't been updated since,
         # use that existing clone's workflow.
@@ -1444,7 +1448,11 @@ class AutomationWorkflowHandler:
                 workflow, WorkflowState.TEST_CLONE
             )
             cloned_workflow = cloned_automation.workflows.first()
-            global_cache.invalidate(is_dirty_key)
+            global_cache.update(
+                is_dirty_key,
+                lambda _: False,
+                timeout=WORKFLOW_TEST_CLONE_REUSE_SECONDS,
+            )
 
         return cloned_workflow
 

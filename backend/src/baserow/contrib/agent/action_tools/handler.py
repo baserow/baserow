@@ -456,6 +456,8 @@ class AgentActionHandler:
             # action does, whatever its author chose.
             if not internal and agent_action_type_registry.get(type_name).changes_data:
                 values["ask_first"] = True
+            # Run-identity actions never carry an integration. Other actions
+            # retain workspace references only for copies within this instance.
             integration = (
                 None
                 if agent_action_type_registry.get(type_name).acts_as_run_identity
@@ -463,7 +465,6 @@ class AgentActionHandler:
                     service_values.get("integration_id"),
                     id_mapping,
                     application_id=agent.id,
-                    keep_unmapped=False,
                 )
             )
             service = ServiceHandler().import_service(

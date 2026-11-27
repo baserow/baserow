@@ -175,7 +175,7 @@ export default {
   },
   methods: {
     ...mapActions({
-      actionFetchIntegrations: 'integration/fetch',
+      actionFetchIntegrations: 'integration/fetchUsable',
       actionCreateDataSource: 'dataSource/create',
       actionMoveDataSourceToPage: 'dataSource/moveToPage',
       actionMoveDataSource: 'dataSource/move',
@@ -183,8 +183,8 @@ export default {
     }),
     async shown() {
       try {
-        // We fetch the integrations on load to make sure we have the last version
-        // of the database/table/fields.
+        // Fetched again on every opening, the workspace ones too, so the data
+        // source form offers the tables and views as they are now.
         await Promise.all([
           this.actionFetchIntegrations({
             application: this.builder,

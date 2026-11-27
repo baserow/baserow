@@ -2,6 +2,7 @@ from baserow.contrib.automation.models import Automation
 from baserow.contrib.builder.models import Builder
 from baserow.contrib.dashboard.models import Dashboard
 from baserow.contrib.database.models import Database
+from baserow.core.models import SHARED_APPLICATION_NAME, SharedApplication
 
 
 class ApplicationFixtures:
@@ -52,3 +53,12 @@ class ApplicationFixtures:
             kwargs["order"] = 0
 
         return Automation.objects.create(**kwargs)
+
+    def create_shared_application(self, user=None, **kwargs):
+        if "workspace" not in kwargs:
+            kwargs["workspace"] = self.create_workspace(user=user)
+
+        kwargs.setdefault("name", SHARED_APPLICATION_NAME)
+        kwargs.setdefault("order", 0)
+
+        return SharedApplication.objects.create(**kwargs)

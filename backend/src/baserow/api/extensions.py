@@ -72,6 +72,15 @@ class CustomFieldRegistryMappingSerializerExtension(MappingSerializerExtension):
         part_2 = self.target.base_class.__name__
         return f"{part_1}{part_2}"
 
+    def get_types(self):
+        """
+        Returns the types the documentation lists.
+
+        :return: Every type of the registry.
+        """
+
+        return self.target.registry.registry.values()
+
     def map_serializer(self, auto_schema, direction):
         try:
             base_ref_name = self.target.base_class.Meta.ref_name
@@ -86,7 +95,7 @@ class CustomFieldRegistryMappingSerializerExtension(MappingSerializerExtension):
                 ),
                 request_serializer=self.target.request,
             )
-            for types in self.target.registry.registry.values()
+            for types in self.get_types()
         }
 
         partial = getattr(self.target, "partial_request", False)
@@ -226,3 +235,13 @@ class PolymorphicRequestMappingSerializerExtensionMixin(
 
     target_class = "baserow.api.polymorphic.PolymorphicRequestSerializer"
     match_subclasses = True
+
+    def get_types(self):
+        """
+        Returns the types a request can use, see
+        `PolymorphicRequestSerializer.get_request_types`.
+
+        :return: The types the documentation lists.
+        """
+
+        return self.target.get_request_types()

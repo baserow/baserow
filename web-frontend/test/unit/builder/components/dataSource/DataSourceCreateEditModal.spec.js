@@ -40,7 +40,7 @@ async function mountComponent(dispatch) {
               page.id === currentPage.id ? [dataSource] : [],
             'page/getSharedPage': () => sharedPage,
             'page/getById': () => currentPage,
-            'integration/getIntegrations': () => [],
+            'integration/getUsableIntegrations': () => [],
             'element/getElementsOrdered': (page) => elements[page.id],
           },
           dispatch,

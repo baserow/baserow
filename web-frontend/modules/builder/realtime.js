@@ -1,5 +1,6 @@
 import { ELEMENT_EVENTS } from '@baserow/modules/builder/enums'
 import { generateHash } from '@baserow/modules/core/utils/hashing'
+import { isSharedApplication } from '@baserow/modules/core/store/application'
 
 /**
  * Returns the matching page and builder for a given page ID.
@@ -19,9 +20,9 @@ const getPageContext = (store, pageId) => {
 }
 
 /**
- * Returns the application (builder) for a given application ID, or null when it isn't
- * loaded in the store. Used by the integration and user source realtime handlers,
- * which are scoped to the application rather than a page.
+ * Returns the application, of any type, for a given application ID, or null when it
+ * isn't loaded in the store. Used by the integration and user source realtime
+ * handlers, which are scoped to the application rather than a page.
  */
 const getApplicationContext = (store, applicationId) => {
   const application = store.getters['application/get'](applicationId)
@@ -29,31 +30,87 @@ const getApplicationContext = (store, applicationId) => {
   return { application }
 }
 
+/**
+ * Returns the shared application, of any workspace in the store, whose list holds
+ * the integration, or undefined.
+ */
+const getSharedApplicationHoldingIntegration = (store, integrationId) => {
+  return store.getters['workspace/getAll']
+    .map((workspace) =>
+      store.getters['application/getSharedApplication'](workspace)
+    )
+    .find(
+      (application) =>
+        application &&
+        store.getters['integration/getIntegrations'](application).some(
+          (integration) => integration.id === integrationId
+        )
+    )
+}
+
+/**
+ * Returns the application of the workspace, its shared application included, whose
+ * list holds the integration, or undefined.
+ */
+const getApplicationHoldingIntegration = (store, workspace, integrationId) => {
+  return [
+    ...store.getters['application/getAllOfWorkspace'](workspace),
+    store.getters['application/getSharedApplication'](workspace),
+  ].find((application) =>
+    store.getters['integration/getIntegrations'](application).some(
+      (integration) => integration.id === integrationId
+    )
+  )
+}
+
+/**
+ * Re-dispatches the data sources using an integration of the application, so the
+ * collection elements bound to them refresh. A workspace integration belongs to
+ * the shared application, but every builder of the workspace can use it: only the
+ * builder open in the editor has data sources on screen, so its data sources are
+ * the ones looked up.
+ */
+const redispatchForIntegration = (store, application, integrationId) => {
+  let builder = application
+  if (isSharedApplication(application)) {
+    const selectedPage = store.getters['page/getSelected']
+    builder = store.getters['application/get'](selectedPage?.builder_id)
+    if (builder?.workspace?.id !== application.workspace.id) {
+      return
+    }
+  }
+  store.dispatch('dataSource/redispatchForIntegration', {
+    builder,
+    integrationId,
+  })
+}
+
 const redispatchForAuthorizedIdentity = (
   store,
   { workspaceId, identityId }
 ) => {
-  store.getters['application/getAll']
-    .filter(
-      (application) =>
-        application.type === 'builder' &&
-        application.workspace?.id === workspaceId
-    )
-    .forEach((builder) => {
-      builder.integrations
-        .filter(
-          (integration) =>
-            integration.type === 'local_baserow' &&
-            integration.authorized_subject?.type === 'auth.User' &&
-            integration.authorized_subject.id === identityId
-        )
-        .forEach((integration) => {
-          store.dispatch('dataSource/redispatchForIntegration', {
-            builder,
-            integrationId: integration.id,
-          })
-        })
-    })
+  const builders = store.getters['application/getAll'].filter(
+    (application) =>
+      application.type === 'builder' &&
+      application.workspace?.id === workspaceId
+  )
+  // The workspace integrations, which every builder of the workspace can use.
+  const sharedApplication = store.getters['application/getSharedApplication']({
+    id: workspaceId,
+  })
+  const applications = [...builders, sharedApplication].filter(Boolean)
+  applications.forEach((application) => {
+    application.integrations
+      .filter(
+        (integration) =>
+          integration.type === 'local_baserow' &&
+          integration.authorized_subject?.type === 'auth.User' &&
+          integration.authorized_subject.id === identityId
+      )
+      .forEach((integration) => {
+        redispatchForIntegration(store, application, integration.id)
+      })
+  })
 }
 
 export const registerRealtimeEvents = (realtime) => {
@@ -344,8 +401,37 @@ export const registerRealtimeEvents = (realtime) => {
     })
   })
 
-  // Integration events
-  realtime.registerEvent('integration_created', ({ store }, data) => {
+  /**
+   * Apply an integration event before refreshing its dependent data sources.
+   * The previous shared owner also covers demotion to an unloaded application.
+   */
+  const registerIntegrationEvent = (type, handler) => {
+    realtime.registerEvent(type, (context, data) => {
+      const { store } = context
+      const integrationId = data.integration?.id ?? data.integration_id
+      const applicationId =
+        data.integration?.application_id ?? data.application_id
+      const application = getApplicationContext(
+        store,
+        applicationId
+      )?.application
+      const previousSharedApplication =
+        type === 'integration_updated'
+          ? getSharedApplicationHoldingIntegration(store, integrationId)
+          : null
+
+      handler(context, data)
+
+      const owner = previousSharedApplication || application
+      if (owner) {
+        redispatchForIntegration(store, owner, integrationId)
+      }
+    })
+  }
+
+  // Integration events, for every application type and the shared application:
+  // no other module handles them.
+  registerIntegrationEvent('integration_created', ({ store }, data) => {
     const ctx = getApplicationContext(store, data.integration.application_id)
     if (!ctx) return
 
@@ -354,19 +440,53 @@ export const registerRealtimeEvents = (realtime) => {
       integration: data.integration,
       beforeId: data.before_id,
     })
-
-    // When an integration is restored (e.g. undoing its deletion), re-dispatch
-    // the data sources that reference it so their collection elements repopulate.
-    // For a brand new integration this is a no-op (nothing references it yet).
-    store.dispatch('dataSource/redispatchForIntegration', {
-      builder: ctx.application,
-      integrationId: data.integration.id,
-    })
   })
 
-  realtime.registerEvent('integration_updated', ({ store }, data) => {
+  registerIntegrationEvent('integration_updated', ({ store }, data) => {
     const ctx = getApplicationContext(store, data.integration.application_id)
-    if (!ctx) return
+    if (!ctx) {
+      // Moved out of the workspace to an application this tab doesn't have, like
+      // the undo of a promotion seen by a builder of another application. It no
+      // longer belongs in the workspace list, which offers it everywhere.
+      const sharedApplication = getSharedApplicationHoldingIntegration(
+        store,
+        data.integration.id
+      )
+      if (sharedApplication) {
+        store.dispatch('integration/forceDelete', {
+          application: sharedApplication,
+          integrationId: data.integration.id,
+        })
+      }
+      return
+    }
+
+    // A promotion, and its undo, move the integration between an application and
+    // the shared application of its workspace, so another application can still
+    // hold it. Relocate it first, otherwise it would stay in that list too: an
+    // application looks up the workspace integrations as well, and would find the
+    // integration there before the update.
+    const holder = getApplicationHoldingIntegration(
+      store,
+      ctx.application.workspace,
+      data.integration.id
+    )
+    if (holder && holder.id !== ctx.application.id) {
+      store.dispatch('integration/forceMoveToApplication', {
+        applicationSource: holder,
+        applicationDest: ctx.application,
+        integrationId: data.integration.id,
+      })
+    } else if (!holder && isSharedApplication(ctx.application)) {
+      // A promotion from an application whose integrations weren't loaded here
+      // reaches the shared application as an update of an integration it doesn't
+      // have, so it's added like a created one.
+      store.dispatch('integration/forceCreate', {
+        application: ctx.application,
+        integration: data.integration,
+      })
+      return
+    }
 
     const integration = store.getters['integration/getIntegrationById'](
       ctx.application,
@@ -381,22 +501,12 @@ export const registerRealtimeEvents = (realtime) => {
     })
   })
 
-  realtime.registerEvent('integration_deleted', ({ store }, data) => {
+  registerIntegrationEvent('integration_deleted', ({ store }, data) => {
     const ctx = getApplicationContext(store, data.application_id)
     if (!ctx) return
 
     store.dispatch('integration/forceDelete', {
       application: ctx.application,
-      integrationId: data.integration_id,
-    })
-
-    // The integration's data sources are now misconfigured (their integration
-    // can no longer be resolved). Re-dispatch them so collection elements bound
-    // to those data sources reset their content (there are no records to show
-    // while the integration is trashed). On restore the integration_created
-    // event repopulates them.
-    store.dispatch('dataSource/redispatchForIntegration', {
-      builder: ctx.application,
       integrationId: data.integration_id,
     })
   })

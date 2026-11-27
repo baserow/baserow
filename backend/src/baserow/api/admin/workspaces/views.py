@@ -1,5 +1,5 @@
 from django.db import transaction
-from django.db.models import Count
+from django.db.models import Count, Q
 
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import OpenApiParameter, extend_schema
@@ -45,7 +45,10 @@ class WorkspacesAdminView(AdminListingView):
                 "workspaceuser_set", "workspaceuser_set__user"
             )
             .annotate(
-                application_count=Count("application"),
+                application_count=Count(
+                    "application",
+                    filter=Q(application__sharedapplication__isnull=True),
+                ),
                 template_count=Count("template"),
                 **{
                     WorkspacesAdminResponseSerializer.ROW_COUNT_ANNOTATION_NAME: UsageHandler.get_workspace_row_count_annotation()

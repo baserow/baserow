@@ -7,6 +7,16 @@ import {
   markRealtimeMetadata,
   realtimeMetadata,
 } from '@baserow/modules/core/utils/realtime'
+import { SharedApplicationType } from '@baserow/modules/core/applicationTypes'
+
+/**
+ * Whether the application is the hidden one that owns the workspace integrations of
+ * its workspace. It's in the store, so it can be found by id, but it isn't one of
+ * the user's applications.
+ */
+export function isSharedApplication(application) {
+  return application.type === SharedApplicationType.getType()
+}
 
 export function populateApplication(application, registry) {
   const type = registry.get('application', application.type)
@@ -196,6 +206,24 @@ export const actions = {
     }
     return getters.get(app.id)
   },
+  /**
+   * Returns the shared application of the workspace. When the store doesn't have
+   * it, for example because the workspace was created after the applications were
+   * loaded, the applications of the workspace are fetched and only the shared one
+   * is added.
+   */
+  async fetchSharedApplication({ dispatch, getters }, workspace) {
+    const sharedApplication = getters.getSharedApplication(workspace)
+    if (sharedApplication) {
+      return sharedApplication
+    }
+
+    const { data } = await ApplicationService(this.$client).fetchAll(
+      workspace.id
+    )
+    const fetched = data.find(isSharedApplication)
+    return fetched ? dispatch('forceCreate', fetched) : undefined
+  },
   async refreshPermissions(
     { dispatch, getters, rootGetters },
     applicationOrId
@@ -359,12 +387,35 @@ export const getters = {
       return null
     }
   },
+  /**
+   * The applications of all the workspaces, without the shared applications, which
+   * `get` and `getSharedApplication` return.
+   */
   getAll(state) {
-    return state.items
+    return state.items.filter(
+      (application) => !isSharedApplication(application)
+    )
   },
+  /**
+   * The applications of the workspace, without its shared application.
+   */
   getAllOfWorkspace: (state) => (workspace) => {
     return state.items.filter(
-      (application) => application.workspace.id === workspace.id
+      (application) =>
+        application.workspace.id === workspace.id &&
+        !isSharedApplication(application)
+    )
+  },
+  /**
+   * The hidden application that owns the workspace integrations of the workspace,
+   * or undefined when the store doesn't have it, like before the applications are
+   * loaded.
+   */
+  getSharedApplication: (state) => (workspace) => {
+    return state.items.find(
+      (application) =>
+        application.workspace.id === workspace.id &&
+        isSharedApplication(application)
     )
   },
 }

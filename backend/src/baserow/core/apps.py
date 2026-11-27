@@ -47,6 +47,11 @@ class CoreConfig(AppConfig):
 
         trash_item_type_registry.register(IdentityTrashableItemType())
 
+        from baserow.core.application_types import SharedApplicationType
+        from baserow.core.registries import application_type_registry
+
+        application_type_registry.register(SharedApplicationType())
+
         from baserow.core.formula.registries import formula_runtime_function_registry
         from baserow.core.formula.runtime_formula_types import (
             RuntimeAbs,
@@ -761,12 +766,18 @@ class CoreConfig(AppConfig):
 
         from baserow.core.integrations.operations import (
             CreateIntegrationOperationType,
+            CreateIntegrationWorkspaceOperationType,
             DeleteIntegrationOperationType,
+            DeleteWorkspaceIntegrationOperationType,
             ListIntegrationsApplicationOperationType,
+            ListIntegrationsWorkspaceOperationType,
             OrderIntegrationsOperationType,
+            OrderIntegrationsWorkspaceOperationType,
             ReadIntegrationOperationType,
             RestoreIntegrationOperationType,
+            RestoreWorkspaceIntegrationOperationType,
             UpdateIntegrationOperationType,
+            UpdateWorkspaceIntegrationOperationType,
         )
 
         operation_type_registry.register(CreateIntegrationOperationType())
@@ -776,6 +787,12 @@ class CoreConfig(AppConfig):
         operation_type_registry.register(ReadIntegrationOperationType())
         operation_type_registry.register(OrderIntegrationsOperationType())
         operation_type_registry.register(RestoreIntegrationOperationType())
+        operation_type_registry.register(ListIntegrationsWorkspaceOperationType())
+        operation_type_registry.register(CreateIntegrationWorkspaceOperationType())
+        operation_type_registry.register(OrderIntegrationsWorkspaceOperationType())
+        operation_type_registry.register(UpdateWorkspaceIntegrationOperationType())
+        operation_type_registry.register(DeleteWorkspaceIntegrationOperationType())
+        operation_type_registry.register(RestoreWorkspaceIntegrationOperationType())
 
         from baserow.core.action.registries import action_type_registry
         from baserow.core.integrations.actions import (
@@ -863,6 +880,7 @@ class CoreConfig(AppConfig):
 
         import baserow.core.import_export.tasks  # noqa: F403, F401
         import baserow.core.integrations.receivers  # noqa: F403, F401
+        import baserow.core.integrations.tasks  # noqa: F401
         import baserow.core.integrations.ws.signals  # noqa: F403, F401
         import baserow.core.user_sources.ws.signals  # noqa: F403, F401
 

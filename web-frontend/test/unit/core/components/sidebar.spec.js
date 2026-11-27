@@ -182,6 +182,57 @@ describe('Workspace sidebar', () => {
     expect(document.activeElement).toBe(help.element)
   })
 
+  test.each([true, false])(
+    'offers workspace integrations as a settings tab only when they may be listed (%s)',
+    async (canListIntegrations) => {
+      const enabled = vi
+        .spyOn(
+          testApp.getRegistry().get('workspaceSettings', 'integrations'),
+          'isEnabled'
+        )
+        .mockReturnValue(canListIntegrations)
+      await testApp.store.dispatch('workspace/forceCreate', {
+        id: 1,
+        name: 'Design',
+      })
+      testApp.mock.onGet('/workspaces/1/permissions/').reply(200, [])
+      testApp.mock.onGet('/workspaces/1/roles/').reply(200, [])
+      const wrapper = await testApp.mount(SidebarMenu, {
+        props: { selectedWorkspace: testApp.store.getters['workspace/get'](1) },
+        global: {
+          mocks: {
+            $hasPermission: (permission) =>
+              permission !== 'workspace.list_integrations' ||
+              canListIntegrations,
+          },
+          stubs: {
+            Teleport: false,
+            NotificationPanel: true,
+            InviteModal: true,
+            WorkspaceSettingsModal: true,
+          },
+        },
+      })
+
+      await wrapper
+        .get('[data-highlight="workspace-settings"] button')
+        .trigger('click')
+      await flushPromises()
+      const menu = testApp.body.get(
+        '.sidebar-workspace-menu:not(.visibility-hidden)'
+      )
+      expect(
+        menu
+          .findAll('button')
+          .some((button) => button.text() === 'workspaceIntegrations.tabTitle')
+      ).toBe(canListIntegrations)
+      expect(
+        menu.find('a[href="/workspace/1/settings/integrations"]').exists()
+      ).toBe(false)
+      enabled.mockRestore()
+    }
+  )
+
   test('discards workspace actions when the selected workspace changes', async () => {
     const { store, mock } = testApp
     for (const [id, name] of [

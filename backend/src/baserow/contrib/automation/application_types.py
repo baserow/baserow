@@ -80,6 +80,7 @@ class AutomationApplicationType(ApplicationType):
         automation_init.create_workflow(automation_init.workflow_name)
         automation_init.create_local_baserow_integration()
 
+    @IntegrationHandler.with_referenced_integrations
     def export_serialized(
         self,
         automation: Automation,
@@ -233,7 +234,6 @@ class AutomationApplicationType(ApplicationType):
             progress.increment(
                 state=IMPORT_SERIALIZED_IMPORTING, by=integration_progress
             )
-            id_mapping.setdefault("integrations", {})  # Just in case
         else:
             self.import_integrations_serialized(
                 automation,

@@ -144,6 +144,43 @@ export const mockApprovals = (testApp, uuid, ...responses) =>
     ...responses
   )
 
+const sharedApplication = {
+  id: 99,
+  name: '__shared__',
+  type: 'shared',
+  order: 0,
+  workspace: { id: workspace.id },
+}
+
+/**
+ * Mocks the integrations of the Agent and of its workspace, which the action
+ * forms offer too. The workspace's shared application is put in the store, as
+ * the application listing would.
+ */
+export async function mockIntegrations(testApp) {
+  await testApp.store.dispatch(
+    'application/forceCreate',
+    clone(sharedApplication)
+  )
+  mockAgentIntegrations(testApp, agentData.id)
+}
+
+/**
+ * Mocks the integrations an Agent loads with its actions, its own and the
+ * workspace ones, which every Agent fetches for itself. For an Agent of the
+ * workspace `mockIntegrations` has already set up.
+ */
+export function mockAgentIntegrations(testApp, agentId) {
+  testApp.mock
+    .onGet(`application/${agentId}/workspace-integrations/`)
+    .reply(200, {
+      shared_application: clone(sharedApplication),
+      integration_types: ['smtp'],
+      integrations: [],
+    })
+  testApp.mock.onGet(`application/${agentId}/integrations/`).reply(200, [])
+}
+
 export const sentBodies = (testApp) =>
   testApp.mock.history.post.map(({ data }) => JSON.parse(data))
 

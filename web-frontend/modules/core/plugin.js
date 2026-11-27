@@ -26,7 +26,9 @@ import {
 import {
   GenerativeAIWorkspaceSettingsType,
   SnapshotsWorkspaceSettingsType,
+  IntegrationsWorkspaceSettingsType,
 } from '@baserow/modules/core/workspaceSettingsTypes'
+import { SharedApplicationType } from '@baserow/modules/core/applicationTypes'
 import {
   OpenAIModelType,
   OllamaModelType,
@@ -211,6 +213,8 @@ export default defineNuxtPlugin({
 
     const context = { app: nuxtApp }
 
+    registry.register('application', new SharedApplicationType(context))
+
     registry.register('subject', new UserSubjectType(context))
     registry.register('subject', new AnonymousUserSubjectType(context))
 
@@ -245,6 +249,10 @@ export default defineNuxtPlugin({
     registry.register(
       'workspaceSettings',
       new SnapshotsWorkspaceSettingsType(context)
+    )
+    registry.register(
+      'workspaceSettings',
+      new IntegrationsWorkspaceSettingsType(context)
     )
 
     registry.register('generativeAIModel', new OpenAIModelType(context))

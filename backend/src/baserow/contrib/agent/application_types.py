@@ -375,6 +375,7 @@ class AgentApplicationType(ApplicationType):
             if allowed.get(check, False) is True
         ]
 
+    @IntegrationHandler.with_referenced_integrations
     def export_serialized(
         self,
         application: AgentApplication,
@@ -396,6 +397,21 @@ class AgentApplicationType(ApplicationType):
         serialized = super().export_serialized(
             application, import_export_config, files_zip, storage, progress_builder
         )
+        serialized_actions = AgentActionHandler().export_actions(
+            application, import_export_config, files_zip, storage
+        )
+        serialized_integrations = [
+            IntegrationHandler().export_integration(
+                integration,
+                import_export_config=import_export_config,
+                files_zip=files_zip,
+                storage=storage,
+            )
+            for integration in self._integrations_to_export(
+                application, import_export_config
+            )
+        ]
+
         serialized.update(
             instructions=application.instructions,
             suggested_messages=application.suggested_messages,
@@ -403,22 +419,10 @@ class AgentApplicationType(ApplicationType):
             model_identifier=application.model_identifier,
             reasoning_effort=application.reasoning_effort,
             **AgentHandler().get_exported_tool_configuration(application),
-            integrations=[
-                IntegrationHandler().export_integration(
-                    integration,
-                    import_export_config=import_export_config,
-                    files_zip=files_zip,
-                    storage=storage,
-                )
-                for integration in self._integrations_to_export(
-                    application, import_export_config
-                )
-            ],
+            integrations=serialized_integrations,
             web_search_enabled=application.web_search_enabled,
             web_fetch_enabled=application.web_fetch_enabled,
-            actions=AgentActionHandler().export_actions(
-                application, import_export_config, files_zip, storage
-            ),
+            actions=serialized_actions,
             triggers=AgentTriggerHandler().export_triggers(
                 application, import_export_config, files_zip, storage
             ),
@@ -477,7 +481,6 @@ class AgentApplicationType(ApplicationType):
         """
 
         serialized_integrations = serialized_values.pop("integrations", [])
-        id_mapping.setdefault("integrations", {})
         application = super().import_serialized(
             workspace,
             serialized_values,

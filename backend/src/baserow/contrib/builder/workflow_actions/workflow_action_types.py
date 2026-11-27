@@ -343,7 +343,7 @@ class BuilderWorkflowServiceActionType(
 
         if prop_name == "service":
             service = workflow_action.service.specific
-            return service.get_type().export_serialized(
+            return ServiceHandler().export_service(
                 service,
                 import_export_config=import_export_config,
                 files_zip=files_zip,
@@ -440,6 +440,10 @@ class BuilderWorkflowServiceActionType(
         # If we received any service values, prepare them.
         service_values = values.pop("service", None) or {}
         page = values.get("page") or instance.page
+        if instance is None:
+            service_values = service_type.with_default_integration(
+                service_values, user, page.builder
+            )
         service_values = service_type.resolve_integration(page.builder, service_values)
         prepared_service_values = service_type.prepare_values(
             service_values, user, service if instance else None

@@ -67,7 +67,7 @@
       @confirm="deleteWorkspace"
     />
     <WorkspaceSettingsModal
-      v-if="canUpdate"
+      v-if="settingsTabs.length"
       ref="settingsModal"
       :workspace="workspace"
     />
@@ -124,6 +124,13 @@ export default {
     canUpdate() {
       return this.hasWorkspacePermission('workspace.update')
     },
+    settingsTabs() {
+      return getEnabledWorkspaceSettings(
+        this.$registry,
+        this.workspace,
+        this.canUpdate
+      )
+    },
     actions() {
       return {
         exportData: this.canExport
@@ -147,23 +154,19 @@ export default {
               run: () => this.$emit('rename'),
             }
           : null,
-        settings: this.canUpdate
+        settings: this.settingsTabs.length
           ? {
               icon: 'iconoir-settings',
               label: 'workspaceContext.settings',
               run: () => this.openModal('settingsModal'),
             }
           : null,
-        settingsTabs: this.canUpdate
-          ? getEnabledWorkspaceSettings(this.$registry, this.workspace).map(
-              (setting) => ({
-                type: setting.type,
-                name: setting.getName(),
-                icon: setting.iconClass,
-                run: () => this.openModal('settingsModal', setting.type),
-              })
-            )
-          : [],
+        settingsTabs: this.settingsTabs.map((setting) => ({
+          type: setting.type,
+          name: setting.getName(),
+          icon: setting.iconClass,
+          run: () => this.openModal('settingsModal', setting.type),
+        })),
         members: {
           icon: 'baserow-icon-team',
           label: 'workspaceContext.members',

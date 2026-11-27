@@ -2361,6 +2361,29 @@ def test_ensure_published_for_run_reuse_automation(data_fixture):
 
 
 @pytest.mark.django_db
+def test_ensure_published_for_run_makes_a_new_clone_when_the_flag_is_gone(
+    data_fixture,
+):
+    """
+    The flags expire. Without one, nothing tells whether the workflow changed since
+    its last copy was made, so a new copy is tested rather than one that may be out
+    of date.
+    """
+
+    workflow = data_fixture.create_automation_workflow()
+    handler = AutomationWorkflowHandler()
+
+    cloned_workflow_1 = handler._ensure_published_for_run(workflow)
+
+    # What an expired flag leaves behind.
+    global_cache.invalidate(WORKFLOW_DIRTY_CACHE_KEY.format(workflow.id))
+
+    cloned_workflow_2 = handler._ensure_published_for_run(workflow)
+
+    assert cloned_workflow_1.id != cloned_workflow_2.id
+
+
+@pytest.mark.django_db
 def test_ensure_published_for_run_ignores_published_workflow_states(data_fixture):
     workflow = data_fixture.create_automation_workflow()
     handler = AutomationWorkflowHandler()

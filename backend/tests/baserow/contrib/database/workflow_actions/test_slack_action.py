@@ -487,8 +487,7 @@ def test_editing_an_action_still_checks_the_integration_it_already_carries(
 
     # The id is not resent: only the channel and the message are.
     with patch(
-        "baserow.contrib.database.workflow_actions.workflow_action_types."
-        "CoreHandler.check_permissions",
+        "baserow.core.integrations.service.CoreHandler.check_permissions",
         side_effect=refused,
     ):
         with pytest.raises(PermissionException) as raised:

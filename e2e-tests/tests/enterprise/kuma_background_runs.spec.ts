@@ -100,10 +100,15 @@ async function databasesOf(
     `applications/workspace/${workspacePage.workspace.id}/`
   );
   return Object.fromEntries(
-    data.map((database: { name: string; tables: { name: string }[] }) => [
-      database.name,
-      database.tables.map((table) => table.name),
-    ])
+    data
+      // The listing also holds the workspace's hidden shared application.
+      .filter(
+        (application: { type: string }) => application.type === "database"
+      )
+      .map((database: { name: string; tables: { name: string }[] }) => [
+        database.name,
+        database.tables.map((table) => table.name),
+      ])
   );
 }
 

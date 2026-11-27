@@ -27,6 +27,7 @@ from baserow.contrib.database.models import Database
 from baserow.contrib.database.rows.handler import RowHandler
 from baserow.core.action.models import Action
 from baserow.core.action.registries import ActionType
+from baserow.core.application_types import SharedApplicationType
 from baserow.core.cache import invalidate_cached_settings, set_cached_settings
 from baserow.core.models import Settings, Workspace
 from baserow.core.psycopg import psycopg
@@ -566,6 +567,28 @@ def user_template_plan_rows(
             id="-".join([f"{area}.{'+'.join(row[0])}", *row[1:key_columns]]),
         )
         for row in rows
+    ]
+
+
+def without_shared_applications(
+    serialized_applications: List[Dict[str, Any]],
+) -> List[Dict[str, Any]]:
+    """
+    Leaves the shared applications out of a serialized application listing. Listing
+    the applications of a workspace creates its shared application when it doesn't
+    have one, so tests about the other applications use this to pass either way.
+
+    TODO ZDM: remove with its callers once the listing no longer creates it,
+    https://github.com/baserow/baserow/issues/6758
+
+    :param serialized_applications: The applications as the API returns them.
+    :return: The applications that aren't shared applications, in the same order.
+    """
+
+    return [
+        application
+        for application in serialized_applications
+        if application["type"] != SharedApplicationType.type
     ]
 
 

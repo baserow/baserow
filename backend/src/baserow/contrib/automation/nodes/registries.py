@@ -252,7 +252,7 @@ class AutomationNodeType(
     ):
         if prop_name == "service":
             service = node.service.specific
-            return service.get_type().export_serialized(
+            return ServiceHandler().export_service(
                 service,
                 import_export_config=import_export_config,
                 files_zip=files_zip,
@@ -346,8 +346,8 @@ class AutomationNodeType(
     ) -> None:
         """
         Checks that the node's service reads only through what its workflow's
-        automation may use: an integration of the automation, and a table of the
-        automation's workspace.
+        automation may use: an integration of the automation or of its workspace,
+        and a table of the automation's workspace.
 
         :param workflow: The workflow the node belongs to.
         :param service: The node's service.
@@ -417,6 +417,10 @@ class AutomationNodeType(
         service_values = values.pop("service", None) or {}
         workflow = instance.workflow if instance else values.get("workflow", None)
         if workflow:
+            if instance is None:
+                service_values = service_type.with_default_integration(
+                    service_values, user, workflow.automation
+                )
             service_values = service_type.resolve_integration(
                 workflow.automation, service_values
             )

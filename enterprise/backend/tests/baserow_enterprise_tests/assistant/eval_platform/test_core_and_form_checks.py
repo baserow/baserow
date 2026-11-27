@@ -26,9 +26,18 @@ def _output(*tool_calls, answer="Done"):
 
 
 def _run(case_id, output, prepare=None):
+    """
+    The checks of a case, by name, after ``prepare`` changed the data.
+
+    The workspace gets its shared application after the scenario is built, as in
+    a real run, where the tools create it the first time they list applications.
+    """
+
     load_all()
     case = get_case(case_id)
-    scenario = get_scenario(case.scenario)(make_fixtures())
+    fixtures = make_fixtures()
+    scenario = get_scenario(case.scenario)(fixtures)
+    fixtures.create_shared_application(workspace=scenario.workspace)
     if prepare:
         prepare(scenario)
     return {check.name: check.passed for check in case.checks(case, scenario, output)}

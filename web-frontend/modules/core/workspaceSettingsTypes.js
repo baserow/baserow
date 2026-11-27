@@ -1,11 +1,20 @@
+import WorkspaceIntegrationsTable from '@baserow/modules/core/components/settings/integrations/WorkspaceIntegrationsTable'
 import { SettingsType } from '@baserow/modules/core/settingsTypes'
 import AIProviderWorkspaceSettings from '@baserow/modules/core/components/workspace/AIProviderWorkspaceSettings'
 import SnapshotsWorkspaceSettings from '@baserow/modules/core/components/workspace/SnapshotsWorkspaceSettings'
 
-export function getEnabledWorkspaceSettings(registry, workspace) {
+export function getEnabledWorkspaceSettings(
+  registry,
+  workspace,
+  canUpdate = true
+) {
   return registry
     .getOrderedList('workspaceSettings')
-    .filter((setting) => setting.isEnabled(workspace) === true)
+    .filter(
+      (setting) =>
+        (canUpdate || !setting.requiresWorkspaceUpdatePermission) &&
+        setting.isEnabled(workspace) === true
+    )
 }
 
 export class GenerativeAIWorkspaceSettingsType extends SettingsType {
@@ -62,5 +71,38 @@ export class SnapshotsWorkspaceSettingsType extends SettingsType {
 
   getOrder() {
     return 60
+  }
+}
+
+/** Workspace integrations are listed by members and managed by admins. */
+export class IntegrationsWorkspaceSettingsType extends SettingsType {
+  requiresWorkspaceUpdatePermission = false
+
+  static getType() {
+    return 'integrations'
+  }
+
+  getIconClass() {
+    return 'iconoir-ev-plug'
+  }
+
+  getName() {
+    return this.app.$i18n.t('workspaceIntegrations.tabTitle')
+  }
+
+  getComponent() {
+    return WorkspaceIntegrationsTable
+  }
+
+  isEnabled(workspace) {
+    return this.app.$hasPermission(
+      'workspace.list_integrations',
+      workspace,
+      workspace.id
+    )
+  }
+
+  getOrder() {
+    return 70
   }
 }

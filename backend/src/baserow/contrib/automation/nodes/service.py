@@ -41,7 +41,6 @@ from baserow.core.cache import global_cache
 from baserow.core.graph.exceptions import GraphPointReferencePointInvalid
 from baserow.core.graph.types import GraphPointPositionType
 from baserow.core.handler import CoreHandler
-from baserow.core.integrations.handler import IntegrationHandler
 from baserow.core.trash.handler import TrashHandler
 
 
@@ -187,18 +186,6 @@ class AutomationNodeService:
             {**kwargs, "workflow": workflow},
             user,
         )
-
-        # Preselect first integration if exactly one exists
-        if node_type.get_service_type().integration_type:
-            integrations_of_type = [
-                i
-                for i in IntegrationHandler().get_integrations(workflow.automation)
-                if i.get_type().type == node_type.get_service_type().integration_type
-            ]
-
-            if len(integrations_of_type) == 1:
-                prepared_values["service"].integration = integrations_of_type[0]
-                prepared_values["service"].save()
 
         new_node = self.handler.create_node(
             node_type,

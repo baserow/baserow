@@ -1172,7 +1172,9 @@ def test_local_baserow_table_service_type_schema_name():
     )
 
 
-def test_local_baserow_table_service_type_after_update_table_change_deletes_filters_and_sorts():
+def test_local_baserow_table_service_type_after_update_table_change_deletes_filters_and_sorts(
+    monkeypatch,
+):
     mock_instance = Mock()
     mock_from_table = Mock()
     mock_to_table = Mock()
@@ -1181,7 +1183,7 @@ def test_local_baserow_table_service_type_after_update_table_change_deletes_filt
     change_table_from_Table_to_Table = {"table": (mock_from_table, mock_to_table)}
 
     service_type_cls = LocalBaserowListRowsUserServiceType
-    service_type_cls.model_class = Mock()
+    monkeypatch.setattr(service_type_cls, "model_class", Mock())
     service_type = service_type_cls()
 
     service_type.after_update(mock_instance, {}, change_table_from_Table_to_None)

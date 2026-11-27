@@ -6,8 +6,7 @@ from django.db import transaction
 from baserow.contrib.agent.models import AgentAction, AgentApplication
 from baserow.contrib.agent.operations import ReadAgentConfigurationOperationType
 from baserow.contrib.agent.service import AgentService
-from baserow.core.handler import CoreHandler
-from baserow.core.integrations.operations import ReadIntegrationOperationType
+from baserow.core.integrations.service import IntegrationService
 from baserow.core.operations import UpdateApplicationOperationType
 from baserow.core.services.models import Service
 
@@ -116,8 +115,8 @@ class AgentActionService:
         :param values: The service values to save.
         :param instance: The existing service, when it is updated.
         :return: The values prepared by the service type, whose integration
-            belongs to the Agent and is readable by the user. A type that acts as
-            the Agent's run identity never has one.
+            the Agent and the user may use, its own or a workspace integration.
+            A type that acts as the Agent's run identity never has one.
         """
 
         values = dict(values)
@@ -129,15 +128,11 @@ class AgentActionService:
         integration = prepared.get(
             "integration", getattr(instance, "integration", None)
         )
-        # An integration's credentials stay within the application that owns it.
+        # The integration must be the Agent's own or a workspace integration of its
+        # workspace, so its credentials never reach another workspace.
         service_type.check_integration(agent, {"integration": integration})
         if integration is not None:
-            CoreHandler().check_permissions(
-                user,
-                ReadIntegrationOperationType.type,
-                workspace=agent.workspace,
-                context=integration,
-            )
+            IntegrationService().check_can_use_integration(user, integration, agent)
         return prepared
 
     @transaction.atomic
@@ -178,6 +173,11 @@ class AgentActionService:
         validate_action_name(defaults["name"])
         defaults["inputs"] = validate_inputs(defaults["inputs"])
         initial_service.update(service_values or {})
+        service_type = action_type.service_type
+        if not action_type.acts_as_run_identity:
+            initial_service = service_type.with_default_integration(
+                initial_service, user, agent
+            )
         prepared = self._prepare_service_values(
             user, agent, action_type, initial_service
         )

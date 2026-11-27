@@ -132,6 +132,52 @@ def test_an_email_action_refuses_an_smtp_integration_of_another_database(
 
 
 @pytest.mark.django_db
+def test_an_email_action_attaches_an_smtp_integration_of_its_workspace(
+    data_fixture, settings
+):
+    _instance_turned_off(settings)
+    user = data_fixture.create_user()
+    button_field = _button(data_fixture, user)
+    smtp = data_fixture.create_smtp_integration(
+        application=data_fixture.create_shared_application(
+            workspace=button_field.table.database.workspace
+        ),
+        user=user,
+    )
+
+    action = _create(
+        user,
+        button_field,
+        integration_id=smtp.id,
+        from_email="'from@example.com'",
+    )
+
+    assert action.service.specific.integration_id == smtp.id
+
+
+@pytest.mark.django_db
+def test_an_email_action_refuses_an_smtp_integration_of_another_workspace(
+    data_fixture, settings
+):
+    _instance_turned_off(settings)
+    user = data_fixture.create_user()
+    button_field = _button(data_fixture, user)
+    smtp = data_fixture.create_smtp_integration(
+        application=data_fixture.create_shared_application(user=user), user=user
+    )
+
+    with pytest.raises(WorkflowActionInvalidIntegration):
+        _create(
+            user,
+            button_field,
+            integration_id=smtp.id,
+            from_email="'from@example.com'",
+            subject="'Hi'",
+            body="'Body'",
+        )
+
+
+@pytest.mark.django_db
 def test_an_email_action_refuses_a_slack_bot(data_fixture, settings):
     _instance_turned_off(settings)
     user = data_fixture.create_user()
@@ -159,8 +205,7 @@ def test_an_email_action_refuses_an_smtp_integration_the_user_cannot_read(
     # Asked of the type directly: through the service, its own permission
     # check would be the one refused.
     with patch(
-        "baserow.contrib.database.workflow_actions.workflow_action_types"
-        ".CoreHandler.check_permissions",
+        "baserow.core.integrations.service.CoreHandler.check_permissions",
         side_effect=refused,
     ):
         with pytest.raises(PermissionException) as raised:
@@ -256,8 +301,7 @@ def test_choosing_the_instance_works_when_the_integration_is_unreadable(
 
     # Asked of the type directly, as in the read test above.
     with patch(
-        "baserow.contrib.database.workflow_actions.workflow_action_types"
-        ".CoreHandler.check_permissions",
+        "baserow.core.integrations.service.CoreHandler.check_permissions",
         side_effect=PermissionException("cannot read"),
     ):
         values = _email_type().prepare_values(

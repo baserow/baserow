@@ -8,6 +8,7 @@ from contextlib import nullcontext
 from dataclasses import dataclass
 from io import BufferedReader, BytesIO
 from pathlib import Path
+from time import monotonic
 from typing import IO, Any, Callable, Dict, List, NewType, Optional, Tuple, Union, cast
 from zipfile import ZIP_DEFLATED, ZipFile
 
@@ -62,6 +63,7 @@ from .emails import WorkspaceInvitationEmail, can_deliver_emails
 from .exceptions import (
     ApplicationDoesNotExist,
     ApplicationNotInWorkspace,
+    ApplicationOperationNotSupported,
     CannotChangeYourOwnWorkspaceRole,
     CannotDeleteYourselfFromWorkspace,
     DuplicateApplicationMaxLocksExceededException,
@@ -87,10 +89,12 @@ from .exceptions import (
     is_max_lock_exceeded_exception,
 )
 from .models import (
+    SHARED_APPLICATION_NAME,
     WORKSPACE_USER_PERMISSION_ADMIN,
     WORKSPACE_USER_PERMISSION_MEMBER,
     Application,
     Settings,
+    SharedApplication,
     Template,
     TemplateCategory,
     Workspace,
@@ -907,7 +911,11 @@ class CoreHandler:
 
         CoreHandler().check_permissions(user, CreateWorkspaceOperationType.type)
 
-        workspace = Workspace.objects.create(name=name)
+        # In one transaction, so that `create_missing_shared_applications` never
+        # finds the workspace without its shared application and creates a second.
+        with transaction.atomic():
+            workspace = Workspace.objects.create(name=name)
+            self.create_shared_application(workspace)
 
         last_order = WorkspaceUser.get_last_order(user)
         workspace_user = WorkspaceUser.objects.create(
@@ -920,6 +928,133 @@ class CoreHandler:
         workspace_created.send(self, workspace=workspace, user=user)
 
         return workspace_user
+
+    def create_shared_application(self, workspace: Workspace) -> SharedApplication:
+        """
+        Creates the shared application of a workspace, which owns its workspace
+        integrations. The caller makes sure that the workspace doesn't have one yet.
+
+        :param workspace: The workspace that gets the shared application.
+        :return: The new shared application.
+        """
+
+        return SharedApplication.objects.create(
+            workspace=workspace, name=SHARED_APPLICATION_NAME, order=0
+        )
+
+    def _workspaces_without_shared_application(self) -> QuerySet[Workspace]:
+        """
+        :return: The non-trashed workspaces that don't have a shared application.
+        """
+
+        return Workspace.objects.filter(
+            ~Exists(
+                SharedApplication.objects_and_trash.filter(workspace=OuterRef("pk"))
+            )
+        )
+
+    def create_missing_shared_applications(
+        self, workspace_ids: Iterable[int], skip_locked: bool = False
+    ) -> list[SharedApplication]:
+        """
+        Creates the shared application of each given workspace that doesn't have one,
+        because it was created before shared applications existed. Trashed workspaces
+        are skipped. Each workspace row is locked while its shared application is
+        looked up again and created, so concurrent calls create only one. Only short
+        transactions hold that row, like renaming or trashing the workspace: a long
+        import doesn't, because the foreign keys of the applications it inserts are
+        checked when it commits.
+
+        TODO ZDM: transitional, like its callers, the application listing and the
+        backfill task. All are removed once a data migration has created the shared
+        application of every workspace: https://github.com/baserow/baserow/issues/6758
+
+        :param workspace_ids: The ids of the workspaces to check.
+        :param skip_locked: Skips a workspace whose row another transaction has
+            locked instead of waiting for it. The backfill sets it; the listing
+            doesn't, because it must return the shared application.
+        :return: The shared applications created.
+        """
+
+        missing_workspace_ids = list(
+            self._workspaces_without_shared_application()
+            .filter(id__in=workspace_ids)
+            .order_by("id")
+            .values_list("id", flat=True)
+        )
+
+        created = []
+        for workspace_id in missing_workspace_ids:
+            with transaction.atomic():
+                # None when the workspace was trashed since, or with `skip_locked`
+                # when another transaction holds a lock on it.
+                workspace = (
+                    Workspace.objects.select_for_update(
+                        of=("self",), skip_locked=skip_locked
+                    )
+                    .filter(id=workspace_id)
+                    .first()
+                )
+                # Looked up again under the lock: the first lookup can come from a
+                # lagging read replica, and a concurrent call may have created it.
+                existing = SharedApplication.objects_and_trash.filter(
+                    workspace_id=workspace_id
+                )
+                if workspace is None or existing.exists():
+                    continue
+                created.append(self.create_shared_application(workspace))
+
+        return created
+
+    def create_all_missing_shared_applications(
+        self, batch_size: int = 100, deadline: float | None = None
+    ) -> int:
+        """
+        Creates the missing shared application of every workspace, a batch of
+        workspaces at a time. Run by the transitional backfill task. A workspace
+        locked by another transaction is skipped and left for the next call, so a
+        call never waits on a row lock.
+
+        TODO ZDM: removed with the backfill task,
+        https://github.com/baserow/baserow/issues/6758
+
+        :param batch_size: How many workspaces without one are looked up at a time.
+        :param deadline: A `time.monotonic()` value. Once it has passed, no further
+            batch is started and the workspaces left are left for the next call.
+        :return: The number of shared applications created.
+        """
+
+        created_count = 0
+        last_workspace_id = 0
+        while True:
+            # Walked by id, so that a workspace that is skipped is never looked up
+            # again.
+            workspace_ids = list(
+                self._workspaces_without_shared_application()
+                .filter(id__gt=last_workspace_id)
+                .order_by("id")
+                .values_list("id", flat=True)[:batch_size]
+            )
+            if not workspace_ids:
+                if created_count:
+                    logger.info(
+                        "Created {} missing shared applications, none is left.",
+                        created_count,
+                    )
+                return created_count
+
+            if deadline is not None and monotonic() >= deadline:
+                logger.info(
+                    "Created {} missing shared applications, stopped at the "
+                    "deadline. The next run creates the ones left.",
+                    created_count,
+                )
+                return created_count
+
+            created_count += len(
+                self.create_missing_shared_applications(workspace_ids, skip_locked=True)
+            )
+            last_workspace_id = workspace_ids[-1]
 
     def update_workspace(
         self,
@@ -2265,10 +2400,19 @@ class CoreHandler:
         workspaces, so it equals concatenating the per workspace listings for workspaces
         sorted by id.
 
+        A workspace created before shared applications existed gets its shared
+        application here if the backfill task hasn't reached it yet, because the
+        frontend learns the shared application's id from this listing.
+
         :param workspaces: The workspaces to list the applications from.
         :param base_queryset: The base queryset from where to select the applications.
         :return: A queryset of applications in the workspaces.
         """
+
+        # TODO ZDM: remove with https://github.com/baserow/baserow/issues/6758
+        self.create_missing_shared_applications(
+            [workspace.id for workspace in workspaces]
+        )
 
         if base_queryset is None:
             base_queryset = Application.objects
@@ -2397,6 +2541,8 @@ class CoreHandler:
         :param user: The user on whose behalf the application is updated.
         :param application: The application instance that needs to be updated.
         :param kwargs: Additional parameters to pass to the application update.
+        :raises ApplicationOperationNotSupported: When the application type isn't
+            managed by users, like the shared application.
         :return: The updated application instance.
         """
 
@@ -2408,6 +2554,9 @@ class CoreHandler:
         )
 
         application_type = application_type_registry.get_by_model(application)
+        if not application_type.is_user_managed:
+            raise ApplicationOperationNotSupported()
+
         allowed_values = extract_allowed(
             kwargs, self.default_update_allowed_fields + application_type.allowed_fields
         )
@@ -2448,6 +2597,8 @@ class CoreHandler:
         :param application: The application instance that needs to be duplicated.
         :param progress_builder: If provided will be used to build a child progress bar
             and report on this methods progress to the parent of the progress_builder.
+        :raises ApplicationOperationNotSupported: When the application type isn't
+            managed by users, like the shared application.
         :return: The new (duplicated) application instance.
         """
 
@@ -2459,6 +2610,9 @@ class CoreHandler:
             workspace=application.workspace,
             context=application,
         )
+
+        if not application.get_type().is_user_managed:
+            raise ApplicationOperationNotSupported()
 
         start_progress, export_progress, import_progress = 10, 30, 60
         progress = ChildProgressBuilder.build(progress_builder, child_total=100)
@@ -2574,6 +2728,8 @@ class CoreHandler:
         :param user: The user on whose behalf the application is deleted.
         :param application: The application instance that needs to be deleted.
         :raises ValueError: If one of the provided parameters is invalid.
+        :raises ApplicationOperationNotSupported: When the application type isn't
+            managed by users, like the shared application.
         """
 
         if not isinstance(application, Application):
@@ -2585,6 +2741,9 @@ class CoreHandler:
             workspace=application.workspace,
             context=application,
         )
+
+        if not application.get_type().is_user_managed:
+            raise ApplicationOperationNotSupported()
 
         application_id = application.id
         TrashHandler.trash(
@@ -2630,7 +2789,7 @@ class CoreHandler:
         )
 
         exported_applications = []
-        applications = workspace.application_set.all()
+        applications = workspace.application_set_without_shared()
         for a in applications:
             application = a.specific
             application_type = application_type_registry.get_by_model(application)

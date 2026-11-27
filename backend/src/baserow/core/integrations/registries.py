@@ -138,6 +138,8 @@ class IntegrationType(
 
         :param values: The provided values.
         :param user: The user on whose behalf the change is made.
+        :param application: The destination application, including when moving an
+            existing integration to another application.
         :param instance: The current instance if it exists.
         :return: The updated values.
         """

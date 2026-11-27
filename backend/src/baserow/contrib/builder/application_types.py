@@ -232,6 +232,7 @@ class BuilderApplicationType(ApplicationType):
         # Create our sample container element.
         builder_init.create_container_element(examples)
 
+    @IntegrationHandler.with_referenced_integrations
     def export_serialized(
         self,
         builder: Builder,
@@ -394,6 +395,7 @@ class BuilderApplicationType(ApplicationType):
         storage: Optional[Storage] = None,
         progress_builder: Optional[ChildProgressBuilder] = None,
         cache: Optional[Dict[str, Any]] = None,
+        import_export_config: Optional[ImportExportConfig] = None,
     ) -> List[Page]:
         """
         Import user sources to builder.
@@ -404,6 +406,7 @@ class BuilderApplicationType(ApplicationType):
         :param progress_builder: A progress builder that allows for publishing progress.
         :param files_zip: An optional zip file for the related files.
         :param storage: The storage instance.
+        :param import_export_config: What kind of import this is.
         :return: The created user sources instances.
         """
 
@@ -424,6 +427,7 @@ class BuilderApplicationType(ApplicationType):
                 cache=cache,
                 files_zip=files_zip,
                 storage=storage,
+                import_export_config=import_export_config,
             )
             imported_user_sources.append(integration)
 
@@ -503,13 +507,6 @@ class BuilderApplicationType(ApplicationType):
         builder.save(update_fields=["breakpoints", "untrusted_content"])
         defer_untrusted_content_update(builder, cache, import_export_config)
 
-        # Always initialize the integrations mapping, even when the export
-        # contains none (e.g. they were all trashed). Downstream importers
-        # (data sources, workflow actions, user sources) resolve dangling
-        # integration references through this mapping and expect the key to
-        # exist.
-        id_mapping.setdefault("integrations", {})
-
         if not serialized_integrations:
             progress.increment(
                 state=IMPORT_SERIALIZED_IMPORTING, by=integration_progress
@@ -539,6 +536,7 @@ class BuilderApplicationType(ApplicationType):
                 storage,
                 progress.create_child_builder(represents_progress=user_source_progress),
                 cache=cache,
+                import_export_config=import_export_config,
             )
 
         if not serialized_pages:

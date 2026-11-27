@@ -19,6 +19,7 @@ from baserow.api.decorators import (
     validate_body_custom_fields,
 )
 from baserow.api.integrations.errors import (
+    ERROR_INTEGRATION_CANNOT_MOVE_TO_APPLICATION,
     ERROR_INTEGRATION_CREDENTIAL_REQUIRED,
     ERROR_INTEGRATION_DOES_NOT_EXIST,
     ERROR_INTEGRATION_NOT_IN_SAME_APPLICATION,
@@ -28,6 +29,7 @@ from baserow.api.integrations.serializers import (
     IntegrationSerializer,
     MoveIntegrationSerializer,
     UpdateIntegrationSerializer,
+    WorkspaceIntegrationsSerializer,
 )
 from baserow.api.schemas import CLIENT_SESSION_ID_SCHEMA_PARAMETER, get_error_schema
 from baserow.api.utils import (
@@ -48,6 +50,7 @@ from baserow.core.integrations.actions import (
     UpdateIntegrationActionType,
 )
 from baserow.core.integrations.exceptions import (
+    IntegrationCannotMoveToApplication,
     IntegrationCredentialRequired,
     IntegrationDoesNotExist,
     IntegrationNotInSameApplication,
@@ -177,6 +180,61 @@ class IntegrationsView(APIView):
         return Response(serializer.data)
 
 
+class WorkspaceIntegrationsView(APIView):
+    permission_classes = (IsAuthenticated,)
+
+    @extend_schema(
+        parameters=[
+            OpenApiParameter(
+                name="application_id",
+                location=OpenApiParameter.PATH,
+                type=OpenApiTypes.INT,
+                description="The application the workspace integrations are used from.",
+            )
+        ],
+        tags=["Integrations"],
+        operation_id="list_application_workspace_integrations",
+        description=(
+            "Lists the workspace integrations that the application can use, with "
+            "the hidden application of the workspace that owns them. Only those of "
+            "an integration type the application can use are listed, and "
+            "`integration_types` says which types those are. Allowed to anyone who "
+            "may list the integrations of the application, including a user with a "
+            "role on that application only."
+        ),
+        responses={
+            200: WorkspaceIntegrationsSerializer,
+            404: get_error_schema(["ERROR_APPLICATION_DOES_NOT_EXIST"]),
+        },
+    )
+    @map_exceptions(
+        {
+            ApplicationDoesNotExist: ERROR_APPLICATION_DOES_NOT_EXIST,
+        }
+    )
+    def get(self, request, application_id: int):
+        """
+        Responds with the workspace integrations the application can use, and the
+        shared application that owns them.
+        """
+
+        application = CoreHandler().get_application(application_id)
+
+        shared_application, integration_types, integrations = (
+            IntegrationService().get_workspace_integrations(request.user, application)
+        )
+
+        return Response(
+            WorkspaceIntegrationsSerializer(
+                {
+                    "shared_application": shared_application,
+                    "integration_types": integration_types,
+                    "integrations": integrations,
+                }
+            ).data
+        )
+
+
 class IntegrationView(APIView):
     @extend_schema(
         parameters=[
@@ -190,7 +248,15 @@ class IntegrationView(APIView):
         ],
         tags=["Integrations"],
         operation_id="update_application_integration",
-        description="Updates an existing integration.",
+        description=(
+            "Updates an existing integration. Sending the id of the shared "
+            "application of its workspace as `application_id` promotes it: it "
+            "becomes a workspace integration, which every application of the "
+            "workspace can use. Any other application is refused: only undoing "
+            "the promotion moves it back. The integration of a dashboard can't "
+            "be promoted, because every data source of a dashboard uses the "
+            "dashboard's own integration."
+        ),
         request=CustomFieldRegistryMappingSerializer(
             integration_type_registry,
             UpdateIntegrationSerializer,
@@ -205,11 +271,14 @@ class IntegrationView(APIView):
                 [
                     "ERROR_REQUEST_BODY_VALIDATION",
                     "ERROR_INTEGRATION_CREDENTIAL_REQUIRED",
+                    "ERROR_INTEGRATION_CANNOT_MOVE_TO_APPLICATION",
+                    "ERROR_APPLICATION_OPERATION_NOT_SUPPORTED",
                 ]
             ),
             404: get_error_schema(
                 [
                     "ERROR_INTEGRATION_DOES_NOT_EXIST",
+                    "ERROR_APPLICATION_DOES_NOT_EXIST",
                 ]
             ),
         },
@@ -219,6 +288,11 @@ class IntegrationView(APIView):
         {
             IntegrationDoesNotExist: ERROR_INTEGRATION_DOES_NOT_EXIST,
             IntegrationCredentialRequired: ERROR_INTEGRATION_CREDENTIAL_REQUIRED,
+            ApplicationDoesNotExist: ERROR_APPLICATION_DOES_NOT_EXIST,
+            IntegrationCannotMoveToApplication: (
+                ERROR_INTEGRATION_CANNOT_MOVE_TO_APPLICATION
+            ),
+            ApplicationOperationNotSupported: ERROR_APPLICATION_OPERATION_NOT_SUPPORTED,
         }
     )
     @require_request_data_type(dict)

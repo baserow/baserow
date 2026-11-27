@@ -169,7 +169,7 @@ def test_create_tool_creates_only_its_type(data_fixture, tool, model, kuma_type)
     assert created == {"id": AnyInt(), "name": "Thing", "type": kuma_type}
     assert result["reused_builders"] == []
     assert model.objects.get(id=created["id"]).workspace_id == workspace.id
-    assert Application.objects.filter(workspace=workspace).count() == 1
+    assert Application.objects_without_shared.filter(workspace=workspace).count() == 1
 
 
 @pytest.mark.django_db
@@ -187,7 +187,7 @@ def test_create_tool_reuses_an_exact_match(data_fixture, tool):
 
     assert second["created_builders"] == []
     assert second["reused_builders"] == first["created_builders"]
-    assert Application.objects.filter(workspace=workspace).count() == 1
+    assert Application.objects_without_shared.filter(workspace=workspace).count() == 1
 
 
 @pytest.mark.django_db

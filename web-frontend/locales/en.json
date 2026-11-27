@@ -99,6 +99,7 @@
     "agents": "Agents",
     "agentDesc": "Build custom AI agents that use your data and tools to get work done.",
     "viewAgent": "View agent",
+    "shared": "Shared application",
     "cantSelectTableTitle": "Couldn't select the database.",
     "cantSelectTableDescription": "The database couldn't be selected because it doesn't have any tables. Use the sidebar to create one.",
     "cantSelectPageTitle": "Couldn't select the application.",

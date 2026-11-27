@@ -3,7 +3,28 @@ import { describe, expect, test, vi } from 'vitest'
 import {
   getFallbackSettingsRoute,
   IdentitiesWorkspaceSettingsPageType,
+  MembersWorkspaceSettingsPageType,
 } from '@baserow/modules/core/workspaceSettingsPageTypes'
+
+describe('MembersWorkspaceSettingsPageType', () => {
+  test('is only visible to who may list the workspace members', () => {
+    const hasPermission = vi.fn().mockReturnValue(true)
+    const pageType = new MembersWorkspaceSettingsPageType({
+      app: { $hasPermission: hasPermission },
+    })
+    const workspace = { id: 42 }
+
+    expect(pageType.hasPermission(workspace)).toBe(true)
+    expect(hasPermission).toHaveBeenCalledWith(
+      'workspace.list_workspace_users',
+      workspace,
+      workspace.id
+    )
+
+    hasPermission.mockReturnValue(false)
+    expect(pageType.hasPermission(workspace)).toBe(false)
+  })
+})
 
 describe('IdentitiesWorkspaceSettingsPageType', () => {
   test('is only visible when the permission is enabled', () => {

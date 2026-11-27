@@ -93,7 +93,7 @@ async function mountForm({
         $t: (key) => key,
         $store: {
           getters: {
-            'integration/getIntegrations': () => integrations,
+            'integration/getUsableIntegrations': () => integrations,
             'integration/getIntegrationById': (application, id) =>
               integrations.find((candidate) => candidate.id === id),
             'workspace/get': () => workspaceValue,

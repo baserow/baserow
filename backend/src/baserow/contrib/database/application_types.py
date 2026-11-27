@@ -308,6 +308,7 @@ class DatabaseApplicationType(ApplicationType):
             if allowed.get(check, False) is True
         ]
 
+    @IntegrationHandler.with_referenced_integrations
     def export_serialized(
         self,
         database: Database,

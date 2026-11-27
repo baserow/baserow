@@ -208,6 +208,108 @@ def test_create_node_rejects_trashed_integration_from_another_application(
     )
 
 
+def _create_row_node(user, workflow, **kwargs):
+    node = AutomationNodeService().create_node(
+        user,
+        automation_node_type_registry.get("local_baserow_create_row"),
+        workflow,
+        reference_node_id=workflow.get_trigger().id,
+        position="south",
+        output="",
+        **kwargs,
+    )
+    node.service.refresh_from_db()
+    return node
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("owned_by_the_workspace", [False, True])
+def test_create_node_preselects_the_only_usable_integration(
+    data_fixture, owned_by_the_workspace
+):
+    user = data_fixture.create_user()
+    # The manual trigger has no integration, so the automation starts with none.
+    workflow = data_fixture.create_automation_workflow(user, trigger_type="manual")
+    automation = workflow.automation
+    shared_application = data_fixture.create_shared_application(
+        workspace=automation.workspace
+    )
+    integration = data_fixture.create_local_baserow_integration(
+        application=shared_application if owned_by_the_workspace else automation,
+        authorized_user=user,
+    )
+    # Not counted: another type, another application's integration and the
+    # workspace integration of another workspace.
+    data_fixture.create_smtp_integration(application=shared_application)
+    data_fixture.create_local_baserow_integration(
+        application=data_fixture.create_builder_application(
+            workspace=automation.workspace
+        ),
+        authorized_user=user,
+    )
+    data_fixture.create_local_baserow_integration(
+        application=data_fixture.create_shared_application(user=user),
+        authorized_user=user,
+    )
+
+    node = _create_row_node(user, workflow)
+
+    assert node.service.integration_id == integration.id
+
+
+@pytest.mark.django_db
+def test_create_node_preselects_the_automation_integration_before_the_workspace_one(
+    data_fixture,
+):
+    user = data_fixture.create_user()
+    workflow = data_fixture.create_automation_workflow(user, trigger_type="manual")
+    automation = workflow.automation
+    own = data_fixture.create_local_baserow_integration(
+        application=automation, authorized_user=user
+    )
+    data_fixture.create_local_baserow_integration(
+        application=data_fixture.create_shared_application(
+            workspace=automation.workspace
+        ),
+        authorized_user=user,
+    )
+
+    node = _create_row_node(user, workflow)
+
+    assert node.service.integration_id == own.id
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "own_count,workspace_count",
+    [
+        pytest.param(2, 1, id="several_of_the_automation"),
+        pytest.param(0, 2, id="several_of_the_workspace"),
+    ],
+)
+def test_create_node_preselects_no_integration_when_several_are_candidates(
+    data_fixture, own_count, workspace_count
+):
+    user = data_fixture.create_user()
+    workflow = data_fixture.create_automation_workflow(user, trigger_type="manual")
+    automation = workflow.automation
+    shared_application = data_fixture.create_shared_application(
+        workspace=automation.workspace
+    )
+    for _ in range(own_count):
+        data_fixture.create_local_baserow_integration(
+            application=automation, authorized_user=user
+        )
+    for _ in range(workspace_count):
+        data_fixture.create_local_baserow_integration(
+            application=shared_application, authorized_user=user
+        )
+
+    node = _create_row_node(user, workflow)
+
+    assert node.service.integration_id is None
+
+
 @pytest.mark.django_db
 def test_get_node(data_fixture: Fixtures):
     user = data_fixture.create_user()
@@ -938,6 +1040,51 @@ def test_update_node_rejects_integration_from_another_application(data_fixture):
     user = data_fixture.create_user()
     node = data_fixture.create_local_baserow_create_row_action_node(user=user)
     other_integration = data_fixture.create_local_baserow_integration(user=user)
+
+    with pytest.raises(RequestBodyValidationException) as exc:
+        AutomationNodeService().update_node(
+            user,
+            node.id,
+            service={"integration_id": other_integration.id},
+        )
+
+    # Answered like an integration that doesn't exist.
+    assert exc.value.detail["detail"]["integration_id"][0]["detail"] == (
+        f"The integration with ID {other_integration.id} does not exist."
+    )
+
+
+@pytest.mark.django_db
+def test_update_node_accepts_a_workspace_integration(data_fixture):
+    user = data_fixture.create_user()
+    node = data_fixture.create_local_baserow_create_row_action_node(user=user)
+    workspace_integration = data_fixture.create_local_baserow_integration(
+        application=data_fixture.create_shared_application(
+            workspace=node.workflow.automation.workspace
+        ),
+        authorized_user=user,
+    )
+
+    AutomationNodeService().update_node(
+        user,
+        node.id,
+        service={"integration_id": workspace_integration.id},
+    )
+
+    node.service.refresh_from_db()
+    assert node.service.integration_id == workspace_integration.id
+
+
+@pytest.mark.django_db
+def test_update_node_rejects_a_workspace_integration_of_another_workspace(
+    data_fixture,
+):
+    user = data_fixture.create_user()
+    node = data_fixture.create_local_baserow_create_row_action_node(user=user)
+    other_integration = data_fixture.create_local_baserow_integration(
+        application=data_fixture.create_shared_application(user=user),
+        authorized_user=user,
+    )
 
     with pytest.raises(RequestBodyValidationException) as exc:
         AutomationNodeService().update_node(

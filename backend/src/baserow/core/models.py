@@ -54,6 +54,7 @@ from .ai_provider.models import (
 from .chat_runs.models import ChatRun
 from .integrations.models import Integration
 from .last_viewed.models import UserLastViewedItem
+from .managers import NoTrashManager
 from .mixins import (
     CreatedAndUpdatedOnMixin,
     HierarchicalModelMixin,
@@ -75,6 +76,7 @@ __all__ = [
     "WorkspaceInvitation",
     "WorkspaceInvitationLink",
     "Application",
+    "SharedApplication",
     "TemplateCategory",
     "Template",
     "UserLogEntry",
@@ -420,6 +422,21 @@ class Workspace(HierarchicalModelMixin, TrashableModelMixin, CreatedAndUpdatedOn
 
         return self.application_set(manager="objects_and_trash")
 
+    def application_set_without_shared(
+        self, include_trash: bool = False
+    ) -> QuerySet["Application"]:
+        """
+        :param include_trash: Whether trashed applications are included too.
+        :return: The applications of this workspace without its shared application,
+            see `Application.objects_without_shared`.
+        """
+
+        if include_trash:
+            return self.application_set_including_trash().filter(
+                sharedapplication__isnull=True
+            )
+        return self.application_set(manager="objects_without_shared").all()
+
     def has_template(self):
         return len(self.get_template_types()) > 0
 
@@ -695,6 +712,17 @@ class WorkspaceInvitationLink(
         ordering = ("id",)
 
 
+class ApplicationWithoutSharedManager(NoTrashManager):
+    """
+    Excludes trashed applications and the shared applications, which own the
+    workspace integrations. Used where they must not travel or be counted, like
+    exports, templates and statistics.
+    """
+
+    def get_queryset(self):
+        return super().get_queryset().filter(sharedapplication__isnull=True)
+
+
 class Application(
     HierarchicalModelMixin,
     TrashableModelMixin,
@@ -725,6 +753,11 @@ class Application(
         help_text="How many snapshots the application keeps. Empty to follow the "
         "workspace default max snapshots.",
     )
+
+    # Declared again, before the other manager, so that it stays the default one:
+    # Django picks the first manager declared on the model before the inherited ones.
+    objects = NoTrashManager()
+    objects_without_shared = ApplicationWithoutSharedManager()
 
     class Meta:
         ordering = ("order",)
@@ -757,6 +790,21 @@ class Application(
         """
 
         return self.workspace
+
+
+SHARED_APPLICATION_NAME = "__shared__"
+
+
+class SharedApplication(Application):
+    """
+    The hidden application of a workspace that owns its workspace integrations, so
+    that they keep the ownership chain of any integration: integration, application,
+    workspace. A workspace has at most one. `CoreHandler.create_workspace` creates
+    it with the workspace; a workspace from before it existed gets one from the
+    transitional lazy creation or backfill (#6758). Template workspaces, which have
+    no members, are created without one and don't need it. The lazy creation and
+    the backfill still give them one, which does no harm.
+    """
 
 
 class TemplateCategory(models.Model):

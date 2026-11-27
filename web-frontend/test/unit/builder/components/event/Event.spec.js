@@ -186,6 +186,56 @@ describe('Event', () => {
     }
   )
 
+  test('fetches every integration the builder can use when it mounts', async () => {
+    // The workspace ones too, so a row action offers the tables as they are
+    // now: no realtime event about the integration tells the store.
+    const builder = { id: 1 }
+    const elementPage = { id: 2 }
+    const workspace = { id: 4 }
+    const store = {
+      dispatch: vi.fn().mockResolvedValue({}),
+      getters: {},
+    }
+
+    await mountSuspended(EventComponent, {
+      props: {
+        event: new BuilderEvent({ app: {}, name: 'click', label: 'Click' }),
+        element: { id: 3 },
+        workflowActions: [],
+        availableWorkflowActionTypes: [workflowActionType],
+      },
+      global: {
+        provide: {
+          applicationContext: { builder, page: elementPage, workspace },
+          builder,
+          elementPage,
+          workspace,
+        },
+        directives: {
+          autoOverflowScroll: {},
+          tooltip: {},
+        },
+        stubs: {
+          ButtonText: ButtonTextStub,
+          Context: ContextStub,
+        },
+        mocks: {
+          $store: store,
+          $t: (key) => key,
+        },
+      },
+    })
+    await flushPromises()
+
+    expect(store.dispatch).toHaveBeenCalledWith('integration/fetchUsable', {
+      application: builder,
+    })
+    expect(store.dispatch).not.toHaveBeenCalledWith(
+      'integration/fetch',
+      expect.anything()
+    )
+  })
+
   test('creates a workflow action selected from the shared menu', async () => {
     const builder = { id: 1 }
     const elementPage = { id: 2 }

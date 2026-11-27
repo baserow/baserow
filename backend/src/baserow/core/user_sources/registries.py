@@ -195,17 +195,18 @@ class UserSourceType(
         **kwargs,
     ) -> Any:
         if prop_name == "integration_id" and value:
-            # The user source may still reference an integration that has since
-            # been trashed (soft-deleted). Trashed integrations aren't
-            # serialized, so they won't be in the mapping - and when the
-            # application has no live integrations at all, the `integrations`
-            # key itself is never created. In both cases the dangling reference
-            # resolves to None instead of crashing the import.
-            try:
-                integrations = id_mapping["integrations"]
-            except KeyError:
-                return None
-            return integrations.get(value)
+            from baserow.core.integrations.handler import IntegrationHandler
+
+            # Mapped to the copy the import made, or kept by a duplicate when it's
+            # a workspace integration. A reference to a trashed integration of the
+            # application isn't mapped, as trashed integrations aren't
+            # serialized, and is dropped like one to another application.
+            integration = IntegrationHandler().get_integration_for_import(
+                value,
+                id_mapping,
+                application_id=kwargs.get("application_id"),
+            )
+            return integration.id if integration else None
 
         if prop_name == "uid":
             # We generate a temporary uuid to prevent DB integrity error but it will be
@@ -238,8 +239,9 @@ class UserSourceType(
 
         auth_providers = serialized_values.pop("auth_providers", [])
 
+        # `deserialize_property` checks the integration against the application.
         created_user_source = super().import_serialized(
-            parent, serialized_values, id_mapping, **kwargs
+            parent, serialized_values, id_mapping, application_id=parent.id, **kwargs
         )
 
         for auth_provider in auth_providers:

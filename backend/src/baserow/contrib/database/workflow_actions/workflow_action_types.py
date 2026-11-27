@@ -49,10 +49,10 @@ from baserow.contrib.integrations.slack.service_types import (
 from baserow.core.db import specific_queryset
 from baserow.core.exceptions import PermissionException
 from baserow.core.formula.serializers import FormulaSerializerField
-from baserow.core.handler import CoreHandler
 from baserow.core.integrations.handler import IntegrationHandler
 from baserow.core.integrations.models import Integration
-from baserow.core.integrations.operations import ReadIntegrationOperationType
+from baserow.core.integrations.service import IntegrationService
+from baserow.core.registries import ImportExportConfig
 from baserow.core.registry import Instance
 from baserow.core.services.exceptions import (
     ServiceImproperlyConfiguredDispatchException,
@@ -165,7 +165,7 @@ class DatabaseWorkflowServiceActionType(
     ) -> Any:
         if prop_name == "service":
             service = workflow_action.service.specific
-            return service.get_type().export_serialized(
+            return ServiceHandler().export_service(
                 service,
                 import_export_config=import_export_config,
                 files_zip=files_zip,
@@ -199,7 +199,12 @@ class DatabaseWorkflowServiceActionType(
 
         if prop_name == "service" and value:
             return ServiceHandler().import_service(
-                self._imported_integration(value, id_mapping, cache),
+                self._imported_integration(
+                    value,
+                    id_mapping,
+                    cache,
+                    import_export_config=kwargs.get("import_export_config"),
+                ),
                 value,
                 id_mapping,
                 storage=storage,
@@ -223,43 +228,43 @@ class DatabaseWorkflowServiceActionType(
         serialized_service: Dict[str, Any],
         id_mapping: Dict[str, Any],
         cache: Optional[Dict[str, Any]] = None,
+        import_export_config: Optional[ImportExportConfig] = None,
     ) -> Optional[Integration]:
         """
         The integration an imported service should carry: the copy made by
-        this import, or the original when the copy stays in the same database
-        (a duplicated table or field). Whether the action may keep it is still
-        settled in `import_serialized`; this only decides what to attach.
+        this import, or, when a duplicate stays in the workspace (a duplicated
+        table, field, database or snapshot), the original of one it didn't
+        copy, like a workspace integration. Whether the action may keep it is
+        still settled in `import_serialized`; this only decides what to attach.
 
         :param serialized_service: The service as the export wrote it.
         :param id_mapping: What this import has remapped so far.
         :param cache: Carries the field being imported, put there by
             `import_serialized`.
+        :param import_export_config: What kind of import this is.
         :return: The integration to attach, or None when it names none this
-            database has.
+            database can use.
         """
 
+        # Coerced before the mapping is read: it's keyed by integers and a
+        # JSON round trip can turn the value beside them into a string.
         integration_id = self._serialized_id_to_look_up(
             serialized_service.get("integration_id")
         )
-        if integration_id is None:
-            return None
-        # After the coercion, not before: the mapping is keyed by integers
-        # and a JSON round trip can turn the value beside them into a string.
-        integration_id = id_mapping.get("integrations", {}).get(
-            integration_id, integration_id
-        )
-
-        # Scoped to the database the action lands in. Unmapped ids are the
-        # normal case for a duplicated field or table, and an export written
-        # before 4c carries none at all, so an unscoped lookup would match
-        # whatever row holds that number here — another workspace's bot. The
-        # later check would drop it, but the FK is written first.
         field = (cache or {}).get(self.IMPORTING_FIELD_CACHE_KEY)
-        if field is None:
+        if integration_id is None or field is None:
             return None
-        return Integration.objects.filter(
-            id=integration_id, application_id=field.table.database_id
-        ).first()
+
+        # Checked against the database the action lands in before the FK is
+        # written. Unmapped ids are the normal case for a duplicated field or
+        # table, and an export written before 4c carries none at all, so the
+        # id can be whatever row holds that number here — another workspace's
+        # bot.
+        return IntegrationHandler().get_integration_for_import(
+            integration_id,
+            id_mapping,
+            application_id=field.table.database_id,
+        )
 
     @staticmethod
     def _serialized_id_to_look_up(value: Any) -> Optional[int]:
@@ -339,8 +344,8 @@ class DatabaseWorkflowServiceActionType(
     ) -> bool:
         """
         Whether an imported action keeps the integration it came with: it has
-        to be usable by this action, and readable by whoever asked for the
-        copy when there is one.
+        to be usable by this action, and usable by whoever asked for the copy
+        when there is one, see `IntegrationService.check_can_use_integration`.
 
         :param integration: The integration the copy came with.
         :param field: The button field the copy belongs to.
@@ -353,11 +358,8 @@ class DatabaseWorkflowServiceActionType(
         if copied_by is None:
             return True
         try:
-            CoreHandler().check_permissions(
-                copied_by,
-                ReadIntegrationOperationType.type,
-                workspace=field.table.database.workspace,
-                context=integration,
+            IntegrationService().check_can_use_integration(
+                copied_by, integration, field.table.database
             )
         except PermissionException:
             return False
@@ -426,7 +428,8 @@ class DatabaseWorkflowServiceActionType(
         """
         The one rule save, import and dispatch all read, so they cannot
         drift: a carried integration is of a type this action accepts, and
-        belongs to the field's own database.
+        belongs to the field's own database or is one of its workspace's
+        integrations.
 
         :param integration: The integration in question.
         :param field: The button field the action belongs to.
@@ -446,8 +449,8 @@ class DatabaseWorkflowServiceActionType(
         Refuses an integration this type may not carry. `integration_id` is
         writable, and the service type resolves it without a permission check,
         so this is where a button is kept from using what its editor could not
-        see: the integration must be usable by this action, and readable by
-        the user.
+        see: the integration must be usable by this action, and by the user,
+        see `IntegrationService.check_can_use_integration`.
 
         :param integration_id: The integration the caller wants to attach.
         :param user: The user configuring the action.
@@ -459,26 +462,23 @@ class DatabaseWorkflowServiceActionType(
 
         integration = None
         if field is not None:
-            # Scoped to the field's database, so someone else's integration
-            # reads the same as nothing.
-            integration = Integration.objects.filter(
-                id=integration_id, application_id=field.table.database_id
-            ).first()
+            # Unscoped: the usability check below accepts the integrations of
+            # the field's database and the workspace integrations, and someone
+            # else's integration fails it with the same answer as nothing.
+            integration = Integration.objects.filter(id=integration_id).first()
 
         if integration is None or not self._integration_is_usable(integration, field):
             # One answer for every way of being wrong, or a caller could walk
             # the ids and learn what this installation holds.
             raise WorkflowActionInvalidIntegration(
                 "This action cannot use that integration. It must be one the "
-                "action accepts, from the database of the button field."
+                "action accepts, from the database of the button field or from "
+                "its workspace."
             )
 
         # Checked against the row already in hand.
-        CoreHandler().check_permissions(
-            user,
-            ReadIntegrationOperationType.type,
-            workspace=field.table.database.workspace,
-            context=integration,
+        IntegrationService().check_can_use_integration(
+            user, integration, field.table.database
         )
 
         return integration

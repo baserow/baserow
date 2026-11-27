@@ -4,6 +4,9 @@ from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
+from baserow.api.applications.serializers import (
+    PolymorphicApplicationResponseSerializer,
+)
 from baserow.api.polymorphic import PolymorphicSerializer
 from baserow.core.integrations.models import Integration
 from baserow.core.integrations.registries import integration_type_registry
@@ -65,9 +68,16 @@ class CreateIntegrationSerializer(serializers.ModelSerializer):
 
 
 class UpdateIntegrationSerializer(serializers.ModelSerializer):
+    application_id = serializers.IntegerField(
+        required=False,
+        help_text="Moves the integration to this application, which can only be the "
+        "shared application of its workspace: the integration becomes a workspace "
+        "integration, usable by every application of the workspace.",
+    )
+
     class Meta:
         model = Integration
-        fields = ("name",)
+        fields = ("name", "application_id")
         extra_kwargs = {
             "name": {"required": False},
         }
@@ -81,4 +91,25 @@ class MoveIntegrationSerializer(serializers.Serializer):
             "If provided, the integration is moved before the integration with this Id. "
             "Otherwise the integration is placed at the end of the page."
         ),
+    )
+
+
+class WorkspaceIntegrationsSerializer(serializers.Serializer):
+    shared_application = PolymorphicApplicationResponseSerializer(
+        allow_null=True,
+        help_text=(
+            "The hidden application of the workspace that owns its workspace "
+            "integrations, or null when the workspace doesn't have one."
+        ),
+    )
+    integration_types = serializers.ListField(
+        child=serializers.CharField(),
+        help_text=(
+            "The integration types the application can use from the workspace. "
+            "The integrations are of these types only."
+        ),
+    )
+    integrations = PolymorphicIntegrationSerializer(
+        many=True,
+        help_text="The workspace integrations the application can use.",
     )

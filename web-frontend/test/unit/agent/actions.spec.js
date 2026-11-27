@@ -13,6 +13,8 @@ import {
   useFakeTimers,
   choose,
   deferredReply,
+  mockIntegrations,
+  mockAgentIntegrations,
 } from './helpers'
 
 const formula = (value = '') => ({
@@ -84,7 +86,7 @@ describe('Agent action editor', () => {
       clone(agentData)
     )
     agentRef = ref(agent)
-    testApp.mock.onGet('application/10/integrations/').reply(200, [])
+    await mockIntegrations(testApp)
     testApp.mock.onGet('/agent/10/action-types/').reply(200, [])
   })
   afterEach(async () => {
@@ -490,7 +492,7 @@ describe('Agent action editor', () => {
       ...clone(agentData),
       id: 11,
     })
-    testApp.mock.onGet('application/11/integrations/').reply(200, [])
+    mockAgentIntegrations(testApp, otherAgent.id)
     testApp.mock
       .onGet('/agent/11/actions/')
       .reply(200, [emailAction({ id: 2, name: 'other_agent_tool' })])
@@ -622,6 +624,65 @@ describe('Agent action editor', () => {
     expect(patches(testApp).at(-1)[1]).toEqual({ enabled: false })
     expect(wrapper.emitted('reload')).toHaveLength(1)
   })
+
+  test.each([10, 99])(
+    'refreshes action errors when integrations owned by application %i change',
+    async (ownerId) => {
+      const action = emailAction({ errors: {} })
+      action.service.integration_id = 123
+      const application = testApp.store.getters['application/get'](ownerId)
+      const integration = {
+        id: 123,
+        application_id: ownerId,
+        type: 'smtp',
+        name: 'SMTP',
+      }
+      const wrapper = await mountSection([action], true, false)
+      testApp.mock
+        .onGet('/agent/10/actions/')
+        .reply(() => [200, [clone(action)]])
+      await testApp.store.dispatch('integration/forceCreate', {
+        application,
+        integration,
+      })
+      await flushPromises()
+      expect(misconfigured(wrapper).exists()).toBe(false)
+
+      action.errors = { integration_id: 'invalid' }
+      await testApp.store.dispatch('integration/forceUpdate', {
+        application,
+        integration,
+        values: { host: '' },
+      })
+      await flushPromises()
+      expect(misconfigured(wrapper).exists()).toBe(true)
+
+      action.errors = {}
+      await testApp.store.dispatch('integration/forceUpdate', {
+        application,
+        integration,
+        values: { host: 'smtp.example.com' },
+      })
+      await flushPromises()
+      expect(misconfigured(wrapper).exists()).toBe(false)
+
+      action.errors = { integration_id: 'invalid' }
+      await testApp.store.dispatch('integration/forceDelete', {
+        application,
+        integrationId: integration.id,
+      })
+      await flushPromises()
+      expect(misconfigured(wrapper).exists()).toBe(true)
+
+      action.errors = {}
+      await testApp.store.dispatch('integration/forceCreate', {
+        application,
+        integration,
+      })
+      await flushPromises()
+      expect(misconfigured(wrapper).exists()).toBe(false)
+    }
+  )
 
   test('read-only configuration has no editing or deleting actions', async () => {
     const wrapper = await mountSection([emailAction()], false)

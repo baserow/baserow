@@ -1,5 +1,7 @@
 from typing import Any, Dict, Optional
 
+from django.contrib.auth.models import AbstractUser
+
 from baserow.api.exceptions import RequestBodyValidationException
 from baserow.core.integrations.exceptions import (
     IntegrationDoesNotExist,
@@ -32,6 +34,26 @@ class IntegrationConsumerMixin:
     # The integration type instances read through, or `None` if any type is
     # accepted.
     integration_type: Optional[str] = None
+
+    def with_default_integration(
+        self, values: Dict[str, Any], user: AbstractUser, application: Application
+    ) -> Dict[str, Any]:
+        """Supply an unambiguous integration for a new consumer or type change.
+
+        Call before preparing values so service-specific modes can still discard
+        the default. Existing choices, including unavailable references, survive.
+        Ordinary edits must not call this method, so clearing a choice stays valid.
+        """
+        from baserow.core.integrations.service import IntegrationService
+
+        values = values.copy()
+        if not values.get("integration_id") and not values.get("integration"):
+            integration = IntegrationService().get_default_integration(
+                user, application, self.integration_type
+            )
+            if integration is not None:
+                values["integration_id"] = integration.id
+        return values
 
     def prepare_integration_values(self, values: Dict[str, Any]) -> Dict[str, Any]:
         """
@@ -80,10 +102,11 @@ class IntegrationConsumerMixin:
 
     def check_integration(self, application: Application, values: Dict[str, Any]):
         """
-        Validates that the prepared integration belongs to the given application and
-        is of `integration_type`. An integration of another application is answered
-        like one that doesn't exist, so that the answer says nothing about what the
-        other application holds.
+        Validates that the prepared integration can be used from the given
+        application, being its own or a workspace integration of its workspace, and is
+        of `integration_type`. An integration the application can't use is answered
+        like one that doesn't exist, so that the answer says nothing about what
+        another application holds.
 
         :param application: The application the instance belongs to.
         :param values: The prepared values, as returned by `prepare_values`.

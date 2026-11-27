@@ -26,6 +26,7 @@ from baserow.core.last_viewed.handler import LastViewedHandler
 from baserow.core.models import Application, Template
 from baserow.core.operations import ListApplicationsWorkspaceOperationType
 from baserow.core.registries import application_type_registry
+from baserow.test_utils.helpers import without_shared_applications
 
 
 def stub_filter_queryset(u, o, q, *args, **kwargs):
@@ -33,7 +34,14 @@ def stub_filter_queryset(u, o, q, *args, **kwargs):
 
 
 @pytest.mark.django_db()
-@pytest.mark.parametrize("application_type", application_type_registry.get_all())
+@pytest.mark.parametrize(
+    "application_type",
+    [
+        application_type
+        for application_type in application_type_registry.get_all()
+        if application_type.is_user_managed
+    ],
+)
 def test_can_create_different_application_types(
     application_type, api_client, data_fixture
 ):
@@ -92,7 +100,7 @@ def test_list_applications(api_client, data_fixture, django_assert_num_queries):
         )
 
     assert response.status_code == HTTP_200_OK
-    response_json = response.json()
+    response_json = without_shared_applications(response.json())
 
     assert len(response_json) == 3
 
@@ -127,7 +135,7 @@ def test_list_applications(api_client, data_fixture, django_assert_num_queries):
         )
 
     assert response.status_code == HTTP_200_OK
-    response_json = response.json()
+    response_json = without_shared_applications(response.json())
 
     assert len(response_json) == 4
     assert response_json[0]["id"] == application_1.id
@@ -218,7 +226,7 @@ def test_list_applications_with_permissions(api_client, data_fixture):
     response = api_client.get(
         reverse("api:applications:list"), **{"HTTP_AUTHORIZATION": f"JWT {token}"}
     )
-    response_json = response.json()
+    response_json = without_shared_applications(response.json())
 
     assert len(response_json) == 2
 
@@ -327,6 +335,8 @@ def test_list_all_applications_queries_do_not_increase_with_workspaces(
         workflow_1.notification_recipients.add(user)
         workflow_2 = data_fixture.create_automation_workflow(automation=automation)
         AutomationWorkflowHandler().publish(workflow_2)
+
+        data_fixture.create_shared_application(workspace=workspace)
 
         return workspace
 
@@ -764,7 +774,7 @@ def test_anon_user_can_list_apps_of_app_in_template_workspace(
         reverse("api:applications:list", kwargs={"workspace_id": workspace.id}),
     )
     assert response.status_code == HTTP_200_OK
-    response_json = response.json()
+    response_json = without_shared_applications(response.json())
     assert len(response_json) == 1
     assert response_json[0]["id"] == app.id
     tables = response_json[0]["tables"]
@@ -796,7 +806,10 @@ def test_applications_expose_last_viewed_of_requesting_user(api_client, data_fix
         )
 
     def last_viewed_by_id(response):
-        return {app["id"]: app["last_viewed"] for app in response.json()}
+        return {
+            app["id"]: app["last_viewed"]
+            for app in without_shared_applications(response.json())
+        }
 
     for url in (
         reverse("api:applications:list"),
@@ -835,7 +848,10 @@ def test_applications_expose_pending_count_of_requesting_user(api_client, data_f
     def pending_count_by_id(url: str, token: str) -> dict[int, int]:
         response = api_client.get(url, HTTP_AUTHORIZATION=f"JWT {token}")
         assert response.status_code == HTTP_200_OK
-        return {app["id"]: app["pending_count"] for app in response.json()}
+        return {
+            app["id"]: app["pending_count"]
+            for app in without_shared_applications(response.json())
+        }
 
     with patch.object(
         DatabaseApplicationType,

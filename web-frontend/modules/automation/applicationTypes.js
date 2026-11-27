@@ -104,16 +104,19 @@ export class AutomationApplicationType extends ApplicationType {
   async loadExtraData(automation) {
     const { $store } = this.app
     if (!automation._loadedOnce) {
-      const [integrations] = await Promise.all([
+      const [integrations, workspaceIntegrations] = await Promise.all([
         $store.dispatch('integration/fetch', {
+          application: automation,
+        }),
+        $store.dispatch('integration/fetchWorkspaceIntegrationsOnce', {
           application: automation,
         }),
       ])
 
-      // Null when the list changed under the fetch and it gave up rather than
+      // Null when a list changed under the fetch and it gave up rather than
       // write an answer older than the screen. Marking the automation loaded
       // now would leave its dropdowns short for the session.
-      if (integrations !== null) {
+      if (integrations !== null && workspaceIntegrations !== null) {
         await $store.dispatch('application/forceUpdate', {
           application: automation,
           data: { _loadedOnce: true },

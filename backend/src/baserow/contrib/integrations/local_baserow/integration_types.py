@@ -87,7 +87,41 @@ class LocalBaserowIntegrationType(IntegrationType):
         application: Optional[Application] = None,
         instance: Optional[LocalBaserowIntegration] = None,
     ) -> Dict[str, Any]:
-        """Resolve and validate the typed authorization subject in this workspace."""
+        """Resolve and validate the typed authorization subject in this workspace.
+
+        A person can only authorize an integration as themselves, and moving it
+        changes which applications can act as them. Unless an authorization is
+        explicitly supplied, a move therefore binds it to the user making the
+        move instead of keeping another person's account. The same applies when
+        no subject is stored or the stored user no longer exists: permanently
+        deleting a user can leave its ID on the integration.
+
+        Workspace identities keep their binding, even when trashed. They belong
+        to the workspace rather than to the person sharing the integration.
+
+        Undoing a promotion doesn't restore the previous person's authorization:
+        it isn't in the action log, and only that person can authorize it again.
+        The promotion modal explains this, see getPromotionHint in the frontend.
+        These changes are returned as prepared values, without mutating instance.
+        """
+
+        if (
+            instance is not None
+            and application is not None
+            and instance.application_id != application.id
+            and not is_identity(instance.authorized_subject_including_trash)
+            and values.get("authorized_subject_id") is None
+            and values.get("authorized_subject_type") is None
+        ):
+            # Sharing changes which applications can act as this person. Only
+            # the user making the move can authorize their own account; workspace
+            # identities keep their binding, including when they are trashed.
+            subject_type = subject_type_registry.get_by_model(user)
+            values = {
+                **values,
+                "authorized_subject_type": subject_type.type,
+                "authorized_subject_id": user.id,
+            }
 
         subject_id = values.get("authorized_subject_id")
         subject_type_name = values.get("authorized_subject_type")

@@ -54,6 +54,9 @@ class DashboardApplicationType(ApplicationType):
     request_serializer_field_overrides = {}
     allowed_fields = ["description"]
     supports_integrations = True
+    # Every new data source takes the dashboard's own integration, see
+    # `DashboardDataSourceHandler.create_data_source`.
+    lets_services_choose_integrations = False
     data_provider_type_registry = dashboard_data_provider_type_registry
 
     def get_api_urls(self):
@@ -87,6 +90,7 @@ class DashboardApplicationType(ApplicationType):
         for widget in widgets:
             TrashHandler.permanently_delete(widget)
 
+    @IntegrationHandler.with_referenced_integrations
     def export_serialized(
         self,
         dashboard: Dashboard,
@@ -176,10 +180,6 @@ class DashboardApplicationType(ApplicationType):
         serialized_data_sources = serialized_values.pop("data_sources")
         serialized_widgets = serialized_values.pop("widgets")
 
-        # A full application import must remap integrations and data sources,
-        # including when none were exported. Copies within the same dashboard
-        # supply MirrorDict mappings for references that should be preserved.
-        id_mapping.setdefault("integrations", {})
         id_mapping.setdefault("dashboard_data_sources", {})
 
         progress = ChildProgressBuilder.build(progress_builder, child_total=100)

@@ -137,7 +137,12 @@ export function useAgentActions(
     loadError.value = false
     try {
       if (integrations)
-        await store.dispatch('integration/fetch', { application })
+        await Promise.all([
+          store.dispatch('integration/fetch', { application }),
+          store.dispatch('integration/fetchWorkspaceIntegrationsOnce', {
+            application,
+          }),
+        ])
       const { data } = await service.list(application.id)
       if (!isCurrent()) return
       const existing = new Map(
@@ -375,7 +380,16 @@ export function useAgentActions(
   )
   // Editing a connection can repair an unconfigured action without changing it.
   watch(
-    () => store.state.integration.generation[agent.value?.id],
+    [
+      () => store.state.integration.generation[agent.value?.id],
+      () => {
+        const workspace = agent.value?.workspace
+        const sharedApplication =
+          workspace &&
+          store.getters['application/getSharedApplication'](workspace)
+        return store.state.integration.generation[sharedApplication?.id]
+      },
+    ],
     () => {
       if (!loading.value) fetchActions()
     }

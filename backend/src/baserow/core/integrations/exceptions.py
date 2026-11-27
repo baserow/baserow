@@ -9,6 +9,22 @@ class IntegrationNotInSameApplication(Exception):
     """
 
 
+class IntegrationCannotMoveToApplication(Exception):
+    """
+    Raised when an integration is moved to an application it can't move to. It
+    only moves between an application and the shared application of the same
+    workspace: promoting it, or undoing that.
+    """
+
+
+class IntegrationUsedSincePromotion(Exception):
+    """
+    Raised when undoing a promotion would move an integration back to its
+    application while services or user sources that started using it since, maybe
+    in other applications, still refer to it.
+    """
+
+
 class IntegrationCredentialRequired(Exception):
     """
     Raised when a field that controls where a request goes is changed without the

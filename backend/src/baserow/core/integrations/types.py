@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any, Dict, NewType, TypedDict, TypeVar
 
 from baserow.core.integrations.models import Integration
@@ -23,3 +23,10 @@ class UpdatedIntegration:
     integration: Integration
     original_values: Dict[str, Any]
     new_values: Dict[str, Any]
+
+
+@dataclass
+class IntegrationExport:
+    """References collected by the consumers included in one application export."""
+
+    integration_ids: set[int] = field(default_factory=set)

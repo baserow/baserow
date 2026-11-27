@@ -136,7 +136,12 @@ export default {
   },
   computed: {
     integrations() {
-      return this.$store.getters['integration/getIntegrations'](this.builder)
+      return this.$store.getters['integration/getUsableIntegrations'](
+        this.builder
+      ).filter(
+        (integration) =>
+          integration.type === this.userSourceType?.integrationType?.getType()
+      )
     },
     integration() {
       if (!this.values.integration_id) {

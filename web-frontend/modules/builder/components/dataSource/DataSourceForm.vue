@@ -82,6 +82,7 @@
 </template>
 
 <script>
+import { getDefaultIntegration } from '@baserow/modules/core/utils/integration'
 import _ from 'lodash'
 import { computed, getCurrentInstance } from 'vue'
 import { useVuelidate } from '@vuelidate/core'
@@ -168,13 +169,13 @@ export default {
           ({ id }) => id === this.v$.values.integration_id.$model
         )
         if (!selectedIntegrationIsAvailable) {
-          this.v$.values.integration_id.$model = null
-        }
-        if (this.availableIntegrations.length === 1) {
           this.v$.values.integration_id.$model =
-            this.availableIntegrations[0].id
+            this.preselectedIntegration?.id ?? null
         }
       },
+    },
+    preselectedIntegration() {
+      return getDefaultIntegration(this.availableIntegrations, this.builder)
     },
     integration() {
       return this.integrations.find(
@@ -280,6 +281,16 @@ export default {
       return [...integrationGroups, ...otherGroups]
         .filter(({ children }) => children.length > 0)
         .map((group, index) => ({ ...group, order: index }))
+    },
+  },
+  watch: {
+    availableIntegrations(integrations) {
+      // The integration request can finish after the user chooses a service.
+      // Only fill a new source's empty choice; leave existing sources untouched.
+      if (this.create && this.values.integration_id === null) {
+        this.v$.values.integration_id.$model =
+          getDefaultIntegration(integrations, this.builder)?.id ?? null
+      }
     },
   },
   methods: {
