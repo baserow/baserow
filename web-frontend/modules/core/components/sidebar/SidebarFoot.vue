@@ -9,11 +9,10 @@
             :aria-label="name"
             :aria-expanded="accountContextOpen"
             @click="
-              $refs.accountContext.toggle(
-                $event.currentTarget,
-                'top',
-                'left',
-                6
+              whenMounted(
+                (trigger) =>
+                  $refs.accountContext.toggle(trigger, 'top', 'left', 6),
+                $event.currentTarget
               )
             "
           >
@@ -78,13 +77,14 @@
 <script>
 import { mapGetters } from 'vuex'
 import undoRedo from '@baserow/modules/core/mixins/undoRedo'
+import whenMounted from '@baserow/modules/core/mixins/whenMounted'
 import ExternalLinkBaserowLogo from '@baserow/modules/core/components/ExternalLinkBaserowLogo'
 import SidebarAccountMenu from '@baserow/modules/core/components/sidebar/SidebarAccountMenu.vue'
 
 export default {
   name: 'SidebarFoot',
   components: { ExternalLinkBaserowLogo, SidebarAccountMenu },
-  mixins: [undoRedo],
+  mixins: [undoRedo, whenMounted],
   props: {
     selectedWorkspace: {
       type: Object,

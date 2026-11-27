@@ -255,6 +255,33 @@ def test_sweep_deletes_files_of_removed_templates(data_fixture):
     assert not_a_template_file.deleted_at is None
 
 
+def test_sweep_keeps_the_files_it_deleted_before_running_out_of_time(data_fixture):
+    workspace = data_fixture.create_workspace()
+    workspace_id = workspace.id
+    deleted, interrupted, left = upload_images(
+        "red", "green", "blue", template_workspace_id=workspace_id
+    )
+    TrashHandler.permanently_delete(workspace)
+    delete_user_file_from_storage = UserFileHandler.delete_user_file_from_storage
+
+    def run_out_of_time_on_the_second(handler, user_file, *args, **kwargs):
+        if user_file.id == interrupted.id:
+            raise SoftTimeLimitExceeded()
+        return delete_user_file_from_storage(handler, user_file, *args, **kwargs)
+
+    with patch.object(
+        UserFileHandler,
+        "delete_user_file_from_storage",
+        autospec=True,
+        side_effect=run_out_of_time_on_the_second,
+    ):
+        with pytest.raises(SoftTimeLimitExceeded):
+            delete_files_of_removed_user_templates()
+
+    assert live_template_files(workspace_id) == {interrupted, left}
+    assert_files_kept([interrupted, left])
+
+
 def test_purge_keeps_templates_that_arent_due(data_fixture):
     recent = create_family(
         data_fixture,

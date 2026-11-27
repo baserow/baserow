@@ -38,7 +38,7 @@
         "
         class="tree__sub-add"
         :data-highlight="`create-table-${application.id}`"
-        @click="$refs.createTableModal.show()"
+        @click="whenMounted(() => $refs.createTableModal.show())"
       >
         <i class="tree__sub-add-icon iconoir-plus"></i>
         {{ $t('sidebar.createTable') }}
@@ -53,6 +53,7 @@ import { notifyIf } from '@baserow/modules/core/utils/error'
 import SidebarItem from '@baserow/modules/database/components/sidebar/SidebarItem'
 import SidebarApplication from '@baserow/modules/core/components/sidebar/SidebarApplication'
 import CreateTableModal from '@baserow/modules/database/components/table/CreateTableModal'
+import whenMounted from '@baserow/modules/core/mixins/whenMounted'
 
 export default {
   name: 'DBSidebar',
@@ -61,6 +62,7 @@ export default {
     SidebarApplication,
     SidebarItem,
   },
+  mixins: [whenMounted],
   props: {
     application: {
       type: Object,

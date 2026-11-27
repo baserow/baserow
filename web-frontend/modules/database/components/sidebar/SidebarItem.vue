@@ -26,7 +26,12 @@
       v-if="showOptions"
       v-show="!database._.loading"
       class="tree__options"
-      @click="$refs.context.toggle($event.currentTarget, 'bottom', 'right', 0)"
+      @click="
+        whenMounted(
+          (trigger) => $refs.context.toggle(trigger, 'bottom', 'right', 0),
+          $event.currentTarget
+        )
+      "
       @mousedown.stop
     >
       <i class="baserow-icon-more-vertical"></i>
@@ -225,6 +230,7 @@ import SidebarDuplicateTableContextItem from '@baserow/modules/database/componen
 import SidebarImportTableContextItem from '@baserow/modules/database/components/sidebar/table/SidebarImportTableContextItem'
 import SyncTableModal from '@baserow/modules/database/components/dataSync/SyncTableModal'
 import ConfigureDataSyncModal from '@baserow/modules/database/components/dataSync/ConfigureDataSyncModal.vue'
+import whenMounted from '@baserow/modules/core/mixins/whenMounted'
 
 export default {
   name: 'SidebarItem',
@@ -236,6 +242,7 @@ export default {
     SidebarDuplicateTableContextItem,
     SidebarImportTableContextItem,
   },
+  mixins: [whenMounted],
   props: {
     database: {
       type: Object,

@@ -54,11 +54,10 @@
           :aria-label="collapsed ? selectedWorkspace.name : undefined"
           :aria-expanded="workspaceContextOpen"
           @click="
-            $refs.workspacesContext.toggle(
-              $event.currentTarget,
-              'bottom',
-              'left',
-              4
+            whenMounted(
+              (trigger) =>
+                $refs.workspacesContext.toggle(trigger, 'bottom', 'left', 4),
+              $event.currentTarget
             )
           "
         >
@@ -106,7 +105,7 @@
           data-sidebar-tab-stop
           :aria-label="selectedWorkspace.name || name"
           :aria-expanded="workspaceContextOpen"
-          @click="toggleWorkspaceContext"
+          @click="whenMounted(toggleWorkspaceContext, $event.currentTarget)"
         >
           <Avatar
             :initials="
@@ -181,6 +180,7 @@ import SidebarAdmin from '@baserow/modules/core/components/sidebar/SidebarAdmin'
 import SidebarFoot from '@baserow/modules/core/components/sidebar/SidebarFoot'
 import SidebarMenu from '@baserow/modules/core/components/sidebar/SidebarMenu'
 import SidebarAdminItem from './SidebarAdminItem.vue'
+import whenMounted from '@baserow/modules/core/mixins/whenMounted'
 
 export default {
   name: 'Sidebar',
@@ -193,6 +193,7 @@ export default {
     SidebarMenu,
     SidebarFoot,
   },
+  mixins: [whenMounted],
   props: {
     applications: {
       type: Array,
@@ -260,8 +261,7 @@ export default {
     )
   },
   methods: {
-    toggleWorkspaceContext(event) {
-      const trigger = event.currentTarget
+    toggleWorkspaceContext(trigger) {
       const anchorRect =
         this.$refs.workspaceContextAnchor.getBoundingClientRect()
       const triggerRect = trigger.getBoundingClientRect()

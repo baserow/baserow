@@ -307,7 +307,10 @@ function refresh() {
 
 const searchChanged = debounce(() => fetchPage(), 300)
 
-watch(search, () => {
+watch(search, (query, previousQuery) => {
+  if (previousQuery === '' && query !== '') {
+    categoryId.value = null
+  }
   typedSinceOpening = true
   searchChanged()
 })

@@ -41,7 +41,7 @@
           )
         "
         class="tree__sub-add"
-        @click="$refs.createPageModal.show()"
+        @click="whenMounted(() => $refs.createPageModal.show())"
       >
         <i class="tree__sub-add-icon iconoir-plus"></i>
         {{ $t('sidebarComponentBuilder.createPage') }}
@@ -61,6 +61,7 @@ import { mapGetters } from 'vuex'
 import { notifyIf } from '@baserow/modules/core/utils/error'
 import SidebarItemBuilder from '@baserow/modules/builder/components/sidebar/SidebarItemBuilder'
 import CreatePageModal from '@baserow/modules/builder/components/page/CreatePageModal'
+import whenMounted from '@baserow/modules/core/mixins/whenMounted'
 
 export default {
   name: 'SidebarComponentBuilder',
@@ -69,6 +70,7 @@ export default {
     SidebarItemBuilder,
     SidebarApplication,
   },
+  mixins: [whenMounted],
   props: {
     application: {
       type: Object,

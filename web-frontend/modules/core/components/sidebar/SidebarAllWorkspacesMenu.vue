@@ -51,7 +51,10 @@
 
       <li class="tree__item">
         <div class="tree__action sidebar__action">
-          <a class="tree__link" @click="$refs.templateModal.show()">
+          <a
+            class="tree__link"
+            @click="whenMounted(() => $refs.templateModal.show())"
+          >
             <i class="tree__icon iconoir-page"></i>
             <span class="tree__link-text">
               <span class="sidebar__item-name">{{
@@ -71,7 +74,10 @@
 
       <li class="tree__item">
         <div class="tree__action sidebar__action">
-          <a class="tree__link" @click="$refs.trashModal.show()">
+          <a
+            class="tree__link"
+            @click="whenMounted(() => $refs.trashModal.show())"
+          >
             <i class="tree__icon iconoir-bin"></i>
             <span class="tree__link-text">
               <span class="sidebar__item-name">{{ $t('sidebar.trash') }}</span>
@@ -87,6 +93,7 @@
 <script>
 import TrashModal from '@baserow/modules/core/components/trash/TrashModal'
 import TemplateModal from '@baserow/modules/core/components/template/TemplateModalSwitch'
+import whenMounted from '@baserow/modules/core/mixins/whenMounted'
 
 export default {
   name: 'SidebarAllWorkspacesMenu',
@@ -94,6 +101,7 @@ export default {
     TrashModal,
     TemplateModal,
   },
+  mixins: [whenMounted],
   computed: {
     sidebarAllWorkspacesComponents() {
       return Object.values(this.$registry.getAll('plugin')).flatMap((plugin) =>

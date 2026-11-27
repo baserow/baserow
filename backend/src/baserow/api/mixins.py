@@ -1,4 +1,4 @@
-from typing import Dict, List, Tuple, Union
+from typing import Dict, List, Optional, Tuple, Union
 
 from django.conf import settings
 from django.db import DEFAULT_DB_ALIAS
@@ -96,7 +96,12 @@ class SearchableViewMixin:
     # Needs to be overwritten by the class that uses this mixin.
     search_fields: List[str] = []
 
-    def apply_search(self, search: Union[str, None], queryset: QuerySet) -> QuerySet:
+    def apply_search(
+        self,
+        search: Union[str, None],
+        queryset: QuerySet,
+        search_fields: Optional[List[str]] = None,
+    ) -> QuerySet:
         """
         Applies the provided search query to the provided query. If the search query
         is provided then an `icontains` lookup will be done for each field in the
@@ -106,6 +111,8 @@ class SearchableViewMixin:
         :type search: str or None
         :param queryset: The queryset where the search query must be applied to.
         :type queryset: QuerySet
+        :param search_fields: The fields to search instead of the search_fields
+            property.
         :return: The queryset filtering the results by the search query.
         :rtype: QuerySet
         """
@@ -115,7 +122,7 @@ class SearchableViewMixin:
 
         q = Q()
 
-        for search_field in self.search_fields:
+        for search_field in search_fields or self.search_fields:
             q.add(Q(**{f"{search_field}__icontains": Value(search)}), Q.OR)
 
         return queryset.filter(q)

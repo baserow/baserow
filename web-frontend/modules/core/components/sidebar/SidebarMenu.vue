@@ -46,7 +46,12 @@
         <div class="tree__action tree__action--has-counter">
           <a
             class="tree__link"
-            @click="$refs.notificationPanel.toggle($event.currentTarget)"
+            @click="
+              whenMounted(
+                (trigger) => $refs.notificationPanel.toggle(trigger),
+                $event.currentTarget
+              )
+            "
           >
             <i class="tree__icon tree__icon--type iconoir-bell"></i>
             <span class="tree__link-text">{{
@@ -82,7 +87,7 @@
             type="button"
             class="tree__link sidebar__menu-trigger"
             :aria-expanded="openMenu === 'settings'"
-            @click="toggleMenu('settings', $event.currentTarget)"
+            @click="whenMounted(toggleMenu, 'settings', $event.currentTarget)"
           >
             <i class="tree__icon iconoir-settings" aria-hidden="true"></i>
             <span class="tree__link-text">{{
@@ -124,7 +129,7 @@
             type="button"
             class="tree__link sidebar__menu-trigger"
             :aria-expanded="openMenu === 'help'"
-            @click="toggleMenu('help', $event.currentTarget)"
+            @click="whenMounted(toggleMenu, 'help', $event.currentTarget)"
           >
             <i class="tree__icon iconoir-lifebelt" aria-hidden="true"></i>
             <span class="tree__link-text">{{ $t('sidebar.help') }}</span>
@@ -219,6 +224,7 @@ import BadgeCounter from '@baserow/modules/core/components/BadgeCounter'
 import SidebarSearch from '@baserow/modules/core/components/sidebar/SidebarSearch'
 import SidebarWorkspaceSettingsItems from '@baserow/modules/core/components/sidebar/SidebarWorkspaceSettingsItems.vue'
 import WorkspaceContext from '@baserow/modules/core/components/workspace/WorkspaceContext'
+import whenMounted from '@baserow/modules/core/mixins/whenMounted'
 
 export default {
   name: 'SidebarMenu',
@@ -230,6 +236,7 @@ export default {
     SidebarWorkspaceSettingsItems,
     WorkspaceContext,
   },
+  mixins: [whenMounted],
   props: {
     selectedWorkspace: {
       type: Object,

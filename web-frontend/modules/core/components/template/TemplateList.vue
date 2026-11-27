@@ -204,6 +204,12 @@ function select(template) {
   emit('selected', template)
 }
 
+watch(search, (query, previousQuery) => {
+  if (previousQuery === '' && query !== '') {
+    selectedCategoryId.value = null
+  }
+})
+
 function toggleCollapsed(categoryId) {
   const index = collapsed.value.indexOf(categoryId)
   if (index === -1) {

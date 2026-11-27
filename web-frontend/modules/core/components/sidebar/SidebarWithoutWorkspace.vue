@@ -14,7 +14,10 @@
       v-if="$hasPermission('create_workspace')"
       class="sidebar__new-wrapper sidebar__new-wrapper--separator"
     >
-      <a class="sidebar__new" @click="$refs.createWorkspaceModal.show()">
+      <a
+        class="sidebar__new"
+        @click="whenMounted(() => $refs.createWorkspaceModal.show())"
+      >
         <i class="sidebar__new-icon iconoir-plus"></i>
         {{ $t('sidebar.createWorkspace') }}
       </a>
@@ -25,10 +28,12 @@
 
 <script>
 import CreateWorkspaceModal from '@baserow/modules/core/components/workspace/CreateWorkspaceModal'
+import whenMounted from '@baserow/modules/core/mixins/whenMounted'
 
 export default {
   name: 'SidebarWithoutWorkspace',
   components: { CreateWorkspaceModal },
+  mixins: [whenMounted],
   props: {
     workspaces: {
       type: Array,

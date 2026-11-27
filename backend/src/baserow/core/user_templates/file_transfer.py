@@ -5,6 +5,7 @@ from typing import IO, Any, Dict, Iterator, List, Optional
 
 from django.core.files.storage import Storage
 
+from baserow.core.storage import is_missing_file_error
 from baserow.core.user_files.handler import UserFileHandler
 
 SPOOL_MAX_MEMORY_SIZE = 5 * 1024 * 1024
@@ -39,11 +40,10 @@ class TemplateFilesTransfer:
         try:
             with self.storage.open(path, "rb") as stored_file:
                 shutil.copyfileobj(stored_file, spooled_file)
-        except FileNotFoundError as exc:
+        except BaseException as exc:
             spooled_file.close()
-            raise KeyError(name) from exc
-        except BaseException:
-            spooled_file.close()
+            if is_missing_file_error(exc, self.storage):
+                raise KeyError(name) from exc
             raise
 
         spooled_file.seek(0)

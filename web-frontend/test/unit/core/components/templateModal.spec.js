@@ -1282,6 +1282,20 @@ describe('TemplateModal navigation', () => {
       ).toBe(false)
     })
 
+    it('open on your templates when asked', async () => {
+      testApp.authenticate({ id: 1 })
+      const wrapper = await testApp.mount(TemplateModal, {
+        props: { workspace: { id: 1 } },
+        global: { stubs, mocks },
+      })
+
+      await wrapper.vm.showOwn()
+      await flushPromises()
+
+      expect(ownList(wrapper).isVisible()).toBe(true)
+      expect(wrapper.find('.list').isVisible()).toBe(false)
+    })
+
     it('start at the official templates when shown again', async () => {
       testApp.authenticate({ id: 1 })
       const wrapper = await mountAndShow()

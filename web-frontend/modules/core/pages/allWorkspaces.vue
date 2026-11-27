@@ -100,7 +100,7 @@
       </template>
     </div>
     <TemplateModal
-      v-if="linkedTemplateSlug"
+      v-if="linkedTemplateSlug || linkedOwnTemplates"
       ref="templateModal"
       source="link"
     />
@@ -383,18 +383,26 @@ function keydownCapture(event) {
 // The cards show relative dates that must keep ageing while the page is open.
 provideNow()
 
+const userTemplatesEnabled = nuxtApp.$featureFlagIsEnabled(FF_USER_TEMPLATES)
 const linkedTemplateSlug =
-  nuxtApp.$featureFlagIsEnabled(FF_USER_TEMPLATES) &&
-  typeof route.query.template === 'string'
+  userTemplatesEnabled && typeof route.query.template === 'string'
     ? route.query.template
     : null
+const linkedOwnTemplates =
+  userTemplatesEnabled && route.query.templates === 'own'
 const templateModal = ref(null)
 
 onMounted(() => {
   document.addEventListener('keydown', keydownCapture, true)
+  if (linkedTemplateSlug || linkedOwnTemplates) {
+    router.replace({
+      query: { ...route.query, template: undefined, templates: undefined },
+    })
+  }
   if (linkedTemplateSlug) {
-    router.replace({ query: { ...route.query, template: undefined } })
     templateModal.value.show(linkedTemplateSlug)
+  } else if (linkedOwnTemplates) {
+    templateModal.value.showOwn()
   }
 })
 

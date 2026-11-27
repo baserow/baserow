@@ -1538,6 +1538,38 @@ def test_listed_templates_combine_with_the_other_filters(api_client, data_fixtur
     assert listed_ids(search="task") == [others.id]
 
 
+def test_listed_templates_search_matches_the_author_name(api_client, data_fixture):
+    author, token = data_fixture.create_user_and_token(
+        first_name="Ada", email="lovelace@example.com"
+    )
+    first_version = create_own_template(
+        data_fixture, author, state="public", name="CRM", description=""
+    )
+    revised = create_own_template(data_fixture, author, name="Tasks", description="")
+    revision = data_fixture.create_user_template_revision(
+        revised, name="Tasks", description=""
+    )
+    data_fixture.set_user_template_state(revised, "public", revision=revision)
+    create_own_template(
+        data_fixture,
+        data_fixture.create_user(first_name="Bob"),
+        state="public",
+        name="Notes",
+        description="",
+    )
+
+    def search_ids(search, **params):
+        response = list_templates(
+            api_client, token, type="user", search=search, **params
+        )
+        assert response.status_code == HTTP_200_OK
+        return {t["id"] for t in response.json()["results"]}
+
+    assert search_ids("ada", listed="true") == {first_version.id, revised.id}
+    assert search_ids("lovelace", listed="true") == set()
+    assert search_ids("ada", owned="true") == set()
+
+
 def change_private_link(api_client, token, slug, change):
     """Turns the private link on or off with PATCH, or regenerates it."""
 

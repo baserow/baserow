@@ -38,7 +38,7 @@ describe('templateCategory', () => {
     expect(getCategoryName({ name: 'Teachers' }, i18n)).toBe('Teachers')
   })
 
-  test('sorts by the shown name, ignoring a leading emoji', async () => {
+  test('sorts the most popular first, then by the shown name ignoring a leading emoji', async () => {
     const i18n = await makeI18n()
     const names = sortCategories(
       [
@@ -46,12 +46,14 @@ describe('templateCategory', () => {
         { name: 'Sales and CRM' },
         { name: '🔥 Most Popular' },
         { name: 'Marketing' },
+        { name: '🎓 Education' },
       ],
       i18n
     ).map((category) => category.name)
     expect(names).toEqual([
-      'Marketing',
       '🔥 Most Popular',
+      '🎓 Education',
+      'Marketing',
       'Sales and CRM',
       'Legal',
     ])

@@ -1,6 +1,9 @@
+from unittest.mock import MagicMock
+
 from django.core.files.base import ContentFile
 
 import pytest
+from botocore.exceptions import ClientError
 
 from baserow.core.storage import get_default_storage
 from baserow.core.user_files.handler import UserFileHandler
@@ -39,3 +42,31 @@ def test_open_raises_key_error_for_a_name_that_is_not_there(
         transfer.open(stored.name)
     with pytest.raises(KeyError):
         transfer.open(gone.name)
+
+
+@pytest.mark.parametrize(
+    "code, bucket_exists, raised",
+    [
+        ("404", True, KeyError),
+        ("NoSuchKey", True, KeyError),
+        ("404", False, ClientError),
+        ("NoSuchBucket", True, ClientError),
+        ("AccessDenied", True, ClientError),
+    ],
+)
+def test_open_raises_key_error_only_when_the_object_is_gone_on_read(
+    code, bucket_exists, raised
+):
+    storage = MagicMock()
+    storage.open.return_value.__enter__.return_value.read.side_effect = ClientError(
+        {"Error": {"Code": code}}, "GetObject"
+    )
+    if not bucket_exists:
+        storage.connection.meta.client.head_bucket.side_effect = ClientError(
+            {"Error": {"Code": "404"}}, "HeadBucket"
+        )
+    transfer = TemplateFilesTransfer(storage)
+    transfer.add(iter([]), "file.txt")
+
+    with pytest.raises(raised):
+        transfer.open("file.txt")
