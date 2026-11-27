@@ -10,6 +10,9 @@ from baserow.contrib.database.models import Database
 from baserow.contrib.integrations.mcp.integration_types import (
     MCPServerIntegrationType,
 )
+from baserow.contrib.integrations.oauth_account.integration_types import (
+    OAuthAccountIntegrationTypeMixin,
+)
 from baserow.core.application_types import SharedApplicationType
 from baserow.core.exceptions import ApplicationOperationNotSupported, PermissionDenied
 from baserow.core.handler import CoreHandler
@@ -85,9 +88,11 @@ def test_shared_application_type_supports_the_integration_types_of_a_workspace()
     assert not shared_application_type.supports_snapshots
     assert not shared_application_type.is_user_managed
     for integration_type in integration_type_registry.get_all():
-        # Only the agent that owns an MCP server reads it.
+        # Only the agent that owns an MCP server reads it, and an account signed in
+        # through OAuth stays with the application it was connected on.
         assert shared_application_type.supports_integration_type(integration_type) == (
             integration_type.type != MCPServerIntegrationType.type
+            and not isinstance(integration_type, OAuthAccountIntegrationTypeMixin)
         )
 
 

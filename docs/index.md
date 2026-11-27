@@ -52,6 +52,8 @@ Baserow by following one the guides below:
 * [Integrations that connect an account](installation/oauth-account-integrations.md):
   How integrations that sign in to another service's account work, and how to register
   Baserow with a provider.
+* [Microsoft integration setup](installation/microsoft-integration-setup.md): Register
+  the Microsoft Entra app that Microsoft integrations sign in through.
 * [Encryption keys](installation/encryption-keys.md): Back up, restore and change the
   key that encrypts stored credentials.
 * [DEPRECATED: Install on Ubuntu](installation/old-install-on-ubuntu.md): A deprecated
