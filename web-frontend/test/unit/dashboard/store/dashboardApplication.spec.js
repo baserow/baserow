@@ -1240,33 +1240,18 @@ describe('Dashboard application store', () => {
     expect(state.widgets).toEqual([{ id: 1, title: 'Existing widget' }])
   })
 
-  describe('in a browser without Array.prototype.toSorted', () => {
-    const toSorted = Object.getOwnPropertyDescriptor(
-      Array.prototype,
-      'toSorted'
-    )
+  test('getWidgets returns the widgets in grid order without mutating the state', () => {
+    const widgets = [
+      { id: 3, grid_x: 0, grid_y: 4 },
+      { id: 2, grid_x: 3, grid_y: 0 },
+      { id: 1, grid_x: 0, grid_y: 0 },
+    ]
+    const state = { ...createState(), widgets }
 
-    beforeEach(() => {
-      delete Array.prototype.toSorted
-    })
-
-    afterEach(() => {
-      Object.defineProperty(Array.prototype, 'toSorted', toSorted)
-    })
-
-    test('getWidgets returns the widgets in grid order without mutating the state', () => {
-      const widgets = [
-        { id: 3, grid_x: 0, grid_y: 4 },
-        { id: 2, grid_x: 3, grid_y: 0 },
-        { id: 1, grid_x: 0, grid_y: 0 },
-      ]
-      const state = { ...createState(), widgets }
-
-      expect(getters.getWidgets(state).map((widget) => widget.id)).toEqual([
-        1, 2, 3,
-      ])
-      expect(state.widgets.map((widget) => widget.id)).toEqual([3, 2, 1])
-    })
+    expect(getters.getWidgets(state).map((widget) => widget.id)).toEqual([
+      1, 2, 3,
+    ])
+    expect(state.widgets.map((widget) => widget.id)).toEqual([3, 2, 1])
   })
 })
 

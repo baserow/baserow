@@ -61,6 +61,19 @@ function mountElement(
   })
 }
 
+// innerHTML leaves a script inert; running one means creating a fresh copy.
+async function mountCountingScripts(...args) {
+  const createElement = vi.spyOn(document, 'createElement')
+  const wrapper = await mountElement(...args)
+  const created = createElement.mock.results.filter(
+    ({ value }) => value?.tagName === 'SCRIPT'
+  ).length
+  createElement.mockRestore()
+  return { wrapper, created }
+}
+
+const scriptSnippet = '<div id="anchor"></div><script>window.x = 1</script>'
+
 describe('HTML element', () => {
   test.each(['editing', 'public'])(
     'isolates editor HTML in a script-disabled iframe with local mode %s',
@@ -134,6 +147,31 @@ describe('HTML element', () => {
       'this.textContent=123'
     )
     expect(wrapper.get('script').attributes('src')).toBe('/widget.js')
+  })
+
+  test.each(['preview', 'public'])(
+    'activates inline scripts in %s',
+    async (mode) => {
+      const html = '<div id="anchor"></div><script>window.render = 1</script>'
+      const createElement = vi.spyOn(document, 'createElement')
+      const wrapper = await mountElement(mode, mode, html)
+      // innerHTML leaves a script inert; the element swaps in a fresh copy.
+      const fresh = createElement.mock.results.find(
+        ({ value }) => value?.tagName === 'SCRIPT'
+      )?.value
+      createElement.mockRestore()
+      expect(wrapper.get('script').element).toBe(fresh)
+      expect(fresh.parentElement.innerHTML).toBe(html)
+    }
+  )
+
+  test('does not run scripts in the editor', async () => {
+    const html = '<script>window.render = 1</script>'
+    const wrapper = await mountElement('editing', 'editing', html)
+    expect(wrapper.find('script').exists()).toBe(false)
+    expect(wrapper.get('iframe').attributes('sandbox')).toBe(
+      'allow-same-origin'
+    )
   })
 
   test('uses the hostname restriction without requiring an explicit visitor mode', async () => {
@@ -219,6 +257,39 @@ describe('HTML element on the editor hostname', () => {
       expect(wrapper.find('iframe').exists()).toBe(false)
       expect(wrapper.get('#anchor').text()).toBe('Widget')
       expect(wrapper.find('.html-element__hint').exists()).toBe(false)
+    }
+  )
+
+  test.each(['preview', 'public'])(
+    'keeps scripts in the frame and activates none in %s',
+    async (mode) => {
+      const { wrapper, created } = await mountCountingScripts(
+        mode,
+        mode,
+        scriptSnippet
+      )
+
+      const frame = wrapper.get('iframe')
+      expect(frame.attributes('srcdoc')).toBe(scriptSnippet)
+      expect(frame.attributes('sandbox')).toBe('allow-same-origin')
+      expect(wrapper.find('script').exists()).toBe(false)
+      expect(created).toBe(0)
+    }
+  )
+
+  test.each(['editing', 'preview', 'public'])(
+    'activates scripts in %s when the instance relaxes security',
+    async (mode) => {
+      setPreviewUrl(`${EDITOR_URL}:3001`, true)
+      const { wrapper, created } = await mountCountingScripts(
+        mode,
+        mode,
+        scriptSnippet
+      )
+
+      expect(wrapper.find('iframe').exists()).toBe(false)
+      expect(wrapper.get('script').text()).toBe('window.x = 1')
+      expect(created).toBe(1)
     }
   )
 
