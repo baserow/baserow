@@ -9,6 +9,7 @@ import { ConcurrentPriorityTaskQueue } from '@baserow/modules/core/utils/queue'
 import debounce from 'lodash/debounce'
 import isEqual from 'lodash/isEqual'
 import { WidgetValueUpdate } from '@baserow/modules/dashboard/utils/widgetValueUpdate'
+import { sortWidgetsByGridPosition } from '@baserow/modules/dashboard/utils/widgetGridLayout'
 
 export const state = () => ({
   dashboardId: null,
@@ -1238,19 +1239,7 @@ export const getters = {
     return state.widgets.find((widget) => widget.id === widgetId)
   },
   getWidgets(state) {
-    return state.widgets.toSorted((first, second) => {
-      const byY = (first.grid_y ?? 0) - (second.grid_y ?? 0)
-      if (byY !== 0) {
-        return byY
-      }
-
-      const byX = (first.grid_x ?? 0) - (second.grid_x ?? 0)
-      if (byX !== 0) {
-        return byX
-      }
-
-      return first.id - second.id
-    })
+    return sortWidgetsByGridPosition(state.widgets)
   },
   getSelectedWidgetId(state) {
     return state.selectedWidgetId
