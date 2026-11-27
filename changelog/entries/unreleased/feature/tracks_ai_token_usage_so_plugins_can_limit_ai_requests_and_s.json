@@ -1,0 +1,9 @@
+{
+    "type": "feature",
+    "message": "Tracks AI token usage so plugins can limit AI requests and show their cost per message or run",
+    "issue_origin": "github",
+    "issue_number": null,
+    "domain": "core",
+    "bullet_points": [],
+    "created_at": "2026-11-09"
+}

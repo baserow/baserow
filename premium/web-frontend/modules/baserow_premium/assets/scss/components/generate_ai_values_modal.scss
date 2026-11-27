@@ -42,9 +42,19 @@
   }
 
   &__detail {
+    display: flex;
+    align-items: center;
+    gap: 8px;
     font-size: 12px;
     color: $color-neutral-600;
     line-height: 1.35;
+  }
+
+  &__error {
+    margin-top: 4px;
+    font-size: 12px;
+    line-height: 1.35;
+    color: $palette-red-800;
   }
 
   &__progress-row {

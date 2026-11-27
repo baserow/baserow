@@ -270,6 +270,16 @@ export class BaserowPlugin extends Registerable {
   }
 
   /**
+   * Components showing the AI usage (e.g. cost) of an agent reply or a job that
+   * generated AI field values. They receive the item's `plugin_data` as
+   * `pluginData` prop.
+   * @returns {*[]}
+   */
+  getAIUsageComponents() {
+    return []
+  }
+
+  /**
    * Every registered plugin can display multiple additional components next to
    * node names in the automation workflow node creation/replacement context.
    * @returns {*[]}

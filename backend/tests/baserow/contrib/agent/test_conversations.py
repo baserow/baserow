@@ -1,6 +1,6 @@
 from concurrent.futures import ThreadPoolExecutor
 from threading import Barrier, Event
-from unittest.mock import ANY
+from unittest.mock import ANY, patch
 from uuid import UUID, uuid4
 
 from django.contrib.auth import get_user_model
@@ -37,6 +37,7 @@ from baserow.core.chat_runs.handler import ChatRunHandler
 from baserow.core.chat_runs.models import ChatRun
 from baserow.core.exceptions import PermissionException
 from baserow.core.models import TrashEntry
+from baserow.core.registries import Plugin, plugin_registry
 from baserow.core.signals import application_pending_count_updated
 from baserow.core.trash.exceptions import CannotRestoreItemNotOwnedByUser
 from baserow.core.trash.handler import TrashHandler
@@ -101,6 +102,7 @@ def test_first_message_creates_a_private_conversation(
             "run_id": None,
             "steps": None,
             "approvals": [],
+            "plugin_data": {},
         },
         "reply": {
             "id": reply.id,
@@ -115,6 +117,7 @@ def test_first_message_creates_a_private_conversation(
             "run_id": run_id,
             "steps": None,
             "approvals": [],
+            "plugin_data": {},
         },
     }
     assert conversation.owner_user == api_user
@@ -1078,3 +1081,35 @@ def test_an_example_conversation_takes_no_new_messages(
         "ERROR_AGENT_CONVERSATION_IS_EXAMPLE",
     )
     assert not example.messages.exists()
+
+
+@pytest.mark.django_db
+def test_listed_messages_include_the_data_of_plugins(
+    data_fixture, configured_agent, api_client, api_user
+):
+    agent = configured_agent(user=api_user)
+    conversation = data_fixture.create_agent_conversation(user=api_user, agent=agent)
+    messages = [
+        data_fixture.create_agent_message(conversation=conversation, role=role)
+        for role in (AgentMessage.Role.USER, AgentMessage.Role.ASSISTANT)
+    ]
+
+    class CostPlugin(Plugin):
+        type = "cost"
+
+        def get_ai_usage_plugin_data(self, reference_type, reference_ids):
+            assert reference_type == "agent_message"
+            # Only replies use AI.
+            assert reference_ids == [str(messages[-1].id)]
+            return {str(messages[-1].id): {"credits": 3}}
+
+    with patch.dict(plugin_registry.registry, {"cost": CostPlugin()}):
+        listed = api_client.get(
+            agent_url(agent, "messages", conversation_uuid=conversation.uuid)
+        ).json()["results"]
+
+    assert [message["plugin_data"] for message in listed] == [
+        {},
+        {"cost": {"credits": 3}},
+    ]
+    assert [message["id"] for message in listed] == [m.id for m in messages]

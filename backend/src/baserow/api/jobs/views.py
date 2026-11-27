@@ -82,16 +82,17 @@ class JobsView(APIView):
             job_type = job_type_registry.get_by_model(model)
             return job_type.enhance_queryset(queryset)
 
-        serialized_jobs = [
-            job_type_registry.get_serializer(
-                job,
-                JobSerializer,
-                context={"request": request},
-            ).data
-            for job in specific_iterator(
-                jobs,
-                per_content_type_queryset_hook=enhance_specific_queryset,
+        jobs = list(
+            specific_iterator(
+                jobs, per_content_type_queryset_hook=enhance_specific_queryset
             )
+        )
+        # One context with all the jobs, shared by their serializers, so that a
+        # field of a job type can load what it needs for all of them at once.
+        context = {"request": request, "jobs": jobs}
+        serialized_jobs = [
+            job_type_registry.get_serializer(job, JobSerializer, context=context).data
+            for job in jobs
         ]
         return Response({"jobs": serialized_jobs, "count": count})
 

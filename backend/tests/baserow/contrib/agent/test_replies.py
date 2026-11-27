@@ -2,11 +2,11 @@ import asyncio
 import json
 import time
 from functools import wraps
-from unittest.mock import ANY, call
+from unittest.mock import ANY, call, patch
 from uuid import uuid4
 
 from django.contrib.auth.models import AbstractUser
-from django.db import DatabaseError
+from django.db import DatabaseError, connection
 from django.test import override_settings
 from django.urls import reverse
 
@@ -40,6 +40,8 @@ from baserow.contrib.agent.actions import (
 from baserow.contrib.agent.api.serializers import AgentMessageSerializer
 from baserow.contrib.agent.chat_run_type import AgentChatRunType
 from baserow.contrib.agent.constants import (
+    AGENT_USAGE_FEATURE,
+    AGENT_USAGE_LIMIT_EXCEEDED,
     ASK_FIRST_INSTRUCTIONS,
     CONVERSATION_USER_INSTRUCTIONS,
     DISALLOWED_TOOL_CALL_NOTE,
@@ -84,16 +86,25 @@ from baserow.core.action.registries import action_type_registry
 from baserow.core.chat_runs.constants import ChatRunStopReason
 from baserow.core.chat_runs.handler import ChatRunHandler
 from baserow.core.chat_runs.journal import ChatRunJournal
-from baserow.core.chat_runs.models import ChatRun
+from baserow.core.chat_runs.models import ChatRun, ChatRunStatus
 from baserow.core.chat_runs.service import ChatRunService
 from baserow.core.chat_runs.steps import ChatRunSteps
+from baserow.core.chat_runs.types import ChatRunOutcome
 from baserow.core.exceptions import PermissionDenied
 from baserow.core.generative_ai.registries import generative_ai_model_type_registry
+from baserow.core.generative_ai.usage import (
+    AIUsageLimitExceeded,
+    AIUsageScope,
+    UsageReportingModel,
+    ai_request_completed,
+    ai_request_starting,
+)
 from baserow.core.handler import CoreHandler
 from baserow.core.identities.handler import IdentityHandler
 from baserow.core.identities.service import IdentityService
 from baserow.core.models import User, UserProfile, WorkspaceUser
 from baserow.core.operations import UpdateApplicationOperationType
+from baserow.core.registries import Plugin, plugin_registry
 from baserow.core.signals import application_pending_count_updated
 from baserow.core.tools.errors import ToolInputError
 from baserow.core.trash.handler import TrashHandler
@@ -1131,7 +1142,15 @@ def test_the_reply_model_is_the_configured_one(reply_run):
     # The autouse fixture patches the name chat_run_type imported, not this one.
     model, _ = create_reply_model(request)
 
-    assert (type(model), model.model_name) == (OpenAIResponsesModel, "test-model")
+    # Wrapped to report the usage of every request of the reply.
+    assert isinstance(model, UsageReportingModel)
+    assert (type(model.wrapped), model.model_name) == (
+        OpenAIResponsesModel,
+        "test-model",
+    )
+    assert model.usage_scope.feature == AGENT_USAGE_FEATURE
+    assert model.usage_scope.reference_type == "agent_message"
+    assert model.usage_scope.reference_id == str(request.reply_id)
 
 
 @pytest.mark.django_db
@@ -2920,3 +2939,151 @@ def test_a_users_reply_limit_applies_across_conversations_and_workspaces(
     accepted = api_client.post(agent_url(agent, "conversations"), new_conversation())
     assert accepted.status_code == 200
     assert ChatRun.objects.filter(created_by=other_user, status="queued").count() == 1
+
+
+class UsageRecorder:
+    def __init__(self, refuse=False):
+        self.refuse = refuse
+        self.started = []
+        self.completed = []
+
+    def on_starting(self, sender, scope, **kwargs):
+        self.started.append(scope)
+        if self.refuse:
+            raise AIUsageLimitExceeded("No credits left.")
+
+    def on_completed(self, sender, scope, usage, **kwargs):
+        self.completed.append((scope, usage))
+
+    def __enter__(self):
+        ai_request_starting.connect(self.on_starting)
+        ai_request_completed.connect(self.on_completed)
+        return self
+
+    def __exit__(self, *args):
+        ai_request_starting.disconnect(self.on_starting)
+        ai_request_completed.disconnect(self.on_completed)
+
+
+def reporting_model(stream):
+    return UsageReportingModel(
+        FunctionModel(stream_function=stream),
+        AIUsageScope(
+            "openai",
+            "test-model",
+            True,
+            feature=AGENT_USAGE_FEATURE,
+        ),
+    )
+
+
+@pytest.mark.django_db
+def test_a_reply_refused_for_its_ai_usage_fails_with_a_clear_code(reply_run, mocker):
+    async def stream(messages, info):
+        yield "Hello"
+
+    mocker.patch(
+        "baserow.contrib.agent.chat_run_type.create_reply_model",
+        return_value=(reporting_model(stream), {}),
+    )
+
+    with UsageRecorder(refuse=True) as recorder:
+        run_reply(reply_run)
+
+    status, error_code, _ = reply_state(reply_run.context["reply_id"])
+    assert (status, error_code) == (
+        ChatRunStatus.FAILED,
+        AGENT_USAGE_LIMIT_EXCEEDED,
+    )
+    assert len(recorder.started) == 1
+    assert recorder.completed == []
+
+
+@pytest.mark.django_db
+def test_the_tokens_of_a_reply_are_reported(reply_run, mocker):
+    async def stream(messages, info):
+        yield "Hello"
+
+    model = reporting_model(stream)
+    mocker.patch(
+        "baserow.contrib.agent.chat_run_type.create_reply_model",
+        return_value=(model, {}),
+    )
+
+    with UsageRecorder() as recorder:
+        run_reply(reply_run)
+
+    ((reported_scope, usage),) = recorder.completed
+    assert reported_scope == model.usage_scope
+    assert usage.input_tokens + usage.output_tokens > 0
+
+
+@pytest.mark.django_db
+def test_the_tokens_of_a_cancelled_reply_are_reported(reply_run, mocker):
+    emit_text = ChatRunJournal.emit_text
+
+    def emit_and_stop(journal, text):
+        emit_text(journal, text)
+        journal.request_stop("cancelled")
+
+    mocker.patch.object(ChatRunJournal, "emit_text", emit_and_stop)
+
+    async def stream(messages, info):
+        yield "Hel"
+        await asyncio.Event().wait()
+
+    mocker.patch(
+        "baserow.contrib.agent.chat_run_type.create_reply_model",
+        return_value=(reporting_model(stream), {}),
+    )
+
+    with UsageRecorder() as recorder:
+        run_reply(reply_run)
+
+    assert reply_state(reply_run.context["reply_id"])[0] == "cancelled"
+    ((_, usage),) = recorder.completed
+    assert usage.input_tokens > 0
+
+
+@pytest.mark.django_db
+def test_the_finished_reply_includes_the_data_of_plugins(reply_run):
+    reply_id = reply_run.context["reply_id"]
+
+    class CostPlugin(Plugin):
+        type = "cost"
+
+        def get_ai_usage_plugin_data(self, reference_type, reference_ids):
+            assert (reference_type, reference_ids) == ("agent_message", [str(reply_id)])
+            return {str(reply_id): {"credits": 3}}
+
+    with patch.dict(plugin_registry.registry, {"cost": CostPlugin()}):
+        # What the followers of the run receive when it ends.
+        reply = AgentChatRunType().persist_outcome(
+            reply_run,
+            ChatRunOutcome(ChatRunStatus.COMPLETED, result=AgentReplyResult(text="Hi")),
+        )
+
+    assert reply["id"] == reply_id
+    assert reply["plugin_data"] == {"cost": {"credits": 3}}
+
+
+@pytest.mark.django_db
+def test_a_failing_plugin_does_not_break_persisting_the_reply(reply_run):
+    reply_id = reply_run.context["reply_id"]
+
+    class BrokenPlugin(Plugin):
+        type = "broken"
+
+        def get_ai_usage_plugin_data(self, reference_type, reference_ids):
+            # A failed query, which would otherwise break the transaction.
+            with connection.cursor() as cursor:
+                cursor.execute("SELECT * FROM missing_ai_usage_table")
+
+    with patch.dict(plugin_registry.registry, {"broken": BrokenPlugin()}):
+        reply = AgentChatRunType().persist_outcome(
+            reply_run,
+            ChatRunOutcome(ChatRunStatus.COMPLETED, result=AgentReplyResult(text="Hi")),
+        )
+
+    assert reply["plugin_data"] == {}
+    assert reply_state(reply_id)[0] == "completed"

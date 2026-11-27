@@ -22,10 +22,14 @@ from baserow.core.formula import resolve_formula
 from baserow.core.formula.registries import formula_runtime_function_registry
 from baserow.core.generative_ai.exceptions import ModelDoesNotBelongToType
 from baserow.core.generative_ai.registries import generative_ai_model_type_registry
+from baserow.core.generative_ai.usage import (
+    ai_usage_context,
+)
 from baserow.core.registries import ImportExportConfig
 from baserow_premium.prompts import get_generate_formula_prompt
 
 from .ai_file import AIFile
+from .constants import AI_FIELD_USAGE_FEATURE, AI_FORMULA_USAGE_FEATURE
 from .exceptions import AIFieldEmptyPromptError
 from .pydantic_models import BaserowFormulaModel
 from .registries import ai_field_output_registry
@@ -184,13 +188,14 @@ class AIFieldHandler:
             table_schema_json=table_schema_json, user_prompt=ai_prompt
         )
 
-        result = generative_ai_model_type.prompt(
-            ai_model,
-            message,
-            output_type=BaserowFormulaModel,
-            workspace=table.database.workspace,
-            temperature=ai_temperature,
-        )
+        with ai_usage_context(feature=AI_FORMULA_USAGE_FEATURE):
+            result = generative_ai_model_type.prompt(
+                ai_model,
+                message,
+                output_type=BaserowFormulaModel,
+                workspace=table.database.workspace,
+                temperature=ai_temperature,
+            )
         return result.formula
 
     @classmethod
@@ -199,6 +204,7 @@ class AIFieldHandler:
         ai_field: AIField,
         row: GeneratedTableModel,
         state: ScopedAIProviderState | None = None,
+        usage_reference: tuple[str, Any] | None = None,
     ) -> Any:
         """
         Generate a single AI field value for the given row. Handles model
@@ -209,12 +215,15 @@ class AIFieldHandler:
         :param row: The row to generate a value for.
         :param state: Pre-loaded provider state, so a batch generating many
             rows resolves the workspace once instead of once per row.
+        :param usage_reference: The reference type and id the AI usage is
+            reported with, if any.
         :return: The generated value.
         :raises AIFieldEmptyPromptError: If the resolved prompt is empty.
         """
 
         generative_ai_model_type = cls.get_valid_model_type_or_raise(ai_field, state)
         ai_output_type = ai_field_output_registry.get(ai_field.ai_output_type)
+        reference_type, reference_id = usage_reference or (None, None)
         workspace = ai_field.table.database.workspace
 
         # 1. Resolve prompt from formula
@@ -249,9 +258,10 @@ class AIFieldHandler:
             generative_ai_model_type.supports_files
             and ai_field.ai_file_field_id is not None
         )
-        settings_override = generative_ai_model_type.get_model_settings_override(
+        resolved_settings = generative_ai_model_type.resolve_model_settings(
             ai_field.ai_generative_ai_model, workspace, state=state
         )
+        settings_override = resolved_settings.settings
         if settings_override is not None:
             prompt_kwargs["settings_override"] = settings_override
         try:
@@ -272,11 +282,18 @@ class AIFieldHandler:
                         f"{names}"
                     )
 
-            value = generative_ai_model_type.prompt(
-                ai_field.ai_generative_ai_model,
-                message,
-                **prompt_kwargs,
-            )
+            with ai_usage_context(
+                feature=AI_FIELD_USAGE_FEATURE,
+                # The settings are resolved here and passed in explicitly.
+                uses_shared_key=resolved_settings.uses_shared_key,
+                reference_type=reference_type,
+                reference_id=reference_id,
+            ):
+                value = generative_ai_model_type.prompt(
+                    ai_field.ai_generative_ai_model,
+                    message,
+                    **prompt_kwargs,
+                )
         finally:
             # cleanup uses ai_files (not prepared) so that files uploaded
             # before a mid-prepare failure are still cleaned up.

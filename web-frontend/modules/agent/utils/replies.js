@@ -38,6 +38,8 @@ const FAILED_REPLY_NOTICES = {
     'agent.replyProviderRateLimited',
   [AGENT_REPLY_ERROR_CODE.PROVIDER_UNAVAILABLE]:
     'agent.replyProviderUnavailable',
+  [AGENT_REPLY_ERROR_CODE.USAGE_LIMIT_EXCEEDED]:
+    'agent.replyUsageLimitExceeded',
 }
 
 /**

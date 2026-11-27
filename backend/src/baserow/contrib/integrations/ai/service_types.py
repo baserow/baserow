@@ -5,6 +5,10 @@ from django.contrib.auth.models import AbstractUser
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError as DRFValidationError
 
+from baserow.contrib.integrations.ai.constants import (
+    AI_NODE_USAGE_FEATURE,
+    BUILDER_AI_ACTION_USAGE_FEATURE,
+)
 from baserow.contrib.integrations.ai.integration_types import AIIntegrationType
 from baserow.contrib.integrations.ai.models import AIAgentService, AIOutputType
 from baserow.core.ai_provider.constants import (
@@ -21,6 +25,10 @@ from baserow.core.generative_ai.registries import (
     GenerativeAIModelType,
     generative_ai_model_type_registry,
 )
+from baserow.core.generative_ai.usage import (
+    AIUsageLimitExceeded,
+    ai_usage_context,
+)
 from baserow.core.integrations.exceptions import IntegrationDoesNotExist
 from baserow.core.integrations.handler import IntegrationHandler
 from baserow.core.models import Workspace
@@ -28,6 +36,7 @@ from baserow.core.services.dispatch_context import DispatchContext
 from baserow.core.services.exceptions import (
     RuntimeDispatchException,
     ServiceImproperlyConfiguredDispatchException,
+    UnexpectedDispatchException,
 )
 from baserow.core.services.registries import DispatchTypes, ServiceType
 from baserow.core.services.types import DispatchResult, FormulaToResolve, ServiceDict
@@ -405,17 +414,41 @@ class AIAgentServiceType(ServiceType):
 
                 kwargs["output_type"] = choices
 
-            result = ai_model_type.prompt(
-                model=service.ai_generative_ai_model,
-                prompt=prompt,
-                workspace=workspace,
-                **kwargs,
-            )
+            with ai_usage_context(**self._get_ai_usage_context(dispatch_context)):
+                result = ai_model_type.prompt(
+                    model=service.ai_generative_ai_model,
+                    prompt=prompt,
+                    workspace=workspace,
+                    **kwargs,
+                )
             return {"result": result}
+        except AIUsageLimitExceeded as e:
+            # Not a `RuntimeDispatchException`, because a retry is refused too. The
+            # message of the refusal is meant for the user, so it's passed on as is.
+            raise UnexpectedDispatchException(str(e)) from e
         except GenerativeAIPromptError as e:
             raise RuntimeDispatchException(
                 f"AI prompt execution failed: {str(e)}"
             ) from e
+
+    @staticmethod
+    def _get_ai_usage_context(dispatch_context: DispatchContext) -> Dict[str, Any]:
+        """
+        Describes what the prompt is used for, so that the usage can be
+        attributed to the Builder action or the Automation workflow run.
+        """
+
+        if getattr(dispatch_context, "page", None) is not None:
+            return {"feature": BUILDER_AI_ACTION_USAGE_FEATURE}
+
+        history = getattr(dispatch_context, "history", None)
+        return {
+            "feature": AI_NODE_USAGE_FEATURE,
+            "reference_type": (
+                "automation_workflow_history" if history is not None else None
+            ),
+            "reference_id": history.id if history is not None else None,
+        }
 
     def dispatch_transform(self, data: Dict[str, Any]) -> DispatchResult:
         return DispatchResult(data=data)

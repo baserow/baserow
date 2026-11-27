@@ -31,6 +31,7 @@ from baserow.core.registry import Instance, Registry
 from .constants import REASONING_EFFORTS, ProviderFailure, ReasoningEffort
 from .exceptions import GenerativeAITypeDoesNotExist, get_user_friendly_error_message
 from .lifecycle import run_agent_sync_with_model
+from .usage import AIUsageScope, UsageReportingModel
 
 if TYPE_CHECKING:
     from pydantic_ai import Agent, WebSearchTool
@@ -390,6 +391,16 @@ class FileHandler:
                 )
 
 
+@dataclass(frozen=True)
+class ResolvedModelSettings:
+    """The connection settings of a model, and whose credentials they are."""
+
+    settings: Optional[dict[str, Any]]
+    # Whether the credentials aren't owned by the workspace, but shared by the
+    # instance: configured by an instance admin or with environment variables.
+    uses_shared_key: bool
+
+
 class GenerativeAIModelType(Instance):
     # Default to the legacy contract so out-of-tree providers remain compatible.
     supports_legacy_workspace_settings = True
@@ -731,11 +742,34 @@ class GenerativeAIModelType(Instance):
             or None when provider getters should resolve their own settings.
         """
 
+        return self.resolve_model_settings(
+            model_name, workspace, settings_override, state
+        ).settings
+
+    def resolve_model_settings(
+        self,
+        model_name: str,
+        workspace: Optional[Workspace] = None,
+        settings_override: Optional[dict[str, Any]] = None,
+        state: Optional[ScopedAIProviderState] = None,
+    ) -> ResolvedModelSettings:
+        """Like `get_model_settings_override`, but also tells whether the
+        credentials are shared by the instance or owned by the workspace.
+
+        :param model_name: The model whose connection settings are requested.
+        :param workspace: The owning workspace, or None for instance resolution.
+        :param settings_override: An explicit connection override, if supplied.
+        :param state: Pre-loaded provider state for this scope, if available.
+        :returns: The settings and whose credentials they are.
+        """
+
         if settings_override is not None:
-            return settings_override
+            # Passed in explicitly, so taken as owned by the workspace.
+            return ResolvedModelSettings(settings_override, False)
 
         if not isinstance(workspace, Workspace):
-            return None
+            # The provider getters fall back to the instance or environment.
+            return ResolvedModelSettings(None, True)
 
         if state is None:
             state = get_ai_provider_state(workspace)
@@ -748,13 +782,19 @@ class GenerativeAIModelType(Instance):
                 model.model_identifier == model_name
                 for model in workspace_provider.models.all()
             ):
-                return self._get_provider_settings(workspace_provider)
+                return ResolvedModelSettings(
+                    self._get_provider_settings(workspace_provider),
+                    False,
+                )
 
         if workspace_provider is None:
             legacy_settings = self._get_complete_legacy_workspace_settings(workspace)
             if legacy_settings is not None:
-                return (
-                    legacy_settings if model_name in legacy_settings["models"] else None
+                return ResolvedModelSettings(
+                    legacy_settings
+                    if model_name in legacy_settings["models"]
+                    else None,
+                    False,
                 )
 
         instance_provider = instance_providers.get(self.type)
@@ -767,7 +807,10 @@ class GenerativeAIModelType(Instance):
                 for model in instance_provider.models.all()
             )
         ):
-            return self._get_provider_settings(instance_provider)
+            return ResolvedModelSettings(
+                self._get_provider_settings(instance_provider),
+                True,
+            )
 
         if workspace_provider is None and instance_provider is None:
             environment_settings = PROVIDER_ENVIRONMENT_SETTINGS.get(self.type)
@@ -777,19 +820,28 @@ class GenerativeAIModelType(Instance):
                 # Preserve raw values and absent optional settings just as the
                 # provider getters do; import validation must not alter them here.
                 api_key_setting = environment_settings["api_key"]
-                return {
-                    "api_key": getattr(settings, api_key_setting)
-                    if api_key_setting
-                    else None,
-                    "models": getattr(settings, environment_settings["models"]),
-                    **{
-                        name: getattr(settings, setting_name)
-                        for name, setting_name in environment_settings[
-                            "extra_settings"
-                        ].items()
+                return ResolvedModelSettings(
+                    {
+                        "api_key": getattr(settings, api_key_setting)
+                        if api_key_setting
+                        else None,
+                        "models": getattr(settings, environment_settings["models"]),
+                        **{
+                            name: getattr(settings, setting_name)
+                            for name, setting_name in environment_settings[
+                                "extra_settings"
+                            ].items()
+                        },
                     },
-                }
-        return None
+                    True,
+                )
+
+        # The provider getters resolve their own credentials. Like
+        # `get_configured_setting`, they only prefer an active workspace provider,
+        # an inactive one falls back to the instance provider.
+        return ResolvedModelSettings(
+            None, workspace_provider is None or not workspace_provider.is_active
+        )
 
     def get_api_key(
         self,
@@ -1205,9 +1257,8 @@ class GenerativeAIModelType(Instance):
         from .exceptions import GenerativeAIPromptError
 
         try:
-            settings_override = self.get_model_settings_override(
-                model, workspace, settings_override
-            )
+            resolved = self.resolve_model_settings(model, workspace, settings_override)
+            settings_override = resolved.settings
             model_settings = {
                 **self.prepare_model_settings(model, temperature),
                 **(model_settings_override or {}),
@@ -1217,7 +1268,15 @@ class GenerativeAIModelType(Instance):
             agent = self._build_agent(output_type)
             # Construct the model last because provider-owned HTTP clients are
             # allocated immediately and must be scoped as soon as they exist.
-            ai_model = self.get_ai_model(model, workspace, settings_override)
+            ai_model = UsageReportingModel(
+                self.get_ai_model(model, workspace, settings_override),
+                AIUsageScope(
+                    provider_type=self.type,
+                    model=model,
+                    uses_shared_key=resolved.uses_shared_key,
+                    workspace=workspace,
+                ),
+            )
 
             result = run_agent_sync_with_model(
                 agent,
