@@ -5,6 +5,7 @@
     :key="targetKey"
     :workspace="workspace"
     :action="action"
+    :get-anchor="getAnchor"
     :parameters="parameters"
     :title="$t('kumaPrompt.' + action)"
     :placeholder="$t('kumaPrompt.' + action + 'Placeholder')"
@@ -17,6 +18,7 @@ import { computed } from 'vue'
 import { useStore } from 'vuex'
 
 const props = defineProps({
+  getAnchor: { type: Function, default: null },
   action: { type: String, required: true },
   workspaceId: { type: Number, required: true },
   parameters: { type: Object, required: true },

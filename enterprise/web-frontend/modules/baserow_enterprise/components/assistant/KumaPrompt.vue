@@ -16,6 +16,7 @@
       class="prompt-context"
       role="dialog"
       :aria-label="title"
+      :get-anchor="getAnchor"
       :hide-on-click-outside="!busy"
       :horizontal-viewport-margin="8"
       @hidden="onHidden"
@@ -50,18 +51,20 @@
             :placeholder="placeholder"
             :disabled="busy"
             maxlength="2000"
-            rows="2"
+            rows="1"
             @keydown.enter.exact="onEnter"
           />
           <Button
             button-type="button"
             size="small"
-            append-icon="iconoir-arrow-up"
+            class="prompt-context__send"
+            icon="iconoir-arrow-up"
+            :aria-label="$t('kumaPrompt.send')"
+            :title="$t('kumaPrompt.send')"
             :disabled="!canSend"
             :loading="busy"
             @click="send"
-            >{{ $t('kumaPrompt.send') }}</Button
-          >
+          />
         </div>
         <p v-if="busy || notice" class="prompt-context__notice" role="status">
           {{ busy ? $t('kumaInlinePrompt.working') : notice }}
@@ -78,6 +81,7 @@ import AssistantService from '@baserow_enterprise/services/assistant'
 import { isAssistantAvailable } from '@baserow_enterprise/utils/assistant'
 
 const props = defineProps({
+  getAnchor: { type: Function, default: null },
   enabled: { type: Boolean, default: true },
   workspace: { type: Object, default: null },
   title: { type: String, required: true },
@@ -134,7 +138,12 @@ async function toggle() {
   open.value = true
   error.value = ''
   emit('active', true)
-  await context.value.show(trigger.value, 'bottom', 'left', 5)
+  await context.value.show(
+    trigger.value,
+    'bottom',
+    props.getAnchor ? 'right' : 'left',
+    5
+  )
   await nextTick()
   input.value?.focus()
 }

@@ -70,6 +70,8 @@ export default {
       default: () => false,
       required: false,
     },
+    // The opener can position the menu against another element, according to its size.
+    getAnchor: { type: Function, default: null },
     horizontalViewportMargin: {
       type: Number,
       default: null,
@@ -166,22 +168,22 @@ export default {
       verticalOffset = 10,
       horizontalOffset = 0
     ) {
-      const isElementOrigin = isDomElement(target)
       const updatePosition = () => {
         if (!this.open) {
           return
         }
         const el = this.$refs.contextEl
-        const css = isElementOrigin
+        const anchor = this.getAnchor?.(el, verticalOffset) || target
+        const css = isDomElement(anchor)
           ? this.calculatePositionElement(
-              target,
+              anchor,
               vertical,
               horizontal,
               verticalOffset,
               horizontalOffset
             )
           : this.calculatePositionFixed(
-              target,
+              anchor,
               vertical,
               horizontal,
               verticalOffset,
@@ -226,7 +228,7 @@ export default {
 
       // If we store the element who opened the context menu we can exclude the element
       // when clicked outside of this element.
-      this.opener = isElementOrigin ? target : null
+      this.opener = isDomElement(target) ? target : null
       this.open = true
       this.openedOnce = true
 
@@ -294,6 +296,11 @@ export default {
         }
       }
       window.addEventListener('resize', this._updatePositionViaResizeEvent)
+
+      if (this.getAnchor) {
+        this._anchorResizeObserver = new ResizeObserver(updatePosition)
+        this._anchorResizeObserver.observe(el)
+      }
 
       this.$emit('shown')
     },
@@ -363,6 +370,8 @@ export default {
       this._cleanupEventHandlers()
     },
     _cleanupEventHandlers() {
+      this._anchorResizeObserver?.disconnect()
+      this._anchorResizeObserver = null
       if (this._cancelOnClickOutside) {
         this._cancelOnClickOutside()
         this._cancelOnClickOutside = null

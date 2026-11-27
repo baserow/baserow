@@ -73,6 +73,15 @@ describe('KumaPrompt', () => {
     expect(wrapper.find('textarea').exists()).toBe(false)
   })
 
+  test('gives the icon-only send button an accessible name', async () => {
+    const wrapper = await mount()
+    await wrapper.get('.prompt-context__trigger').trigger('click')
+    const send = submitButton(wrapper)
+    expect(send.text()).toBe('')
+    expect(send.attributes('aria-label')).toBe('kumaPrompt.send')
+    expect(send.get('.iconoir-arrow-up').exists()).toBe(true)
+  })
+
   test('renders nothing when Kuma is not available', async () => {
     mocks.available = false
     const wrapper = await mount()

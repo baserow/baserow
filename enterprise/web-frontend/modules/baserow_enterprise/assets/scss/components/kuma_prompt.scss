@@ -1,6 +1,6 @@
 .prompt-context {
   width: min(320px, calc(100vw - 16px));
-  padding: 10px;
+  padding: 6px 8px;
 
   &:focus-within {
     border-color: $palette-cyan-600;
@@ -8,22 +8,30 @@
 
   .prompt-context__input {
     display: flex;
-    align-items: flex-end;
+    align-items: center;
     gap: 8px;
 
     .form-textarea {
       min-width: 0;
       flex: 1;
-      padding: 2px 4px;
+      padding: 5px 4px;
       border: 0;
       box-shadow: none;
       field-sizing: content;
-      min-height: 40px;
+      min-height: 28px;
       max-height: 100px;
       resize: none;
       font-size: 13px;
       line-height: 18px;
     }
+  }
+
+  .prompt-context__send {
+    flex: none;
+    width: 28px;
+    height: 28px;
+    justify-content: center;
+    padding: 0;
   }
 }
 
