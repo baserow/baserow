@@ -510,6 +510,7 @@ class ViewFilterActionParameters(serializers.Serializer):
 
 
 class InstructionsActionParameters(serializers.Serializer):
+    agent_name = serializers.CharField(required=False, allow_blank=True, max_length=255)
     workspace_id = serializers.IntegerField(min_value=1)
     current = serializers.CharField(
         max_length=100000, allow_blank=True, trim_whitespace=False
@@ -528,6 +529,7 @@ ACTION_PARAMETERS = {
 class AssistantActionRequestSerializer(serializers.Serializer):
     """Validate the common envelope and the selected action's parameters."""
 
+    workspace_id = serializers.IntegerField(min_value=1, required=False)
     action = serializers.ChoiceField(choices=list(ACTION_PARAMETERS))
     prompt = serializers.CharField(max_length=2000)
     parameters = serializers.DictField()

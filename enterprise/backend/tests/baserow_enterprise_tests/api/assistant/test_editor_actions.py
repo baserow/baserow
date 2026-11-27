@@ -30,13 +30,18 @@ def editor(enterprise_data_fixture, api_client):
     )
     view = enterprise_data_fixture.create_grid_view(table=table)
 
-    def post(action, **parameters):
+    def post(action, *, scope_workspace_id=None, **parameters):
         return api_client.post(
             reverse("assistant:actions"),
             {
                 "action": action,
                 "prompt": "Please make this change",
                 "parameters": parameters,
+                **(
+                    {"workspace_id": scope_workspace_id}
+                    if scope_workspace_id is not None
+                    else {}
+                ),
             },
             format="json",
             HTTP_AUTHORIZATION=f"JWT {token}",
@@ -67,7 +72,7 @@ def test_generates_instruction_draft_without_creating_agent(editor):
         "summary": "",
         "result": {"instructions": "Reply in German."},
     }
-    assert generate.call_args.kwargs == {"current": "Be brief."}
+    assert generate.call_args.kwargs == {"current": "Be brief.", "agent_name": ""}
 
 
 @pytest.mark.parametrize(
@@ -167,3 +172,36 @@ def test_cannot_generate_for_another_workspace(editor, enterprise_data_fixture):
         response = post("create_view", table_id=other.id)
     assert response.status_code in (400, 403)
     generate.assert_not_called()
+
+
+def test_scoped_editor_rejects_mismatch_before_resolving_model(editor):
+    table, _, _, post = editor
+    with patch(f"{VIEWS}.resolve_assistant_model") as resolve:
+        response = post(
+            "create_view",
+            scope_workspace_id=table.database.workspace_id + 1,
+            table_id=table.id,
+        )
+    assert response.status_code == 400
+    resolve.assert_not_called()
+
+
+def test_scoped_agent_draft_includes_its_name(editor):
+    table, _, _, post = editor
+    workspace_id = table.database.workspace_id
+    with patch(
+        f"{MODULE}._generate",
+        return_value=InstructionDraft(instructions="Summarize releases."),
+    ) as generate:
+        response = post(
+            "generate_agent_instructions",
+            scope_workspace_id=workspace_id,
+            workspace_id=workspace_id,
+            agent_name="Release helper",
+            current="Be brief.",
+        )
+    assert response.status_code == 200
+    assert generate.call_args.kwargs == {
+        "agent_name": "Release helper",
+        "current": "Be brief.",
+    }

@@ -108,7 +108,7 @@ filters_agent = Agent(
     retries=3,
     instructions="Edit only the requested conditions of this database view. Added "
     "conditions go at the root. Updates keep their group. For an unsupported request "
-    "return no changes. Explain the result briefly in the user's language. "
+    "return no changes. Explain the result briefly in the supplied response_language. "
     + FILTER_FORMAT,
 )
 view_agent = Agent(
@@ -170,7 +170,12 @@ def _edit_filters(ctx, prompt, view_id, profile):
         )
     before = _filter_state(view)
     changes = _generate(
-        filters_agent, profile, prompt, table=_schema(ctx, view.table_id), view=before
+        filters_agent,
+        profile,
+        prompt,
+        table=_schema(ctx, view.table_id),
+        view={**before, "name": view.name},
+        response_language=ctx.user.profile.language,
     )
     change_operator = (
         changes.operator is not None and changes.operator != view.filter_type
@@ -235,7 +240,11 @@ def run_editor_action(action, ctx, prompt, parameters, profile):
     try:
         if action == "generate_agent_instructions":
             draft = _generate(
-                instructions_agent, profile, prompt, current=parameters["current"]
+                instructions_agent,
+                profile,
+                prompt,
+                current=parameters["current"],
+                agent_name=parameters.get("agent_name", ""),
             )
             if not draft.instructions.strip():
                 raise EditorGenerationFailed()

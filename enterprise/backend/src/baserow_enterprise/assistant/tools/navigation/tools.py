@@ -6,6 +6,8 @@ from django.utils.translation import gettext as _
 from pydantic import Field
 from pydantic_ai import RunContext
 
+from baserow.contrib.database.views.exceptions import ViewDoesNotExist
+from baserow.core.exceptions import PermissionException
 from baserow_enterprise.assistant.deps import AssistantDeps
 from baserow_enterprise.assistant.tools.toolset import AssistantFunctionToolset
 
@@ -17,7 +19,7 @@ def navigate(
     request: Annotated[
         AnyNavigationRequestType,
         Field(
-            description="The navigation target: either a specific table or the workspace home."
+            description="The navigation target: a specific table or the filter controls of a specific view."
         ),
     ],
     thought: Annotated[
@@ -25,10 +27,10 @@ def navigate(
     ],
 ) -> str:
     """\
-    Navigate the UI to a table, view, automation, page, or workspace home.
+    Open a table or focus the filter controls for a view.
 
     WHEN to use: User asks to open, go to, or see something in the workspace. Also after creating new resources (views, fields, rows) in an existing database or table.
-    WHAT it does: Navigates the UI to a table, view, automation workflow, builder page, or workspace home.
+    WHAT it does: Opens the requested table or view filters.
     RETURNS: Confirmation of navigation.
     DO NOT USE when: You need data — use list/get tools instead. Navigation only changes the UI focus.
     """
@@ -39,7 +41,7 @@ def navigate(
 
     try:
         location = request.to_location(user, workspace, request)
-    except ObjectDoesNotExist:
+    except (ObjectDoesNotExist, ViewDoesNotExist, PermissionException):
         return "Error: could not navigate — the target was not found. Check that the ID is correct."
 
     tool_helpers.update_status(

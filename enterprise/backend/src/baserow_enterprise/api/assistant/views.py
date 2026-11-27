@@ -7,6 +7,7 @@ from django.http import StreamingHttpResponse
 
 from drf_spectacular.openapi import OpenApiParameter, OpenApiTypes
 from drf_spectacular.utils import OpenApiResponse, extend_schema
+from rest_framework.exceptions import ValidationError
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.request import Request
 from rest_framework.response import Response
@@ -547,6 +548,11 @@ class AssistantActionsView(APIView):
             workspace=workspace,
             context=workspace,
         )
+
+        if data.get("workspace_id", workspace.id) != workspace.id:
+            raise ValidationError(
+                {"workspace_id": "The editor belongs to another workspace."}
+            )
 
         model_profile = resolve_assistant_model(workspace=workspace)
         check_lm_ready_or_raise(model_profile=model_profile)
