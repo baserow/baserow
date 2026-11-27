@@ -6,6 +6,9 @@ from contextlib import ExitStack
 from django.db import transaction
 from django.utils.translation import gettext as _
 
+from baserow.contrib.integrations.local_baserow.service_filters.handler import (
+    resolve_service_filter_target,
+)
 from baserow.core.chat_runs.exceptions import ChatRunAlreadyActive
 from baserow.core.chat_runs.handler import ChatRunHandler
 
@@ -21,10 +24,13 @@ from .runs import ASSISTANT_RUN_TYPE
 def _check_thread(chat, action, target):
     if not chat:
         return
-    if not chat.editor_context or (
-        chat.editor_context["action"] != action
-        or chat.editor_context["target"] != target
-    ):
+    if not chat.editor_context or chat.editor_context["action"] != action:
+        raise AssistantChatDoesNotExist()
+    saved = chat.editor_context["target"]
+    if action == "update_service_filters" and "table_id" not in saved:
+        # Older filter chats identified only the owning service.
+        saved = {**saved, "table_id": target["table_id"]}
+    if saved != target:
         raise AssistantChatDoesNotExist()
     active = ChatRunHandler().get_active_run(ASSISTANT_RUN_TYPE, chat.pk)
     if active:
@@ -32,6 +38,11 @@ def _check_thread(chat, action, target):
 
 
 def run_editor_chat_action(action, ctx, prompt, parameters, profile, chat_uuid):
+    if action == "update_service_filters" and parameters.get("table_id") is None:
+        service = resolve_service_filter_target(
+            ctx, parameters["kind"], parameters["id"], for_update=False
+        )
+        parameters = {**parameters, "table_id": service.table.pk}
     target = {
         key: parameters[key]
         for key in (

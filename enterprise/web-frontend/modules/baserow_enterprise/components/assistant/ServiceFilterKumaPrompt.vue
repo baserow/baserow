@@ -1,7 +1,7 @@
 <template>
   <KumaContextButton
     ref="kumaPrompt"
-    :key="target?.kind + ':' + target?.id"
+    :key="`${target?.kind}:${target?.id}:${actionParameters.table_id}`"
     :label="target?.name || ''"
     :enabled="Boolean(target?.id)"
     :title="$t('serviceFilterKumaPrompt.title')"
@@ -52,6 +52,6 @@ onBeforeUnmount(() => filterForm?.setFrozen(false))
 const actionParameters = computed(() => ({
   kind: target.value?.kind,
   id: target.value?.id,
-  table_id: serviceFilters?.getUnsavedTableId?.() ?? null,
+  table_id: serviceFilters?.getSelectedTableId?.() ?? null,
 }))
 </script>

@@ -69,7 +69,7 @@ describe('AssistantPanel', () => {
       workspaceId: 1,
       title: 'Formula',
       placeholder: 'Describe your formula',
-      undoable: ref(false),
+      undoGroup: ref(null),
       focus: vi.fn(),
     }
     await flushPromises()

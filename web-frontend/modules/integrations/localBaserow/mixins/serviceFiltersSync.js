@@ -21,14 +21,18 @@ export default {
     return {
       serviceFilters: {
         hasUnsavedChanges: () => this.serviceFiltersHaveUnsavedChanges(),
-        // Another table than the saved one was picked.
-        hasUnsavedTableChange: () =>
-          this.getServiceFiltersTableChange() === 'changed',
-        // The table picked when none is saved yet, or null.
-        getUnsavedTableId: () =>
-          this.getServiceFiltersTableChange() === 'picked'
-            ? this.values.table_id
-            : null,
+        hasUnsavedTableChange: () => {
+          const saved = this.getServiceFiltersSource()?.table_id
+          return Boolean(
+            saved &&
+            this.values?.table_id !== undefined &&
+            saved !== this.values.table_id
+          )
+        },
+        getSelectedTableId: () =>
+          this.values?.table_id === undefined
+            ? (this.getServiceFiltersSource()?.table_id ?? null)
+            : this.values.table_id,
       },
     }
   },
@@ -79,27 +83,6 @@ export default {
       return this.getSyncedServiceFilterKeys(saved).some(
         (key) => !_.isEqual(this.values[key], saved[key])
       )
-    },
-    /**
-     * Returns how the form's table differs from the saved one: `picked` when none
-     * is saved yet, `changed` when another one is saved, or null when it doesn't.
-     */
-    getServiceFiltersTableChange() {
-      const source = this.getServiceFiltersSource()
-      if (
-        !source ||
-        !this.values ||
-        !('table_id' in source) ||
-        !('table_id' in this.values)
-      ) {
-        return null
-      }
-      const tableId = this.values.table_id ?? null
-      const savedTableId = source.table_id ?? null
-      if (tableId === null || tableId === savedTableId) {
-        return null
-      }
-      return savedTableId === null ? 'picked' : 'changed'
     },
     setServiceFilterValues(keys, saved) {
       if (!keys.length) {

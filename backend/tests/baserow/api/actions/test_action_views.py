@@ -18,6 +18,39 @@ User = get_user_model()
 
 @pytest.mark.django_db
 @pytest.mark.undo_redo
+def test_response_undo_only_applies_to_the_latest_group(api_client, data_fixture):
+    _, token = data_fixture.create_user_and_token()
+    headers = {"HTTP_AUTHORIZATION": f"JWT {token}", "HTTP_CLIENTSESSIONID": "test"}
+    group = uuid.uuid4()
+    ids = []
+    for group_id in (group, uuid.uuid4()):
+        response = api_client.post(
+            reverse("api:workspaces:list"),
+            {"name": "Test"},
+            format="json",
+            HTTP_CLIENTUNDOREDOACTIONGROUPID=str(group_id),
+            **headers,
+        )
+        ids.append(response.json()["id"])
+
+    def undo(url):
+        response = api_client.patch(
+            url, {"scopes": {"root": True}}, format="json", **headers
+        )
+        assert response.status_code == 200
+        return response.json()["result_code"]
+
+    url = reverse("api:user:undo_group", args=[group])
+    assert undo(url) == UndoRedoResultCodeField.NOTHING_TO_DO
+    assert Workspace.objects.filter(id__in=ids).count() == 2
+    assert undo(reverse("api:user:undo")) == UndoRedoResultCodeField.SUCCESS
+    assert Workspace.objects.filter(id=ids[0]).exists()
+    assert undo(url) == UndoRedoResultCodeField.SUCCESS
+    assert not Workspace.objects.filter(id__in=ids).exists()
+
+
+@pytest.mark.django_db
+@pytest.mark.undo_redo
 def test_undoing_when_nothing_to_do_response_with_correct_code(
     api_client, data_fixture
 ):

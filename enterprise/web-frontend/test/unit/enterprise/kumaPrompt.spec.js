@@ -259,3 +259,49 @@ test('hides a disabled entry point', async () => {
   await mount({ enabled: false })
   expect(wrapper.find('button').exists()).toBe(false)
 })
+
+test('puts Copy and a guarded Undo on the filter reply that made the change', async () => {
+  await mount({ action: 'update_service_filters' })
+  const input = await open()
+  const store = useNuxtApp().$store
+  const dispatch = vi.spyOn(store, 'dispatch').mockResolvedValue('SUCCESS')
+  const group = '22222222-2222-4222-8222-222222222222'
+  const writeText = vi.fn().mockResolvedValue(undefined)
+  vi.stubGlobal('navigator', { clipboard: { writeText } })
+  try {
+    runAction.mockResolvedValue({
+      changed: true,
+      result: {},
+      summary: 'Added a filter.',
+      actionGroupId: group,
+    })
+    await input.setValue('Only open tasks')
+    await input.trigger('keydown', { key: 'Enter' })
+    await flushPromises()
+    const reply = wrapper.get('.chat-message:not(.chat-message--own)')
+    const footer = reply.get('.chat-message__footer')
+    await footer.get('button[aria-label="action.copy"]').trigger('click')
+    expect(writeText).toHaveBeenCalledWith('Added a filter.')
+    await footer.get('button:has(.iconoir-undo)').trigger('click')
+    expect(dispatch).toHaveBeenCalledWith('undoRedo/undo', {
+      showLoadingToast: true,
+      expectedActionGroupId: group,
+    })
+    expect(wrapper.find('.iconoir-undo').exists()).toBe(false)
+    runAction.mockResolvedValue({
+      changed: false,
+      result: {},
+      summary: 'Already set.',
+      actionGroupId: group,
+    })
+    await input.setValue('Only open tasks again')
+    await input.trigger('keydown', { key: 'Enter' })
+    await flushPromises()
+    expect(
+      wrapper.findAll('.chat-message:not(.chat-message--own) .iconoir-copy')
+    ).toHaveLength(2)
+    expect(wrapper.find('.iconoir-undo').exists()).toBe(false)
+  } finally {
+    vi.unstubAllGlobals()
+  }
+})

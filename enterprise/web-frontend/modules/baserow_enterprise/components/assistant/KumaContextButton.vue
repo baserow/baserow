@@ -166,13 +166,13 @@ function attach() {
     focus() {
       trigger.value?.focus()
     },
-    undoable: ref(false),
+    undoGroup: ref(null),
   }
   app.$bus.$emit('toggle-right-sidebar', true)
 }
 
 function dismiss() {
-  if (selected.value) editor.target.value.undoable.value = false
+  if (selected.value) editor.target.value.undoGroup.value = null
 }
 watch(
   () => available.value && isOverlayOpen(),

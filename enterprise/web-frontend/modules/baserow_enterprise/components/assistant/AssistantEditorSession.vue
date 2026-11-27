@@ -21,10 +21,25 @@
       <div v-else class="assistant__messages-list" role="log">
         <ChatMessage v-for="(turn, i) in turns" :key="i" :own="turn.own">
           <div class="chat-message__bubble">{{ turn.text }}</div>
+          <template #actions>
+            <ChatMessageFooter :text="turn.text" @error="copyFailed">
+              <button
+                v-if="
+                  turn.actionGroupId &&
+                  turn.actionGroupId === target.undoGroup.value
+                "
+                v-tooltip="$t('serviceFilterKumaPrompt.undo')"
+                type="button"
+                class="chat-message__action"
+                :aria-label="$t('serviceFilterKumaPrompt.undo')"
+                :disabled="busy || undoing"
+                @click="undo(turn.actionGroupId)"
+              >
+                <i class="iconoir-undo" aria-hidden="true"></i>
+              </button>
+            </ChatMessageFooter>
+          </template>
         </ChatMessage>
-        <ButtonText v-if="target.undoable.value" size="small" @click="undo">{{
-          $t('kumaInlinePrompt.undo')
-        }}</ButtonText>
       </div>
     </div>
     <div class="assistant__footer">
@@ -34,7 +49,7 @@
       <AssistantInputMessage
         ref="composer"
         :sending="busy"
-        :send-disabled="!!target.blockedMessage"
+        :send-disabled="undoing || !!target.blockedMessage"
         :starter="target.previousTurns?.length ? '' : target.starter"
         :maxlength="2000"
         @send-message="send"
@@ -66,6 +81,8 @@ import kuma from '@baserow_enterprise/assets/images/kuma.svg?url'
 import AssistantInputMessage from '@baserow_enterprise/components/assistant/AssistantInputMessage'
 import AssistantService from '@baserow_enterprise/services/assistant'
 import { notifyIf } from '@baserow/modules/core/utils/error'
+import { UNDO_REDO_RESULT_CODES } from '@baserow/modules/core/utils/undoRedoConstants'
+import ChatMessageFooter from '@baserow/modules/core/components/chat/ChatMessageFooter'
 import ChatMessage from '@baserow/modules/core/components/chat/ChatMessage'
 
 const props = defineProps({ target: { type: Object, required: true } })
@@ -75,6 +92,7 @@ const composer = ref(null)
 const thread = ref(null)
 const turns = ref([...(props.target.previousTurns ?? [])])
 const busy = ref(false)
+const undoing = ref(false)
 const error = ref('')
 const contextLabel = computed(() =>
   [props.target.title, props.target.label].filter(Boolean).join(' · ')
@@ -93,18 +111,44 @@ function closePanel() {
   leave()
   app.$bus.$emit('toggle-right-sidebar', false)
 }
-async function undo() {
-  props.target.undoable.value = false
-  await store.dispatch('undoRedo/undo', { showLoadingToast: true })
+function copyFailed() {
+  store.dispatch('toast/error', {
+    title: app.$i18n.t('assistantMessageActions.copyFailed'),
+  })
+}
+async function undo(groupId) {
+  const target = props.target
+  if (busy.value || undoing.value || target.undoGroup.value !== groupId) return
+  undoing.value = true
+  try {
+    const result = await store.dispatch('undoRedo/undo', {
+      showLoadingToast: true,
+      expectedActionGroupId: groupId,
+    })
+    if (!result || !isCurrent(target)) return
+    target.undoGroup.value = null
+    if (result === UNDO_REDO_RESULT_CODES.NOTHING_TO_DO) {
+      error.value = app.$i18n.t('serviceFilterKumaPrompt.undoUnavailable')
+    }
+  } catch (err) {
+    notifyIf(err)
+  } finally {
+    undoing.value = false
+  }
 }
 async function send(text) {
   const target = props.target
-  if (busy.value || !isCurrent(target) || target.blockedMessage || !text.trim())
+  if (
+    busy.value ||
+    undoing.value ||
+    !isCurrent(target) ||
+    target.blockedMessage ||
+    !text.trim()
+  )
     return
   const parameters = { ...target.parameters }
   busy.value = true
   target.busy(true)
-  target.undoable.value = false
   error.value = ''
   turns.value.push({ own: true, text })
   try {
@@ -129,8 +173,11 @@ async function send(text) {
       return
     }
     target.apply(response.result)
-    target.undoable.value =
+    const actionGroupId =
       target.action === 'update_service_filters' && response.changed
+        ? response.actionGroupId
+        : null
+    if (actionGroupId) target.undoGroup.value = actionGroupId
     const confirmation = {
       generate_formula: 'kumaPrompt.formulaDraftUpdated',
       generate_ai_field_prompt: 'kumaPrompt.aiPromptDraftUpdated',
@@ -138,7 +185,7 @@ async function send(text) {
     }[target.action]
     const reply =
       response.summary || (confirmation ? app.$i18n.t(confirmation) : draft)
-    if (reply) turns.value.push({ own: false, text: reply })
+    if (reply) turns.value.push({ own: false, text: reply, actionGroupId })
   } catch (err) {
     if (!err.handler) throw err
     err.handler.handled()

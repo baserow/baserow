@@ -1,7 +1,10 @@
 export default (client) => {
   return {
-    undo(scopes) {
-      return client.patch(`/user/undo/`, {
+    undo(scopes, expectedActionGroupId) {
+      const url = expectedActionGroupId
+        ? `/user/undo/${expectedActionGroupId}/`
+        : '/user/undo/'
+      return client.patch(url, {
         scopes,
       })
     },

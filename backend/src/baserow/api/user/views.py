@@ -5,7 +5,7 @@ from django.contrib.auth import get_user_model
 from django.db import transaction
 
 from drf_spectacular.types import OpenApiTypes
-from drf_spectacular.utils import OpenApiParameter, extend_schema
+from drf_spectacular.utils import OpenApiParameter, extend_schema, extend_schema_view
 from itsdangerous.exc import BadSignature, BadTimeSignature, SignatureExpired
 from rest_framework.exceptions import AuthenticationFailed
 from rest_framework.permissions import AllowAny, IsAuthenticated
@@ -896,13 +896,25 @@ class UndoView(APIView):
     @validate_body(UndoRedoRequestSerializer)
     @map_exceptions(UNDO_REDO_EXCEPTIONS_MAP)
     @transaction.atomic
-    def patch(self, request, data: List[ActionScopeStr]):
+    def patch(self, request, data: List[ActionScopeStr], group_id=None):
         session_id = get_untrusted_client_session_id(request.user)
         if session_id is None:
             raise ClientSessionIdHeaderNotSetException()
-        undone_actions = ActionHandler.undo(request.user, data, session_id)
+        undone_actions = ActionHandler.undo(
+            request.user, data, session_id, expected_group=group_id
+        )
         serializer = UndoRedoResponseSerializer({"actions": undone_actions})
         return Response(serializer.data, status=200)
+
+
+@extend_schema_view(
+    patch=extend_schema(
+        operation_id="undo_group",
+        description="Undo the latest action in the given scopes only if it belongs to this group.",
+    )
+)
+class UndoGroupView(UndoView):
+    pass
 
 
 class RedoView(APIView):

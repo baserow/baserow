@@ -105,20 +105,24 @@ describe('serviceFiltersSync', () => {
     const wrapper = await mountHost(savedService([], { table_id: null }))
     const { serviceFilters } = wrapper.findComponent(Child).vm
     wrapper.vm.values.table_id = null
-    expect(serviceFilters.getUnsavedTableId()).toBe(null)
+    expect(serviceFilters.getSelectedTableId()).toBe(null)
 
     // Picked for a data source without a table: sent along to be saved.
     wrapper.vm.values.table_id = 7
-    expect(serviceFilters.getUnsavedTableId()).toBe(7)
+    expect(serviceFilters.getSelectedTableId()).toBe(7)
     expect(serviceFilters.hasUnsavedTableChange()).toBe(false)
 
     await wrapper.setProps({ service: savedService([], { table_id: 7 }) })
-    expect(serviceFilters.getUnsavedTableId()).toBe(null)
+    expect(serviceFilters.getSelectedTableId()).toBe(7)
 
     // Another table than the saved one: it must be saved first.
     wrapper.vm.values.table_id = 8
     expect(serviceFilters.hasUnsavedTableChange()).toBe(true)
-    expect(serviceFilters.getUnsavedTableId()).toBe(null)
+    expect(serviceFilters.getSelectedTableId()).toBe(8)
+
+    wrapper.vm.values.table_id = null
+    expect(serviceFilters.hasUnsavedTableChange()).toBe(true)
+    expect(serviceFilters.getSelectedTableId()).toBeNull()
   })
 
   test('copies the filters saved with the picked table', async () => {

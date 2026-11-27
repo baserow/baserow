@@ -39,7 +39,8 @@ Examples, with an existing filter 7 "Amount higher_than 10":
 - "only show done tasks" → add_filter on Status. Filter 7 is left as it is.
 - "also only amounts below 1000" → add_filter "Amount lower_than 1000".
 - "only show done tasks instead" → delete_filter 7, then add_filter on Status.
-- "remove the amount filter" → delete_filter 7.
+- "remove the amount filter" → {"operations": [{"op": "delete_filter", "filter_id": "7"}],
+  "summary": "Removed the amount filter."}
 """
 
 SERVICE_FILTER_AGENT_INSTRUCTIONS = "\n".join(

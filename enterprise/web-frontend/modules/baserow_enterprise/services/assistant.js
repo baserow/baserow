@@ -168,6 +168,7 @@ export default (client) => {
 
     /** Run a targeted Kuma action with the editor context. */
     async runAction(action, prompt, parameters, workspaceId, chatUuid) {
+      const actionGroupId = createNewUndoRedoActionGroupId()
       const { data } = await client.post(
         '/assistant/actions/',
         {
@@ -180,11 +181,11 @@ export default (client) => {
         {
           baseURL: getAssistantBaseURL(client),
           ...getUndoRedoActionRequestConfig({
-            undoRedoActionGroupId: createNewUndoRedoActionGroupId(),
+            undoRedoActionGroupId: actionGroupId,
           }),
         }
       )
-      return data
+      return { ...data, actionGroupId }
     },
   }
 }

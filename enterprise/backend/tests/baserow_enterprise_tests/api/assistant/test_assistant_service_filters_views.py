@@ -1,4 +1,5 @@
 from unittest.mock import patch
+from uuid import uuid4
 
 from django.test import override_settings
 from django.urls import reverse
@@ -6,6 +7,7 @@ from django.urls import reverse
 import pytest
 
 from baserow.contrib.integrations.local_baserow.service_filters.state import (
+    FilterOperation,
     FilterState,
 )
 from baserow_enterprise.assistant.exceptions import (
@@ -13,6 +15,7 @@ from baserow_enterprise.assistant.exceptions import (
     ServiceFilterGenerationFailed,
 )
 from baserow_enterprise.assistant.service_filters import ServiceFilterRequestResult
+from baserow_enterprise.assistant.service_filters.agent import ServiceFilterChanges
 
 VIEWS = "baserow_enterprise.api.assistant.views"
 
@@ -28,13 +31,14 @@ def _data_source(data_fixture, user):
     )
 
 
-def _post(api_client, token, **data):
+def _post(api_client, token, chat_uuid=None, **data):
     return api_client.post(
         reverse("assistant:actions"),
         data={
             "action": "update_service_filters",
             "prompt": data.pop("prompt"),
             "parameters": data,
+            **({"chat_uuid": str(chat_uuid)} if chat_uuid else {}),
         },
         format="json",
         HTTP_AUTHORIZATION=f"JWT {token}",
@@ -178,3 +182,48 @@ def test_assistant_action_rejects_invalid_requests(
     assert response.status_code == 400
     assert response.json()["error"] == "ERROR_REQUEST_BODY_VALIDATION"
     mock_run.assert_not_called()
+
+
+@pytest.mark.django_db
+@override_settings(DEBUG=True)
+@patch(f"{VIEWS}.check_lm_ready_or_raise")
+@patch(f"{VIEWS}.resolve_assistant_model")
+@patch("baserow_enterprise.assistant.service_filters.handler.run_service_filter_agent")
+def test_follow_up_after_the_selected_table_is_saved(
+    generate, mock_resolve, mock_check, api_client, enterprise_data_fixture
+):
+    user, token = enterprise_data_fixture.create_user_and_token()
+    source = _data_source(enterprise_data_fixture, user)
+    service = source.service.specific
+    table = service.table
+    field = enterprise_data_fixture.create_text_field(table=table, name="Name")
+    service.table = None
+    service.save(update_fields=["table"])
+    generate.side_effect = [
+        ServiceFilterChanges(
+            operations=[
+                FilterOperation(
+                    op="add_filter", field_id=field.id, type="contains", value="Davide"
+                )
+            ],
+            summary="Filtered by name.",
+        ),
+        ServiceFilterChanges(operations=[], summary="Already set."),
+    ]
+    params = dict(
+        kind="builder_data_source",
+        id=source.id,
+        chat_uuid=uuid4(),
+        prompt="Name contains Davide",
+    )
+    first = _post(api_client, token, **params, table_id=table.id)
+    assert first.status_code == 200, first.data
+    assert first.data["changed"]
+    service.refresh_from_db()
+    assert service.table_id == table.id
+    follow_up = _post(api_client, token, **params)
+    assert follow_up.status_code == 200, follow_up.data
+    assert not follow_up.data["changed"]
+    assert service.service_filters.get().field_id == field.id
+    assert _post(api_client, token, **params, table_id=table.id + 1).status_code == 404
+    assert generate.call_count == 2
