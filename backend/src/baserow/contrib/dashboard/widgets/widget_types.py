@@ -1,3 +1,4 @@
+import re
 from typing import Any
 
 from rest_framework import serializers
@@ -24,6 +25,17 @@ from .types import WidgetGridLayout
 # on: every selected value becomes a separate condition in the query.
 TEXT_FILTER_MAX_SELECTED_VALUES = 100
 TEXT_FILTER_MAX_VALUE_LENGTH = 1000
+TEXT_FILTER_NUMBER_PATTERN = re.compile(r"[+-]?(?:[0-9]+(?:[.,][0-9]+)?|[.,][0-9]+)")
+
+
+def normalize_text_filter_number(value: str) -> str | None:
+    """Normalize a decimal separator while keeping the full precision as text."""
+    if value == "":
+        return ""
+    value = value.strip()
+    if TEXT_FILTER_NUMBER_PATTERN.fullmatch(value) is None:
+        return None
+    return value.replace(",", ".")
 
 
 class SummaryWidgetType(DisplayWidgetTypeMixin, WidgetType):
@@ -117,6 +129,7 @@ class TextFilterWidgetType(FilterWidgetTypeMixin, WidgetType):
     allowed_fields = [
         *WidgetType.allowed_fields,
         "mode",
+        "input_format",
         "multiple",
         "options",
         "placeholder",
@@ -126,6 +139,7 @@ class TextFilterWidgetType(FilterWidgetTypeMixin, WidgetType):
     ]
     serializer_field_names = [
         "mode",
+        "input_format",
         "multiple",
         "options",
         "placeholder",
@@ -136,6 +150,7 @@ class TextFilterWidgetType(FilterWidgetTypeMixin, WidgetType):
     public_serializer_field_names = [
         "options",
         "mode",
+        "input_format",
         "multiple",
         "placeholder",
         "default_value",
@@ -168,6 +183,7 @@ class TextFilterWidgetType(FilterWidgetTypeMixin, WidgetType):
 
     class SerializedDict(WidgetDict):
         mode: str
+        input_format: str
         multiple: bool
         options: dict
         placeholder: str
@@ -187,15 +203,25 @@ class TextFilterWidgetType(FilterWidgetTypeMixin, WidgetType):
                 values["options"] = field.run_validation(values["options"])
             except serializers.ValidationError as exc:
                 raise serializers.ValidationError({"options": exc.detail}) from exc
-        if instance is None or {"default_value", "mode", "multiple"}.intersection(
-            values
-        ):
+        if instance is None or {
+            "default_value",
+            "mode",
+            "multiple",
+            "input_format",
+        }.intersection(values):
             values["default_value"] = self.normalize_default_value(
                 values.get("default_value", getattr(instance, "default_value", "")),
                 values.get(
                     "mode", getattr(instance, "mode", TextFilterWidget.Mode.INPUT)
                 ),
                 values.get("multiple", getattr(instance, "multiple", False)),
+                values.get(
+                    "input_format",
+                    getattr(
+                        instance, "input_format", TextFilterWidget.InputFormat.TEXT
+                    ),
+                ),
+                clear_invalid_number="default_value" not in values,
             )
         return super().prepare_value_for_db(values, instance)
 
@@ -215,7 +241,9 @@ class TextFilterWidgetType(FilterWidgetTypeMixin, WidgetType):
                 values["target_filters"] = links
         return super().prepare_edited_values(values, instance)
 
-    def normalize_default_value(self, value, mode, multiple):
+    def normalize_default_value(
+        self, value, mode, multiple, input_format, *, clear_invalid_number=False
+    ):
         """Store a list for multiple dropdowns and one string for other modes."""
         if not isinstance(value, str) and not (
             isinstance(value, list) and all(isinstance(item, str) for item in value)
@@ -238,14 +266,27 @@ class TextFilterWidgetType(FilterWidgetTypeMixin, WidgetType):
             )
         if mode == TextFilterWidget.Mode.DROPDOWN and multiple:
             return defaults
-        return defaults[0] if defaults else ""
+        value = defaults[0] if defaults else ""
+        if (
+            mode == TextFilterWidget.Mode.INPUT
+            and input_format == TextFilterWidget.InputFormat.NUMBER
+        ):
+            normalized = normalize_text_filter_number(value)
+            if normalized is not None:
+                return normalized
+            if clear_invalid_number:
+                return ""
+            raise serializers.ValidationError(
+                {"default_value": "Enter a valid number."}
+            )
+        return value
 
     def get_dispatch_data(self, widget, values):
-        return values.get(
-            str(widget.id),
-            self.normalize_default_value(
-                widget.default_value, widget.mode, widget.multiple
-            ),
+        key = str(widget.id)
+        if key in values:
+            return values[key]
+        return self.normalize_default_value(
+            widget.default_value, widget.mode, widget.multiple, widget.input_format
         )
 
     def after_import(self, widget, id_mapping, **kwargs):
@@ -253,7 +294,7 @@ class TextFilterWidgetType(FilterWidgetTypeMixin, WidgetType):
 
         updated_models = super().after_import(widget, id_mapping, **kwargs)
         widget.default_value = self.normalize_default_value(
-            widget.default_value, widget.mode, widget.multiple
+            widget.default_value, widget.mode, widget.multiple, widget.input_format
         )
         widget.options = import_formula(
             widget.options,
@@ -306,4 +347,12 @@ class TextFilterWidgetType(FilterWidgetTypeMixin, WidgetType):
                 f"Filter values are limited to {TEXT_FILTER_MAX_VALUE_LENGTH} "
                 "characters."
             )
+        if (
+            widget.mode == TextFilterWidget.Mode.INPUT
+            and widget.input_format == TextFilterWidget.InputFormat.NUMBER
+        ):
+            normalized = normalize_text_filter_number(value)
+            if normalized is None:
+                raise serializers.ValidationError("Enter a valid number.")
+            return normalized
         return value

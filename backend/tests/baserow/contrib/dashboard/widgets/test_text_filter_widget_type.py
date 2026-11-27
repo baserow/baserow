@@ -189,6 +189,7 @@ def test_text_widget_crud_serializers(api_client, data_fixture):
     assert response.json()["placeholder"] == "Type here"
     assert response.json()["default_value"] == "Initial"
     assert response.json()["mode"] == "input"
+    assert response.json()["input_format"] == "text"
     assert response.json()["multiple"] is False
     widget = TextFilterWidget.objects.get(id=widget_id)
     public = PublicDashboardInfoSerializer(
@@ -220,6 +221,90 @@ def test_text_widget_crud_serializers(api_client, data_fixture):
         detail_url, {"mode": "invalid"}, format="json", **headers
     )
     assert response.status_code == 400
+
+
+@pytest.mark.django_db
+def test_number_input_default_is_validated_and_exposed_publicly(
+    api_client, data_fixture
+):
+    from django.urls import reverse
+
+    from baserow.contrib.dashboard.api.public.serializers import (
+        PublicDashboardInfoSerializer,
+    )
+
+    user, token = data_fixture.create_user_and_token()
+    dashboard = data_fixture.create_dashboard_application(user=user)
+    headers = {"HTTP_AUTHORIZATION": f"JWT {token}"}
+    response = api_client.post(
+        reverse("api:dashboard:widgets:list", kwargs={"dashboard_id": dashboard.id}),
+        {
+            "type": "text_filter",
+            "title": "Minimum",
+            "input_format": "number",
+            "default_value": "-12,50",
+        },
+        format="json",
+        **headers,
+    )
+    assert response.status_code == 200, response.json()
+    assert response.json()["input_format"] == "number"
+    assert response.json()["default_value"] == "-12.50"
+
+    widget = TextFilterWidget.objects.get(id=response.json()["id"])
+    public = PublicDashboardInfoSerializer(
+        dashboard, context={"widgets": [widget], "data_sources": []}
+    ).data
+    assert public["widgets"][0]["input_format"] == "number"
+    assert public["widgets"][0]["default_value"] == "-12.50"
+
+    url = reverse("api:dashboard:widgets:item", kwargs={"widget_id": widget.id})
+    response = api_client.patch(url, {"default_value": "abc"}, format="json", **headers)
+    assert response.status_code == 400, response.json()
+    assert "default_value" in response.json().get("detail", response.json())
+    widget.refresh_from_db()
+    assert widget.default_value == "-12.50"
+
+    duplicated = CoreHandler().duplicate_application(user, dashboard)
+    copy = TextFilterWidget.objects.get(dashboard=duplicated)
+    assert (copy.input_format, copy.default_value) == ("number", "-12.50")
+
+
+@pytest.mark.django_db
+@pytest.mark.undo_redo
+@pytest.mark.parametrize(
+    "original_default,number_default", [("abc", ""), ("12,50", "12.50")]
+)
+def test_input_format_and_default_are_one_undo_action(
+    data_fixture, original_default, number_default
+):
+    session_id = "input-format"
+    user = data_fixture.create_user(session_id=session_id)
+    dashboard = data_fixture.create_dashboard_application(user=user)
+    widget = WidgetService().create_widget(
+        user,
+        "text_filter",
+        dashboard.id,
+        title="Minimum",
+        default_value=original_default,
+    )
+
+    action_type_registry.get_by_type(UpdateWidgetActionType).do(
+        user, widget.id, "text_filter", {"input_format": "number"}
+    )
+    widget.refresh_from_db()
+    assert (widget.input_format, widget.default_value) == ("number", number_default)
+
+    scopes = [ApplicationActionScopeType.value(application_id=dashboard.id)]
+    undone = ActionHandler.undo(user, scopes, session_id)
+    assert_undo_redo_actions_are_valid(undone, [UpdateWidgetActionType])
+    widget.refresh_from_db()
+    assert (widget.input_format, widget.default_value) == ("text", original_default)
+
+    redone = ActionHandler.redo(user, scopes, session_id)
+    assert_undo_redo_actions_are_valid(redone, [UpdateWidgetActionType])
+    widget.refresh_from_db()
+    assert (widget.input_format, widget.default_value) == ("number", number_default)
 
 
 @pytest.mark.django_db

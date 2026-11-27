@@ -174,6 +174,24 @@
           "
         />
       </FormGroup>
+      <FormGroup
+        v-if="widget.mode !== 'dropdown'"
+        small-label
+        :label="$t('textFilterWidget.inputFormat')"
+        class="margin-bottom-2"
+        required
+      >
+        <SegmentControl
+          :segments="[
+            { label: $t('textFilterWidget.textInputFormat') },
+            { label: $t('textFilterWidget.numberInputFormat') },
+          ]"
+          :active-index="numberInput ? 1 : 0"
+          @update:active-index="
+            updateSetting('input_format', $event === 1 ? 'number' : 'text')
+          "
+        />
+      </FormGroup>
       <!-- A dropdown shows its options, only a typed value needs a hint. -->
       <FormGroup
         v-if="widget.mode !== 'dropdown'"
@@ -223,6 +241,14 @@
       <FormGroup
         small-label
         :label="$t('textFilterWidget.defaultValue')"
+        :error-message="
+          defaultValueError ? $t('textFilterWidget.invalidNumber') : ''
+        "
+        :helper-text="
+          numberInput && defaultValueCleared && defaultValue === ''
+            ? $t('textFilterWidget.numberDefaultCleared')
+            : null
+        "
         class="margin-bottom-2"
         required
       >
@@ -268,9 +294,13 @@
         </Dropdown>
         <FormInput
           v-else
-          :model-value="defaultValue"
+          :key="numberInput"
+          :model-value="defaultValueDraft ?? defaultValue"
+          :error="defaultValueError"
           :placeholder="$t('textFilterWidget.defaultValuePlaceholder')"
-          @blur="updateSetting('default_value', $event.target.value)"
+          :maxlength="numberInput ? TEXT_FILTER_MAX_VALUE_LENGTH : null"
+          @update:model-value="updateDefaultDraft"
+          @blur="updateInputDefault($event.target.value)"
         />
       </FormGroup>
     </section>
@@ -350,7 +380,12 @@ import ConfigureFilterTargetModal from '@baserow/modules/dashboard/components/wi
 import CreateWidgetModal from '@baserow/modules/dashboard/components/CreateWidgetModal'
 import WidgetFilterConfigurationModal from '@baserow/modules/dashboard/components/widget/WidgetFilterConfigurationModal'
 import { notifyIf } from '@baserow/modules/core/utils/error'
-import { getTextFilterDefaultValue } from '@baserow/modules/dashboard/utils/widgetFilters'
+import {
+  getTextFilterDefaultValue,
+  isTextFilterNumberInput,
+  normalizeTextFilterNumber,
+  TEXT_FILTER_MAX_VALUE_LENGTH,
+} from '@baserow/modules/dashboard/utils/widgetFilters'
 
 const props = defineProps({
   widget: { type: Object, required: true },
@@ -362,7 +397,16 @@ const createDashboardWidget = inject('createDashboardWidget', null)
 const widgetCreation = inject('dashboardWidgetCreation', null)
 const isCreatingWidget = computed(() => widgetCreation?.value?.loading ?? false)
 const { optionState, options } = useWidgetOptions(props)
+const numberInput = computed(() => isTextFilterNumberInput(props.widget))
 const defaultValue = computed(() => getTextFilterDefaultValue(props.widget))
+const defaultValueDraft = ref(null)
+const defaultValueError = ref(false)
+const defaultValueCleared = ref(false)
+watch([() => props.widget.id, numberInput, defaultValue], () => {
+  defaultValueDraft.value = null
+  defaultValueError.value = false
+  defaultValueCleared.value = false
+})
 const hasDefaultValue = computed(() => defaultValue.value.length > 0)
 const defaultValueLabel = computed(() =>
   Array.isArray(defaultValue.value)
@@ -606,6 +650,24 @@ async function removeTarget() {
     targetsSaving.value = false
   }
 }
+function updateDefaultDraft(value) {
+  if (!numberInput.value) return
+  defaultValueDraft.value = value
+  defaultValueError.value = false
+  defaultValueCleared.value = false
+}
+
+function updateInputDefault(value) {
+  const normalized = numberInput.value
+    ? normalizeTextFilterNumber(value)
+    : value
+  defaultValueError.value = normalized === null
+  defaultValueCleared.value = false
+  if (normalized === null) return
+  defaultValueDraft.value = null
+  return updateSetting('default_value', normalized)
+}
+
 /** Save configuration through the shared undoable widget update flow. */
 function updateSetting(field, value) {
   if (isEqual(value, props.widget[field])) return
@@ -621,20 +683,26 @@ async function updateSettings(changes) {
     )
   )
   if (!Object.keys(values).length) return true
+  let clearedInvalidDefault = false
   if (!Object.hasOwn(values, 'default_value')) {
     if (Object.hasOwn(values, 'options')) {
       values.default_value =
         (values.multiple ?? props.widget.multiple) ? [] : ''
     } else if (
       Object.hasOwn(values, 'mode') ||
-      Object.hasOwn(values, 'multiple')
+      Object.hasOwn(values, 'multiple') ||
+      Object.hasOwn(values, 'input_format')
     ) {
-      values.default_value = getTextFilterDefaultValue({
-        ...props.widget,
-        ...values,
-      })
+      const nextWidget = { ...props.widget, ...values }
+      values.default_value = getTextFilterDefaultValue(nextWidget)
+      clearedInvalidDefault =
+        isTextFilterNumberInput(nextWidget) &&
+        values.default_value === '' &&
+        getTextFilterDefaultValue({ ...nextWidget, input_format: 'text' }) !==
+          ''
     }
   }
+  const widgetId = props.widget.id
   const originalValues = Object.fromEntries(
     Object.keys(values).map((key) => [key, props.widget[key]])
   )
@@ -642,11 +710,14 @@ async function updateSettings(changes) {
     await $store.dispatch(
       `${props.storePrefix}dashboardApplication/updateWidget`,
       {
-        widgetId: props.widget.id,
+        widgetId,
         values,
         originalValues,
       }
     )
+    if (clearedInvalidDefault && props.widget.id === widgetId) {
+      defaultValueCleared.value = true
+    }
     return true
   } catch (error) {
     notifyIf(error, 'dashboard')

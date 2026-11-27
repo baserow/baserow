@@ -68,13 +68,27 @@ export const countFilterGroupConditions = (groups) =>
     0
   )
 
+export const isTextFilterNumberInput = (widget) =>
+  widget.mode !== 'dropdown' && widget.input_format === 'number'
+
+/** Keep the exact decimal as text, so formulas and large numbers retain precision. */
+export const normalizeTextFilterNumber = (value) => {
+  if (value === '') return ''
+  const number = value.trim()
+  return /^[+-]?(?:[0-9]+(?:[.,][0-9]+)?|[.,][0-9]+)$/.test(number)
+    ? number.replace(',', '.')
+    : null
+}
+
 /** Preserve literal defaults while supporting multiple dropdown selections. */
 export const getTextFilterDefaultValue = (widget) => {
   const value = widget.default_value ?? ''
   const values = Array.isArray(value) ? value : value ? [value] : []
-  return widget.mode === 'dropdown' && widget.multiple === true
-    ? values
-    : values[0] || ''
+  if (widget.mode === 'dropdown' && widget.multiple === true) return values
+  const single = values[0] || ''
+  return isTextFilterNumberInput(widget)
+    ? (normalizeTextFilterNumber(single) ?? '')
+    : single
 }
 
 /** Matches the backend limit on a dispatched filter value. */

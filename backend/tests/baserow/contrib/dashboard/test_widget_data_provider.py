@@ -141,6 +141,41 @@ def test_disable_target_preserves_conditions(
 
 
 @pytest.mark.django_db
+@pytest.mark.parametrize("public", [False, True])
+def test_dispatch_number_input_to_a_number_comparison(
+    api_client, filter_dashboard, public
+):
+    _, token, dashboard, source, widget, condition = filter_dashboard
+    condition.update(field=source.service.specific.field_id, type="higher_than")
+    widget.input_format = "number"
+    widget.default_value = "30"
+    widget.save()
+    if public:
+        url = reverse(
+            "api:dashboard:public:data_source_dispatch",
+            kwargs={"slug": dashboard.slug, "data_source_id": source.id},
+        )
+        headers = {}
+    else:
+        url = reverse(
+            "api:dashboard:data_sources:dispatch", kwargs={"data_source_id": source.id}
+        )
+        headers = {"HTTP_AUTHORIZATION": f"JWT {token}"}
+
+    for value, expected in [(None, "40"), ("20,5", "40"), ("0", "70"), ("", "70")]:
+        data = {"widget_data": {str(widget.id): value}} if value is not None else {}
+        response = api_client.post(url, data, format="json", **headers)
+        assert response.status_code == 200, response.json()
+        assert response.json()["result"] == expected
+        assert response.json().get("_is_filtered", False) is (value != "")
+
+    response = api_client.post(
+        url, {"widget_data": {str(widget.id): "abc"}}, format="json", **headers
+    )
+    assert response.status_code == 400, response.json()
+
+
+@pytest.mark.django_db
 @pytest.mark.parametrize("mode", ["input", "dropdown"])
 @pytest.mark.parametrize(
     "public,password", [(False, False), (True, False), (True, True)]

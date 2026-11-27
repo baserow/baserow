@@ -10,6 +10,7 @@ import debounce from 'lodash/debounce'
 import isEqual from 'lodash/isEqual'
 import { WidgetValueUpdate } from '@baserow/modules/dashboard/utils/widgetValueUpdate'
 import { sortWidgetsByGridPosition } from '@baserow/modules/dashboard/utils/widgetGridLayout'
+import { isTextFilterNumberInput } from '@baserow/modules/dashboard/utils/widgetFilters'
 
 export const state = () => ({
   dashboardId: null,
@@ -52,17 +53,19 @@ const dataSourceRefreshes = new WeakMap()
 const getWidgetSaveSourceIds = (state, registry, widget, values) => {
   const type = widget && registry?.get?.('dashboardWidget', widget.type)
   if (type?.isFilterWidget) {
+    const updatedWidget = { ...widget, ...values }
     // Every dispatch includes all viewer values, and the API validates all of
-    // them. A scalar/list change must therefore wait even on unrelated sources.
+    // them. Changes to their shape or validation also affect unrelated sources.
     if (
       type.getValueSchema(widget).type !==
-      type.getValueSchema({ ...widget, ...values }).type
+        type.getValueSchema(updatedWidget).type ||
+      isTextFilterNumberInput(widget) !== isTextFilterNumberInput(updatedWidget)
     ) {
       return state.dataSources.map(({ id }) => id)
     }
     const targets = new Set([
       ...type.getTargetWidgetIds(widget),
-      ...type.getTargetWidgetIds({ ...widget, ...values }),
+      ...type.getTargetWidgetIds(updatedWidget),
     ])
     return state.widgets.flatMap((target) => {
       const targetType = registry.get('dashboardWidget', target.type)

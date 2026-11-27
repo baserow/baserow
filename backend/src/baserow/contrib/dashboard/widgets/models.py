@@ -117,8 +117,18 @@ class TextFilterWidget(Widget):
         INPUT = "input", "Input"
         DROPDOWN = "dropdown", "Dropdown"
 
+    class InputFormat(models.TextChoices):
+        TEXT = "text", "Text"
+        NUMBER = "number", "Number"
+
     mode = models.CharField(
         max_length=16, choices=Mode.choices, default=Mode.INPUT, db_default=Mode.INPUT
+    )
+    input_format = models.CharField(
+        max_length=16,
+        choices=InputFormat.choices,
+        default=InputFormat.TEXT,
+        db_default=InputFormat.TEXT,
     )
     options = FormulaField(db_default="")
     multiple = models.BooleanField(default=False, db_default=False)

@@ -13,6 +13,58 @@ afterEach(async () => {
 })
 
 describe('TextFilterWidgetSettings', () => {
+  test('switches the input format and clears an incompatible default together', async () => {
+    const widget = {
+      id: 2,
+      type: 'text_filter',
+      mode: 'input',
+      input_format: 'text',
+      default_value: 'Search text',
+    }
+    const wrapper = await testApp.mount(TextFilterWidgetSettings, {
+      props: { dashboard: { id: 1 }, widget },
+    })
+    const dispatch = vi
+      .spyOn(testApp.store, 'dispatch')
+      .mockImplementation((action, { values }) =>
+        wrapper.setProps({ widget: { ...wrapper.props('widget'), ...values } })
+      )
+    const format = wrapper.findAll('.segment-control')[1]
+    await format.findAll('button')[1].trigger('click')
+    await flushPromises()
+    expect(dispatch).toHaveBeenCalledWith('dashboardApplication/updateWidget', {
+      widgetId: widget.id,
+      values: { input_format: 'number', default_value: '' },
+      originalValues: { input_format: 'text', default_value: 'Search text' },
+    })
+    expect(wrapper.text()).toContain('textFilterWidget.numberDefaultCleared')
+
+    const input = wrapper
+      .findAll('.control')
+      .find((control) =>
+        control.text().includes('textFilterWidget.defaultValue')
+      )
+      .get('input')
+    dispatch.mockClear()
+    await input.setValue('abc')
+    await input.trigger('blur')
+    expect(wrapper.get('.control__messages--error').text()).toBe(
+      'textFilterWidget.invalidNumber'
+    )
+    expect(input.element.value).toBe('abc')
+    expect(dispatch).not.toHaveBeenCalled()
+
+    await input.setValue('12,5')
+    expect(input.element.value).toBe('12,5')
+    await input.trigger('blur')
+    expect(dispatch).toHaveBeenCalledWith('dashboardApplication/updateWidget', {
+      widgetId: widget.id,
+      values: { default_value: '12.5' },
+      originalValues: { default_value: '' },
+    })
+    expect(wrapper.find('.control__messages--error').exists()).toBe(false)
+  })
+
   test('keeps only the retained default when switching back to multiple values', async () => {
     const widget = {
       id: 2,
@@ -200,8 +252,10 @@ describe('TextFilterWidgetSettings', () => {
     const wrapper = await testApp.mount(TextFilterWidgetSettings, {
       props: { dashboard: { id: 1 }, widget },
     })
-    expect(wrapper.findAll('.segment-control')).toHaveLength(1)
+    expect(wrapper.text()).toContain('textFilterWidget.inputFormat')
+    expect(wrapper.text()).not.toContain('textFilterWidget.singleValue')
     await wrapper.setProps({ widget: { ...widget, mode: 'dropdown' } })
+    expect(wrapper.text()).not.toContain('textFilterWidget.inputFormat')
     const selections = wrapper.findAll('.segment-control')[1].findAll('button')
     expect(selections.map((button) => button.text())).toEqual([
       'textFilterWidget.singleValue',
