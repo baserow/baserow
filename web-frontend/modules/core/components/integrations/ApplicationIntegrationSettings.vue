@@ -29,6 +29,60 @@
             ></th>
           </tr>
         </thead>
+        <tbody>
+          <tr
+            v-if="workspaceIntegrations.length"
+            class="integration-settings__group"
+          >
+            <th colspan="4" scope="colgroup">
+              <div class="integration-settings__group-content">
+                <span class="integration-settings__group-title">
+                  {{
+                    $t('applicationIntegrationSettings.applicationIntegrations')
+                  }}
+                </span>
+              </div>
+            </th>
+          </tr>
+          <tr
+            v-for="integration in integrations"
+            :key="integration.id"
+            class="integration-settings__integration"
+            @contextmenu="openContext(integration, $event)"
+          >
+            <td>
+              <div class="workspace-integrations-table__identity">
+                <WorkspaceIntegrationAvatar
+                  :subject="integration"
+                  aria-hidden="true"
+                />
+                <span
+                  class="workspace-integrations-table__name"
+                  :title="integration.name"
+                  >{{ integration.name }}</span
+                >
+              </div>
+            </td>
+            <td>{{ getIntegrationType(integration).name }}</td>
+            <td><WorkspaceIntegrationDetailsField :row="integration" /></td>
+            <td>
+              <button
+                type="button"
+                class="workspace-integrations-table__more"
+                :aria-label="$t('workspaceIntegrations.actions')"
+                aria-haspopup="menu"
+                @click="openContext(integration, $event)"
+              >
+                <i class="baserow-icon-more-vertical" aria-hidden="true"></i>
+              </button>
+            </td>
+          </tr>
+          <tr v-if="!integrations.length">
+            <td colspan="4" class="integration-settings__empty">
+              {{ $t('integrationSettings.noIntegrationMessage') }}
+            </td>
+          </tr>
+        </tbody>
         <tbody v-if="workspaceIntegrations.length">
           <tr class="integration-settings__group">
             <th colspan="4" scope="colgroup">
@@ -73,87 +127,36 @@
             <td></td>
           </tr>
         </tbody>
-        <tbody>
-          <tr
-            v-if="workspaceIntegrations.length"
-            class="integration-settings__group"
-          >
-            <th colspan="4" scope="colgroup">
-              <div class="integration-settings__group-content">
-                <span class="integration-settings__group-title">
-                  {{
-                    $t('applicationIntegrationSettings.applicationIntegrations')
-                  }}
-                </span>
-              </div>
-            </th>
-          </tr>
-          <tr
-            v-for="integration in integrations"
-            :key="integration.id"
-            class="integration-settings__integration"
-            @contextmenu="openContext(integration, $event)"
-          >
-            <td>
-              <div class="workspace-integrations-table__identity">
-                <WorkspaceIntegrationAvatar
-                  :subject="integration"
-                  aria-hidden="true"
-                />
-                <span
-                  class="workspace-integrations-table__name"
-                  :title="integration.name"
-                  >{{ integration.name }}</span
-                >
-              </div>
-            </td>
-            <td>{{ getIntegrationType(integration).name }}</td>
-            <td>
-              <div
-                class="workspace-integration-details-field"
-                :class="{
-                  'workspace-integration-details-field--error':
-                    isInError(integration),
-                }"
-                :title="getSubtitle(integration)"
-              >
-                {{ getSubtitle(integration) }}
-              </div>
-            </td>
-            <td>
-              <button
-                type="button"
-                class="workspace-integrations-table__more"
-                :aria-label="$t('workspaceIntegrations.actions')"
-                aria-haspopup="menu"
-                @click="openContext(integration, $event)"
-              >
-                <i class="baserow-icon-more-vertical" aria-hidden="true"></i>
-              </button>
-            </td>
-          </tr>
-          <tr v-if="!integrations.length">
-            <td colspan="4" class="integration-settings__empty">
-              {{ $t('integrationSettings.noIntegrationMessage') }}
-            </td>
-          </tr>
-        </tbody>
       </table>
     </div>
-    <p
+    <div
       v-if="canPromote && integrations.length && !workspaceIntegrations.length"
       class="integration-settings__hint"
     >
-      {{ $t('applicationIntegrationSettings.shareHint') }}
-      <button
-        v-if="canOpenWorkspaceSettings"
-        type="button"
-        class="integration-settings__link"
-        @click="openWorkspaceSettings"
+      <i
+        class="integration-settings__hint-icon iconoir-share-android"
+        aria-hidden="true"
+      ></i>
+      <i18n-t
+        scope="global"
+        keypath="applicationIntegrationSettings.shareHint"
+        tag="p"
       >
-        {{ $t('applicationIntegrationSettings.workspaceIntegrationsLink') }}
-      </button>
-    </p>
+        <template #workspace>
+          <button
+            v-if="canOpenWorkspaceSettings"
+            type="button"
+            class="integration-settings__link"
+            @click="openWorkspaceSettings"
+          >
+            {{ $t('applicationIntegrationSettings.shareHintWorkspace') }}
+          </button>
+          <template v-else>{{
+            $t('applicationIntegrationSettings.shareHintWorkspace')
+          }}</template>
+        </template>
+      </i18n-t>
+    </div>
     <WorkspaceIntegrationContext
       v-if="focusedIntegration"
       ref="context"
@@ -192,16 +195,13 @@ import WorkspaceIntegrationAvatar from '@baserow/modules/core/components/setting
 import WorkspaceIntegrationContext from '@baserow/modules/core/components/settings/integrations/WorkspaceIntegrationContext'
 import WorkspaceIntegrationDetailsField from '@baserow/modules/core/components/settings/integrations/WorkspaceIntegrationDetailsField'
 import { notifyIf } from '@baserow/modules/core/utils/error'
-import {
-  integrationSubtitle,
-  showIntegrationErrors,
-} from '@baserow/modules/core/utils/integration'
 
 /**
  * The integrations settings of an application, in one table that looks like the
- * workspace integrations table: the workspace integrations it can use, read-only
- * since they're managed in the workspace settings, then its own, which can be
- * edited, made available to the whole workspace and deleted from their menu.
+ * workspace integrations table: its own first, since the settings are about this
+ * application, which can be edited, made available to the whole workspace and
+ * deleted from their menu, then the workspace integrations it can use,
+ * read-only since they're managed in the workspace settings.
  *
  * Options API, as in the builder's `IntegrationSettings` it was moved from.
  */
@@ -277,9 +277,6 @@ export default {
         ) || null
       )
     },
-    showErrors() {
-      return showIntegrationErrors(this)
-    },
   },
   async mounted() {
     try {
@@ -294,15 +291,6 @@ export default {
   methods: {
     getIntegrationType(integration) {
       return this.$registry.get('integration', integration.type)
-    },
-    isInError(integration) {
-      return (
-        this.showErrors &&
-        this.getIntegrationType(integration).isInError(integration)
-      )
-    },
-    getSubtitle(integration) {
-      return integrationSubtitle(this, integration)
     },
     openWorkspaceSettings() {
       this.$refs.workspaceSettings.show('integrations')

@@ -179,17 +179,17 @@ describe('Builder IntegrationSettings', () => {
   const rows = (wrapper) =>
     wrapper.findAll('.integration-settings__integration')
 
-  test('lists the workspace integrations read-only above its own', async () => {
+  test('lists its own integrations above the read-only workspace ones', async () => {
     const wrapper = await mountSettings({
       permissions: ['workspace.create_integration'],
       workspaceIntegrations: [workspaceSmtpIntegration],
     })
 
     expect(sectionTitles(wrapper)).toEqual([
-      'applicationIntegrationSettings.workspaceIntegrations',
       'applicationIntegrationSettings.applicationIntegrations',
+      'applicationIntegrationSettings.workspaceIntegrations',
     ])
-    const [workspaceRow, ownRow] = rows(wrapper)
+    const [ownRow, workspaceRow] = rows(wrapper)
     expect(workspaceRow.text()).toContain('Team mail')
     expect(
       workspaceRow.find('.workspace-integrations-table__more').exists()
@@ -332,7 +332,7 @@ describe('Builder IntegrationSettings', () => {
       ({ url }) => url === `application/${BUILDER_ID}/workspace-integrations/`
     )
     expect(workspaceRequests).toHaveLength(2)
-    expect(rows(wrapper)[0].text()).toContain('Team mail, now')
+    expect(rows(wrapper)[1].text()).toContain('Team mail, now')
   })
 
   test('shows a promoted integration in the workspace section', async () => {

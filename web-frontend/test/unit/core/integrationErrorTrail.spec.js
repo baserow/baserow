@@ -13,6 +13,7 @@ const LOCAL_BASEROW_OK = {
   authorized_subject: {
     id: 1,
     type: 'auth.User',
+    name: 'Ada',
     first_name: 'Ada',
     username: 'ada@example.com',
   },
@@ -118,9 +119,7 @@ describe('Integration error trail', () => {
     expect(integrationSubtitle(app, LOCAL_BASEROW_NO_USER)).toBe(
       'localBaserowIntegrationType.errorNoUser'
     )
-    expect(integrationSubtitle(app, LOCAL_BASEROW_OK)).toBe(
-      'localBaserowIntegrationType.localBaserowSummary'
-    )
+    expect(integrationSubtitle(app, LOCAL_BASEROW_OK)).toBe('Ada')
 
     // Without the feature flag, the summary is kept.
     app.$featureFlagIsEnabled.mockReturnValue(false)

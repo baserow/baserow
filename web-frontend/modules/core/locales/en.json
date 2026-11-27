@@ -1440,8 +1440,8 @@
     "workspaceIntegrations": "Workspace",
     "manageInWorkspace": "Manage in workspace settings",
     "applicationIntegrations": "This application",
-    "shareHint": "Need the same integration in other applications? Share it with the workspace from its menu.",
-    "workspaceIntegrationsLink": "Workspace integrations"
+    "shareHint": "Use an integration in other applications by sharing it with the {workspace} from its menu.",
+    "shareHintWorkspace": "workspace"
   },
   "integrationEditForm": {
     "name": "Name",

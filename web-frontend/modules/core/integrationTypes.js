@@ -40,9 +40,21 @@ export class IntegrationType extends Registerable {
   }
 
   /**
+   * Return the subject (a user or an identity) the integration acts as, when
+   * the type has one and it can still authenticate, or null. Its avatar is
+   * shown next to the summary.
+   *
+   * @param {object} integration The integration.
+   * @returns {object|null} The subject, if any.
+   */
+  getSubject(integration) {
+    return null
+  }
+
+  /**
    * Return a sentence that tells what a workspace integration acts as in every
    * application of the workspace, when the type has such an identity, or null.
-   * It's shown wherever a workspace integration is listed or picked.
+   * It's shown where a workspace integration is picked.
    *
    * @param {object} integration The workspace integration.
    * @returns {string|null} The hint, if any.

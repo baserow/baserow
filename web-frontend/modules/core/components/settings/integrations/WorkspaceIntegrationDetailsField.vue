@@ -2,9 +2,23 @@
   <div
     class="workspace-integration-details-field"
     :class="{ 'workspace-integration-details-field--error': errorMessage }"
-    :title="details"
   >
-    {{ details }}
+    <span
+      v-if="subject"
+      class="workspace-integration-details-field__subject"
+      role="img"
+      :title="subjectTypeName"
+      :aria-label="subjectTypeName"
+    >
+      <component
+        :is="subjectType.avatarComponent"
+        :subject="subject"
+        size="medium"
+      />
+    </span>
+    <span class="workspace-integration-details-field__text" :title="details">
+      {{ details }}
+    </span>
   </div>
 </template>
 
@@ -31,13 +45,27 @@ const errorMessage = computed(
 )
 
 /**
- * Why the integration can't be used when it's in error, otherwise who or what it
- * runs as in the applications of the workspace, or its summary.
+ * The user or identity the integration acts as, shown with its avatar, which
+ * tells which of the two it is.
+ */
+const subject = computed(() =>
+  errorMessage.value ? null : integrationType.value.getSubject(props.row)
+)
+
+const subjectType = computed(() =>
+  subject.value ? nuxtApp.$registry.get('subject', subject.value.type) : null
+)
+
+const subjectTypeName = computed(() =>
+  subjectType.value?.getTypeDisplayName(subject.value)
+)
+
+/**
+ * Why the integration can't be used when it's in error, otherwise its summary.
+ * It reads the same for the integrations of the workspace and those of an
+ * application: where it's listed already says which they are.
  */
 const details = computed(
-  () =>
-    errorMessage.value ||
-    integrationType.value.getWorkspaceHint(props.row) ||
-    integrationType.value.getSummary(props.row)
+  () => errorMessage.value || integrationType.value.getSummary(props.row)
 )
 </script>

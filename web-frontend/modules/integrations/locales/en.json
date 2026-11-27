@@ -10,8 +10,6 @@
     "ai": "AI"
   },
   "localBaserowIntegrationType": {
-    "localBaserowSummary": "{name}, {username}",
-    "localBaserowSubjectSummary": "{type}: {name}",
     "localBaserowNoUser": "Not configured",
     "localBaserowWorkspaceHint": "Runs as {name} in all applications in this workspace",
     "localBaserowWorkspaceSubjectHint": "Runs as {name} ({type}) in all applications in this workspace",
