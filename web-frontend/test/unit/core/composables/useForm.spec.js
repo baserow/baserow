@@ -2,6 +2,7 @@ import { nextTick, reactive, ref, toRef, defineComponent } from 'vue'
 import { mountSuspended } from '@nuxt/test-utils/runtime'
 
 import { useForm } from '@baserow/modules/core/composables/useForm'
+import form from '@baserow/modules/core/mixins/form'
 
 const TestForm = defineComponent({
   props: {
@@ -31,10 +32,34 @@ const TestForm = defineComponent({
       }),
     }
   },
-  template: '<div ref="root"></div>',
+  template: '<div ref="root"><input v-model="values.name" /></div>',
 })
 
 describe('useForm', () => {
+  it('includes composition child values when a mixin parent is submitted', async () => {
+    const ParentForm = defineComponent({
+      components: { TestForm },
+      mixins: [form],
+      data() {
+        return { values: { title: 'Parent' } }
+      },
+      template:
+        '<form @submit.prevent="submit"><TestForm /><button>Save</button></form>',
+    })
+    const wrapper = await mountSuspended(ParentForm)
+
+    await wrapper.get('input').setValue('Connected account')
+    await wrapper.get('form').trigger('submit')
+
+    expect(wrapper.emitted('submitted')[0][0]).toEqual({
+      title: 'Parent',
+      name: 'Connected account',
+      notification_recipient_ids: [],
+      ignored: 'original',
+    })
+    wrapper.unmount()
+  })
+
   it('hydrates allowed default values with cloned objects and emits changes', async () => {
     const defaultValues = {
       name: 'Workflow name',

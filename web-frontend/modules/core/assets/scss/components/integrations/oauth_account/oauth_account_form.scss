@@ -1,0 +1,93 @@
+.oauth-account-form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.oauth-account-form__intro {
+  margin: 0;
+  font-size: 13px;
+  color: $palette-neutral-900;
+}
+
+.oauth-account-form__account {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px 16px;
+  border: 1px solid $palette-neutral-200;
+  border-radius: 8px;
+}
+
+.oauth-account-form__account-logo {
+  flex: 0 0 24px;
+  width: 24px;
+  height: 24px;
+  margin-top: 2px;
+}
+
+.oauth-account-form__account-body {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.oauth-account-form__account-name {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  color: $palette-neutral-1200;
+}
+
+.oauth-account-form__account-detail {
+  margin-top: 2px;
+  font-size: 12px;
+  color: $palette-neutral-900;
+  overflow-wrap: anywhere;
+}
+
+.oauth-account-form__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.oauth-account-form__button-logo {
+  width: 14px;
+  height: 14px;
+  margin-right: 8px;
+  vertical-align: -2px;
+}
+
+.oauth-account-form__note {
+  display: flex;
+  gap: 6px;
+  margin: 0;
+  font-size: 12px;
+  color: $palette-neutral-900;
+
+  i {
+    flex: 0 0 auto;
+    margin-top: 1px;
+  }
+}
+
+.oauth-account-form__note--muted {
+  color: $palette-neutral-700;
+}
+
+.oauth-account-form__redirect code {
+  overflow-wrap: anywhere;
+}
+
+.oauth-account-form__admin-consent {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+
+  .form-input {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+}

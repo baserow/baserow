@@ -11,7 +11,7 @@ import get from 'lodash/get'
 
 import { clone } from '@baserow/modules/core/utils/object'
 
-const formParentKey = Symbol('formParentKey')
+export const formParentKey = Symbol('formParentKey')
 
 export function useForm({
   defaultValues,

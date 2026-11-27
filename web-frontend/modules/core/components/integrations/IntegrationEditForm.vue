@@ -19,6 +19,13 @@
       :is="integrationType.formComponent"
       :application="application"
       :default-values="defaultValues"
+      v-bind="
+        integrationType.getFormProps({
+          integrationName: values.name,
+          serviceTypes,
+        })
+      "
+      @created="$emit('created', $event)"
     />
   </form>
 </template>
@@ -39,7 +46,17 @@ export default {
       type: Object,
       required: true,
     },
+    /**
+     * The service types the integration is used for, so a form that connects
+     * an account asks for what they need.
+     */
+    serviceTypes: {
+      type: Array,
+      required: false,
+      default: () => [],
+    },
   },
+  emits: ['created'],
   setup() {
     return { v$: useVuelidate({ $lazy: true }) }
   },

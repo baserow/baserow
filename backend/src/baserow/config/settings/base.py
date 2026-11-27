@@ -1759,6 +1759,14 @@ INTEGRATIONS_SLACK_API_URL = (
     os.getenv("BASEROW_INTEGRATIONS_SLACK_API_URL") or "https://slack.com/api"
 ).rstrip("/")
 
+# How often one user may start signing in to connect an account to an
+# integration, whatever the provider. Each start keeps a pending sign-in in the
+# cache for ten minutes.
+INTEGRATIONS_OAUTH_START_RATE_LIMITS = (
+    RateLimit.from_string("20/m"),
+    RateLimit.from_string("200/h"),
+)
+
 INTEGRATIONS_PERIODIC_TASK_CRONTAB = crontab(minute="*")
 # The minimum amount of minutes the periodic task's "minute" interval
 # supports. Self-hosters can run every minute, if they choose to.

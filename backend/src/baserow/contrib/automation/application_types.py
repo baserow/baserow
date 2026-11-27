@@ -50,6 +50,13 @@ class AutomationApplicationType(ApplicationType):
     # Automation applications are imported third (after database, builder)
     import_application_priority = 0
 
+    def get_published_applications(self, workspace: Workspace) -> QuerySet[Automation]:
+        """Find published automations through workflows in the source workspace."""
+
+        return Automation.objects_and_trash.filter(
+            published_from__automation__workspace_id=workspace.id
+        )
+
     def get_formula_examples(self, user, target):
         """Build examples for a automation filter target without invoking a model."""
         from baserow.contrib.automation.tools.formula_examples import WorkflowExamples
