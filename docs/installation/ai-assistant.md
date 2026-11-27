@@ -24,8 +24,6 @@ setting, describe the change, and click the up arrow or press **Enter**. Use **S
 for another line. Generated formulas and Agent instructions appear in their editors.
 View and filter changes apply immediately.
 
-![Asking Kuma to revise a database formula](../assets/kuma_editor_prompt.png)
-
 ## 2) Minimal enablement
 
 For a fresh setup, add a provider and its models under **Admin tools → AI providers**
