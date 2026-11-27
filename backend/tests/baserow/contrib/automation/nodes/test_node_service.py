@@ -1086,12 +1086,17 @@ def test_update_node_rejects_a_workspace_integration_of_another_workspace(
         authorized_user=user,
     )
 
-    with pytest.raises(AutomationNodeMisconfiguredService):
+    with pytest.raises(RequestBodyValidationException) as exc:
         AutomationNodeService().update_node(
             user,
             node.id,
             service={"integration_id": other_integration.id},
         )
+
+    # Answered like an integration that doesn't exist.
+    assert exc.value.detail["detail"]["integration_id"][0]["detail"] == (
+        f"The integration with ID {other_integration.id} does not exist."
+    )
 
 
 @pytest.mark.django_db
