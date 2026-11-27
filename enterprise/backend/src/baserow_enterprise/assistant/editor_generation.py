@@ -5,8 +5,9 @@ from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.utils.translation import gettext as _
 
+from asgiref.sync import sync_to_async
 from pydantic import Field
-from pydantic_ai import Agent, ModelRetry
+from pydantic_ai import Agent, ModelRetry, TextOutput
 from pydantic_ai.exceptions import AgentRunError
 
 from baserow.contrib.database.fields.operations import ListFieldsOperationType
@@ -41,13 +42,7 @@ from baserow.core.tools.errors import ToolInputError
 from baserow.core.tools.types import BaseModel
 from baserow_enterprise.assistant.exceptions import EditorGenerationFailed
 from baserow_enterprise.assistant.model_profiles import UTILITY
-from baserow_enterprise.assistant.tools.database.agents import (
-    get_formula_type_tool,
-    run_formula_generation,
-)
-from baserow_enterprise.assistant.tools.database.prompts import (
-    format_formula_generation_prompt,
-)
+from baserow_enterprise.assistant.tools.database.agents import get_formula_type_tool
 from baserow_premium.prompts import get_formula_docs
 
 
@@ -147,6 +142,39 @@ def _result(summary="", changed=False, **data):
 def _schema(ctx, table_id):
     table = get_table(ctx, table_id, ListFieldsOperationType.type)
     return [item.model_dump(mode="json") for item in get_tables_schema([table], True)]
+
+
+def _generate_formula(ctx, prompt, parameters, profile):
+    table_id = parameters["table_id"]
+    field_name = parameters["field_name"]
+    validate = get_formula_type_tool(ctx.user, ctx.workspace)
+
+    async def validated_formula(formula: str) -> str:
+        formula = formula.strip()
+        await sync_to_async(validate)(table_id, field_name, formula)
+        return formula
+
+    agent = Agent(
+        name="draft_database_formula",
+        output_type=TextOutput(validated_formula),
+        retries=3,
+        instructions="Write the Baserow formula requested for the open field. "
+        "Use the current formula when the request revises it. Return only the "
+        "complete replacement expression, without Markdown or explanation. Use "
+        "the supplied field names, formula result types and function reference. "
+        "For natural-language text searches, ignore case unless requested. "
+        "If the compiler rejects the expression, use its feedback to correct it.",
+    )
+    formula = _generate(
+        agent,
+        profile,
+        prompt,
+        table=_schema(ctx, table_id),
+        field_name=field_name,
+        current_formula=parameters["current"],
+        formula_reference=get_formula_docs(),
+    )
+    return _result(formula=formula)
 
 
 def _filter_state(view):
@@ -257,27 +285,7 @@ def run_editor_action(action, ctx, prompt, parameters, profile):
         if action == "edit_view_filters":
             return _edit_filters(ctx, prompt, parameters["view_id"], profile)
         if action == "generate_formula":
-            table_id = parameters["table_id"]
-            name = parameters["field_name"]
-            description = json.dumps(
-                {
-                    "field_name": name,
-                    "current_formula": parameters["current"],
-                    "request": prompt,
-                }
-            )
-            task = format_formula_generation_prompt(
-                description, _schema(ctx, table_id), get_formula_docs()
-            )
-            output = run_formula_generation(
-                ctx.user, ctx.workspace, task, profile
-            ).output
-            if not output.is_formula_valid or output.table_id != table_id:
-                raise EditorGenerationFailed()
-            get_formula_type_tool(ctx.user, ctx.workspace)(
-                table_id, name, output.formula
-            )
-            return _result(formula=output.formula)
+            return _generate_formula(ctx, prompt, parameters, profile)
     except (
         AgentRunError,
         TimeoutError,

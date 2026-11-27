@@ -1,10 +1,11 @@
-from types import SimpleNamespace
 from unittest.mock import patch
 
 from django.test import override_settings
 from django.urls import reverse
 
 import pytest
+from pydantic_ai.messages import ModelResponse, RetryPromptPart, TextPart
+from pydantic_ai.models.function import FunctionModel
 
 from baserow.contrib.database.tools.view_config import ViewSortItem
 from baserow.contrib.database.tools.views import ViewFilterItemCreate, ViewItemCreate
@@ -81,24 +82,57 @@ def test_generates_instruction_draft_without_creating_agent(editor):
     assert generate.call_args.kwargs == {"current": "Be brief.", "agent_name": ""}
 
 
-@pytest.mark.parametrize(
-    "formula, valid", [("upper(field('Title'))", True), ("field('Missing')", False)]
-)
-def test_validates_formula_in_its_target_table(editor, formula, valid):
-    table, _, _, post = editor
-    output = SimpleNamespace(table_id=table.id, formula=formula, is_formula_valid=True)
-    with patch(
-        f"{MODULE}.run_formula_generation", return_value=SimpleNamespace(output=output)
-    ):
-        response = post(
-            "generate_formula", table_id=table.id, field_name="Label", current=""
+@pytest.mark.parametrize("can_repair", [True, False])
+def test_formula_editor_validates_and_retries_in_the_open_field(
+    editor, enterprise_data_fixture, can_repair
+):
+    table, title, _, post = editor
+    title.primary = False
+    title.save()
+    enterprise_data_fixture.create_formula_field(
+        table=table, name="Name", primary=True, formula="field('Title')"
+    )
+    original = "length(field('Title')) > 5"
+    target = enterprise_data_fixture.create_formula_field(
+        table=table, name="Formula", formula=original
+    )
+    expected = "contains(lower(field('Name')), 'propose')"
+    retries = []
+
+    def respond(messages, info):
+        assert not info.function_tools and not info.output_tools
+        latest = messages[-1].parts[0]
+        if isinstance(latest, RetryPromptPart):
+            assert "Missing" in latest.content
+            retries.append(latest)
+        return ModelResponse(
+            parts=[TextPart(expected if can_repair and retries else "field('Missing')")]
         )
-    if valid:
+
+    with patch(f"{VIEWS}.resolve_assistant_model") as resolve:
+        profile = resolve.return_value
+        profile.create_model.return_value = FunctionModel(respond)
+        profile.get_settings.return_value = {}
+        response = post(
+            "generate_formula",
+            table_id=table.id,
+            field_name=target.name,
+            current=original,
+            prompt="name contains propose",
+        )
+
+    assert retries
+    if can_repair:
         assert response.status_code == 200, response.data
-        assert response.data["result"] == {"formula": formula}
+        assert response.data == {
+            "result": {"formula": expected},
+            "changed": False,
+            "summary": "",
+        }
     else:
         assert response.status_code == 400
-    assert list(table.field_set.values_list("name", flat=True)) == ["Title"]
+    target.refresh_from_db()
+    assert target.formula == original
 
 
 def test_create_then_edit_view_filters(editor):
