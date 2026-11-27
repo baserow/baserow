@@ -172,7 +172,11 @@
               }}
             </div>
             <div class="admin-settings__description">
-              {{ allowSignupsViaWorkspaceInvitationsDescription }}
+              {{
+                $t(
+                  'settings.settingAllowSignupsViaWorkspaceInvitationOrLinkDescription'
+                )
+              }}
             </div>
           </div>
           <div class="admin-settings__control">
@@ -341,10 +345,7 @@ import SettingsService from '@baserow/modules/core/services/settings'
 import ConfirmModal from '@baserow/modules/core/components/modals/ConfirmModal'
 import { copyToClipboard } from '@baserow/modules/database/utils/clipboard'
 import { EMAIL_VERIFICATION_OPTIONS } from '@baserow/modules/core/enums'
-import {
-  FF_RBAC_IMPROVEMENTS,
-  FF_USER_TEMPLATES,
-} from '@baserow/modules/core/plugins/featureFlags'
+import { FF_USER_TEMPLATES } from '@baserow/modules/core/plugins/featureFlags'
 
 definePageMeta({
   layout: 'app',
@@ -369,13 +370,6 @@ const values = reactive({
 })
 
 const settings = computed(() => store.getters['settings/get'])
-// Invite links are still behind a feature flag, so they're only mentioned
-// when the flag is enabled.
-const allowSignupsViaWorkspaceInvitationsDescription = computed(() =>
-  $featureFlagIsEnabled(FF_RBAC_IMPROVEMENTS)
-    ? $t('settings.settingAllowSignupsViaWorkspaceInvitationOrLinkDescription')
-    : $t('settings.settingAllowSignupsViaWorkspaceInvitationDescription')
-)
 
 const emailVerificationOptions = computed(() => [
   {

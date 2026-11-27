@@ -3,21 +3,17 @@ import { flushPromises } from '@vue/test-utils'
 import { TestApp } from '@baserow/test/helpers/testApp'
 import AutomaticSnapshotsSettings from '@baserow_enterprise/components/automaticSnapshots/AutomaticSnapshotsSettings'
 
-// Turns the automatic snapshots feature flag off, or takes away the permission
-// to read the schedules, in the tests that ask for it.
+// Takes away the permission to read the schedules, in the tests that ask for it.
 const { flags } = vi.hoisted(() => ({
-  flags: { automaticSnapshotsOff: false, noReadPermission: false },
+  flags: { noReadPermission: false },
 }))
 mockNuxtImport('useNuxtApp', (original) => () => {
   const nuxtApp = original()
-  if (!flags.automaticSnapshotsOff && !flags.noReadPermission) {
+  if (!flags.noReadPermission) {
     return nuxtApp
   }
   return new Proxy(nuxtApp, {
     get(target, property, receiver) {
-      if (property === '$featureFlagIsEnabled' && flags.automaticSnapshotsOff) {
-        return (flag) => flag !== 'automatic_snapshots'
-      }
       if (property === '$hasPermission' && flags.noReadPermission) {
         return (operation) =>
           !operation.endsWith('read_automatic_snapshot_schedule')
@@ -70,7 +66,6 @@ describe('AutomaticSnapshotsSettings', () => {
   })
 
   afterEach(async () => {
-    flags.automaticSnapshotsOff = false
     flags.noReadPermission = false
     await testApp.afterEach()
   })
@@ -278,15 +273,6 @@ describe('AutomaticSnapshotsSettings', () => {
     expect(wrapper.find('.automatic-snapshots-settings__bulk').exists()).toBe(
       false
     )
-  })
-
-  test('is hidden without the automatic snapshots feature flag', async () => {
-    flags.automaticSnapshotsOff = true
-
-    const wrapper = await mountComponent()
-
-    expect(wrapper.find('.automatic-snapshots-settings').exists()).toBe(false)
-    expect(testApp.mock.history.get).toHaveLength(0)
   })
 
   test('offers to remove own schedules when there is no workspace schedule', async () => {

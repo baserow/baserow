@@ -9,7 +9,6 @@ from django.db.models.expressions import RawSQL
 from django.db.models.functions import Coalesce
 
 from baserow.core.exceptions import WorkspaceInvitationLinkSignupsDisabled
-from baserow.core.feature_flags import FF_RBAC_IMPROVEMENTS, feature_flag_is_enabled
 from baserow.core.handler import CoreHandler
 from baserow.core.models import (
     Workspace,
@@ -831,12 +830,9 @@ class TeamHandler:
 
         :param user: The user managing the links of the team.
         :param team: The team the links add people to.
-        :raises FeatureDisabledException: If invitation links aren't enabled.
         :raises FeatureNotAvailable: If the workspace doesn't have teams.
         :raises PermissionDenied: If the user isn't allowed to manage the links.
         """
-
-        feature_flag_is_enabled(FF_RBAC_IMPROVEMENTS, raise_if_disabled=True)
 
         workspace = team.workspace
         LicenseHandler.raise_if_user_doesnt_have_feature(TEAMS, user, workspace)

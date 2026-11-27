@@ -1224,7 +1224,6 @@
     "settingAllowNewAccountsName": "Allow creating new accounts",
     "settingAllowNewAccountsDescription": "By default, any user visiting your Baserow domain can sign up for a new account.",
     "settingAllowSignupsViaWorkspaceInvitationsName": "Allow signups via workspace invitations",
-    "settingAllowSignupsViaWorkspaceInvitationDescription": "Even if the creation of new accounts is disabled, this option permits directly invited users to still create an account.",
     "settingAllowSignupsViaWorkspaceInvitationOrLinkDescription": "Even if the creation of new accounts is disabled, this option permits directly invited users, and anyone who opens a workspace invite link, to still create an account.",
     "settingAllowNonStaffCreateWorkspaceOperation": "Allow everyone to create new workspaces",
     "settingAllowNonStaffCreateWorkspaceOperationDescription": "By default, everyone can create new workspaces. Disable this to only allow staff to create new workspaces.",

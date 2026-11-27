@@ -1,6 +1,6 @@
 <template>
   <section
-    v-if="featureFlagEnabled && (!hasFeature || canRead)"
+    v-if="!hasFeature || canRead"
     class="automatic-snapshot-schedule"
     :class="{
       'automatic-snapshot-schedule--empty': hasFeature && isEmpty,
@@ -172,7 +172,6 @@ import moment from '@baserow/modules/core/moment'
 import { notifyIf } from '@baserow/modules/core/utils/error'
 import PaidFeaturesModal from '@baserow_premium/components/PaidFeaturesModal'
 import EnterpriseFeatures from '@baserow_enterprise/features'
-import { FF_AUTOMATIC_SNAPSHOTS } from '@baserow/modules/core/plugins/featureFlags'
 import AutomaticSnapshotsService from '@baserow_enterprise/services/automaticSnapshots'
 import AutomaticSnapshotScheduleModal from '@baserow_enterprise/components/automaticSnapshots/AutomaticSnapshotScheduleModal'
 import {
@@ -192,13 +191,8 @@ const props = defineProps({
   },
 })
 
-const { $client, $featureFlagIsEnabled, $hasFeature, $hasPermission } =
-  useNuxtApp()
+const { $client, $hasFeature, $hasPermission } = useNuxtApp()
 
-// Automatic snapshots are hidden until the feature flag is turned on.
-const featureFlagEnabled = computed(() =>
-  $featureFlagIsEnabled(FF_AUTOMATIC_SNAPSHOTS)
-)
 const { t } = useI18n()
 
 const loading = ref(false)
@@ -416,7 +410,7 @@ async function load() {
 }
 
 onMounted(() => {
-  if (!featureFlagEnabled.value || !hasFeature.value || !canRead.value) {
+  if (!hasFeature.value || !canRead.value) {
     return
   }
   return load()

@@ -19,7 +19,6 @@ from baserow.core.auth_provider.exceptions import (
 )
 from baserow.core.auth_provider.handler import AuthProviderHandler
 from baserow.core.exceptions import (
-    FeatureDisabledException,
     WorkspaceInvitationEmailMismatch,
     WorkspaceInvitationLinkDoesNotExist,
 )
@@ -151,7 +150,6 @@ class OAuth2CallbackView(APIView):
             UnverifiedEmailFromProvider: SsoErrorCode.UNVERIFIED_EMAIL,
             WorkspaceInvitationEmailMismatch: SsoErrorCode.GROUP_INVITATION_EMAIL_MISMATCH,
             WorkspaceInvitationLinkDoesNotExist: SsoErrorCode.INVITATION_LINK_INVALID,
-            FeatureDisabledException: SsoErrorCode.INVITATION_LINK_INVALID,
             DisabledSignupError: SsoErrorCode.SIGNUP_DISABLED,
         }
     )

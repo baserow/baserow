@@ -1,4 +1,3 @@
-import { vi } from 'vitest'
 import { TestApp } from '@baserow/test/helpers/testApp'
 import SidebarApplication from '@baserow/modules/core/components/sidebar/SidebarApplication'
 import Presentation from '@baserow/modules/core/components/Presentation'
@@ -83,49 +82,12 @@ describe('Integration error trail', () => {
     }
   )
 
-  test('nothing is flagged without the application_in_error feature flag', () => {
-    const featureFlagIsEnabled = vi.fn().mockReturnValue(false)
-    const app = {
-      $registry: registry(),
-      $featureFlagIsEnabled: featureFlagIsEnabled,
-    }
-    const application = { integrations: [LOCAL_BASEROW_NO_USER] }
-
-    expect(new BuilderApplicationType({ app }).isInError(application)).toBe(
-      false
-    )
-    expect(
-      new IntegrationsBuilderSettingsType({ app }).isInError(application)
-    ).toBe(false)
-    expect(featureFlagIsEnabled).toHaveBeenCalledWith('application_in_error')
-    // The integration itself still knows it's misconfigured.
-    expect(
-      registry()
-        .get('integration', 'local_baserow')
-        .isInError(LOCAL_BASEROW_NO_USER)
-    ).toBe(true)
-
-    featureFlagIsEnabled.mockReturnValue(true)
-    expect(new BuilderApplicationType({ app }).isInError(application)).toBe(
-      true
-    )
-  })
-
   test('the subtitle explains why an integration is in error', () => {
-    const app = {
-      $registry: registry(),
-      $featureFlagIsEnabled: vi.fn().mockReturnValue(true),
-    }
+    const app = { $registry: registry() }
     expect(integrationSubtitle(app, LOCAL_BASEROW_NO_USER)).toBe(
       'localBaserowIntegrationType.errorNoUser'
     )
     expect(integrationSubtitle(app, LOCAL_BASEROW_OK)).toBe('Ada')
-
-    // Without the feature flag, the summary is kept.
-    app.$featureFlagIsEnabled.mockReturnValue(false)
-    expect(integrationSubtitle(app, LOCAL_BASEROW_NO_USER)).toBe(
-      'localBaserowIntegrationType.localBaserowNoUser'
-    )
   })
 
   test('applications without integrations are never in error', () => {

@@ -965,7 +965,6 @@ class ScopedInvitationLinksView(APIView):
                     "ERROR_INVALID_WORKSPACE_ROLE",
                 ]
             ),
-            403: get_error_schema(["ERROR_FEATURE_DISABLED"]),
             404: get_error_schema(
                 [
                     "ERROR_SCOPE_DOES_NOT_EXIST",

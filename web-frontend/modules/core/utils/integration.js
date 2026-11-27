@@ -1,17 +1,3 @@
-import { FF_APPLICATION_IN_ERROR } from '@baserow/modules/core/plugins/featureFlags'
-
-/**
- * Returns whether the errors of integrations should be shown to the user, by
- * flagging them and the places that lead to them (application sidebar,
- * settings, etc.).
- *
- * @param {object} app The Nuxt app.
- * @returns {boolean} If integration errors should be surfaced.
- */
-export function showIntegrationErrors(app) {
-  return app.$featureFlagIsEnabled(FF_APPLICATION_IN_ERROR)
-}
-
 /**
  * Returns the error message of the first of the given integrations that is in
  * error, so the places that list or depend on them (application sidebar,
@@ -23,9 +9,6 @@ export function showIntegrationErrors(app) {
  * @returns {string|null} The error message, or null if none are in error.
  */
 export function integrationsErrorMessage(app, integrations) {
-  if (!showIntegrationErrors(app)) {
-    return null
-  }
   for (const integration of integrations || []) {
     const message = app.$registry
       .get('integration', integration.type)
@@ -48,8 +31,7 @@ export function integrationsErrorMessage(app, integrations) {
 export function integrationSubtitle(app, integration) {
   const integrationType = app.$registry.get('integration', integration.type)
   return (
-    (showIntegrationErrors(app) &&
-      integrationType.getErrorMessage(integration)) ||
+    integrationType.getErrorMessage(integration) ||
     integrationType.getSummary(integration)
   )
 }

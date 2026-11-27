@@ -8,14 +8,12 @@ from rest_framework.status import (
     HTTP_204_NO_CONTENT,
     HTTP_400_BAD_REQUEST,
     HTTP_401_UNAUTHORIZED,
-    HTTP_403_FORBIDDEN,
     HTTP_404_NOT_FOUND,
 )
 
 from baserow.contrib.database.table.operations import ReadDatabaseTableOperationType
 from baserow.core.actions import JoinWorkspaceViaInvitationLinkActionType
 from baserow.core.exceptions import (
-    FeatureDisabledException,
     PermissionDenied,
     WorkspaceInvitationLinkDoesNotExist,
     WorkspaceInvitationLinkPasswordRequired,
@@ -152,16 +150,9 @@ def test_only_who_can_add_team_members_and_create_links_manages_team_links(
 
 
 @pytest.mark.django_db
-def test_team_links_require_feature_flag_signups_and_teams(data_fixture, settings):
+def test_team_links_require_signups_and_teams(data_fixture):
     admin, _, _, team, _ = setup_workspace(data_fixture)
 
-    settings.FEATURE_FLAGS = []
-    with pytest.raises(FeatureDisabledException):
-        TeamHandler().create_team_invitation_link(admin, team)
-    with pytest.raises(FeatureDisabledException):
-        TeamHandler().list_team_invitation_links(admin, team)
-
-    settings.FEATURE_FLAGS = "*"
     data_fixture.update_settings(
         allow_new_signups=False, allow_signups_via_workspace_invitations=False
     )
@@ -559,9 +550,7 @@ def test_manage_team_links_through_the_api(api_client, data_fixture):
 
 
 @pytest.mark.django_db
-def test_team_links_api_refuses_others_and_unknown_teams(
-    api_client, data_fixture, settings
-):
+def test_team_links_api_refuses_others_and_unknown_teams(api_client, data_fixture):
     admin, workspace, _, team, _ = setup_workspace(data_fixture)
     builder = add_member(data_fixture, workspace, "BUILDER")
     outsider = data_fixture.create_user()
@@ -607,13 +596,6 @@ def test_team_links_api_refuses_others_and_unknown_teams(
     assert (
         response.json()["error"] == "ERROR_WORKSPACE_INVITATION_LINK_SIGNUPS_DISABLED"
     )
-
-    settings.FEATURE_FLAGS = []
-    response = api_client.get(
-        list_url, HTTP_AUTHORIZATION=f"JWT {data_fixture.generate_token(admin)}"
-    )
-    assert response.status_code == HTTP_403_FORBIDDEN
-    assert response.json()["error"] == "ERROR_FEATURE_DISABLED"
 
 
 @pytest.mark.django_db

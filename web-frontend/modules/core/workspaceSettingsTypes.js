@@ -3,7 +3,6 @@ import { SettingsType } from '@baserow/modules/core/settingsTypes'
 import AIProviderWorkspaceSettings from '@baserow/modules/core/components/workspace/AIProviderWorkspaceSettings'
 import SnapshotsWorkspaceSettings from '@baserow/modules/core/components/workspace/SnapshotsWorkspaceSettings'
 import InvitationLinksTable from '@baserow/modules/core/components/settings/invitationLinks/InvitationLinksTable'
-import { FF_RBAC_IMPROVEMENTS } from '@baserow/modules/core/plugins/featureFlags'
 
 export function getEnabledWorkspaceSettings(
   registry,
@@ -140,7 +139,7 @@ export class InvitationLinksWorkspaceSettingsType extends SettingsType {
   }
 
   isEnabled(workspace) {
-    if (!workspace || !this.app.$featureFlagIsEnabled(FF_RBAC_IMPROVEMENTS)) {
+    if (!workspace) {
       return false
     }
     return Object.values(this.app.$registry.getAll('invitationTarget')).some(

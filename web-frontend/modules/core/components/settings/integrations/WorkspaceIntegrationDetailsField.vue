@@ -25,7 +25,6 @@
 <script setup>
 import { computed } from 'vue'
 import { useNuxtApp } from '#app'
-import { showIntegrationErrors } from '@baserow/modules/core/utils/integration'
 
 const props = defineProps({
   row: { type: Object, required: true },
@@ -38,10 +37,7 @@ const integrationType = computed(() =>
 )
 
 const errorMessage = computed(
-  () =>
-    (showIntegrationErrors(nuxtApp) &&
-      integrationType.value.getErrorMessage(props.row)) ||
-    null
+  () => integrationType.value.getErrorMessage(props.row) || null
 )
 
 /**
