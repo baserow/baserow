@@ -19,10 +19,12 @@ and optionally enable knowledge-base lookups through an embeddings server.
   work as well.
 
 With Kuma enabled, editors can ask for a database formula, a new view, changes to
-view or service filters, or Agent instructions. Choose **Ask Kuma** beside the
-setting, describe the change, and click the up arrow or press **Enter**. Use **Shift+Enter**
-for another line. Generated formulas and Agent instructions appear in their editors.
-View and filter changes apply immediately.
+view or service filters, or Agent instructions. Click the blue **Ask Kuma** sparkle beside the setting. The section gains a blue
+outline and the right sidebar names the editor being used. Describe the change
+and press **Enter** or click the up arrow. Use **Shift+Enter** for another line.
+Each follow-up uses the latest draft. Formulas and Agent instructions appear in
+their editors. View and filter changes apply immediately. Remove the context chip
+to return to your regular conversation. Editor requests last for the current session.
 
 ![Asking Kuma to revise a database formula](../assets/kuma_editor_prompt.png)
 
