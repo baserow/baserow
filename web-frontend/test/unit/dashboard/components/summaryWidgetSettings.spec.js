@@ -161,6 +161,7 @@ test('summary sources expose the shared filter control and save permanent condit
     {
       "id": 4,
       "kind": "dashboard_data_source",
+      "name": undefined,
     }
   `)
   expect(provided.serviceFilters.hasUnsavedChanges()).toBe(false)

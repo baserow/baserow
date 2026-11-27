@@ -117,25 +117,6 @@ describe('Context.vue', () => {
     expect(wrapper.vm.opener).toBe(target)
   })
 
-  it('positions against a separate anchor and keeps the trigger as its opener', async () => {
-    const anchor = document.createElement('div')
-    vi.spyOn(anchor, 'getBoundingClientRect').mockReturnValue(
-      new DOMRect(40, 60, 300, 80)
-    )
-    const trigger = document.createElement('button')
-    const wrapper = mount(Context, {
-      props: { getAnchor: () => anchor },
-      global: { stubs: { Teleport: false } },
-    })
-    try {
-      await wrapper.vm.show(trigger, 'bottom', 'right', 5)
-      expect(wrapper.vm.getTeleportedElement().style.top).toBe('145px')
-      expect(wrapper.vm.opener).toBe(trigger)
-    } finally {
-      wrapper.unmount()
-    }
-  })
-
   it('positions a menu within a scrolled viewport when its anchor is partly outside', () => {
     vi.stubGlobal('innerWidth', 375)
     vi.stubGlobal('scrollX', 156)

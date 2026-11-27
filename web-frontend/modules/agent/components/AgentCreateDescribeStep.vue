@@ -10,6 +10,7 @@
     />
   </FormGroup>
   <FormGroup
+    data-kuma-scope
     class="margin-top-2"
     :label="$t('agent.setupWhatShouldItDo')"
     small-label
@@ -17,10 +18,12 @@
   >
     <template #label-action>
       <EditorPrompt
+        :label="modelValue.name"
         action="generate_agent_instructions"
         :workspace-id="workspace.id"
         :parameters="{
           workspace_id: workspace.id,
+          agent_name: modelValue.name || '',
           current: modelValue.instructions || '',
         }"
         @completed="update({ instructions: $event.instructions })"

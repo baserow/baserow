@@ -16,7 +16,7 @@ import AssistantSidebarItem from '@baserow_enterprise/components/assistant/Assis
 import AssistantPanel from '@baserow_enterprise/components/assistant/AssistantPanel'
 import AssistantDashboardPrompt from '@baserow_enterprise/components/assistant/AssistantDashboardPrompt'
 import ServiceFilterKumaPrompt from '@baserow_enterprise/components/assistant/ServiceFilterKumaPrompt'
-import KumaPrompt from '@baserow_enterprise/components/assistant/KumaPrompt'
+import KumaContextButton from '@baserow_enterprise/components/assistant/KumaContextButton'
 import {
   isAssistantAvailable,
   isAssistantConfigured,
@@ -80,7 +80,7 @@ export class EnterprisePlugin extends BaserowPlugin {
   }
 
   getEditorPromptComponent(workspace) {
-    return isAssistantAvailable(this.app, workspace) ? KumaPrompt : null
+    return isAssistantAvailable(this.app, workspace) ? KumaContextButton : null
   }
 
   getServiceFilterFooterComponents() {

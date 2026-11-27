@@ -4,11 +4,13 @@ export default {
   mixins: [],
   provide() {
     return {
+      isOverlayOpen: () => this.open && (this.parentOverlayOpen?.() ?? true),
       registerChild: this.registerChild,
       unregisterChild: this.unregisterChild,
     }
   },
   inject: {
+    parentOverlayOpen: { from: 'isOverlayOpen', default: null },
     parentRegisterModal: {
       from: 'registerChild',
       default: null,

@@ -1,5 +1,5 @@
 <template>
-  <div v-if="modelValue">
+  <div v-if="modelValue" data-kuma-scope>
     <div
       v-if="
         showEmptyState && modelValue.length === 0 && filterGroups.length === 0

@@ -1,12 +1,19 @@
 <template>
   <p class="agent-create__intro">{{ $t('agent.setupReviewIntro') }}</p>
-  <FormGroup :label="$t('agent.instructions')" small-label required>
+  <FormGroup
+    data-kuma-scope
+    :label="$t('agent.instructions')"
+    small-label
+    required
+  >
     <template #label-action>
       <EditorPrompt
+        :label="modelValue.name"
         action="generate_agent_instructions"
         :workspace-id="workspace.id"
         :parameters="{
           workspace_id: workspace.id,
+          agent_name: modelValue.name || '',
           current: modelValue.instructions || '',
         }"
         @completed="update({ instructions: $event.instructions })"

@@ -1,5 +1,5 @@
 <template>
-  <div class="filters__content">
+  <div data-kuma-scope class="filters__content">
     <div
       v-if="view.filters.length === 0"
       v-auto-overflow-scroll
@@ -74,6 +74,7 @@
               database.workspace.id
             )
           "
+          :label="view.name"
           action="edit_view_filters"
           :workspace-id="database.workspace.id"
           :parameters="{ view_id: view.id }"

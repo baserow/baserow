@@ -142,7 +142,11 @@ provide('applicationContext', applicationContext)
 // Identifies the node to its service's filter form, e.g. for Kuma.
 provide(
   'serviceFilterTarget',
-  computed(() => ({ kind: 'automation_node', id: node.value?.id }))
+  computed(() => ({
+    kind: 'automation_node',
+    id: node.value?.id,
+    name: node.value?.label,
+  }))
 )
 
 const nodeType = computed(() => {

@@ -1,5 +1,6 @@
 <template>
   <FormGroup
+    data-kuma-scope
     :label="$t('agent.instructions')"
     :error="Boolean(errors.instructions)"
     :error-message="
@@ -12,10 +13,13 @@
     <template #label-action>
       <EditorPrompt
         v-if="editable && agent"
+        :key="agent.id"
+        :label="agent.name"
         action="generate_agent_instructions"
         :workspace-id="agent?.workspace.id"
         :parameters="{
           workspace_id: agent?.workspace.id,
+          agent_name: agent.name || '',
           current: configuration.instructions || '',
         }"
         @completed="emit('change', { instructions: $event.instructions })"

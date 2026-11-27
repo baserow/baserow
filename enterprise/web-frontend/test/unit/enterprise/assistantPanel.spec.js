@@ -1,3 +1,4 @@
+import { ref } from 'vue'
 import { flushPromises } from '@vue/test-utils'
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 
@@ -57,6 +58,28 @@ describe('AssistantPanel', () => {
     })
     return { wrapper }
   }
+
+  test('returns to the open conversation and its unsent text after detaching an editor', async () => {
+    const { wrapper } = await mountWithRunningChat()
+    const chatId = store.getters['assistant/currentChatId']
+    const composer = wrapper.get('.assistant__input-textarea')
+    await composer.setValue('Finish my question')
+    wrapper.vm.editorTarget = {
+      id: 'formula',
+      workspaceId: 1,
+      title: 'Formula',
+      placeholder: 'Describe your formula',
+      undoable: ref(false),
+      focus: vi.fn(),
+    }
+    await flushPromises()
+    expect(composer.isVisible()).toBe(false)
+    expect(wrapper.get('.assistant-editor textarea').element.value).toBe('')
+    await wrapper.get('.assistant-editor__chip button').trigger('click')
+    expect(composer.isVisible()).toBe(true)
+    expect(composer.element.value).toBe('Finish my question')
+    expect(store.getters['assistant/currentChatId']).toBe(chatId)
+  })
 
   test('sends a pending prompt in a fresh conversation and focuses the input', async () => {
     await testApp.mount(AssistantPanel, { props: { workspace } })

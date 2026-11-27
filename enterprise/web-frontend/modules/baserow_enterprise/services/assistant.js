@@ -166,11 +166,11 @@ export default (client) => {
       return data.suggestions
     },
 
-    /** Run a targeted Kuma action with the common inline-prompt contract. */
-    async runAction(action, prompt, parameters) {
+    /** Run a targeted Kuma action with the editor context. */
+    async runAction(action, prompt, parameters, workspaceId) {
       const { data } = await client.post(
         '/assistant/actions/',
-        { action, prompt, parameters },
+        { action, prompt, parameters, workspace_id: workspaceId },
         {
           baseURL: getAssistantBaseURL(client),
           ...getUndoRedoActionRequestConfig({

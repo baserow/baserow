@@ -3,6 +3,7 @@
 exports[`ViewFilterForm match snapshots > Default view filter component 1`] = `
 <div
   class="filters__content"
+  data-kuma-scope=""
 >
   <div
     class="filters__none filters__none--scrollable"
@@ -71,6 +72,7 @@ exports[`ViewFilterForm match snapshots > Default view filter component 1`] = `
 exports[`ViewFilterForm match snapshots > Full view filter component 1`] = `
 <div
   class="filters__content"
+  data-kuma-scope=""
 >
   <!--v-if-->
   <div
@@ -1210,6 +1212,7 @@ exports[`ViewFilterForm match snapshots > Full view filter component 1`] = `
 exports[`ViewFilterForm match snapshots > rating filter 1`] = `
 <div
   class="filters__content"
+  data-kuma-scope=""
 >
   <!--v-if-->
   <div

@@ -1,6 +1,7 @@
 <template>
   <Context
     ref="context"
+    data-kuma-scope
     class="select"
     max-height-if-outside-viewport
     @shown="shown"
@@ -23,6 +24,7 @@
             database.workspace.id
           )
         "
+        :label="table.name"
         action="create_view"
         :workspace-id="database.workspace.id"
         :parameters="{ table_id: table.id }"

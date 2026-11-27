@@ -1,7 +1,7 @@
 <template>
   <div class="context__form-container">
     <FormGroup
-      ref="formulaGroup"
+      data-kuma-scope
       small-label
       :label="$t('fieldType.formula')"
       required
@@ -9,8 +9,9 @@
     >
       <template #label-action>
         <EditorPrompt
+          :key="defaultValues.id"
           action="generate_formula"
-          :get-anchor="getPromptAnchor"
+          :label="fieldName"
           :workspace-id="database.workspace.id"
           :parameters="{
             table_id: table.id,
@@ -125,21 +126,6 @@ export default {
       return this.$registry
         .get('field', FormulaFieldType.getType())
         .getAdditionalFormInputComponents()
-    },
-  },
-  methods: {
-    getPromptAnchor(menu, gap) {
-      const group = this.$refs.formulaGroup.$el
-      const editor = group.closest('.field-context')
-      // Keep Save accessible whenever the prompt fits below the whole field editor.
-      if (
-        editor &&
-        editor.getBoundingClientRect().bottom + menu.offsetHeight + gap <=
-          window.innerHeight
-      ) {
-        return editor
-      }
-      return group
     },
   },
 }

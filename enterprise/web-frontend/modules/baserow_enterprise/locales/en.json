@@ -1233,6 +1233,8 @@
   "kumaPrompt": {
     "send": "Send",
     "askKuma": "Ask Kuma",
+    "detach": "Remove editor context",
+    "draftChanged": "The draft changed while Kuma was working. Send again to revise the latest version.",
     "generate_formula": "Database formula",
     "generate_formulaPlaceholder": "What should this field calculate?",
     "edit_view_filters": "View filters",

@@ -108,6 +108,7 @@ export default {
       // Identifies the data source to the filter form, e.g. for Kuma.
       serviceFilterTarget: computed(() => ({
         kind: 'builder_data_source',
+        name: this.dataSource?.name,
         id: this.dataSource?.id,
       })),
     }
