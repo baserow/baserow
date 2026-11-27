@@ -44,26 +44,34 @@
       />
     </ViewFieldConditionsForm>
     <div v-if="!disableFilter" class="context__footer filters__footer">
-      <ButtonText icon="iconoir-plus" @click.prevent="addFilter()">
-        {{ $t('viewFilterContext.addFilter') }}</ButtonText
-      >
+      <div class="filters__footer-actions">
+        <ButtonText icon="iconoir-plus" @click.prevent="addFilter()">
+          {{ $t('viewFilterContext.addFilter') }}</ButtonText
+        >
 
-      <ButtonText
-        icon="iconoir-plus"
-        @click.prevent="addFilter({ filterGroupId: sortableUid() })"
-      >
-        {{ $t('viewFilterContext.addFilterGroup') }}</ButtonText
-      >
+        <ButtonText
+          icon="iconoir-plus"
+          @click.prevent="addFilter({ filterGroupId: sortableUid() })"
+        >
+          {{ $t('viewFilterContext.addFilterGroup') }}</ButtonText
+        >
 
-      <ButtonText
-        v-if="canCopyConfiguration"
-        icon="iconoir-copy"
-        @click.prevent="$refs.copyViewConfigurationModal.show(['filters'])"
-      >
-        {{ $t('viewFilterContext.copyFromView') }}</ButtonText
-      >
-
+        <ButtonText
+          v-if="canCopyConfiguration"
+          icon="iconoir-copy"
+          @click.prevent="$refs.copyViewConfigurationModal.show(['filters'])"
+        >
+          {{ $t('viewFilterContext.copyFromView') }}</ButtonText
+        >
+      </div>
       <div class="filters__footer-end">
+        <SwitchInput
+          v-if="view.filters.length > 0"
+          small
+          :value="view.filters_disabled"
+          @input="updateView(view, { filters_disabled: $event })"
+          >{{ $t('viewFilterContext.disableAllFilters') }}</SwitchInput
+        >
         <EditorPrompt
           v-if="
             !readOnly &&
@@ -80,13 +88,6 @@
           :parameters="{ view_id: view.id }"
           @completed="$emit('changed')"
         />
-        <SwitchInput
-          v-if="view.filters.length > 0"
-          small
-          :value="view.filters_disabled"
-          @input="updateView(view, { filters_disabled: $event })"
-          >{{ $t('viewFilterContext.disableAllFilters') }}</SwitchInput
-        >
       </div>
     </div>
     <CopyViewConfigurationModal

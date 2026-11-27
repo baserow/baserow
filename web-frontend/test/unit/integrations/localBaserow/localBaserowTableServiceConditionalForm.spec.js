@@ -85,7 +85,7 @@ describe('LocalBaserowTableServiceConditionalForm', () => {
     )
     expect(
       wrapper
-        .findAll('.filters_footer .button-text')
+        .findAll('.filters__footer .button-text')
         .map((button) => button.text())
     ).toEqual([
       'localBaserowTableServiceConditionalForm.addFilter',
@@ -357,9 +357,10 @@ describe('LocalBaserowTableServiceConditionalForm', () => {
 
     const wrapper = await mountComponent()
 
-    const footer = wrapper.find('.filters_footer')
-    expect(footer.find('.footer-stub').exists()).toBe(true)
-    expect(footer.element.lastElementChild.classList).toContain('footer-stub')
+    const footer = wrapper.find('.filters__footer')
+    const end = footer.get('.filters__footer-end')
+    expect(footer.element.lastElementChild).toBe(end.element)
+    expect(end.find('.footer-stub').exists()).toBe(true)
   })
 
   test('freezes the filters and the add buttons on request', async () => {

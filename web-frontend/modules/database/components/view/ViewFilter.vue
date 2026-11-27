@@ -22,6 +22,7 @@
       role="region"
       :aria-label="$t('viewFilter.filter', { count: view.filters.length })"
       :class="{ 'context--loading-overlay': view._.loading }"
+      :horizontal-viewport-margin="8"
       max-height-if-outside-viewport
     >
       <ViewFilterForm

@@ -91,34 +91,38 @@
     </ViewFieldConditionsForm>
     <!-- Shown under the conditions, above the add buttons. -->
     <slot name="before-footer" />
-    <div v-if="!readOnly" class="filters_footer">
-      <slot name="actions" v-bind="{ addFilter, addFilterGroup }">
-        <ButtonText
-          type="secondary"
-          size="small"
-          icon="iconoir-plus"
-          class="filters__add"
-          :disabled="frozen"
-          @click.prevent="addFilter()"
-        >
-          {{ $t('localBaserowTableServiceConditionalForm.addFilter') }}
-        </ButtonText>
-        <ButtonText
-          type="secondary"
-          size="small"
-          icon="iconoir-plus"
-          class="filters__add"
-          :disabled="frozen"
-          @click.prevent="addFilterGroup()"
-        >
-          {{ $t('localBaserowTableServiceConditionalForm.addFilterGroup') }}
-        </ButtonText>
-      </slot>
-      <component
-        :is="component"
-        v-for="(component, index) in footerComponents"
-        :key="index"
-      />
+    <div v-if="!readOnly" class="filters__footer">
+      <div class="filters__footer-actions">
+        <slot name="actions" v-bind="{ addFilter, addFilterGroup }">
+          <ButtonText
+            type="secondary"
+            size="small"
+            icon="iconoir-plus"
+            class="filters__add"
+            :disabled="frozen"
+            @click.prevent="addFilter()"
+          >
+            {{ $t('localBaserowTableServiceConditionalForm.addFilter') }}
+          </ButtonText>
+          <ButtonText
+            type="secondary"
+            size="small"
+            icon="iconoir-plus"
+            class="filters__add"
+            :disabled="frozen"
+            @click.prevent="addFilterGroup()"
+          >
+            {{ $t('localBaserowTableServiceConditionalForm.addFilterGroup') }}
+          </ButtonText>
+        </slot>
+      </div>
+      <div v-if="footerComponents.length" class="filters__footer-end">
+        <component
+          :is="component"
+          v-for="(component, index) in footerComponents"
+          :key="index"
+        />
+      </div>
     </div>
   </div>
 </template>

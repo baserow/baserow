@@ -19,6 +19,22 @@
   }
 }
 
+.filters__footer-end .kuma-context-button {
+  width: 28px;
+  height: 28px;
+  background: $palette-blue-50;
+
+  &:hover,
+  &[aria-pressed='true'] {
+    background: $palette-blue-100;
+  }
+
+  &:focus-visible {
+    outline: 2px solid $palette-blue-500;
+    outline-offset: 2px;
+  }
+}
+
 [data-kuma-scope]:has(.kuma-context-button[aria-pressed='true']) {
   outline: 1px solid $palette-blue-500;
   outline-offset: 3px;

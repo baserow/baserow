@@ -23,37 +23,41 @@ exports[`ViewFilterForm match snapshots > Default view filter component 1`] = `
   <div
     class="context__footer filters__footer"
   >
-    <button
-      class="button-text"
+    <div
+      class="filters__footer-actions"
     >
-      <i
-        class="button-text__icon iconoir-plus"
-      />
-      <!--v-if-->
-      <span
-        class="button-text__label"
+      <button
+        class="button-text"
       >
-        
-        viewFilterContext.addFilter
-        
-      </span>
-    </button>
-    <button
-      class="button-text"
-    >
-      <i
-        class="button-text__icon iconoir-plus"
-      />
-      <!--v-if-->
-      <span
-        class="button-text__label"
+        <i
+          class="button-text__icon iconoir-plus"
+        />
+        <!--v-if-->
+        <span
+          class="button-text__label"
+        >
+          
+          viewFilterContext.addFilter
+          
+        </span>
+      </button>
+      <button
+        class="button-text"
       >
-        
-        viewFilterContext.addFilterGroup
-        
-      </span>
-    </button>
-    <!--v-if-->
+        <i
+          class="button-text__icon iconoir-plus"
+        />
+        <!--v-if-->
+        <span
+          class="button-text__label"
+        >
+          
+          viewFilterContext.addFilterGroup
+          
+        </span>
+      </button>
+      <!--v-if-->
+    </div>
     <div
       class="filters__footer-end"
     >
@@ -1153,41 +1157,44 @@ exports[`ViewFilterForm match snapshots > Full view filter component 1`] = `
   <div
     class="context__footer filters__footer"
   >
-    <button
-      class="button-text"
+    <div
+      class="filters__footer-actions"
     >
-      <i
-        class="button-text__icon iconoir-plus"
-      />
-      <!--v-if-->
-      <span
-        class="button-text__label"
+      <button
+        class="button-text"
       >
-        
-        viewFilterContext.addFilter
-        
-      </span>
-    </button>
-    <button
-      class="button-text"
-    >
-      <i
-        class="button-text__icon iconoir-plus"
-      />
-      <!--v-if-->
-      <span
-        class="button-text__label"
+        <i
+          class="button-text__icon iconoir-plus"
+        />
+        <!--v-if-->
+        <span
+          class="button-text__label"
+        >
+          
+          viewFilterContext.addFilter
+          
+        </span>
+      </button>
+      <button
+        class="button-text"
       >
-        
-        viewFilterContext.addFilterGroup
-        
-      </span>
-    </button>
-    <!--v-if-->
+        <i
+          class="button-text__icon iconoir-plus"
+        />
+        <!--v-if-->
+        <span
+          class="button-text__label"
+        >
+          
+          viewFilterContext.addFilterGroup
+          
+        </span>
+      </button>
+      <!--v-if-->
+    </div>
     <div
       class="filters__footer-end"
     >
-      <!--v-if-->
       <div
         class="switch switch--small switch--color-green"
       >
@@ -1199,6 +1206,7 @@ exports[`ViewFilterForm match snapshots > Full view filter component 1`] = `
           
         </div>
       </div>
+      <!--v-if-->
     </div>
   </div>
   <teleport-stub
@@ -1662,41 +1670,44 @@ exports[`ViewFilterForm match snapshots > rating filter 1`] = `
   <div
     class="context__footer filters__footer"
   >
-    <button
-      class="button-text"
+    <div
+      class="filters__footer-actions"
     >
-      <i
-        class="button-text__icon iconoir-plus"
-      />
-      <!--v-if-->
-      <span
-        class="button-text__label"
+      <button
+        class="button-text"
       >
-        
-        viewFilterContext.addFilter
-        
-      </span>
-    </button>
-    <button
-      class="button-text"
-    >
-      <i
-        class="button-text__icon iconoir-plus"
-      />
-      <!--v-if-->
-      <span
-        class="button-text__label"
+        <i
+          class="button-text__icon iconoir-plus"
+        />
+        <!--v-if-->
+        <span
+          class="button-text__label"
+        >
+          
+          viewFilterContext.addFilter
+          
+        </span>
+      </button>
+      <button
+        class="button-text"
       >
-        
-        viewFilterContext.addFilterGroup
-        
-      </span>
-    </button>
-    <!--v-if-->
+        <i
+          class="button-text__icon iconoir-plus"
+        />
+        <!--v-if-->
+        <span
+          class="button-text__label"
+        >
+          
+          viewFilterContext.addFilterGroup
+          
+        </span>
+      </button>
+      <!--v-if-->
+    </div>
     <div
       class="filters__footer-end"
     >
-      <!--v-if-->
       <div
         class="switch switch--small switch--color-green"
       >
@@ -1708,6 +1719,7 @@ exports[`ViewFilterForm match snapshots > rating filter 1`] = `
           
         </div>
       </div>
+      <!--v-if-->
     </div>
   </div>
   <teleport-stub

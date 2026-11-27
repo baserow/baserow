@@ -4,6 +4,10 @@
   }
 }
 
+.context.filters {
+  max-width: calc(100vw - 16px);
+}
+
 .filters__content {
   max-height: inherit;
   display: flex;
@@ -11,7 +15,20 @@
 }
 
 .filters__footer {
+  display: flex;
+  align-items: center;
+  column-gap: 12px;
+}
+
+.filters__footer-actions {
+  display: flex;
   flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 12px;
+  min-width: 0;
+}
+
+.context__footer.filters__footer {
   height: auto;
   min-height: 52px;
   padding-block: 8px;
@@ -19,9 +36,10 @@
 
 .filters__footer-end {
   display: flex;
+  flex-shrink: 0;
   align-items: center;
   gap: 8px;
-  margin-left: auto;
+  margin-inline-start: auto;
 
   &:empty {
     display: none;
