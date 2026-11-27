@@ -19,7 +19,8 @@
       :hide-on-click-outside="!busy"
       :horizontal-viewport-margin="8"
       @hidden="onHidden"
-      @keydown.esc.stop.prevent="close"
+      @keydown.esc.stop.prevent
+      @keyup.esc.stop.prevent="close"
     >
       <div v-if="open && summary" class="kuma-prompt__result" role="status">
         <span>{{ summary }}</span>

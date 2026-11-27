@@ -215,11 +215,19 @@ describe('KumaPrompt', () => {
     expect(mocks.runAction).not.toHaveBeenCalled()
   })
 
-  test('is no longer active when closed', async () => {
+  test('consumes Escape on release so the parent modal stays open', async () => {
     const wrapper = await mount()
     await wrapper.find('.prompt-context__trigger').trigger('click')
-    await wrapper.get('textarea').trigger('keydown', { key: 'Escape' })
+    const input = wrapper.get('textarea')
+    await input.trigger('keydown', { key: 'Escape' })
+    expect(wrapper.emitted('active')).toEqual([[true]])
+    const onParentKeyup = vi.fn()
+    input.element
+      .closest('[role=dialog]')
+      .parentElement.addEventListener('keyup', onParentKeyup)
+    await input.trigger('keyup', { key: 'Escape' })
 
+    expect(onParentKeyup).not.toHaveBeenCalled()
     expect(wrapper.emitted('active')).toEqual([[true], [false]])
   })
 
