@@ -73,7 +73,30 @@
         :running-message="assistantRunningMessage"
         @send-message="handleSendMessage"
         @cancel-message="handleCancelMessage"
-      ></AssistantInputMessage>
+      >
+        <template v-if="currentChat?.editorContext" #context>
+          <button
+            v-if="currentChat.editorContext.action === 'edit_view_filters'"
+            v-tooltip="$t('kumaPrompt.openOriginalFilters')"
+            type="button"
+            class="assistant__context-badge assistant__context-badge--link"
+            :aria-label="$t('kumaPrompt.openOriginalFilters')"
+            @click="openOriginalFilters"
+          >
+            <i class="iconoir-filter" aria-hidden="true"></i>
+            <span class="assistant__context-text">{{
+              currentChat.editorContext.label
+            }}</span>
+            <i class="iconoir-nav-arrow-right" aria-hidden="true"></i>
+          </button>
+          <span v-else class="assistant__context-badge">
+            <span class="assistant__context-text"
+              >{{ $t('kumaPrompt.' + currentChat.editorContext.action) }} ·
+              {{ currentChat.editorContext.label }}</span
+            >
+          </span>
+        </template>
+      </AssistantInputMessage>
     </div>
   </div>
 </template>
@@ -319,7 +342,30 @@ export default {
       }
     },
 
+    async openOriginalFilters() {
+      const chat = this.currentChat
+      const { database, table, view } = chat.editorContext.location
+      try {
+        await navigateToAssistantLocation(
+          this,
+          this.workspace.id,
+          {
+            type: 'database-view-filters',
+            database_id: database.id,
+            table_id: table.id,
+            view_id: view.id,
+            view_type: view.type,
+          },
+          () =>
+            this.currentChat?.id === chat.id &&
+            this.workspace.id === chat.editorContext.location.workspace.id
+        )
+      } catch (error) {
+        notifyIf(error)
+      }
+    },
     toggleChatHistoryContext() {
+      this.fetchChats(this.workspace.id).catch(notifyIf)
       this.$refs.chatHistory.toggle(
         this.$refs.chatHistoryButton,
         'bottom',

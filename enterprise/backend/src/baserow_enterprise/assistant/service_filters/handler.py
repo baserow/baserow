@@ -70,6 +70,7 @@ def run_service_filter_request(
     instructions: str,
     model_profile: "ResolvedAssistantModelProfile",
     table_id: int | None = None,
+    before_write=None,
 ) -> ServiceFilterRequestResult:
     """
     Adds, updates and deletes the filters of a Local Baserow service as described
@@ -118,6 +119,8 @@ def run_service_filter_request(
         logger.warning("[assistant] service filter generation failed: {}", exc)
         raise ServiceFilterGenerationFailed(str(exc)) from exc
 
+    if before_write:
+        before_write()
     try:
         changed, state = save_service_filter_operations(
             ctx, prepared, changes.operations

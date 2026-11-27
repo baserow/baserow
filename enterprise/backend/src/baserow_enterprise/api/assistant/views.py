@@ -59,6 +59,7 @@ from baserow_enterprise.assistant.actions import (
     get_action_workspace,
     run_assistant_action,
 )
+from baserow_enterprise.assistant.editor_chats import run_editor_chat_action
 from baserow_enterprise.assistant.exceptions import (
     AssistantChatDoesNotExist,
     AssistantChatMessagePredictionDoesNotExist,
@@ -211,6 +212,12 @@ class AssistantChatView(APIView):
         {
             UserNotInWorkspace: ERROR_USER_NOT_IN_GROUP,
             WorkspaceDoesNotExist: ERROR_GROUP_DOES_NOT_EXIST,
+            Table.DoesNotExist: ERROR_TABLE_DOES_NOT_EXIST,
+            ViewDoesNotExist: ERROR_VIEW_DOES_NOT_EXIST,
+            ApplicationDoesNotExist: ERROR_APPLICATION_DOES_NOT_EXIST,
+            ServiceFilterTargetDoesNotExist: ERROR_ASSISTANT_SERVICE_FILTER_TARGET_DOES_NOT_EXIST,
+            ServiceFilterTargetNotSupported: ERROR_ASSISTANT_SERVICE_FILTER_TARGET_NOT_SUPPORTED,
+            EditorGenerationFailed: ERROR_ASSISTANT_EDITOR_GENERATION_FAILED,
             AssistantChatDoesNotExist: ERROR_ASSISTANT_CHAT_DOES_NOT_EXIST,
             AssistantModelDisabledError: ERROR_ASSISTANT_MODEL_DISABLED,
             AssistantConfiguredModelNotAvailableError: (
@@ -511,6 +518,8 @@ class AssistantActionsView(APIView):
     @validate_body(AssistantActionRequestSerializer, return_validated=True)
     @map_exceptions(
         {
+            AssistantChatDoesNotExist: ERROR_ASSISTANT_CHAT_DOES_NOT_EXIST,
+            ChatRunAlreadyActive: ERROR_CHAT_RUN_IN_PROGRESS,
             TableDoesNotExist: ERROR_TABLE_DOES_NOT_EXIST,
             Table.DoesNotExist: ERROR_TABLE_DOES_NOT_EXIST,
             ViewDoesNotExist: ERROR_VIEW_DOES_NOT_EXIST,
@@ -567,17 +576,16 @@ class AssistantActionsView(APIView):
         # every open editor of the data source or node picks up the new filters.
         request.user.web_socket_id = None
 
-        result = run_assistant_action(
-            data["action"],
-            ToolContext(
-                user=request.user,
-                workspace=workspace,
-                timezone=request.user.profile.timezone,
-            ),
-            data["prompt"],
-            parameters,
-            model_profile=model_profile,
+        ctx = ToolContext(
+            user=request.user,
+            workspace=workspace,
+            timezone=request.user.profile.timezone,
         )
+        args = (data["action"], ctx, data["prompt"], parameters, model_profile)
+        if chat_uuid := data.get("chat_uuid"):
+            result = run_editor_chat_action(*args, chat_uuid)
+        else:
+            result = run_assistant_action(*args)
 
         serializer = AssistantActionResponseSerializer(result)
         return Response(serializer.data)

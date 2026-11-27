@@ -19,6 +19,7 @@
         :workspace-id="agent?.workspace.id"
         :parameters="{
           workspace_id: agent?.workspace.id,
+          agent_id: agent.id,
           agent_name: agent.name || '',
           current: configuration.instructions || '',
         }"

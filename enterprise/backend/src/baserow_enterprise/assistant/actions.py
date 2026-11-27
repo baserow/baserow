@@ -32,7 +32,9 @@ def get_action_workspace(action, parameters):
     raise ValueError(f"Unsupported assistant action: {action}")
 
 
-def run_assistant_action(action, ctx, prompt, parameters, model_profile):
+def run_assistant_action(
+    action, ctx, prompt, parameters, model_profile, *, before_write=None
+):
     """Execute a validated targeted action and return its common outcome."""
     if action == "update_service_filters":
         result = run_service_filter_request(
@@ -42,6 +44,9 @@ def run_assistant_action(action, ctx, prompt, parameters, model_profile):
             prompt,
             model_profile=model_profile,
             table_id=parameters.get("table_id"),
+            before_write=before_write,
         )
         return {"changed": result.changed, "summary": result.summary, "result": {}}
-    return run_editor_action(action, ctx, prompt, parameters, model_profile)
+    return run_editor_action(
+        action, ctx, prompt, parameters, model_profile, before_write=before_write
+    )

@@ -265,7 +265,7 @@ def _create_planned_tables(ctx, database, tables):
     return creation.created_tables[0]
 
 
-def _create_table(ctx, prompt, parameters, profile):
+def _create_table(ctx, prompt, parameters, profile, before_write):
     database = get_database(ctx, parameters["database_id"])
     CoreHandler().check_permissions(
         ctx.user,
@@ -286,6 +286,8 @@ def _create_table(ctx, prompt, parameters, profile):
         name=name,
         existing_tables=list(existing.values_list("name", flat=True)),
     )
+    if before_write:
+        before_write()
     with transaction.atomic():
         table = _create_planned_tables(
             ctx, database, [plan.model_copy(update={"name": name}) if name else plan]
@@ -298,7 +300,7 @@ def _create_table(ctx, prompt, parameters, profile):
     )
 
 
-def _create_database(ctx, prompt, parameters, profile):
+def _create_database(ctx, prompt, parameters, profile, before_write):
     CoreHandler().check_permissions(
         ctx.user,
         CreateApplicationsWorkspaceOperationType.type,
@@ -307,6 +309,8 @@ def _create_database(ctx, prompt, parameters, profile):
     )
     name = parameters["name"]
     design = _generate(database_agent, profile, prompt, name=name)
+    if before_write:
+        before_write()
     with transaction.atomic():
         database = create_application(ctx, "database", name or design.name).specific
         table = _create_planned_tables(ctx, database, design.tables)
@@ -393,7 +397,7 @@ def _filter_state(view):
     }
 
 
-def _edit_filters(ctx, prompt, view_id, profile):
+def _edit_filters(ctx, prompt, view_id, profile, before_write):
     view = get_view(ctx, view_id)
     for operation in (ListViewFilterOperationType, CreateViewFilterOperationType):
         CoreHandler().check_permissions(
@@ -413,6 +417,8 @@ def _edit_filters(ctx, prompt, view_id, profile):
     )
     if not (changes.add or changes.update or changes.remove or change_operator):
         return _result(changes.summary)
+    if before_write:
+        before_write()
     with transaction.atomic():
         view = ViewHandler().get_view_for_update(ctx.user, view_id)
         filters = {f.id: f for f in view.viewfilter_set.select_for_update(of=("self",))}
@@ -438,13 +444,15 @@ def _edit_filters(ctx, prompt, view_id, profile):
     return _result(changes.summary, changed=True)
 
 
-def _create_view(ctx, prompt, table_id, profile):
+def _create_view(ctx, prompt, table_id, profile, before_write):
     table = get_table(ctx, table_id, CreateViewOperationType.type)
     plan = _generate(view_agent, profile, prompt, table=_schema(ctx, table.id))
     if plan.view is None:
         return _result(plan.reason or _("Kuma could not create this view."))
     if plan.view.public:
         raise EditorGenerationFailed()
+    if before_write:
+        before_write()
     with transaction.atomic():
         result = create_views(ctx, table.id, [plan.view])
         if not result["created_views"]:
@@ -467,12 +475,12 @@ def _create_view(ctx, prompt, table_id, profile):
     )
 
 
-def run_editor_action(action, ctx, prompt, parameters, profile):
+def run_editor_action(action, ctx, prompt, parameters, profile, *, before_write=None):
     try:
         if action == "create_table":
-            return _create_table(ctx, prompt, parameters, profile)
+            return _create_table(ctx, prompt, parameters, profile, before_write)
         if action == "create_database":
-            return _create_database(ctx, prompt, parameters, profile)
+            return _create_database(ctx, prompt, parameters, profile, before_write)
         if action == "generate_ai_field_prompt":
             return _ai_field_prompt(ctx, prompt, parameters, profile)
         if action == "add_row_color":
@@ -489,9 +497,13 @@ def run_editor_action(action, ctx, prompt, parameters, profile):
                 raise EditorGenerationFailed()
             return _result(instructions=draft.instructions)
         if action == "create_view":
-            return _create_view(ctx, prompt, parameters["table_id"], profile)
+            return _create_view(
+                ctx, prompt, parameters["table_id"], profile, before_write
+            )
         if action == "edit_view_filters":
-            return _edit_filters(ctx, prompt, parameters["view_id"], profile)
+            return _edit_filters(
+                ctx, prompt, parameters["view_id"], profile, before_write
+            )
         if action == "generate_formula":
             return _generate_formula(ctx, prompt, parameters, profile)
     except (

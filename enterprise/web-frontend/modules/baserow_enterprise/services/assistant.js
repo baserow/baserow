@@ -167,10 +167,16 @@ export default (client) => {
     },
 
     /** Run a targeted Kuma action with the editor context. */
-    async runAction(action, prompt, parameters, workspaceId) {
+    async runAction(action, prompt, parameters, workspaceId, chatUuid) {
       const { data } = await client.post(
         '/assistant/actions/',
-        { action, prompt, parameters, workspace_id: workspaceId },
+        {
+          action,
+          prompt,
+          parameters,
+          workspace_id: workspaceId,
+          chat_uuid: chatUuid,
+        },
         {
           baseURL: getAssistantBaseURL(client),
           ...getUndoRedoActionRequestConfig({

@@ -35,7 +35,7 @@
         ref="composer"
         :sending="busy"
         :send-disabled="!!target.blockedMessage"
-        :starter="target.starter"
+        :starter="target.previousTurns?.length ? '' : target.starter"
         :maxlength="2000"
         @send-message="send"
       >
@@ -65,6 +65,7 @@ import { useStore } from 'vuex'
 import kuma from '@baserow_enterprise/assets/images/kuma.svg?url'
 import AssistantInputMessage from '@baserow_enterprise/components/assistant/AssistantInputMessage'
 import AssistantService from '@baserow_enterprise/services/assistant'
+import { notifyIf } from '@baserow/modules/core/utils/error'
 import ChatMessage from '@baserow/modules/core/components/chat/ChatMessage'
 
 const props = defineProps({ target: { type: Object, required: true } })
@@ -72,7 +73,7 @@ const app = useNuxtApp()
 const store = useStore()
 const composer = ref(null)
 const thread = ref(null)
-const turns = ref([])
+const turns = ref([...(props.target.previousTurns ?? [])])
 const busy = ref(false)
 const error = ref('')
 const contextLabel = computed(() =>
@@ -111,8 +112,12 @@ async function send(text) {
       target.action,
       text,
       parameters,
-      target.workspaceId
+      target.workspaceId,
+      target.chatUuid
     )
+    if (store.getters['assistant/currentChat']?.id === target.chatUuid) {
+      store.dispatch('assistant/refreshCurrentChat').catch(notifyIf)
+    }
     if (!isCurrent(target)) return
     const draft =
       response.result?.instructions ??

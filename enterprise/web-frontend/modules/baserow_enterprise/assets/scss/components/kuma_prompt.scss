@@ -110,3 +110,12 @@
   font-size: 13px;
   color: $palette-neutral-1000;
 }
+
+.assistant__context-badge--link {
+  cursor: pointer;
+
+  &:hover,
+  &:focus-visible {
+    color: $palette-blue-700;
+  }
+}

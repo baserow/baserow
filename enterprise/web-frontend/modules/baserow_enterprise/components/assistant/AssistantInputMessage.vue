@@ -1,7 +1,7 @@
 <template>
   <div class="assistant__input">
     <div
-      v-if="!$slots.context || sending"
+      v-if="!$slots.context || sending || isRunning"
       class="assistant__input-status"
       :class="{ 'is-running': isRunning }"
     >

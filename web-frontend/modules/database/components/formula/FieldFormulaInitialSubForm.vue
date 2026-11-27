@@ -15,6 +15,7 @@
           :workspace-id="database.workspace.id"
           :parameters="{
             table_id: table.id,
+            field_id: defaultValues.id,
             field_name: fieldName,
             current: formula,
           }"

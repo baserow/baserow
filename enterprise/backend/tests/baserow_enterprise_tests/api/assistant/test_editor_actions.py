@@ -1,5 +1,6 @@
 import json
 from unittest.mock import patch
+from uuid import uuid4
 
 from django.test import override_settings
 from django.urls import reverse
@@ -22,6 +23,7 @@ from baserow_enterprise.assistant.editor_generation import (
     NewView,
     RowColorRule,
 )
+from baserow_enterprise.assistant.models import AssistantChat
 
 MODULE = "baserow_enterprise.assistant.editor_generation"
 VIEWS = "baserow_enterprise.api.assistant.views"
@@ -41,6 +43,7 @@ def editor(enterprise_data_fixture, api_client):
         action,
         *,
         scope_workspace_id=None,
+        chat_uuid=None,
         prompt="Please make this change",
         **parameters,
     ):
@@ -50,6 +53,7 @@ def editor(enterprise_data_fixture, api_client):
                 "action": action,
                 "prompt": prompt,
                 "parameters": parameters,
+                **({"chat_uuid": str(chat_uuid)} if chat_uuid else {}),
                 **(
                     {"workspace_id": scope_workspace_id}
                     if scope_workspace_id is not None
@@ -307,12 +311,20 @@ def test_generated_structure_is_openable_in_its_target(editor, action):
         params = {"database_id": table.database_id}
         design = layout
     with patch(f"{MODULE}._generate", return_value=design):
-        response = post(action, name="My choice", **params)
+        chat_uuid = uuid4()
+        response = post(action, chat_uuid=chat_uuid, name="My choice", **params)
     assert response.status_code == 200, response.data
     result = response.data["result"]
     created = Table.objects.get(
         pk=result["table_id"], database_id=result["database_id"]
     )
+    origin = AssistantChat.objects.get(uuid=chat_uuid).editor_context
+    assert origin["label"] == "My choice"
+    assert origin["location"]["database"]["id"] == created.database_id
+    if action == "create_table":
+        assert origin["location"]["table"]["id"] == created.id
+    else:
+        assert "table" not in origin["location"]
     assert created.database.workspace_id == table.database.workspace_id
     assert created.get_primary_field().name == "Project"
     assert created.field_set.get(name="Budget").get_type().type == "number"
@@ -440,4 +452,135 @@ def test_row_color_uses_current_views_fields_without_filtering_its_rows(editor):
         "contains",
         "urgent",
     )
+    assert not ViewFilter.objects.filter(view=view).exists()
+
+
+def test_filter_conversation_can_resume_in_its_original_view(
+    editor, enterprise_data_fixture
+):
+    from baserow.core.tools import ToolContext
+    from baserow_enterprise.assistant.editor_context import resume_editor_chat
+    from baserow_enterprise.assistant.types import UIContext, UserUIContext
+
+    table, field, view, post = editor
+    other = enterprise_data_fixture.create_grid_view(table=table)
+    chat_uuid = uuid4()
+    change = FilterChanges(
+        add=[
+            ViewFilterItemCreate(
+                field_id=field.id, type="text", operator="contains", value="Davide"
+            )
+        ],
+        summary="Filtered by name.",
+    )
+    with patch(f"{MODULE}._generate", return_value=change) as generate:
+        response = post(
+            "edit_view_filters",
+            chat_uuid=chat_uuid,
+            view_id=view.id,
+            prompt="Show rows where Title contains Davide",
+        )
+        assert response.status_code == 200, response.data
+        chat = AssistantChat.objects.get(uuid=chat_uuid)
+        assert list(chat.messages.order_by("id").values_list("content", flat=True)) == [
+            "Show rows where Title contains Davide",
+            "Filtered by name.",
+        ]
+        assert chat.editor_context["target"] == {"view_id": view.id}
+        assert b"Davide" in bytes(chat.message_history)
+        response = post("edit_view_filters", chat_uuid=chat_uuid, view_id=other.id)
+        assert response.status_code == 404
+        assert generate.call_count == 1
+        response = post(
+            "edit_view_filters",
+            chat_uuid=chat_uuid,
+            view_id=view.id,
+            prompt="Also match the same name",
+        )
+        assert response.status_code == 200, response.data
+        assert "Show rows where Title contains Davide" in generate.call_args.args[2]
+
+    workspace = table.database.workspace
+    current = UIContext(
+        workspace={"id": workspace.id, "name": workspace.name},
+        view={"id": other.id, "name": other.name, "type": "grid"},
+        user=UserUIContext.from_user(chat.user),
+    )
+    original = resume_editor_chat(
+        ToolContext(user=chat.user, workspace=workspace), chat, current
+    )
+    assert original.view.id == view.id and original.table.id == table.id
+    assert not ViewFilter.objects.filter(view=other).exists()
+
+
+def test_failed_editor_action_leaves_no_chat_or_partial_database(editor):
+
+    table, _, _, post = editor
+    chat_uuid = uuid4()
+    design = DatabaseDesign(
+        name="Incomplete",
+        tables=[
+            TableItemCreate(
+                name="Order lines",
+                primary_field_name="Item",
+                fields=[
+                    {"type": "formula", "name": "Amount", "formula": "field('Missing')"}
+                ],
+            )
+        ],
+    )
+    with patch(f"{MODULE}._generate", return_value=design):
+        response = post(
+            "create_database",
+            chat_uuid=chat_uuid,
+            workspace_id=table.database.workspace_id,
+        )
+    assert response.status_code == 400
+    assert not AssistantChat.objects.filter(uuid=chat_uuid).exists()
+    assert not table.database.__class__.objects.filter(name="Incomplete").exists()
+
+
+def test_editor_action_cannot_continue_another_users_conversation(
+    editor, enterprise_data_fixture
+):
+
+    table, _, view, post = editor
+    chat = AssistantChat.objects.create(
+        workspace=table.database.workspace, user=enterprise_data_fixture.create_user()
+    )
+    with patch(f"{MODULE}._generate") as generate:
+        response = post("edit_view_filters", chat_uuid=chat.uuid, view_id=view.id)
+    assert response.status_code == 404
+    generate.assert_not_called()
+    assert not chat.messages.exists()
+
+
+def test_a_stale_editor_turn_cannot_apply_its_changes(editor):
+
+    _, field, view, post = editor
+    chat_uuid = uuid4()
+    with patch(
+        f"{MODULE}._generate", return_value=FilterChanges(summary="No changes.")
+    ):
+        assert (
+            post("edit_view_filters", chat_uuid=chat_uuid, view_id=view.id).status_code
+            == 200
+        )
+    chat = AssistantChat.objects.get(uuid=chat_uuid)
+
+    def another_turn_arrives(*args, **kwargs):
+        chat.messages.create(role="human", content="Newer request")
+        return FilterChanges(
+            add=[
+                ViewFilterItemCreate(
+                    field_id=field.id, type="text", operator="contains", value="stale"
+                )
+            ],
+            summary="Changed.",
+        )
+
+    with patch(f"{MODULE}._generate", side_effect=another_turn_arrives):
+        response = post("edit_view_filters", chat_uuid=chat_uuid, view_id=view.id)
+    assert response.status_code == 400
+    assert chat.messages.count() == 3
     assert not ViewFilter.objects.filter(view=view).exists()

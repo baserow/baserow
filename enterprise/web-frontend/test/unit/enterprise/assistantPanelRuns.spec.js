@@ -77,6 +77,42 @@ describe('Kuma panel with a store-owned HTTP follower', () => {
     expect(status()).toBe('assistant.statusAnswering')
   })
 
+  test('a saved filter chat keeps its original view and still shows run progress', async () => {
+    const view = { id: 8, name: 'Open orders', type: 'grid' }
+    const location = {
+      workspace,
+      database: { id: 2, name: 'Sales' },
+      table: { id: 5, name: 'Orders' },
+      view,
+    }
+    store.commit('assistant/SET_CHATS', [
+      {
+        uuid,
+        chat_id: 7,
+        title: 'Open orders',
+        editor_context: {
+          action: 'edit_view_filters',
+          target: { view_id: 8 },
+          label: view.name,
+          location,
+        },
+      },
+    ])
+    await flushPromises()
+    expect(store.getters['assistant/uiContext'].view).toEqual(view)
+    expect(wrapper.get('button.assistant__context-badge').text()).toBe(
+      'Open orders'
+    )
+    await receive(
+      runRecord(
+        'ai/thinking',
+        { content: 'Updating filters' },
+        { cursor: cursor(1) }
+      )
+    )
+    expect(status()).toBe('Updating filters')
+  })
+
   test('Stop asks the run to stop, says so and stays disabled meanwhile', async () => {
     const stop = wrapper.find('.assistant__send-button')
     await stop.trigger('click')

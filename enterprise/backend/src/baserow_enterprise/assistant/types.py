@@ -72,7 +72,16 @@ class DashboardUIContext(BaseModel):
     name: str
 
 
+class EditorUIContext(BaseModel):
+    """Original editor of a conversation resumed from history."""
+
+    action: str
+    target: dict[str, int | str]
+    label: str
+
+
 class UIContext(BaseModel):
+    editor: EditorUIContext | None = None
     workspace: WorkspaceUIContext
     # database builder context
     database: Optional[ApplicationUIContext] = None

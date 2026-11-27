@@ -37,6 +37,7 @@ async function mount({
   enabled = true,
   blockedMessage = '',
   action = 'generate_formula',
+  fieldId,
 } = {}) {
   const draft = ref('1')
   const host = defineComponent({
@@ -52,7 +53,11 @@ async function mount({
             label: 'Total',
             placeholder: 'What should this field calculate?',
             action,
-            parameters: { table_id: 7, current: draft.value },
+            parameters: {
+              table_id: 7,
+              current: draft.value,
+              ...(fieldId ? { field_id: fieldId } : {}),
+            },
             onCompleted: (result) => {
               draft.value = result.formula
             },
@@ -131,7 +136,8 @@ test.each([
       action,
       starter + ' ' + continuation,
       { table_id: 7, current: '1' },
-      5
+      5,
+      expect.any(String)
     )
   }
 )
@@ -153,11 +159,64 @@ test('sends the latest local draft and workspace on each revision', async () => 
   await input.setValue('Double it again')
   await wrapper.get('.assistant__send-button').trigger('click')
   await flushPromises()
+  const chatUuid = runAction.mock.calls[0][4]
+  expect(chatUuid).toEqual(expect.any(String))
   expect(runAction.mock.calls).toEqual([
-    ['generate_formula', 'Double it', { table_id: 7, current: '1' }, 5],
-    ['generate_formula', 'Double it again', { table_id: 7, current: '2' }, 5],
+    [
+      'generate_formula',
+      'Double it',
+      { table_id: 7, current: '1' },
+      5,
+      chatUuid,
+    ],
+    [
+      'generate_formula',
+      'Double it again',
+      { table_id: 7, current: '2' },
+      5,
+      chatUuid,
+    ],
   ])
 })
+
+test.each([11, 12, undefined])(
+  'only reattaches saved history to its original field (%s)',
+  async (fieldId) => {
+    await mount({ fieldId })
+    const store = useNuxtApp().$store
+    const id = '22222222-2222-4222-8222-222222222222'
+    store.commit('assistant/SET_CHATS', [
+      {
+        uuid: id,
+        title: 'Total',
+        editor_context: {
+          action: 'generate_formula',
+          location: { workspace: { id: 5 } },
+          target: { table_id: 7, field_id: 11 },
+        },
+      },
+    ])
+    store.commit('assistant/SET_CURRENT_CHAT_ID', id)
+    store.commit('assistant/SET_MESSAGES', [
+      { role: 'human', content: 'Double it' },
+    ])
+    try {
+      const input = await open()
+      const original = fieldId === 11
+      expect(useNuxtApp().$kumaEditor.target.value.chatUuid === id).toBe(
+        original
+      )
+      expect(wrapper.text().includes('Double it')).toBe(original)
+      expect(input.element.value).toBe(
+        original ? '' : 'kumaPrompt.generate_formulaStarter '
+      )
+    } finally {
+      store.commit('assistant/SET_CURRENT_CHAT_ID', null)
+      store.commit('assistant/SET_CHATS', [])
+      store.commit('assistant/CLEAR_MESSAGES')
+    }
+  }
+)
 
 test.each(['edit', 'detach'])(
   'preserves the draft after a concurrent %s',

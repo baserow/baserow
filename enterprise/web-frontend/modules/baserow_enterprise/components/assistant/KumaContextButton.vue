@@ -25,6 +25,7 @@ import {
   watchEffect,
 } from 'vue'
 import { useStore } from 'vuex'
+import { uuid } from '@baserow/modules/core/utils/string'
 import { isAssistantAvailable } from '@baserow_enterprise/utils/assistant'
 
 const props = defineProps({
@@ -119,8 +120,25 @@ function attach() {
     editor.panel.value?.querySelector('textarea')?.focus()
     return
   }
+  const chat = store.getters['assistant/currentChat']
+  const saved = chat?.editorContext
+  const target = saved?.target
+  const resume =
+    saved?.action === props.action &&
+    saved.location.workspace.id === workspace.value.id &&
+    (target.view_id || target.field_id || target.agent_id || target.id) &&
+    Object.entries(target).every(
+      ([key, value]) => props.parameters[key] === value
+    )
   editor.target.value = {
     id,
+    chatUuid: resume ? chat.id : uuid(),
+    previousTurns: resume
+      ? store.getters['assistant/messages'].map((message) => ({
+          text: message.content,
+          own: message.role === 'human',
+        }))
+      : [],
     workspaceId: workspace.value.id,
     action: props.action,
     starter: app.$i18n.t(`kumaPrompt.${props.action}Starter`),

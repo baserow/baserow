@@ -1231,6 +1231,7 @@
     "description": "{error} Open the application's snapshots modal for details."
   },
   "kumaPrompt": {
+    "openOriginalFilters": "Open this view’s filters",
     "send": "Send",
     "generate_formulaTooltip": "Ask Kuma to write a formula",
     "generate_formulaStarter": "Calculate",
@@ -1240,6 +1241,7 @@
     "create_viewStarter": "Create a view",
     "generate_agent_instructionsTooltip": "Ask Kuma to write Agent instructions",
     "generate_agent_instructionsStarter": "This Agent should",
+    "update_service_filters": "Service filters",
     "update_service_filtersTooltip": "Ask Kuma to set service filters",
     "update_service_filtersStarter": "Return rows",
     "create_tableTooltip": "Ask Kuma to build a table",

@@ -143,6 +143,7 @@ export const mutations = {
         id: chat.uuid,
         chatId: chat.chat_id ?? null,
         title: chat.title,
+        editorContext: chat.editor_context,
         createdAt: chat.created_on,
         updatedAt: chat.updated_on,
       })
@@ -758,6 +759,13 @@ export const getters = {
   isLoadingChats: (state) => state.chatsRequestId !== null,
 
   uiContext: (state, getters, rootState, rootGetters) => {
+    const origin = getters.currentChat?.editorContext?.location
+    if (origin) {
+      return {
+        ...origin,
+        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+      }
+    }
     const scope = rootGetters['undoRedo/getCurrentScope']
     const workspace = rootGetters['workspace/get'](scope.workspace)
 
