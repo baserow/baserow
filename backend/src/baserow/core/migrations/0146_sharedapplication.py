@@ -7,7 +7,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('core', '0144_identity_definition'),
+        ('core', '0145_settings_allow_user_templates'),
     ]
 
     operations = [
