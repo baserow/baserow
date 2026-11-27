@@ -273,6 +273,7 @@ describe('TextFilterWidget input', () => {
       props: { widget: config },
     })
     const input = wrapper.get('input')
+    const field = wrapper.get('.dashboard-text-filter-widget__input')
     expect(input.element.value).toBe('0')
 
     await input.setValue('-12345678901234567890,05')
@@ -283,11 +284,10 @@ describe('TextFilterWidget input', () => {
 
     for (const invalid of ['-', '12,', 'abc']) {
       await input.setValue(invalid)
-      expect(wrapper.find('.control__messages--error').exists()).toBe(false)
+      expect(field.classes('form-input--error')).toBe(false)
       await input.trigger('blur')
-      expect(wrapper.get('.control__messages--error').text()).toBe(
-        'textFilterWidget.invalidNumber'
-      )
+      expect(field.classes('form-input--error')).toBe(true)
+      expect(wrapper.find('.control__messages').exists()).toBe(false)
       expect(store.getters['dashboardApplication/getWidgetValues'][1]).toBe(
         '-12345678901234567890.05'
       )
@@ -295,7 +295,7 @@ describe('TextFilterWidget input', () => {
 
     await input.setValue('')
     await input.trigger('blur')
-    expect(wrapper.find('.control__messages--error').exists()).toBe(false)
+    expect(field.classes('form-input--error')).toBe(false)
     expect(store.getters['dashboardApplication/getWidgetValues'][1]).toBe('')
     store.commit('dashboardApplication/RESET')
   })

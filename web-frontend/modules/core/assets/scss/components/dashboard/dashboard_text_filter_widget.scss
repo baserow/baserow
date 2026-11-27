@@ -18,15 +18,6 @@
     min-width: 0;
   }
 
-  // Keep the message in the gap before the next grid row.
-  > .control__wrapper > .control__messages {
-    padding-top: 2px;
-  }
-
-  .control__messages--error {
-    line-height: 14px;
-  }
-
   .form-input__suffix {
     flex-shrink: 0;
     padding: 0 16px 0 4px;

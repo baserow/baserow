@@ -2,9 +2,6 @@
   <FormGroup
     class="dashboard-text-filter-widget"
     :label="widget.title"
-    :error-message="
-      numberInputError ? $t('textFilterWidget.invalidNumber') : ''
-    "
     small-label
     required
   >
