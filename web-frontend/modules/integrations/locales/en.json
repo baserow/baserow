@@ -150,6 +150,7 @@
     "currentUserDescription": "Warning: using your account gives everyone who has edit permissions to the application full access to the data you have access to.",
     "identityRole": "Workspace role: {role}",
     "noIdentities": "You do not have any identities yet",
+    "addIdentity": "Add identity",
     "subjectMessage": "Actions use the permissions of the selected user or identity. Identity actions are identified as such in the audit log."
   },
   "aiForm": {

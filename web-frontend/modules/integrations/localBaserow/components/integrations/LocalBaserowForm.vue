@@ -2,12 +2,15 @@
   <div>
     <FormGroup :label="$t('localBaserowForm.subject')" required small-label>
       <PaginatedDropdown
+        ref="subjectDropdown"
         class="local-baserow-form__subject"
         :value="authenticationSubject"
         :fetch-page="fetchIdentityPage"
         :add-empty-item="false"
         :initial-display-name="initialSubjectName"
         :include-display-name-in-selected-event="true"
+        fetch-on-open
+        refresh-on-open
         @input="setAuthenticationSubject"
       >
         <template #items="{ results }">
@@ -39,7 +42,25 @@
             />
           </DropdownSection>
         </template>
+        <template v-if="canCreateIdentity" #footer="{ hide }">
+          <div class="select__footer">
+            <button
+              type="button"
+              class="select__footer-button"
+              @click="addIdentity(hide)"
+            >
+              <i class="iconoir-plus" aria-hidden="true"></i>
+              {{ $t('localBaserowForm.addIdentity') }}
+            </button>
+          </div>
+        </template>
       </PaginatedDropdown>
+      <ManageIdentityModal
+        v-if="canCreateIdentity"
+        ref="identityModal"
+        :workspace="workspace"
+        @saved="identityCreated"
+      />
       <template #helper>
         {{ $t('localBaserowForm.subjectMessage') }}
       </template>
@@ -52,10 +73,12 @@ import form from '@baserow/modules/core/mixins/form'
 import PaginatedDropdown from '@baserow/modules/core/components/PaginatedDropdown'
 import DropdownSection from '@baserow/modules/core/components/DropdownSection'
 import IdentityService from '@baserow/modules/core/services/identity'
+import ManageIdentityModal from '@baserow/modules/core/components/settings/identities/ManageIdentityModal'
+import { FF_IDENTITIES } from '@baserow/modules/core/plugins/featureFlags'
 import { UserSubjectType } from '@baserow/modules/core/subjectTypes.jsx'
 
 export default {
-  components: { PaginatedDropdown, DropdownSection },
+  components: { PaginatedDropdown, DropdownSection, ManageIdentityModal },
   mixins: [form],
   props: {
     application: {
@@ -75,6 +98,8 @@ export default {
       allowedValues: ['authorized_subject_id', 'authorized_subject_type'],
       // Whether the workspace has identities, unknown until they're fetched.
       hasIdentities: null,
+      // The name of the identity created here, shown as the selected subject.
+      createdIdentityName: null,
     }
   },
   computed: {
@@ -91,7 +116,25 @@ export default {
       const { workspace } = this.application
       return this.$hasPermission('identity.update', workspace, workspace.id)
     },
+    workspace() {
+      return this.$store.getters['workspace/get'](this.application.workspace.id)
+    },
+    canCreateIdentity() {
+      return (
+        this.canBindIdentities &&
+        this.$featureFlagIsEnabled(FF_IDENTITIES) &&
+        !!this.workspace &&
+        this.$hasPermission(
+          'identity.create',
+          this.workspace,
+          this.workspace.id
+        )
+      )
+    },
     initialSubjectName() {
+      if (this.createdIdentityName !== null) {
+        return this.createdIdentityName
+      }
       const subject = this.defaultValues.authorized_subject
       // A trashed identity isn't selectable, so show nothing selected and let the
       // user pick another subject.
@@ -172,6 +215,21 @@ export default {
         this.values.authorized_subject_id = item.subject_id
         this.values.authorized_subject_type = UserSubjectType.getType()
       }
+    },
+    addIdentity(hide) {
+      hide()
+      this.$refs.identityModal.show()
+    },
+    /**
+     * Selects the identity just created in the modal. The dropdown reloads the
+     * identities each time it opens, so it lists the new one too.
+     */
+    async identityCreated(identity) {
+      this.values.authorized_subject_id = identity.id
+      this.values.authorized_subject_type = UserSubjectType.getType()
+      this.createdIdentityName = identity.name
+      await this.$nextTick()
+      this.$refs.subjectDropdown?.clear()
     },
   },
 }

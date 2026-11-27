@@ -208,4 +208,80 @@ describe('LocalBaserowForm', () => {
       authorized_subject_type: 'auth.User',
     })
   })
+
+  test('lists identities created elsewhere when opened again', async () => {
+    const wrapper = await mountComponent()
+    await openDropdown(wrapper)
+    wrapper.findComponent({ name: 'PaginatedDropdown' }).vm.hide()
+
+    testApp.mock.onGet('/identities/workspace/1/').reply(200, {
+      count: 1,
+      next: null,
+      previous: null,
+      results: [{ id: 13, name: 'Other identity', role_uid: 'MEMBER' }],
+    })
+    await openDropdown(wrapper)
+
+    expect(sections(wrapper)[1].items).toEqual([
+      ['Other identity', 'localBaserowForm.identityRole'],
+    ])
+  })
+
+  test('offers to add an identity from the dropdown footer', async () => {
+    const wrapper = await mountComponent()
+    await openDropdown(wrapper)
+
+    const button = wrapper.find('.select__footer-button')
+    expect(button.text()).toBe('localBaserowForm.addIdentity')
+
+    const modal = wrapper.findComponent({ name: 'ManageIdentityModal' })
+    const show = vi.spyOn(modal.vm, 'show').mockImplementation(() => {})
+    await button.trigger('click')
+
+    expect(show).toHaveBeenCalledOnce()
+  })
+
+  test('offers no identity creation to a user who may not create them', async () => {
+    const wrapper = await mountComponent(
+      {},
+      { $hasPermission: (operation) => operation !== 'identity.create' }
+    )
+    await openDropdown(wrapper)
+
+    expect(wrapper.find('.select__footer-button').exists()).toBe(false)
+    expect(
+      wrapper.findComponent({ name: 'ManageIdentityModal' }).exists()
+    ).toBe(false)
+  })
+
+  test('selects the identity created from the dropdown', async () => {
+    const wrapper = await mountComponent()
+    await openDropdown(wrapper)
+    await wrapper.find('.select__footer-button').trigger('click')
+
+    testApp.mock.onGet('/identities/workspace/1/').reply(200, {
+      count: 1,
+      next: null,
+      previous: null,
+      results: [{ id: 12, name: 'New identity', role_uid: 'MEMBER' }],
+    })
+    const requestsBefore = testApp.mock.history.get.length
+    wrapper
+      .findComponent({ name: 'ManageIdentityModal' })
+      .vm.$emit('saved', { id: 12, name: 'New identity' })
+    await flushPromises()
+
+    expect(wrapper.find('.dropdown__selected-text').text()).toBe('New identity')
+    expect(wrapper.emitted('values-changed').at(-1)[0]).toEqual({
+      authorized_subject_id: 12,
+      authorized_subject_type: 'auth.User',
+    })
+
+    await openDropdown(wrapper)
+
+    expect(testApp.mock.history.get.length).toBeGreaterThan(requestsBefore)
+    expect(sections(wrapper)[1].items).toEqual([
+      ['New identity', 'localBaserowForm.identityRole'],
+    ])
+  })
 })
