@@ -1,5 +1,6 @@
 import json
 from typing import Literal
+from uuid import uuid4
 
 from django.core.exceptions import ValidationError
 from django.db import transaction
@@ -11,7 +12,16 @@ from pydantic_ai import Agent, ModelRetry, TextOutput
 from pydantic_ai.exceptions import AgentRunError
 
 from baserow.contrib.database.fields.operations import ListFieldsOperationType
-from baserow.contrib.database.tools.tables import get_table, get_tables_schema
+from baserow.contrib.database.operations import CreateTableDatabaseTableOperationType
+from baserow.contrib.database.table.handler import TableHandler
+from baserow.contrib.database.tools.fields import OptionColor
+from baserow.contrib.database.tools.tables import (
+    TableItemCreate,
+    create_tables_in_database,
+    get_database,
+    get_table,
+    get_tables_schema,
+)
 from baserow.contrib.database.tools.view_config import ViewSortItem, set_view_sorts
 from baserow.contrib.database.tools.views import (
     ViewFilterItemCreate,
@@ -36,13 +46,17 @@ from baserow.contrib.database.views.operations import (
     CreateViewOperationType,
     ListViewFilterOperationType,
 )
+from baserow.core.formula.literals import wrap_static_string
 from baserow.core.generative_ai.lifecycle import run_agent_sync_with_model
 from baserow.core.handler import CoreHandler
+from baserow.core.operations import CreateApplicationsWorkspaceOperationType
+from baserow.core.tools.applications import ApplicationName, create_application
 from baserow.core.tools.errors import ToolInputError
 from baserow.core.tools.types import BaseModel
 from baserow_enterprise.assistant.exceptions import EditorGenerationFailed
 from baserow_enterprise.assistant.model_profiles import UTILITY
 from baserow_enterprise.assistant.tools.database.agents import get_formula_type_tool
+from baserow_premium.fields.visitors import get_ai_prompt_error
 from baserow_premium.prompts import get_formula_docs
 
 
@@ -125,6 +139,57 @@ view_agent = Agent(
 )
 
 
+class DatabaseDesign(BaseModel):
+    name: ApplicationName
+    tables: list[TableItemCreate] = Field(min_length=1)
+
+
+class AIFieldPromptDraft(BaseModel):
+    parts: list[str | int] = Field(
+        min_length=1,
+        description="Ordered literal text strings and numeric field IDs to interpolate.",
+    )
+
+
+class RowColorRule(BaseModel):
+    color: OptionColor
+    operator: Literal["AND", "OR"] = "AND"
+    filters: list[ViewFilterItemCreate]
+
+
+table_agent = Agent(
+    name="design_table",
+    output_type=TableItemCreate,
+    retries=3,
+    instructions="Design one new Baserow table for the request. Use the supplied name if set. "
+    "Give it a text primary field and typed columns. Existing table names are available for links.",
+)
+database_agent = Agent(
+    name="design_database",
+    output_type=DatabaseDesign,
+    retries=3,
+    instructions="Design a new database with named tables and typed columns for the request. "
+    "Use the supplied database name if set. Link related tables by their exact names. "
+    "Give each table a text primary field. Include only the tables needed.",
+)
+ai_prompt_agent = Agent(
+    name="draft_ai_field_prompt",
+    output_type=AIFieldPromptDraft,
+    retries=3,
+    instructions="Write the prompt an AI field will run for EACH row, in the user's language. "
+    "Use the requested output type. Revise the current prompt when asked. "
+    "Interleave instruction text with numeric IDs from the supplied fields to insert row values. "
+    "Keep spacing around field values. Return plain text in the string parts.",
+)
+row_color_agent = Agent(
+    name="add_row_color",
+    output_type=RowColorRule,
+    retries=3,
+    instructions="Design one new conditional row color rule. Only return an empty filters list "
+    "if the user explicitly requests a color for every row. " + FILTER_FORMAT,
+)
+
+
 def _generate(agent, profile, prompt, **context):
     return run_agent_sync_with_model(
         agent,
@@ -175,6 +240,130 @@ def _generate_formula(ctx, prompt, parameters, profile):
         formula_reference=get_formula_docs(),
     )
     return _result(formula=formula)
+
+
+def _create_planned_tables(ctx, database, tables):
+    creation = create_tables_in_database(ctx, database, tables)
+    if (
+        len(creation.created_tables) != len(tables)
+        or creation.errors
+        or creation.formula_errors
+        or creation.permission_denied
+    ):
+        raise EditorGenerationFailed()
+    return creation.created_tables[0]
+
+
+def _create_table(ctx, prompt, parameters, profile):
+    database = get_database(ctx, parameters["database_id"])
+    CoreHandler().check_permissions(
+        ctx.user,
+        CreateTableDatabaseTableOperationType.type,
+        workspace=ctx.workspace,
+        context=database,
+    )
+    existing = (
+        TableHandler()
+        .list_workspace_tables(ctx.user, ctx.workspace)
+        .filter(database=database)
+    )
+    name = parameters["name"]
+    plan = _generate(
+        table_agent,
+        profile,
+        prompt,
+        name=name,
+        existing_tables=list(existing.values_list("name", flat=True)),
+    )
+    with transaction.atomic():
+        table = _create_planned_tables(
+            ctx, database, [plan.model_copy(update={"name": name}) if name else plan]
+        )
+    return _result(
+        _("Created table “%(name)s”.") % {"name": table.name},
+        changed=True,
+        database_id=database.id,
+        table_id=table.id,
+    )
+
+
+def _create_database(ctx, prompt, parameters, profile):
+    CoreHandler().check_permissions(
+        ctx.user,
+        CreateApplicationsWorkspaceOperationType.type,
+        workspace=ctx.workspace,
+        context=ctx.workspace,
+    )
+    name = parameters["name"]
+    design = _generate(database_agent, profile, prompt, name=name)
+    with transaction.atomic():
+        database = create_application(ctx, "database", name or design.name).specific
+        table = _create_planned_tables(ctx, database, design.tables)
+    return _result(
+        _("Created database “%(name)s”.") % {"name": database.name},
+        changed=True,
+        database_id=database.id,
+        table_id=table.id,
+    )
+
+
+def _ai_field_prompt(ctx, prompt, parameters, profile):
+    table = get_table(ctx, parameters["table_id"], ListFieldsOperationType.type)
+    fields = dict(
+        table.field_set.exclude(id=parameters.get("field_id")).values_list("id", "name")
+    )
+    draft = _generate(
+        ai_prompt_agent,
+        profile,
+        prompt,
+        fields=fields,
+        current=parameters["current"],
+        output_type=parameters["output_type"],
+        current_mode=parameters["mode"],
+    )
+    parts = []
+    for value in draft.parts:
+        if isinstance(value, int):
+            if value not in fields:
+                raise EditorGenerationFailed()
+            parts.append(f"get('fields.field_{value}')")
+        elif value:
+            parts.append(wrap_static_string(value))
+    if not parts or not any(isinstance(v, str) and v.strip() for v in draft.parts):
+        raise EditorGenerationFailed()
+    expression = parts[0] if len(parts) == 1 else f"concat({', '.join(parts)})"
+    if get_ai_prompt_error(expression, table.id):
+        raise EditorGenerationFailed()
+    return _result(ai_prompt=expression)
+
+
+def _row_color(ctx, prompt, view_id, profile):
+    view = get_view(ctx, view_id)
+    rule = _generate(
+        row_color_agent, profile, prompt, table=_schema(ctx, view.table_id)
+    )
+    fields = {f.id: f for f in view.table.field_set.all()}
+    filters = []
+    for condition in rule.filters:
+        field, op, value = resolve_view_filter(fields, condition, ctx.timezone)
+        filters.append(
+            {
+                "id": str(uuid4()),
+                "field": field.id,
+                "type": op,
+                "value": value,
+                "group": None,
+            }
+        )
+    return _result(
+        color_rule={
+            "id": str(uuid4()),
+            "color": rule.color,
+            "operator": rule.operator,
+            "filters": filters,
+            "filter_groups": [],
+        }
+    )
 
 
 def _filter_state(view):
@@ -269,6 +458,14 @@ def _create_view(ctx, prompt, table_id, profile):
 
 def run_editor_action(action, ctx, prompt, parameters, profile):
     try:
+        if action == "create_table":
+            return _create_table(ctx, prompt, parameters, profile)
+        if action == "create_database":
+            return _create_database(ctx, prompt, parameters, profile)
+        if action == "generate_ai_field_prompt":
+            return _ai_field_prompt(ctx, prompt, parameters, profile)
+        if action == "add_row_color":
+            return _row_color(ctx, prompt, parameters["view_id"], profile)
         if action == "generate_agent_instructions":
             draft = _generate(
                 instructions_agent,

@@ -14,6 +14,7 @@ from rest_framework.response import Response
 from rest_framework.status import HTTP_204_NO_CONTENT
 from rest_framework.views import APIView
 
+from baserow.api.applications.errors import ERROR_APPLICATION_DOES_NOT_EXIST
 from baserow.api.chat_runs.errors import (
     ERROR_CHAT_RUN_IN_PROGRESS,
     ERROR_CHAT_RUN_LIMIT,
@@ -47,7 +48,11 @@ from baserow.core.chat_runs.exceptions import (
 from baserow.core.chat_runs.handler import ChatRunHandler
 from baserow.core.chat_runs.models import ChatRun
 from baserow.core.chat_runs.service import ChatRunService, serialize_run
-from baserow.core.exceptions import UserNotInWorkspace, WorkspaceDoesNotExist
+from baserow.core.exceptions import (
+    ApplicationDoesNotExist,
+    UserNotInWorkspace,
+    WorkspaceDoesNotExist,
+)
 from baserow.core.handler import CoreHandler
 from baserow.core.tools import ToolContext
 from baserow_enterprise.assistant.actions import (
@@ -511,6 +516,7 @@ class AssistantActionsView(APIView):
             ViewDoesNotExist: ERROR_VIEW_DOES_NOT_EXIST,
             WorkspaceDoesNotExist: ERROR_GROUP_DOES_NOT_EXIST,
             EditorGenerationFailed: ERROR_ASSISTANT_EDITOR_GENERATION_FAILED,
+            ApplicationDoesNotExist: ERROR_APPLICATION_DOES_NOT_EXIST,
             UserNotInWorkspace: ERROR_USER_NOT_IN_GROUP,
             AssistantModelDisabledError: ERROR_ASSISTANT_MODEL_DISABLED,
             AssistantConfiguredModelNotAvailableError: (

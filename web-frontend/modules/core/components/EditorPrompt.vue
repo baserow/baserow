@@ -39,6 +39,7 @@ const targetKey = computed(() =>
   JSON.stringify([
     props.workspaceId,
     props.action,
+    props.parameters.database_id,
     props.parameters.table_id,
     props.parameters.view_id,
   ])

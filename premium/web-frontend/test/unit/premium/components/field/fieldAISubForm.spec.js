@@ -68,6 +68,30 @@ describe('FieldAISubForm component', () => {
     return wrapper
   }
 
+  test.each(['simple', 'raw'])(
+    'applies a generated prompt to a %s field draft',
+    async (mode) => {
+      const wrapper = await mountComponent({
+        formula: "'Original'",
+        mode,
+      })
+      const prompt = wrapper.getComponent({ name: 'EditorPrompt' })
+      expect(prompt.props('parameters')).toMatchObject({
+        table_id: 10,
+        current: "'Original'",
+        output_type: 'text',
+      })
+      prompt.vm.$emit('completed', {
+        ai_prompt: "'Summarize in one sentence.'",
+      })
+      await wrapper.vm.$nextTick()
+      expect(wrapper.vm.values.ai_prompt).toMatchObject({
+        formula: "'Summarize in one sentence.'",
+        mode: 'simple',
+      })
+    }
+  )
+
   test('a stored invalid prompt shows an error and blocks the form', async () => {
     const wrapper = await mountComponent({
       formula: "get('fields.field_1') x hello",

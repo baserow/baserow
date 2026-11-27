@@ -18,13 +18,21 @@ and optionally enable knowledge-base lookups through an embeddings server.
 - The assistant has been mostly tested with the `gpt-oss-120b` family. Other models can
   work as well.
 
-With Kuma enabled, editors can ask for a database formula, a new view, changes to
-view or service filters, or Agent instructions. Click the blue **Ask Kuma** sparkle beside the setting. The section gains a blue
-outline and the right sidebar names the editor being used. Describe the change
-and press **Enter** or click the up arrow. Use **Shift+Enter** for another line.
-Each follow-up uses the latest draft. Formulas and Agent instructions appear in
-their editors. View and filter changes apply immediately. Remove the context chip
-to return to your regular conversation. Editor requests last for the current session.
+In a database or Agent editor, hover over the blue **Ask Kuma** sparkle to see what
+it can help with. Click it to open the sidebar, finish or replace the starter
+sentence, then press **Enter** or click the up arrow. Use **Shift+Enter** for a new
+line. The chip names the editor receiving the result.
+
+- In the new table or database form, describe what you want to track. Kuma creates
+  the structure and opens its first table. A name you entered in the form takes
+  precedence over the suggested name.
+- In a formula field, AI field prompt, or Agent instructions, Kuma fills in the
+  current draft for you to review and save.
+- In view creation, view filters, conditional row colors, and service filters,
+  Kuma applies the requested configuration. A new color rule is checked before
+  existing rules.
+
+Remove the context chip to return to your regular conversation.
 
 ## 2) Minimal enablement
 

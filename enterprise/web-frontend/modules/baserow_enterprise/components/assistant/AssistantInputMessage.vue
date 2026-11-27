@@ -68,6 +68,7 @@ export default {
     AssistantUiContext,
   },
   props: {
+    starter: { type: String, default: '' },
     sending: Boolean,
     sendDisabled: Boolean,
     maxlength: { type: Number, default: null },
@@ -90,7 +91,7 @@ export default {
   },
   data() {
     return {
-      currentMessage: '',
+      currentMessage: this.starter ? this.starter + ' ' : '',
       minRows: 1,
       maxRows: 6,
     }
@@ -98,7 +99,9 @@ export default {
   computed: {
     isSendDisabled() {
       return (
-        (!this.currentMessage.trim() && !this.isRunning) ||
+        (!this.isRunning &&
+          (!this.currentMessage.trim() ||
+            this.currentMessage.trim() === this.starter.trim())) ||
         this.isCancelling ||
         this.sending ||
         this.sendDisabled
@@ -108,6 +111,10 @@ export default {
   mounted() {
     this.calculateLineHeight()
     this.adjustHeight()
+    if (this.starter) {
+      const end = this.currentMessage.length
+      this.$refs.textarea.setSelectionRange(end, end)
+    }
   },
   methods: {
     setCurrentMessage(message) {
@@ -141,8 +148,7 @@ export default {
     },
     sendMessage() {
       const message = this.currentMessage.trim()
-      if (!message || this.isRunning || this.sending || this.sendDisabled)
-        return
+      if (this.isSendDisabled || this.isRunning) return
 
       this.$emit('send-message', message)
 

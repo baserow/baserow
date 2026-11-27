@@ -2,10 +2,10 @@
   <button
     v-if="available"
     ref="trigger"
-    v-tooltip="$t('kumaPrompt.askKuma')"
+    v-tooltip="tooltip"
     type="button"
     class="kuma-context-button"
-    :aria-label="$t('kumaPrompt.askKuma')"
+    :aria-label="tooltip"
     :aria-pressed="selected"
     @click.stop="attach"
   >
@@ -50,6 +50,7 @@ const available = computed(
     workspace.value?.id &&
     isAssistantAvailable(app, workspace.value)
 )
+const tooltip = computed(() => app.$i18n.t(`kumaPrompt.${props.action}Tooltip`))
 const id = useId()
 const trigger = ref(null)
 const selected = computed(() => editor.target.value?.id === id)
@@ -110,6 +111,7 @@ function attach() {
     id,
     workspaceId: workspace.value.id,
     action: props.action,
+    starter: app.$i18n.t(`kumaPrompt.${props.action}Starter`),
     get title() {
       return props.title
     },

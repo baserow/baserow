@@ -35,6 +35,7 @@
         ref="composer"
         :sending="busy"
         :send-disabled="!!target.blockedMessage"
+        :starter="target.starter"
         :maxlength="2000"
         @send-message="send"
       >
@@ -113,7 +114,10 @@ async function send(text) {
       target.workspaceId
     )
     if (!isCurrent(target)) return
-    const draft = response.result?.instructions ?? response.result?.formula
+    const draft =
+      response.result?.instructions ??
+      response.result?.formula ??
+      response.result?.ai_prompt
     if (draft !== undefined && !isEqual(parameters, target.parameters)) {
       error.value = app.$i18n.t('kumaPrompt.draftChanged')
       if (!composer.value.currentMessage) composer.value.setCurrentMessage(text)
@@ -122,10 +126,13 @@ async function send(text) {
     target.apply(response.result)
     target.undoable.value =
       target.action === 'update_service_filters' && response.changed
+    const confirmation = {
+      generate_formula: 'kumaPrompt.formulaDraftUpdated',
+      generate_ai_field_prompt: 'kumaPrompt.aiPromptDraftUpdated',
+      add_row_color: 'kumaPrompt.rowColorAdded',
+    }[target.action]
     const reply =
-      response.result?.formula !== undefined
-        ? app.$i18n.t('kumaPrompt.formulaDraftUpdated')
-        : response.summary || draft
+      response.summary || (confirmation ? app.$i18n.t(confirmation) : draft)
     if (reply) turns.value.push({ own: false, text: reply })
   } catch (err) {
     if (!err.handler) throw err

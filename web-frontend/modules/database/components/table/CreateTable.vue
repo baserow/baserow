@@ -22,6 +22,17 @@
         :default-name="getDefaultName()"
         @submitted="submitted"
       >
+        <template
+          v-if="!chosenType && !importInProgress"
+          #label-action="{ value }"
+        >
+          <CreateDatabaseStructurePrompt
+            :database="database"
+            :workspace="database.workspace"
+            :name="value"
+            @created="$emit('hide')"
+          />
+        </template>
         <component
           :is="importerComponent"
           :key="importerKey"
@@ -95,6 +106,8 @@
 </template>
 
 <script>
+import CreateDatabaseStructurePrompt from '@baserow/modules/database/components/CreateDatabaseStructurePrompt'
+
 import error from '@baserow/modules/core/mixins/error'
 import job from '@baserow/modules/core/mixins/job'
 import TableService from '@baserow/modules/database/services/table'
@@ -113,7 +126,12 @@ import { nextTick, useNuxtApp } from '#imports'
 
 export default {
   name: 'CreateTable',
-  components: { ImportErrorReport, TableForm, SimpleGrid },
+  components: {
+    CreateDatabaseStructurePrompt,
+    ImportErrorReport,
+    TableForm,
+    SimpleGrid,
+  },
   mixins: [error, job],
   props: {
     database: {

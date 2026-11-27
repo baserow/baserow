@@ -1,5 +1,6 @@
 """Explicit dispatch for targeted Kuma requests, without an action registry."""
 
+from baserow.contrib.database.models import Database
 from baserow.contrib.database.table.handler import TableHandler
 from baserow.contrib.database.views.handler import ViewHandler
 from baserow.contrib.integrations.local_baserow.service_filters.handler import (
@@ -16,11 +17,17 @@ def get_action_workspace(action, parameters):
     if action == "update_service_filters":
         target_type = get_target_type(parameters["kind"])
         return target_type.get_workspace(target_type.get_owner(parameters["id"]))
-    if action in ("generate_formula", "create_view"):
+    if action in ("generate_formula", "generate_ai_field_prompt", "create_view"):
         return TableHandler().get_table(parameters["table_id"]).database.workspace
-    if action == "edit_view_filters":
+    if action in ("edit_view_filters", "add_row_color"):
         return ViewHandler().get_view(parameters["view_id"]).table.database.workspace
-    if action == "generate_agent_instructions":
+    if action == "create_table":
+        return (
+            CoreHandler()
+            .get_application(parameters["database_id"], Database.objects.all())
+            .workspace
+        )
+    if action in ("generate_agent_instructions", "create_database"):
         return CoreHandler().get_workspace(parameters["workspace_id"])
     raise ValueError(f"Unsupported assistant action: {action}")
 

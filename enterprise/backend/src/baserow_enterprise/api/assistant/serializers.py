@@ -509,6 +509,27 @@ class ViewFilterActionParameters(serializers.Serializer):
     view_id = serializers.IntegerField(min_value=1)
 
 
+class AIFieldPromptParameters(TableActionParameters):
+    mode = serializers.ChoiceField(
+        choices=["simple", "advanced", "raw"], default="simple"
+    )
+    field_id = serializers.IntegerField(min_value=1, required=False, allow_null=True)
+    current = serializers.CharField(
+        max_length=100000, allow_blank=True, trim_whitespace=False
+    )
+    output_type = serializers.CharField(max_length=64)
+
+
+class CreateTableParameters(serializers.Serializer):
+    database_id = serializers.IntegerField(min_value=1)
+    name = serializers.CharField(max_length=160, allow_blank=True, default="")
+
+
+class CreateDatabaseParameters(serializers.Serializer):
+    workspace_id = serializers.IntegerField(min_value=1)
+    name = serializers.CharField(max_length=160, allow_blank=True, default="")
+
+
 class InstructionsActionParameters(serializers.Serializer):
     agent_name = serializers.CharField(required=False, allow_blank=True, max_length=255)
     workspace_id = serializers.IntegerField(min_value=1)
@@ -520,6 +541,10 @@ class InstructionsActionParameters(serializers.Serializer):
 ACTION_PARAMETERS = {
     "update_service_filters": ServiceFiltersRequestSerializer,
     "generate_formula": FormulaActionParameters,
+    "generate_ai_field_prompt": AIFieldPromptParameters,
+    "create_table": CreateTableParameters,
+    "create_database": CreateDatabaseParameters,
+    "add_row_color": ViewFilterActionParameters,
     "edit_view_filters": ViewFilterActionParameters,
     "create_view": TableActionParameters,
     "generate_agent_instructions": InstructionsActionParameters,

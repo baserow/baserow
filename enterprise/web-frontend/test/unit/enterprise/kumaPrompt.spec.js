@@ -62,10 +62,17 @@ async function open() {
 test('only shows an accessible icon until the editor is attached', async () => {
   await mount()
   const button = wrapper.get('.kuma-context-button')
-  expect(button.attributes('aria-label')).toBe('kumaPrompt.askKuma')
+  expect(button.attributes('aria-label')).toBe(
+    'kumaPrompt.generate_formulaTooltip'
+  )
   expect(button.text()).toBe('')
   expect(wrapper.find('textarea').exists()).toBe(false)
-  await open()
+  const input = await open()
+  expect(input.element.value).toBe('kumaPrompt.generate_formulaStarter ')
+  expect(input.element.selectionStart).toBe(input.element.value.length)
+  expect(wrapper.get('.assistant__send-button').element.disabled).toBe(true)
+  await input.trigger('keydown', { key: 'Enter' })
+  expect(runAction).not.toHaveBeenCalled()
   expect(button.attributes('aria-pressed')).toBe('true')
   expect(wrapper.get('.assistant-editor__chip').text()).toContain(
     'Database formula · Total'
