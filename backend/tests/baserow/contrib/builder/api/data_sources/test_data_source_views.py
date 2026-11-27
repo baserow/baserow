@@ -3306,6 +3306,66 @@ def test_update_data_source_rejects_mismatched_integration(
     assert service.integration_id == original_integration_id
 
 
+@pytest.mark.django_db
+@pytest.mark.parametrize("operation", ["create", "update"])
+@pytest.mark.parametrize("kind", ["other_builder", "other_workspace"])
+def test_data_source_answers_integration_of_another_application_as_missing(
+    api_client, data_fixture, kind, operation
+):
+    user, token = data_fixture.create_user_and_token()
+    page = data_fixture.create_builder_page(user=user)
+    database = data_fixture.create_database_application(
+        workspace=page.builder.workspace
+    )
+    table = data_fixture.create_database_table(database=database)
+    data_source = data_fixture.create_builder_local_baserow_list_rows_data_source(
+        page=page, integration_args={"authorized_user": user}
+    )
+    other_integration = _create_mismatched_integration(
+        data_fixture, kind, user, page.builder
+    )
+    missing_integration_id = 9999999
+
+    def request(integration_id):
+        # The table is one the user can read, in the builder's workspace, so only
+        # the integration is wrong.
+        payload = {"integration_id": integration_id, "table_id": table.id}
+        if operation == "create":
+            return api_client.post(
+                reverse("api:builder:data_source:list", kwargs={"page_id": page.id}),
+                {"type": "local_baserow_list_rows", **payload},
+                format="json",
+                HTTP_AUTHORIZATION=f"JWT {token}",
+            )
+        return api_client.patch(
+            reverse(
+                "api:builder:data_source:item",
+                kwargs={"data_source_id": data_source.id},
+            ),
+            payload,
+            format="json",
+            HTTP_AUTHORIZATION=f"JWT {token}",
+        )
+
+    # An integration of another application is answered like one that doesn't exist.
+    for integration_id in [other_integration.id, missing_integration_id]:
+        response = request(integration_id)
+        assert response.status_code == HTTP_400_BAD_REQUEST
+        assert response.json() == {
+            "error": "ERROR_REQUEST_BODY_VALIDATION",
+            "detail": {
+                "integration_id": [
+                    {
+                        "detail": f"The integration with ID {integration_id} does "
+                        "not exist.",
+                        "code": "invalid_integration",
+                    }
+                ]
+            },
+        }
+    assert DataSource.objects.filter(page=page).count() == 1
+
+
 def _create_foreign_integration_and_table(data_fixture, kind, user, builder):
     """
     Returns a `local_baserow` integration from another application than

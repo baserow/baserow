@@ -439,11 +439,11 @@ class BuilderWorkflowServiceActionType(
 
         # If we received any service values, prepare them.
         service_values = values.pop("service", None) or {}
+        page = values.get("page") or instance.page
+        service_values = service_type.resolve_integration(page.builder, service_values)
         prepared_service_values = service_type.prepare_values(
             service_values, user, service if instance else None
         )
-        page = values.get("page") or instance.page
-        service_type.check_integration(page.builder, prepared_service_values)
 
         # Update the service instance with any prepared service values.
         ServiceHandler().update_service(

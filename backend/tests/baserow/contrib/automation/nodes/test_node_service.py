@@ -6,9 +6,9 @@ from django.test.utils import CaptureQueriesContext
 
 import pytest
 
+from baserow.api.exceptions import RequestBodyValidationException
 from baserow.contrib.automation.nodes.exceptions import (
     AutomationNodeDoesNotExist,
-    AutomationNodeMisconfiguredService,
     AutomationNodeMissingOutput,
     AutomationNodeNotMovable,
 )
@@ -159,7 +159,7 @@ def test_create_node_rejects_integration_from_another_application(data_fixture):
     workflow = data_fixture.create_automation_workflow(user)
     other_integration = data_fixture.create_local_baserow_integration(user=user)
 
-    with pytest.raises(AutomationNodeMisconfiguredService) as exc:
+    with pytest.raises(RequestBodyValidationException) as exc:
         AutomationNodeService().create_node(
             user,
             automation_node_type_registry.get("local_baserow_create_row"),
@@ -170,10 +170,9 @@ def test_create_node_rejects_integration_from_another_application(data_fixture):
             service={"integration_id": other_integration.id},
         )
 
-    assert (
-        str(exc.value)
-        == f"The integration with ID {other_integration.id} is not related to the "
-        f"automation {workflow.automation_id}."
+    # Answered like an integration that doesn't exist.
+    assert exc.value.detail["detail"]["integration_id"][0]["detail"] == (
+        f"The integration with ID {other_integration.id} does not exist."
     )
 
 
@@ -192,7 +191,7 @@ def test_create_node_rejects_trashed_integration_from_another_application(
         other_user, other_automation.workspace, other_automation, other_integration
     )
 
-    with pytest.raises(AutomationNodeMisconfiguredService) as exc:
+    with pytest.raises(RequestBodyValidationException) as exc:
         AutomationNodeService().create_node(
             user,
             automation_node_type_registry.get("local_baserow_create_row"),
@@ -203,10 +202,9 @@ def test_create_node_rejects_trashed_integration_from_another_application(
             service={"integration_id": other_integration.id},
         )
 
-    assert (
-        str(exc.value)
-        == f"The integration with ID {other_integration.id} is not related to the "
-        f"automation {workflow.automation_id}."
+    # Answered like an integration that doesn't exist.
+    assert exc.value.detail["detail"]["integration_id"][0]["detail"] == (
+        f"The integration with ID {other_integration.id} does not exist."
     )
 
 
@@ -941,17 +939,16 @@ def test_update_node_rejects_integration_from_another_application(data_fixture):
     node = data_fixture.create_local_baserow_create_row_action_node(user=user)
     other_integration = data_fixture.create_local_baserow_integration(user=user)
 
-    with pytest.raises(AutomationNodeMisconfiguredService) as exc:
+    with pytest.raises(RequestBodyValidationException) as exc:
         AutomationNodeService().update_node(
             user,
             node.id,
             service={"integration_id": other_integration.id},
         )
 
-    assert (
-        str(exc.value)
-        == f"The integration with ID {other_integration.id} is not related to the "
-        f"automation {node.workflow.automation_id}."
+    # Answered like an integration that doesn't exist.
+    assert exc.value.detail["detail"]["integration_id"][0]["detail"] == (
+        f"The integration with ID {other_integration.id} does not exist."
     )
 
 

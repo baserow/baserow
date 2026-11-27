@@ -8,6 +8,7 @@ from baserow.core.registries import ImportExportConfig
 from baserow.core.services.handler import ServiceHandler
 from baserow.core.services.models import Service
 from baserow.core.services.registries import ServiceType, service_type_registry
+from baserow.core.trash.handler import TrashHandler
 from baserow.test_utils.pytest_conftest import FakeDispatchContext
 from baserow_premium.integrations.local_baserow.service_types import DispatchResult
 
@@ -562,9 +563,75 @@ def test_service_type_check_integration(data_fixture):
     service_type.check_integration(application, {"integration": None})
     service_type.check_integration(application, {"integration": integration})
 
-    for mismatched in [other_application_integration, other_type_integration]:
+    for mismatched, detail in [
+        (
+            other_application_integration,
+            f"The integration with ID {other_application_integration.id} does not "
+            "exist.",
+        ),
+        (
+            other_type_integration,
+            f"The integration with ID {other_type_integration.id} is not a "
+            "local_baserow integration.",
+        ),
+    ]:
         with pytest.raises(RequestBodyValidationException) as exc:
             service_type.check_integration(application, {"integration": mismatched})
-        assert exc.value.detail["detail"]["integration_id"][0]["code"] == (
-            "invalid_integration"
+        assert exc.value.detail["detail"]["integration_id"] == [
+            {"detail": detail, "code": "invalid_integration"}
+        ]
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("trashed", [False, True])
+def test_service_type_resolve_integration_answers_another_application_as_missing(
+    data_fixture, trashed
+):
+    service_type = service_type_registry.get("local_baserow_list_rows")
+    user = data_fixture.create_user()
+    application = data_fixture.create_builder_application(user=user)
+    integration = data_fixture.create_local_baserow_integration(application=application)
+    other_user = data_fixture.create_user()
+    other_application = data_fixture.create_builder_application(user=other_user)
+    other_integration = data_fixture.create_local_baserow_integration(
+        application=other_application
+    )
+    if trashed:
+        TrashHandler.trash(
+            other_user,
+            other_application.workspace,
+            other_application,
+            other_integration,
         )
+    missing_id = 9999999999999999
+
+    # An integration of the application is resolved, and nothing is left to resolve
+    # when no ID is given.
+    assert service_type.resolve_integration(
+        application, {"integration_id": integration.id, "table_id": 1}
+    ) == {"integration": integration, "table_id": 1}
+    assert service_type.resolve_integration(application, {"table_id": 1}) == {
+        "table_id": 1
+    }
+
+    details = {}
+    for integration_id in [other_integration.id, missing_id]:
+        with pytest.raises(RequestBodyValidationException) as exc:
+            service_type.resolve_integration(
+                application, {"integration_id": integration_id}
+            )
+        details[integration_id] = exc.value.detail["detail"]["integration_id"]
+
+    # The two answers differ only by the ID that was asked for.
+    assert details[other_integration.id] == [
+        {
+            "detail": f"The integration with ID {other_integration.id} does not exist.",
+            "code": "invalid_integration",
+        }
+    ]
+    assert details[missing_id] == [
+        {
+            "detail": f"The integration with ID {missing_id} does not exist.",
+            "code": "invalid_integration",
+        }
+    ]

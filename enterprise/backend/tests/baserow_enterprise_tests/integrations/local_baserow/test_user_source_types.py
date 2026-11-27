@@ -41,6 +41,7 @@ from baserow.core.registries import plugin_registry
 from baserow.core.user.exceptions import UserNotFound
 from baserow.core.user_sources.exceptions import UserSourceImproperlyConfigured
 from baserow.core.user_sources.handler import UserSourceHandler
+from baserow.core.user_sources.models import UserSource
 from baserow.core.user_sources.registries import (
     DEFAULT_USER_ROLE_PREFIX,
     user_source_type_registry,
@@ -2815,6 +2816,61 @@ def _create_user_source_with_integration_of_another_application(data_fixture):
         other_user, builder, "role", integration=integration
     )
     return token, builder, user_source
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("operation", ["create", "update"])
+def test_local_baserow_user_source_answers_integration_of_another_application_as_missing(
+    api_client, data_fixture, operation
+):
+    user, token = data_fixture.create_user_and_token()
+    workspace = data_fixture.create_workspace(user=user)
+    builder = data_fixture.create_builder_application(workspace=workspace)
+    user_source, _ = data_fixture.create_user_table_and_role(user, builder, "role")
+    database = data_fixture.create_database_application(workspace=workspace)
+    table = data_fixture.create_database_table(database=database)
+    other_user = data_fixture.create_user()
+    other_builder = data_fixture.create_builder_application(user=other_user)
+    other_integration = data_fixture.create_local_baserow_integration(
+        application=other_builder, authorized_user=other_user
+    )
+    missing_integration_id = 9999999
+
+    def request(integration_id):
+        # The table is one the user can read, in the builder's workspace, so only
+        # the integration is wrong.
+        payload = {"integration_id": integration_id, "table_id": table.id}
+        if operation == "create":
+            return api_client.post(
+                reverse("api:user_sources:list", kwargs={"application_id": builder.id}),
+                {"type": "local_baserow", "name": "test", **payload},
+                format="json",
+                HTTP_AUTHORIZATION=f"JWT {token}",
+            )
+        return api_client.patch(
+            reverse("api:user_sources:item", kwargs={"user_source_id": user_source.id}),
+            payload,
+            format="json",
+            HTTP_AUTHORIZATION=f"JWT {token}",
+        )
+
+    # An integration of another application is answered like one that doesn't exist.
+    for integration_id in [other_integration.id, missing_integration_id]:
+        response = request(integration_id)
+        assert response.status_code == HTTP_400_BAD_REQUEST
+        assert response.json() == {
+            "error": "ERROR_REQUEST_BODY_VALIDATION",
+            "detail": {
+                "integration_id": [
+                    {
+                        "detail": f"The integration with ID {integration_id} does "
+                        "not exist.",
+                        "code": "invalid_integration",
+                    }
+                ]
+            },
+        }
+    assert UserSource.objects.filter(application=builder).count() == 1
 
 
 @pytest.mark.django_db

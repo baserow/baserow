@@ -163,8 +163,8 @@ class DataSourceService:
             if not service_type.can_be_dispatched_as(DispatchTypes.DATA):
                 raise InvalidServiceTypeDispatchSource()
             service_type.raise_if_deactivated(page.builder.workspace)
+            kwargs = service_type.resolve_integration(page.builder, kwargs)
             prepared_values = service_type.prepare_values(kwargs, user)
-            service_type.check_integration(page.builder, prepared_values)
         else:
             prepared_values = kwargs
 
@@ -256,11 +256,11 @@ class DataSourceService:
                 (page or data_source.page).builder.workspace
             )
             service = data_source.service.specific if data_source.service_id else None
+            kwargs = service_type_for_preparation.resolve_integration(
+                data_source.page.builder, kwargs
+            )
             prepared_values = service_type_for_preparation.prepare_values(
                 kwargs, user, instance=service
-            )
-            service_type_for_preparation.check_integration(
-                data_source.page.builder, prepared_values
             )
         else:
             prepared_values = kwargs

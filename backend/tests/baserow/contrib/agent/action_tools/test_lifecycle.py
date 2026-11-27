@@ -260,6 +260,52 @@ def test_action_and_integration_cannot_cross_agent_boundary(
 
 
 @pytest.mark.django_db
+@override_settings(
+    INTEGRATION_ALLOW_SMTP_SERVICE_TO_USE_INSTANCE_SETTINGS=True,
+    EMAIL_HOST="smtp.example.com",
+)
+def test_instance_smtp_answers_a_foreign_integration_like_a_missing_one(
+    data_fixture, api_client, api_user
+):
+    """
+    Sending through the instance's server drops the integration of an SMTP
+    action, so another Agent's integration is only refused because it's validated
+    before the service prepares its values. It's answered like one that doesn't
+    exist, which says nothing about what the other Agent holds.
+    """
+
+    agent = data_fixture.create_agent_application(user=api_user)
+    other = data_fixture.create_agent_application(
+        user=api_user, workspace=agent.workspace
+    )
+    action = data_fixture.create_agent_action(agent=agent)
+    foreign = data_fixture.create_smtp_integration(application=other)
+    for integration_id in (foreign.id, 99999999):
+        response = api_client.patch(
+            action_url(agent, action),
+            {
+                "service": {
+                    "integration_id": integration_id,
+                    "use_instance_smtp_settings": True,
+                }
+            },
+        )
+        assert response.status_code == 400, response.json()
+        assert response.json() == {
+            "error": "ERROR_REQUEST_BODY_VALIDATION",
+            "detail": {
+                "integration_id": [
+                    {
+                        "detail": f"The integration with ID {integration_id} does "
+                        "not exist.",
+                        "code": "invalid_integration",
+                    }
+                ]
+            },
+        }
+
+
+@pytest.mark.django_db
 def test_trash_restore_collision_and_deletion_leave_approval_unchanged(data_fixture):
     user = data_fixture.create_user()
     agent = data_fixture.create_agent_application(user=user)
