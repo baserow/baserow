@@ -2,7 +2,7 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-    dependencies = [("agent", "0029_agent_channels")]
+    dependencies = [("agent", "0030_agentapplication_suggested_messages")]
 
     operations = [
         migrations.AddField(

@@ -1449,7 +1449,7 @@ def test_lists_show_completed_and_running_replies(
     assert sent.json()["reply"]["run_id"] == str(running.id)
     assert [c["run_id"] for c in idle + replying] == [None, str(running.id)]
     assert sent.json()["conversation"]["run_id"] == str(running.id)
-    assert outcome.json()["message"] == listed[1]
+    assert outcome.json()["message"] == {**listed[1], "has_tool_errors": False}
 
 
 @pytest.mark.django_db(transaction=True)
@@ -2054,7 +2054,7 @@ def test_a_reply_runs_its_reads_and_waits_for_approval_of_an_ask_first_call(
     listed = api_client.get(
         agent_url(agent, "messages", conversation_uuid=reply.conversation.uuid)
     ).json()["results"]
-    assert run.outcome == listed[-1]
+    assert run.outcome == {**listed[-1], "has_tool_errors": False}
     assert pending_count_updated.call_args_list == [
         call(ANY, application=agent, user_ids=[user.id])
     ]
