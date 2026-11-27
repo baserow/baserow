@@ -8,7 +8,7 @@ from django.utils.translation import gettext as _
 
 from asgiref.sync import sync_to_async
 from pydantic import Field
-from pydantic_ai import Agent, ModelRetry, TextOutput
+from pydantic_ai import Agent, ModelRetry, PromptedOutput, TextOutput
 from pydantic_ai.exceptions import AgentRunError
 
 from baserow.contrib.database.fields.operations import ListFieldsOperationType
@@ -157,20 +157,31 @@ class RowColorRule(BaseModel):
     filters: list[ViewFilterItemCreate]
 
 
+TABLE_DESIGN_FORMAT = (
+    "Use primary_field_name for the text primary field and omit it from fields. "
+    "List only the options relevant to each field type. For example, a relationship "
+    'is {"name":"Customer","type":"link_row","linked_table":"Customers"}. '
+    "Use the exact table name and define the link on one side only. "
+    'A single_select uses options like [{"value":"Open"},{"value":"Closed"}]. '
+    "In formulas reference columns by name, e.g. field('Quantity') * field('Price')."
+)
+
+
 table_agent = Agent(
     name="design_table",
-    output_type=TableItemCreate,
+    output_type=PromptedOutput(TableItemCreate),
     retries=3,
     instructions="Design one new Baserow table for the request. Use the supplied name if set. "
-    "Give it a text primary field and typed columns. Existing table names are available for links.",
+    "Give it typed columns. Existing table names are available for links. "
+    + TABLE_DESIGN_FORMAT,
 )
 database_agent = Agent(
     name="design_database",
-    output_type=DatabaseDesign,
+    output_type=PromptedOutput(DatabaseDesign),
     retries=3,
     instructions="Design a new database with named tables and typed columns for the request. "
-    "Use the supplied database name if set. Link related tables by their exact names. "
-    "Give each table a text primary field. Include only the tables needed.",
+    "Use the supplied database name if set. Include only the tables needed. "
+    + TABLE_DESIGN_FORMAT,
 )
 ai_prompt_agent = Agent(
     name="draft_ai_field_prompt",

@@ -4,6 +4,8 @@ import { useNuxtApp } from '#app'
 import { afterEach, expect, test, vi } from 'vitest'
 import { defineComponent, h, ref } from 'vue'
 
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 import KumaContextButton from '@baserow_enterprise/components/assistant/KumaContextButton'
 import AssistantEditorSession from '@baserow_enterprise/components/assistant/AssistantEditorSession'
 
@@ -15,13 +17,27 @@ vi.mock('@baserow_enterprise/utils/assistant', () => ({
   isAssistantAvailable: () => true,
 }))
 
+const { kumaPrompt } = JSON.parse(
+  readFileSync(
+    resolve(
+      process.cwd(),
+      '../enterprise/web-frontend/modules/baserow_enterprise/locales/en.json'
+    ),
+    'utf8'
+  )
+)
 let wrapper
 afterEach(() => {
   wrapper?.unmount()
   runAction.mockReset()
+  vi.restoreAllMocks()
 })
 
-async function mount({ enabled = true, blockedMessage = '' } = {}) {
+async function mount({
+  enabled = true,
+  blockedMessage = '',
+  action = 'generate_formula',
+} = {}) {
   const draft = ref('1')
   const host = defineComponent({
     setup() {
@@ -35,7 +51,7 @@ async function mount({ enabled = true, blockedMessage = '' } = {}) {
             title: 'Database formula',
             label: 'Total',
             placeholder: 'What should this field calculate?',
-            action: 'generate_formula',
+            action,
             parameters: { table_id: 7, current: draft.value },
             onCompleted: (result) => {
               draft.value = result.formula
@@ -80,6 +96,45 @@ test('only shows an accessible icon until the editor is attached', async () => {
   await wrapper.get('.assistant-editor__chip button').trigger('click')
   expect(wrapper.find('textarea').exists()).toBe(false)
 })
+
+test.each([
+  ['generate_formula', 'Calculate', 'the total price including tax'],
+  ['edit_view_filters', 'Show rows', 'where name contains davide'],
+  ['create_view', 'Create a view', 'of tasks sorted by due date'],
+  ['generate_agent_instructions', 'This Agent should', 'summarize new orders'],
+  ['update_service_filters', 'Return rows', 'where stock is below five'],
+  ['create_table', 'Create a table', 'for tracking book loans'],
+  ['create_database', 'Create a database', 'with events and registrations'],
+  [
+    'generate_ai_field_prompt',
+    'For each row,',
+    'summarize the customer feedback',
+  ],
+  ['add_row_color', 'Highlight rows', 'where the deadline has passed in red'],
+])(
+  'can continue the %s starter without editing it',
+  async (action, starter, continuation) => {
+    vi.spyOn(useNuxtApp().$i18n, 't').mockImplementation(
+      (key) => kumaPrompt[key.split('.')[1]] ?? key
+    )
+    await mount({ action })
+    const input = await open()
+    expect(input.element.value).toBe(starter + ' ')
+    expect(input.element.selectionStart).toBe(input.element.value.length)
+    expect(input.element.selectionEnd).toBe(input.element.value.length)
+    await input.trigger('keydown', { key: 'Enter' })
+    expect(runAction).not.toHaveBeenCalled()
+    runAction.mockResolvedValue({ result: {} })
+    await input.setValue(input.element.value + continuation)
+    await input.trigger('keydown', { key: 'Enter' })
+    expect(runAction).toHaveBeenCalledWith(
+      action,
+      starter + ' ' + continuation,
+      { table_id: 7, current: '1' },
+      5
+    )
+  }
+)
 
 test('sends the latest local draft and workspace on each revision', async () => {
   const draft = await mount()

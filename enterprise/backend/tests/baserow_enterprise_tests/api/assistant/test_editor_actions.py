@@ -1,3 +1,4 @@
+import json
 from unittest.mock import patch
 
 from django.test import override_settings
@@ -324,6 +325,47 @@ def test_generated_structure_is_openable_in_its_target(editor, action):
         ) == {"Projects", "People"}
     else:
         assert created.database_id == table.database_id and created.name == "My choice"
+
+
+def test_database_editor_repairs_invalid_json_design_and_creates_links(editor):
+    table, _, _, post = editor
+    design = {
+        "name": "Events",
+        "tables": [
+            {"name": "Events", "primary_field_name": "Event", "fields": []},
+            {
+                "name": "Registrations",
+                "primary_field_name": "Name",
+                "fields": [
+                    {"name": "Event", "type": "link_row", "linked_table": "Events"}
+                ],
+            },
+        ],
+    }
+    attempts = []
+
+    def respond(messages, info):
+        assert not info.output_tools
+        attempts.append(messages[-1].parts[0])
+        output = design if len(attempts) > 1 else {"name": "Events", "tables": []}
+        return ModelResponse(parts=[TextPart(json.dumps(output))])
+
+    with patch(f"{VIEWS}.resolve_assistant_model") as resolve:
+        profile = resolve.return_value
+        profile.create_model.return_value = FunctionModel(respond)
+        profile.get_settings.return_value = {}
+        response = post(
+            "create_database",
+            workspace_id=table.database.workspace_id,
+            prompt="Create a database with events and registrations linked to their event.",
+        )
+
+    assert response.status_code == 200, response.data
+    assert len(attempts) == 2 and isinstance(attempts[1], RetryPromptPart)
+    result = response.data["result"]
+    events = Table.objects.get(pk=result["table_id"], database_id=result["database_id"])
+    registrations = Table.objects.get(database=events.database, name="Registrations")
+    assert registrations.field_set.get(name="Event").specific.link_row_table == events
 
 
 def test_create_database_rolls_back_invalid_fields(editor):
