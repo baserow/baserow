@@ -30,6 +30,11 @@ from baserow.api.sessions import (
     set_untrusted_client_session_id_from_request_or_raise_if_invalid,
 )
 from baserow.config.db_routers import set_db_alias
+from baserow.contrib.database.api.tables.errors import ERROR_TABLE_DOES_NOT_EXIST
+from baserow.contrib.database.api.views.errors import ERROR_VIEW_DOES_NOT_EXIST
+from baserow.contrib.database.table.exceptions import TableDoesNotExist
+from baserow.contrib.database.table.models import Table
+from baserow.contrib.database.views.exceptions import ViewDoesNotExist
 from baserow.contrib.integrations.local_baserow.service_filters.exceptions import (
     ServiceFilterTargetDoesNotExist,
     ServiceFilterTargetNotSupported,
@@ -54,6 +59,7 @@ from baserow_enterprise.assistant.exceptions import (
     AssistantConfiguredModelNotAvailableError,
     AssistantModelDisabledError,
     AssistantModelNotSupportedError,
+    EditorGenerationFailed,
     ServiceFilterGenerationFailed,
 )
 from baserow_enterprise.assistant.handler import AssistantHandler
@@ -73,6 +79,7 @@ from baserow_enterprise.assistant.types import UIContext
 from .errors import (
     ERROR_ASSISTANT_CHAT_DOES_NOT_EXIST,
     ERROR_ASSISTANT_CONFIGURED_MODEL_NOT_AVAILABLE,
+    ERROR_ASSISTANT_EDITOR_GENERATION_FAILED,
     ERROR_ASSISTANT_MODEL_DISABLED,
     ERROR_ASSISTANT_MODEL_NOT_SUPPORTED,
     ERROR_ASSISTANT_SERVICE_FILTER_GENERATION_FAILED,
@@ -482,16 +489,27 @@ class AssistantActionsView(APIView):
                     "ERROR_ASSISTANT_CONFIGURED_MODEL_NOT_AVAILABLE",
                     "ERROR_ASSISTANT_SERVICE_FILTER_TARGET_NOT_SUPPORTED",
                     "ERROR_ASSISTANT_SERVICE_FILTER_GENERATION_FAILED",
+                    "ERROR_ASSISTANT_EDITOR_GENERATION_FAILED",
                 ]
             ),
             404: get_error_schema(
-                ["ERROR_ASSISTANT_SERVICE_FILTER_TARGET_DOES_NOT_EXIST"]
+                [
+                    "ERROR_ASSISTANT_SERVICE_FILTER_TARGET_DOES_NOT_EXIST",
+                    "ERROR_TABLE_DOES_NOT_EXIST",
+                    "ERROR_VIEW_DOES_NOT_EXIST",
+                    "ERROR_GROUP_DOES_NOT_EXIST",
+                ]
             ),
         },
     )
     @validate_body(AssistantActionRequestSerializer, return_validated=True)
     @map_exceptions(
         {
+            TableDoesNotExist: ERROR_TABLE_DOES_NOT_EXIST,
+            Table.DoesNotExist: ERROR_TABLE_DOES_NOT_EXIST,
+            ViewDoesNotExist: ERROR_VIEW_DOES_NOT_EXIST,
+            WorkspaceDoesNotExist: ERROR_GROUP_DOES_NOT_EXIST,
+            EditorGenerationFailed: ERROR_ASSISTANT_EDITOR_GENERATION_FAILED,
             UserNotInWorkspace: ERROR_USER_NOT_IN_GROUP,
             AssistantModelDisabledError: ERROR_ASSISTANT_MODEL_DISABLED,
             AssistantConfiguredModelNotAvailableError: (

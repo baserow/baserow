@@ -494,21 +494,50 @@ class ServiceFiltersRequestSerializer(serializers.Serializer):
         self.fields["kind"].choices = service_filter_target_type_registry.get_types()
 
 
+class TableActionParameters(serializers.Serializer):
+    table_id = serializers.IntegerField(min_value=1)
+
+
+class FormulaActionParameters(TableActionParameters):
+    field_name = serializers.CharField(max_length=255, allow_blank=True)
+    current = serializers.CharField(
+        max_length=100000, allow_blank=True, trim_whitespace=False
+    )
+
+
+class ViewFilterActionParameters(serializers.Serializer):
+    view_id = serializers.IntegerField(min_value=1)
+
+
+class InstructionsActionParameters(serializers.Serializer):
+    workspace_id = serializers.IntegerField(min_value=1)
+    current = serializers.CharField(
+        max_length=100000, allow_blank=True, trim_whitespace=False
+    )
+
+
+ACTION_PARAMETERS = {
+    "update_service_filters": ServiceFiltersRequestSerializer,
+    "generate_formula": FormulaActionParameters,
+    "edit_view_filters": ViewFilterActionParameters,
+    "create_view": TableActionParameters,
+    "generate_agent_instructions": InstructionsActionParameters,
+}
+
+
 class AssistantActionRequestSerializer(serializers.Serializer):
     """Validate the common envelope and the selected action's parameters."""
 
-    action = serializers.ChoiceField(choices=["update_service_filters"])
+    action = serializers.ChoiceField(choices=list(ACTION_PARAMETERS))
     prompt = serializers.CharField(max_length=2000)
     parameters = serializers.DictField()
 
     def validate(self, attrs):
-        # Explicit dispatch keeps this small without introducing another registry.
-        if attrs["action"] == "update_service_filters":
-            serializer = ServiceFiltersRequestSerializer(
-                data={**attrs["parameters"], "prompt": attrs["prompt"]}
-            )
-            serializer.is_valid(raise_exception=True)
-            attrs["parameters"] = serializer.validated_data
+        serializer = ACTION_PARAMETERS[attrs["action"]](
+            data={**attrs["parameters"], "prompt": attrs["prompt"]}
+        )
+        serializer.is_valid(raise_exception=True)
+        attrs["parameters"] = serializer.validated_data
         return attrs
 
 
