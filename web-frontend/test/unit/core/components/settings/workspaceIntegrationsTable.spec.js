@@ -174,10 +174,39 @@ describe('WorkspaceIntegrationsTable', () => {
     const wrapper = await mountTable()
 
     expect(rowNames(wrapper)).toEqual(['Shared data', 'Mail server'])
-    // A Local Baserow integration says who it runs as in every application.
-    expect(wrapper.text()).toContain(
-      'localBaserowIntegrationType.localBaserowWorkspaceHint'
+    // A Local Baserow integration shows who it runs as, with their avatar.
+    const details = wrapper.findAll('.workspace-integration-details-field')
+    expect(details[0].text()).toBe('AAda')
+    expect(details[0].find('.avatar--rounded.avatar--blue').exists()).toBe(true)
+    expect(details[1].find('.avatar').exists()).toBe(false)
+  })
+
+  test('shows the identity avatar of an integration that runs as one', async () => {
+    testApp.mock
+      .onGet(`application/${SHARED_ID}/integrations/`)
+      .replyOnce(200, [
+        localBaserowIntegration({
+          authorized_subject: {
+            id: 2,
+            type: 'auth.User',
+            user_type: 'identity',
+            name: 'Support bot',
+          },
+        }),
+      ])
+
+    const wrapper = await mountTable()
+
+    const details = wrapper.get('.workspace-integration-details-field')
+    expect(details.text()).toBe('Support bot')
+    expect(details.find('.identity-avatar .iconoir-hexagon').exists()).toBe(
+      true
     )
+    expect(
+      details
+        .get('.workspace-integration-details-field__subject')
+        .attributes('aria-label')
+    ).toBe('subjectType.identity')
   })
 
   test('fetches the shared application when the store does not have it', async () => {

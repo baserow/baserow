@@ -472,7 +472,7 @@ describe('Local baserow service types', () => {
           trashed: false,
         },
       })
-    ).toBe('localBaserowIntegrationType.localBaserowSubjectSummary')
+    ).toBe('Writer')
     expect(
       serviceType.getErrorMessage({
         service: { integration_id: 5, table_id: 99 },

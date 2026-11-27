@@ -44,26 +44,24 @@ export class LocalBaserowIntegrationType extends IntegrationType {
     return 'darker-blue'
   }
 
+  /**
+   * The name of the user or identity it runs as. Its avatar, shown next to it,
+   * tells which of the two it is.
+   */
   getSummary(integration) {
-    const subject = integration.authorized_subject
-    // A trashed identity can't authenticate, so the integration isn't configured.
-    if (!subject || subject.trashed) {
+    const subject = this.getSubject(integration)
+    if (!subject) {
       return this.app.$i18n.t('localBaserowIntegrationType.localBaserowNoUser')
     }
+    return this.app.$registry
+      .get('subject', subject.type)
+      .getDisplayName(subject)
+  }
 
-    const subjectType = this.app.$registry.get('subject', subject.type)
-    const displayName = subjectType.getDisplayName(subject)
-    if (subject.user_type === 'identity') {
-      return this.app.$i18n.t(
-        'localBaserowIntegrationType.localBaserowSubjectSummary',
-        { type: subjectType.getTypeDisplayName(subject), name: displayName }
-      )
-    }
-
-    return this.app.$i18n.t('localBaserowIntegrationType.localBaserowSummary', {
-      name: displayName,
-      username: subject.username,
-    })
+  getSubject(integration) {
+    const subject = integration.authorized_subject
+    // A trashed identity can't authenticate, so the integration isn't configured.
+    return subject && !subject.trashed ? subject : null
   }
 
   getWorkspaceHint(integration) {

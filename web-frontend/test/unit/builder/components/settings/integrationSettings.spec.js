@@ -42,6 +42,12 @@ const workspaceSmtpIntegration = {
   name: 'Team mail',
 }
 
+// Renders the row menu in place, and lets a test see it without positioning.
+const contextStub = {
+  template: '<div><slot /></div>',
+  methods: { show() {}, hide() {}, toggle() {} },
+}
+
 describe('Builder IntegrationSettings', () => {
   let testApp = null
   let store = null
@@ -60,7 +66,16 @@ describe('Builder IntegrationSettings', () => {
     await testApp.afterEach()
   })
 
-  const promoteButtons = (wrapper) => wrapper.findAll('.iconoir-share-android')
+  const menuButtons = (wrapper) =>
+    wrapper.findAll('.workspace-integrations-table__more')
+  const openMenu = async (wrapper) => {
+    await menuButtons(wrapper)[0].trigger('click')
+    await flushPromises()
+  }
+  const menuItem = (wrapper, label) =>
+    wrapper
+      .findAll('.context__menu-item-link')
+      .find((link) => link.text() === label)
 
   const mountSettings = async ({
     permissions,
@@ -98,6 +113,7 @@ describe('Builder IntegrationSettings', () => {
           $hasPermission: (operation) => permissions.includes(operation),
         },
         stubs: {
+          Context: contextStub,
           NuxtLink: {
             name: 'NuxtLink',
             props: ['to'],
@@ -120,17 +136,20 @@ describe('Builder IntegrationSettings', () => {
   }
 
   test.each([
-    [['workspace.create_integration'], 1],
-    [[], 0],
+    [['workspace.create_integration'], true],
+    [[], false],
   ])(
     'offers promotion to users who can create workspace integrations: %s',
-    async (permissions, buttonCount) => {
+    async (permissions, offered) => {
       const wrapper = await mountSettings({ permissions })
+      await openMenu(wrapper)
 
-      expect(promoteButtons(wrapper)).toHaveLength(buttonCount)
+      expect(!!menuItem(wrapper, 'workspaceIntegrations.edit')).toBe(true)
+      expect(!!menuItem(wrapper, 'promoteIntegration.action')).toBe(offered)
+      expect(!!menuItem(wrapper, 'workspaceIntegrations.delete')).toBe(true)
       expect(
         wrapper.findComponent({ name: 'PromoteIntegrationModal' }).exists()
-      ).toBe(buttonCount > 0)
+      ).toBe(offered)
     }
   )
 
@@ -141,7 +160,8 @@ describe('Builder IntegrationSettings', () => {
       show,
     })
 
-    await promoteButtons(wrapper)[0].trigger('click')
+    await openMenu(wrapper)
+    await menuItem(wrapper, 'promoteIntegration.action').trigger('click')
     await flushPromises()
 
     const modal = wrapper.findComponent({ name: 'PromoteIntegrationModal' })
@@ -154,39 +174,99 @@ describe('Builder IntegrationSettings', () => {
 
   const sectionTitles = (wrapper) =>
     wrapper
-      .findAll('.integration-settings__section-title')
+      .findAll('.integration-settings__group-title')
       .map((title) => title.text())
   const rows = (wrapper) =>
     wrapper.findAll('.integration-settings__integration')
 
-  test('lists the workspace integrations read-only above its own', async () => {
+  test('lists its own integrations above the read-only workspace ones', async () => {
     const wrapper = await mountSettings({
       permissions: ['workspace.create_integration'],
       workspaceIntegrations: [workspaceSmtpIntegration],
     })
 
     expect(sectionTitles(wrapper)).toEqual([
-      'applicationIntegrationSettings.workspaceIntegrations',
       'applicationIntegrationSettings.applicationIntegrations',
+      'applicationIntegrationSettings.workspaceIntegrations',
     ])
-    const [workspaceRow, ownRow] = rows(wrapper)
+    const [ownRow, workspaceRow] = rows(wrapper)
     expect(workspaceRow.text()).toContain('Team mail')
     expect(
-      workspaceRow.find('.integration-settings__integration-actions').exists()
+      workspaceRow.find('.workspace-integrations-table__more').exists()
     ).toBe(false)
     expect(ownRow.text()).toContain('Mail server')
-    expect(
-      ownRow.find('.integration-settings__integration-actions').exists()
-    ).toBe(true)
-    // Only its own can be made available to the whole workspace.
-    expect(promoteButtons(wrapper)).toHaveLength(1)
+    expect(ownRow.find('.workspace-integrations-table__more').exists()).toBe(
+      true
+    )
+    // The hint to share one is only for applications with no workspace ones.
+    expect(wrapper.find('.integration-settings__hint').exists()).toBe(false)
   })
 
-  test('has no sections while the workspace has no integrations', async () => {
+  test('has no groups while the workspace has no integrations', async () => {
     const wrapper = await mountSettings({ permissions: [] })
 
     expect(sectionTitles(wrapper)).toEqual([])
     expect(rows(wrapper)).toHaveLength(1)
+  })
+
+  test.each([
+    [
+      ['workspace.create_integration', 'workspace.list_integrations'],
+      true,
+      true,
+    ],
+    [['workspace.create_integration'], true, false],
+    [[], false, false],
+  ])(
+    'hints at sharing with the workspace when it has none: %s',
+    async (permissions, hinted, linked) => {
+      const wrapper = await mountSettings({ permissions })
+
+      const hint = wrapper.find('.integration-settings__hint')
+      expect(hint.exists()).toBe(hinted)
+      expect(
+        hint.exists() &&
+          hint.text().includes('applicationIntegrationSettings.shareHint')
+      ).toBe(hinted)
+      expect(hint.exists() && hint.find('button').exists()).toBe(linked)
+    }
+  )
+
+  test('opens the edit modal of the integration from its menu', async () => {
+    const wrapper = await mountSettings({ permissions: [] })
+    await openMenu(wrapper)
+
+    await menuItem(wrapper, 'workspaceIntegrations.edit').trigger('click')
+    await flushPromises()
+
+    const modal = wrapper.findComponent({
+      name: 'IntegrationCreateEditModal',
+    })
+    expect(modal.props('integration')).toMatchObject({ id: 11 })
+    expect(document.body.textContent).toContain('Mail server')
+  })
+
+  test('deletes the integration from its menu', async () => {
+    testApp.mock.onDelete('integration/11/').replyOnce(204)
+    const wrapper = await mountSettings({ permissions: [] })
+    await openMenu(wrapper)
+
+    await menuItem(wrapper, 'workspaceIntegrations.delete').trigger('click')
+    await flushPromises()
+
+    expect(testApp.mock.history.delete).toHaveLength(1)
+    expect(rows(wrapper)).toHaveLength(0)
+    expect(wrapper.text()).toContain('integrationSettings.noIntegrationMessage')
+  })
+
+  test('only says there are no integrations when there are none', async () => {
+    testApp.mock
+      .onGet(`application/${BUILDER_ID}/integrations/`)
+      .replyOnce(200, [])
+    const wrapper = await mountSettings({ permissions: [] })
+
+    expect(wrapper.find('table').exists()).toBe(false)
+    expect(wrapper.text()).toContain('integrationSettings.noIntegrationMessage')
   })
 
   test.each([
@@ -204,8 +284,7 @@ describe('Builder IntegrationSettings', () => {
         .findAll('button')
         .find(
           (button) =>
-            button.text() ===
-            'applicationIntegrationSettings.openWorkspaceSettings'
+            button.text() === 'applicationIntegrationSettings.manageInWorkspace'
         )
       expect(!!link).toBe(linked)
     }
@@ -221,8 +300,7 @@ describe('Builder IntegrationSettings', () => {
       .findAll('button')
       .find(
         (button) =>
-          button.text() ===
-          'applicationIntegrationSettings.openWorkspaceSettings'
+          button.text() === 'applicationIntegrationSettings.manageInWorkspace'
       )
     await button.trigger('click')
     await flushPromises()
@@ -254,7 +332,7 @@ describe('Builder IntegrationSettings', () => {
       ({ url }) => url === `application/${BUILDER_ID}/workspace-integrations/`
     )
     expect(workspaceRequests).toHaveLength(2)
-    expect(rows(wrapper)[0].text()).toContain('Team mail, now')
+    expect(rows(wrapper)[1].text()).toContain('Team mail, now')
   })
 
   test('shows a promoted integration in the workspace section', async () => {
@@ -272,7 +350,7 @@ describe('Builder IntegrationSettings', () => {
     expect(sectionTitles(wrapper)).toHaveLength(2)
     expect(rows(wrapper)).toHaveLength(1)
     expect(rows(wrapper)[0].text()).toContain('Mail server')
-    expect(promoteButtons(wrapper)).toHaveLength(0)
+    expect(menuButtons(wrapper)).toHaveLength(0)
     expect(wrapper.text()).toContain('integrationSettings.noIntegrationMessage')
   })
 })

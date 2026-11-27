@@ -1,29 +1,69 @@
-.integration-settings__integration {
-  display: flex;
-  padding: 10px 0;
-  overflow: hidden;
-  gap: 10px;
-}
+// The application's integrations settings reuse the look of the workspace
+// integrations table (`workspace_integrations_table.scss`); these are the parts
+// only it has: the group rows and the line under the table.
 
-.integration-settings__section-title {
-  margin: 24px 0 8px;
-  font-size: 16px;
-  line-height: 24px;
-  font-weight: 600;
-  color: $palette-neutral-1200;
-
-  &:first-of-type {
-    margin-top: 0;
-  }
-}
-
-.integration-settings__section-description {
-  margin-bottom: 8px;
+.integration-settings__description {
+  margin-bottom: 20px;
   color: $palette-neutral-900;
 }
 
-.integration-settings__integration-actions {
+.workspace-integrations-table .integration-settings__group th {
+  padding: 8px 16px;
+  background-color: $palette-neutral-25;
+  color: $palette-neutral-1200;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.integration-settings__group-content {
   display: flex;
   align-items: center;
-  gap: 4px;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.integration-settings__link {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: $palette-blue-500;
+  font: inherit;
+  font-weight: 500;
+  cursor: pointer;
+
+  &:hover {
+    color: $palette-blue-700;
+    text-decoration: underline;
+  }
+}
+
+.workspace-integrations-table td.integration-settings__empty {
+  color: $palette-neutral-900;
+}
+
+.integration-settings__hint {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 16px 0 0;
+  padding: 14px 16px;
+  border-radius: 8px;
+  background-color: $palette-neutral-50;
+  color: $palette-neutral-900;
+  font-size: 13px;
+  line-height: 20px;
+
+  p {
+    margin: 0;
+  }
+}
+
+.integration-settings__hint-icon {
+  display: flex;
+  flex-shrink: 0;
+  font-size: 16px;
+  color: $palette-neutral-1200;
 }

@@ -1,4 +1,17 @@
 .workspace-integration-details-field {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.workspace-integration-details-field__subject {
+  display: inline-flex;
+  flex-shrink: 0;
+}
+
+.workspace-integration-details-field__text {
+  min-width: 0;
   white-space: normal;
   overflow-wrap: anywhere;
 }
