@@ -60,6 +60,29 @@ def test_admin_can_delete_user(data_fixture):
 
 @pytest.mark.django_db
 @override_settings(DEBUG=True)
+def test_admin_deleting_user_sends_user_permanently_deleted(data_fixture):
+    admin_user = data_fixture.create_user(is_staff=True)
+    user_to_delete = data_fixture.create_user()
+    workspace_1 = data_fixture.create_workspace(user=user_to_delete)
+    workspace_2 = data_fixture.create_workspace(user=user_to_delete)
+    data_fixture.create_workspace(user=admin_user)
+    user_id = user_to_delete.id
+
+    with patch(
+        "baserow.core.admin.users.handler.user_permanently_deleted.send"
+    ) as mock_send:
+        UserAdminHandler().delete_user(admin_user, user_id)
+
+    mock_send.assert_called_once()
+    assert mock_send.call_args.kwargs["user_id"] == user_id
+    assert sorted(mock_send.call_args.kwargs["workspace_ids"]) == [
+        workspace_1.id,
+        workspace_2.id,
+    ]
+
+
+@pytest.mark.django_db
+@override_settings(DEBUG=True)
 def test_non_admin_cant_delete_user(data_fixture):
     handler = UserAdminHandler()
     non_admin_user = data_fixture.create_user(

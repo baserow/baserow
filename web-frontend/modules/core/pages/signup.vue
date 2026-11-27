@@ -77,7 +77,10 @@ import LoginButtons from '@baserow/modules/core/components/auth/LoginButtons'
 import LoginActions from '@baserow/modules/core/components/auth/LoginActions'
 import EmailNotVerified from '@baserow/modules/core/components/auth/EmailNotVerified.vue'
 import WorkspaceService from '@baserow/modules/core/services/workspace'
-import { getInvitationLinkToken } from '@baserow/modules/core/utils/invitationLink'
+import {
+  getInvitationLinkToken,
+  unsetInvitationLinkToken,
+} from '@baserow/modules/core/utils/invitationLink'
 import { EMAIL_VERIFICATION_OPTIONS } from '@baserow/modules/core/enums'
 
 definePageMeta({
@@ -196,6 +199,11 @@ const shouldShowAdminSignupPage = computed(() => {
 const next = (params) => {
   if (params?.email) {
     emailToVerify.value = params.email
+  }
+
+  // The new account joined through the link, so its token did its job.
+  if (invitationLink.value) {
+    unsetInvitationLinkToken(nuxtApp, invitationLink.value.slug)
   }
 
   if (

@@ -91,11 +91,22 @@ export default {
       const { workspace } = this.application
       return this.$hasPermission('identity.update', workspace, workspace.id)
     },
+    /**
+     * Whether a saved integration has nobody to act as, like after its user was
+     * deleted. A new integration has nobody yet either, but it is created for
+     * the current user.
+     */
+    isMissingSubject() {
+      return (
+        Boolean(this.defaultValues.id) && !this.defaultValues.authorized_subject
+      )
+    },
     initialSubjectName() {
       const subject = this.defaultValues.authorized_subject
-      // A trashed identity isn't selectable, so show nothing selected and let the
-      // user pick another subject.
-      if (subject?.trashed) {
+      // A trashed identity isn't selectable, and a saved integration without a
+      // subject acts as nobody, so show nothing selected and let the user pick
+      // a subject.
+      if (subject?.trashed || this.isMissingSubject) {
         return null
       }
       if (!subject) {
@@ -109,6 +120,9 @@ export default {
     },
     authenticationSubject() {
       const type = this.values.authorized_subject_type
+      if (this.values.authorized_subject_id === null && this.isMissingSubject) {
+        return null
+      }
       const id =
         type === UserSubjectType.getType() &&
         this.values.authorized_subject_id === null

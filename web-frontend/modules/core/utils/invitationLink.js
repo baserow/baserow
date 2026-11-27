@@ -1,4 +1,8 @@
-import { getToken, setToken } from '@baserow/modules/core/utils/auth'
+import {
+  getToken,
+  setToken,
+  unsetToken,
+} from '@baserow/modules/core/utils/auth'
 
 export const INVITATION_LINK_AUTHORIZATION_HEADER =
   'Baserow-Invitation-Link-Authorization'
@@ -14,6 +18,14 @@ const cookieKey = (slug) => `invitation_link_${slug}`
  */
 export const setInvitationLinkToken = (appOrContext, slug, token) =>
   setToken(appOrContext, token, cookieKey(slug))
+
+/**
+ * Forgets the token of an invitation link once the visitor got what the link
+ * gives, so that the next person who opens the link in this browser is asked
+ * for its password.
+ */
+export const unsetInvitationLinkToken = (appOrContext, slug) =>
+  unsetToken(appOrContext, cookieKey(slug))
 
 export const getInvitationLinkToken = async (appOrContext, slug) =>
   (await getToken(appOrContext, cookieKey(slug))) || null

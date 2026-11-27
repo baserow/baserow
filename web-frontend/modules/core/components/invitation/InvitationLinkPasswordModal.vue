@@ -21,14 +21,19 @@
         />
       </FormGroup>
       <div class="actions">
+        <!--
+          The links keep the focus in the password input on mousedown. Leaving
+          it shows the validation error, which moves the links down before the
+          click lands.
+        -->
         <ul class="action__links">
           <li v-if="hasPassword">
-            <a :disabled="loading" @click.prevent="save('')">
+            <a :disabled="loading" @mousedown.prevent @click.prevent="save('')">
               {{ $t('invitationLinkPasswordModal.remove') }}
             </a>
           </li>
           <li v-else>
-            <a :disabled="loading" @click.prevent="hide()">
+            <a :disabled="loading" @mousedown.prevent @click.prevent="hide()">
               {{ $t('action.cancel') }}
             </a>
           </li>

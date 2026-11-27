@@ -151,6 +151,7 @@ import {
   getInvitationLinkToken,
   isInvitationLinkPasswordRequired,
   setInvitationLinkToken,
+  unsetInvitationLinkToken,
 } from '@baserow/modules/core/utils/invitationLink'
 
 definePageMeta({
@@ -310,6 +311,8 @@ async function routeVisitor() {
     } else if (workspace && invitationLink.value.adds_member) {
       addsMember.value = true
     } else if (workspace) {
+      // The link has nothing more to give this member.
+      await unsetInvitationLinkToken(nuxtApp, slug)
       return await navigateToPage(
         { name: 'workspace', params: { workspaceId } },
         { replace: true }
@@ -333,6 +336,7 @@ async function join() {
     const { data: workspace } = await WorkspaceService(
       $client
     ).joinInvitationLink(slug, token.value)
+    await unsetInvitationLinkToken(nuxtApp, slug)
 
     // Clear workspace loaded state so it gets refetched on next page
     store.commit('workspace/SET_LOADED', false)

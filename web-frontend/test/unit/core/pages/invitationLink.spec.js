@@ -4,8 +4,18 @@ import { TestApp } from '@baserow/test/helpers/testApp'
 import { createWorkspace } from '@baserow/test/fixtures/workspaces'
 import InvitationLink from '@baserow/modules/core/pages/invitationLink.vue'
 
-const { navigateToMock } = vi.hoisted(() => ({ navigateToMock: vi.fn() }))
+const { navigateToMock, unsetTokenMock } = vi.hoisted(() => ({
+  navigateToMock: vi.fn(),
+  unsetTokenMock: vi.fn(),
+}))
 mockNuxtImport('navigateTo', () => navigateToMock)
+vi.mock(
+  '@baserow/modules/core/utils/invitationLink',
+  async (importOriginal) => ({
+    ...(await importOriginal()),
+    unsetInvitationLinkToken: unsetTokenMock,
+  })
+)
 
 describe('Invitation link page', () => {
   let testApp = null
@@ -16,6 +26,7 @@ describe('Invitation link page', () => {
     testApp.mock.onGet('/settings/').reply(200, {})
     createWorkspace(testApp.mock, { workspaceId: 1 })
     navigateToMock.mockReset()
+    unsetTokenMock.mockReset()
   })
 
   afterEach(async () => {
@@ -64,6 +75,40 @@ describe('Invitation link page', () => {
       { replace: true }
     )
   })
+
+  test('forgets the token of the link for a member it changes nothing for', async () => {
+    await mountWithLink('nothingtogive', { adds_member: false })
+
+    expect(unsetTokenMock).toHaveBeenCalledWith(
+      expect.anything(),
+      'nothingtogive'
+    )
+  })
+
+  test('forgets the token of the link once the member joined', async () => {
+    const wrapper = await mountWithLink('joined', { adds_member: true })
+    testApp.mock
+      .onPost('/workspaces/invitation-links/slug/joined/join/')
+      .reply(200, { id: 1 })
+    expect(unsetTokenMock).not.toHaveBeenCalled()
+
+    await wrapper.find('button').trigger('click')
+    await flushPromises()
+
+    expect(unsetTokenMock).toHaveBeenCalledWith(expect.anything(), 'joined')
+  })
+
+  test('keeps the token of the link when joining failed', async () => {
+    const wrapper = await mountWithLink('joinfailed', { adds_member: true })
+    testApp.mock
+      .onPost('/workspaces/invitation-links/slug/joinfailed/join/')
+      .reply(500)
+
+    await wrapper.find('button').trigger('click')
+    await flushPromises()
+
+    expect(unsetTokenMock).not.toHaveBeenCalled()
+  })
 })
 
 describe('Password protected invitation link page', () => {
@@ -73,6 +118,7 @@ describe('Password protected invitation link page', () => {
     testApp = new TestApp()
     testApp.mock.onGet('/settings/').reply(200, { allow_new_signups: true })
     navigateToMock.mockReset()
+    unsetTokenMock.mockReset()
   })
 
   afterEach(async () => {
@@ -143,6 +189,8 @@ describe('Password protected invitation link page', () => {
       'invitationLinkPassword.title'
     )
     expect(wrapper.text()).not.toContain('invitationLinkJoin.join')
+    // The signup still needs the token to join through the link.
+    expect(unsetTokenMock).not.toHaveBeenCalled()
   })
 
   test('shows an error for a wrong password', async () => {
