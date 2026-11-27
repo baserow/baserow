@@ -129,6 +129,7 @@ const props = defineProps({
   canDecide: { type: Boolean, default: false },
   /** Whether the viewer may also turn off Ask first for the held tools. */
   canAlwaysAllow: { type: Boolean, default: false },
+  canViewToolErrors: { type: Boolean, default: false },
   /** A decision about this reply's held steps is being saved. */
   deciding: { type: Boolean, default: false },
   /** The service type key of the trigger that started the conversation. */
@@ -240,11 +241,16 @@ function stepEntries(steps, approvals) {
 }
 
 // Stable arrays let text deltas skip rebuilding and re-rendering the steps.
-const steps = computed(() =>
-  fromPerson.value || !Array.isArray(shown.value.steps)
-    ? NO_STEPS
-    : shown.value.steps
-)
+const steps = computed(() => {
+  const steps = shown.value.steps
+  if (fromPerson.value || !Array.isArray(steps)) return NO_STEPS
+  const errors = props.canViewToolErrors && props.message.tool_errors
+  return errors
+    ? steps.map((step) =>
+        errors[step?.id] ? { ...step, error_message: errors[step.id] } : step
+      )
+    : steps
+})
 const approvals = computed(() =>
   fromPerson.value || !Array.isArray(shown.value.approvals)
     ? NO_APPROVALS
@@ -253,34 +259,7 @@ const approvals = computed(() =>
 const hasRunningStep = computed(() =>
   steps.value.some((step) => step.status === STEP_STATUS.RUNNING)
 )
-const groupedEntries = computed(() => stepEntries(steps.value, approvals.value))
-const awaitingText = computed(
-  () => shown.value.replying && !shown.value.content
-)
-const entries = computed(() => {
-  const items = groupedEntries.value
-  const last = items.at(-1)?.group
-  // A model may spend time choosing its next workspace read after the last one
-  // finishes. Keep the group active until text, a different step or a terminal event.
-  if (
-    last?.lines.length &&
-    last.status === STEP_STATUS.DONE &&
-    awaitingText.value
-  ) {
-    return [
-      ...items.slice(0, -1),
-      {
-        ...items.at(-1),
-        group: {
-          ...last,
-          status: STEP_STATUS.RUNNING,
-          title: t('toolPresentation.workspaceRunning'),
-        },
-      },
-    ]
-  }
-  return items
-})
+const entries = computed(() => stepEntries(steps.value, approvals.value))
 const outcome = computed(() =>
   replyOutcome(shown.value, store.getters['auth/getUserId'])
 )

@@ -212,13 +212,13 @@ def test_a_body_that_mixes_fixed_text_with_an_input_is_hidden(http_action):
     [
         ({"body": '{"order": '}, "not valid JSON"),
         ({"body": '{"total": NaN}'}, "not valid JSON"),
-        ({"body": '{"total": 1e999}'}, "too large"),
+        ({"body": '{"total": 1e999}'}, "not valid JSON"),
         (
             {"body": json.dumps({"note": "x" * HTTP_ACTION_MAX_REQUEST_BYTES})},
             "larger than 64 KB",
         ),
         ({"body": "{}", "trace": "a\r\nX-Injected: 1"}, "line break"),
-        ({"body": "{}", "trace": "a \u2192 b"}, "a header can't carry: \u2192"),
+        ({"body": "{}", "trace": "a \u2192 b"}, "unsupported character"),
     ],
 )
 def test_a_request_that_cannot_be_sent_is_refused_when_prepared(

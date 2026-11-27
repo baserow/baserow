@@ -7,14 +7,16 @@ from typing import TYPE_CHECKING, Any, Iterable
 
 from asgiref.sync import sync_to_async
 from loguru import logger
+from mcp.types import INVALID_PARAMS
 from pydantic_ai import RunContext, ToolReturn
 from pydantic_ai.tools import ToolDefinition
 from pydantic_ai.toolsets import AbstractToolset
 from pydantic_ai.toolsets.abstract import ToolsetTool
 from pydantic_core import SchemaValidator, core_schema
 
+from baserow.core.chat_runs.steps import tool_failure
 from baserow.core.db import with_usable_db_connection
-from baserow.core.tools.errors import ToolErrorCode, describe_failure
+from baserow.core.tools.errors import ToolError, ToolErrorCode, describe_failure
 
 from .client import (
     MAX_DESCRIPTION_CHARACTERS,
@@ -46,18 +48,17 @@ _ARGUMENTS_VALIDATOR = SchemaValidator(
 
 UNREACHABLE_MESSAGE = "The MCP server could not be reached. Try again later."
 REFUSED_MESSAGE = (
-    "The MCP server refused the Agent's credential. An editor of the Agent has to "
-    "update it."
+    "The MCP server refused the agent's credential. Ask an agent builder to update it."
 )
-MAX_ERROR_CHARACTERS = 2_000
+MCP_TOOL_FAILED = "The connected MCP server reported that the tool failed."
+MCP_INVALID_PARAMS = "The MCP server rejected the tool arguments."
 SWITCHED_OFF_MESSAGE = (
-    "An editor of the Agent switched this app off or removed it, so its tools "
-    "can't be used."
+    "This app was switched off or removed, so its tools can't be used."
 )
 CHECK_FAILED_MESSAGE = "Baserow could not check this app. Try again later."
 CHANGED_MESSAGE = (
-    "The MCP server changed this tool since it was turned on. An editor of the "
-    "Agent has to review it before it can be used."
+    "The MCP server changed this tool since it was turned on. An agent builder "
+    "has to review it before it can be used."
 )
 
 
@@ -195,10 +196,6 @@ class MCPServerSnapshot:
         return names
 
 
-def _error(message: str, code: ToolErrorCode) -> ToolReturn:
-    return ToolReturn(return_value={"error": message}, metadata={"error_code": code})
-
-
 class MCPServerToolset(AbstractToolset[Any]):
     """
     The turned-on tools of one MCP server, as pydantic-ai tools.
@@ -308,15 +305,17 @@ class MCPServerToolset(AbstractToolset[Any]):
                 self._server.integration_id,
                 describe_failure(exc),
             )
-            return _error(CHECK_FAILED_MESSAGE, ToolErrorCode.FAILED)
+            return tool_failure(ToolError(ToolErrorCode.FAILED, CHECK_FAILED_MESSAGE))
         if not switched_on:
-            return _error(SWITCHED_OFF_MESSAGE, ToolErrorCode.NOT_RUN)
+            return tool_failure(ToolError(ToolErrorCode.NOT_RUN, SWITCHED_OFF_MESSAGE))
         try:
             async with asyncio.timeout(MCP_REQUEST_DEADLINE):
                 async with open_session(self._server.connection) as session:
                     verified = await self._verify(session)
                     if not verified.get(snapshot.name):
-                        return _error(CHANGED_MESSAGE, ToolErrorCode.PERMISSION_DENIED)
+                        return tool_failure(
+                            ToolError(ToolErrorCode.PERMISSION_DENIED, CHANGED_MESSAGE)
+                        )
                     result = await session.call_tool(snapshot.name, tool_args)
         except Exception as exc:
             logger.info(
@@ -325,18 +324,22 @@ class MCPServerToolset(AbstractToolset[Any]):
                 describe_failure(exc),
             )
             if refused_credential(exc):
-                return _error(REFUSED_MESSAGE, ToolErrorCode.FAILED)
-            # The server answered: its message may tell the model what to fix.
+                return tool_failure(ToolError(ToolErrorCode.FAILED, REFUSED_MESSAGE))
             if error := protocol_error(exc):
-                return _error(
-                    error.error.message[:MAX_ERROR_CHARACTERS] or "The tool failed.",
-                    ToolErrorCode.FAILED,
+                code = error.error.code
+                failure = (
+                    ToolError(ToolErrorCode.INVALID_INPUT, MCP_INVALID_PARAMS)
+                    if code == INVALID_PARAMS
+                    else ToolError(ToolErrorCode.FAILED, MCP_TOOL_FAILED)
                 )
-            return _error(UNREACHABLE_MESSAGE, ToolErrorCode.FAILED)
+                return tool_failure(
+                    failure, f"The MCP server returned protocol error {code}."
+                )
+            return tool_failure(ToolError(ToolErrorCode.FAILED, UNREACHABLE_MESSAGE))
 
-        text = result_to_text(result)
         if result.isError:
-            return _error(text or "The tool failed.", ToolErrorCode.FAILED)
+            return tool_failure(ToolError(ToolErrorCode.FAILED, MCP_TOOL_FAILED))
         return ToolReturn(
-            return_value=text, metadata={"facts": {"server": self._server.name}}
+            return_value=result_to_text(result),
+            metadata={"facts": {"server": self._server.name}},
         )

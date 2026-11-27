@@ -106,11 +106,13 @@ def test_duplicate_copies_conversations_with_new_identifiers(
             role=AgentMessage.Role.ASSISTANT,
             status=ChatRunStatus.FAILED,
             error_code="timeout",
+            tool_errors={"call_1": "Private log reference"},
             steps=[
                 {
                     "id": "call_1",
                     "tool": "create_rows",
-                    "status": "done",
+                    "status": "failed",
+                    "error_message": "The request timed out.",
                     "changes_data": True,
                     "input": {"requested_count": 1},
                     "facts": {},
@@ -130,6 +132,9 @@ def test_duplicate_copies_conversations_with_new_identifiers(
     copied = CoreHandler().duplicate_application(copier, agent).specific
 
     assert conversation_values(copied) == conversation_values(agent)
+    assert not AgentMessage.objects.filter(
+        conversation__agent=copied, tool_errors__isnull=False
+    ).exists()
     assert not AgentReplyTranscript.objects.filter(
         reply__conversation__agent=copied
     ).exists()

@@ -21,15 +21,12 @@ from baserow.core.cache import local_cache
 from baserow.core.db import with_usable_db_connection
 from baserow.core.exceptions import PermissionDenied
 from baserow.core.integrations.handler import IntegrationHandler
-from baserow.core.services.exceptions import (
-    InvalidContextContentDispatchException,
-    InvalidContextDispatchException,
-)
+from baserow.core.services.exceptions import DispatchException
 from baserow.core.services.handler import ServiceHandler
 from baserow.core.tools import ToolContext
-from baserow.core.tools.errors import ToolInputError
 from baserow.core.types import Subject
 
+from .errors import classify_action_failure
 from .exceptions import AgentActionCallNotPrepared
 from .inputs import build_input_model
 from .registries import AgentActionType, agent_action_type_registry
@@ -190,17 +187,17 @@ class BoundActionTool:
         :raises ToolInputError: When the arguments don't resolve to valid values.
         """
 
-        try:
-            resolved_values = self.action_type.prepare(self.action, arguments)
-        except (
-            InvalidContextContentDispatchException,
-            InvalidContextDispatchException,
-        ) as exc:
-            raise ToolInputError(str(exc)) from exc
+        resolved_values = self.action_type.prepare(self.action, arguments)
         show_input(
             self.action_type.get_preview(self.action, resolved_values, arguments)
         )
         return resolved_values
+
+    def _failed_call(self, exc: Exception) -> ToolReturn:
+        if isinstance(exc, DispatchException):
+            error, diagnosis = classify_action_failure(self.action_type.type, exc)
+            return failed_call(self, exc, error=error, builder_message=diagnosis)
+        return failed_call(self, exc)
 
     def _get_identity(self, ctx: ToolContext) -> Subject | None:
         """
@@ -243,7 +240,7 @@ class BoundActionTool:
                     self.action, resolved_values
                 )
         except Exception as exc:
-            return failed_call(self, exc)
+            return self._failed_call(exc)
         raise ApprovalRequired(metadata={RESOLVED_VALUES_METADATA_KEY: held_values})
 
     @with_usable_db_connection
@@ -287,4 +284,4 @@ class BoundActionTool:
                     return_value=self.action_type.get_tool_result(self.action, result)
                 )
         except Exception as exc:
-            return failed_call(self, exc)
+            return self._failed_call(exc)

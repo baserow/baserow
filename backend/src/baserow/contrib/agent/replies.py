@@ -56,7 +56,12 @@ from baserow.core.chat_runs.constants import (
     ChatRunStopReason,
 )
 from baserow.core.chat_runs.models import ChatRunStatus
-from baserow.core.chat_runs.steps import ChatRunSteps, ToolCallInputEvent
+from baserow.core.chat_runs.steps import (
+    ChatRunSteps,
+    ToolCallDiagnosticEvent,
+    ToolCallInputEvent,
+    ToolFailureWithDiagnostic,
+)
 from baserow.core.chat_runs.types import ChatRunOutcome
 from baserow.core.generative_ai.constants import WEB_SEARCH_MAX_PER_REPLY
 from baserow.core.generative_ai.model_profiles import AGENT
@@ -335,12 +340,16 @@ class _HeldCallsToolset(WrapperToolset[None]):
         tool: ToolsetTool[None],
     ) -> Any:
         if not ctx.tool_call_approved and self.is_held(ctx):
-            return await sync_to_async(self.tools[name].hold_call)(
+            result = await sync_to_async(self.tools[name].hold_call)(
                 self.tool_ctx,
                 tool_args,
                 input_shower(ctx),
             )
-        return await super().call_tool(name, tool_args, ctx, tool)
+        else:
+            result = await super().call_tool(name, tool_args, ctx, tool)
+        if isinstance(result, ToolFailureWithDiagnostic):
+            return await result.report(ctx)
+        return result
 
 
 @dataclass
@@ -390,7 +399,10 @@ class _HeldMCPCallsToolset(WrapperToolset[None]):
             if preview := arguments_preview(tool_args):
                 await ctx.emit(ToolCallInputEvent(input=preview))
             raise ApprovalRequired()
-        return await super().call_tool(name, tool_args, ctx, tool)
+        result = await super().call_tool(name, tool_args, ctx, tool)
+        if isinstance(result, ToolFailureWithDiagnostic):
+            return await result.report(ctx)
+        return result
 
 
 class AgentResponder:
@@ -423,6 +435,7 @@ class AgentResponder:
         self._web_fetch_tool = web_fetch_tool() if request.web_fetch_enabled else None
         self._ask_person_tool = ask_person_tool() if request.may_ask_person else None
         self._response_calls: list[ToolCallPart] = []
+        self._tool_errors: dict[str, str] = {}
         self._invalid_call_ids: set[str] = set()
         self._mcp_toolsets = [
             MCPServerToolset(server) for server in request.mcp_servers
@@ -859,6 +872,10 @@ class AgentResponder:
             self._invalid_call_ids = set()
         elif isinstance(event, PartEndEvent) and isinstance(event.part, ToolCallPart):
             self._response_calls.append(event.part)
+        if isinstance(event, ToolCallDiagnosticEvent):
+            if step_id := self._steps.pending_step_id(event.tool_call_id):
+                self._tool_errors[step_id] = event.message
+            return
         waiting = False
         if isinstance(event, FunctionToolCallEvent):
             # Each call is validated before its event, and none runs before the last.
@@ -966,6 +983,7 @@ class AgentResponder:
                 provider_type=self._request.provider_type,
                 model_identifier=self._request.model_identifier,
                 steps=steps,
+                tool_errors=self._tool_errors,
             )
         return AgentReplyResult(
             text=unfinished_text
@@ -978,6 +996,7 @@ class AgentResponder:
             ),
             usage=to_jsonable_python(self._result.usage),
             steps=steps,
+            tool_errors=self._tool_errors,
             waiting_calls=waiting_calls,
             tool_keys={
                 call.tool_name: tool.approval_key

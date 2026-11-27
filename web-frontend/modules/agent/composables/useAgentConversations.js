@@ -5,7 +5,10 @@ import { uuid } from '@baserow/modules/core/utils/string'
 import { notifyIf } from '@baserow/modules/core/utils/error'
 import { ResponseErrorMessage } from '@baserow/modules/core/plugins/clientHandler'
 import ApplicationService from '@baserow/modules/core/services/application'
-import { isTerminalStatus } from '@baserow/modules/core/chatRuns/constants'
+import {
+  isTerminalStatus,
+  STEP_STATUS,
+} from '@baserow/modules/core/chatRuns/constants'
 import { AGENT_RUN_TYPE } from '@baserow/modules/agent/chatRunTypes'
 import AgentApplicationService from '@baserow/modules/agent/services/agentApplication'
 import { API_ERROR_CODE } from '@baserow/modules/agent/constants'
@@ -1079,8 +1082,15 @@ export function useAgentConversations(agent, configuration) {
       const saved = follower.view.message
       const row =
         saved && history?.items.find((message) => message.uuid === saved.uuid)
-      if (row) history.items = mergeMessages(history.items, [saved])
-      else if (conversation.uuid === selectedUuid.value)
+      if (row) {
+        history.items = mergeMessages(history.items, [saved])
+        // Older finish events only describe failures through their steps.
+        const hasDiagnostics =
+          saved.has_tool_errors ??
+          saved.steps?.some((step) => step?.status === STEP_STATUS.FAILED)
+        if (!canUpdateAgent.value || !hasDiagnostics) return
+      }
+      if (conversation.uuid === selectedUuid.value)
         refreshMessages(conversation.uuid)
       else if (history) history.stale = true
     },

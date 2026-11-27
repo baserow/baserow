@@ -9,6 +9,10 @@ from requests import exceptions as request_exceptions
 from rest_framework import serializers
 
 from advocate.exceptions import UnacceptableAddressException
+from baserow.contrib.integrations.slack.constants import (
+    SLACK_INVALID_AUTH,
+    SLACK_NO_TEXT,
+)
 from baserow.contrib.integrations.slack.integration_types import SlackBotIntegrationType
 from baserow.contrib.integrations.slack.models import SlackWriteMessageService
 from baserow.contrib.integrations.utils import send_http_request
@@ -199,8 +203,8 @@ class SlackWriteMessageServiceType(ServiceType):
             # The common codes. Full list:
             # https://docs.slack.dev/reference/methods/chat.postMessage/
             misconfigured_service_error_codes = {
-                "no_text": "The message text is missing.",
-                "invalid_auth": "Invalid bot user token.",
+                "no_text": SLACK_NO_TEXT,
+                "invalid_auth": SLACK_INVALID_AUTH,
                 "channel_not_found": "The channel #{channel} was not found.",
                 "not_in_channel": "Your app has not been invited to channel #{channel}.",
                 "rate_limited": "Your app has sent too many requests in a "

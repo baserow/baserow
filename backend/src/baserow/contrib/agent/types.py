@@ -306,6 +306,8 @@ class AgentReplyResult:
     """The calls held for the owner's approval, when the run paused."""
     tool_keys: dict[str, str] = field(default_factory=dict)
     """The approval key of each held MCP or action call's tool, by tool name."""
+    tool_errors: dict[str, str] = field(default_factory=dict)
+    """Builder-only diagnoses keyed by step ID, outside shared chat activity."""
     paused_run: AgentPausedRun | None = None
     """The paused run, to resume once its held calls are decided."""
 

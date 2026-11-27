@@ -628,6 +628,18 @@ class AgentMessageSerializer(serializers.ModelSerializer):
         return self.context.get("active_runs", {}).get(message.id)
 
 
+class AgentMessageWithToolErrorsSerializer(AgentMessageSerializer):
+    tool_errors = serializers.DictField(
+        child=serializers.CharField(),
+        required=False,
+        allow_null=True,
+        help_text="Failure details by step ID, available to builders of this agent.",
+    )
+
+    class Meta(AgentMessageSerializer.Meta):
+        fields = (*AgentMessageSerializer.Meta.fields, "tool_errors")
+
+
 class LeaveAgentConversationSerializer(serializers.Serializer):
     trashed = serializers.BooleanField(
         read_only=True,

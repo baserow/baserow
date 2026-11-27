@@ -186,4 +186,7 @@ class AgentChatRunType(ChatRunType):
                 application=conversation.agent,
                 user_ids=conversation.pending_count_user_ids,
             )
-        return dict(AgentMessageSerializer(reply).data)
+        return {
+            **AgentMessageSerializer(reply).data,
+            "has_tool_errors": bool(reply.tool_errors),
+        }

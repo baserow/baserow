@@ -743,6 +743,16 @@ class AgentService:
             raise_permission_exceptions=False,
         )
 
+    def can_view_tool_errors(self, user: AbstractUser, agent: AgentApplication) -> bool:
+        """Check diagnostic access after the caller has authorized the conversation."""
+        return user.is_authenticated and CoreHandler().check_permissions(
+            user,
+            UpdateApplicationOperationType.type,
+            workspace=agent.workspace,
+            context=agent,
+            raise_permission_exceptions=False,
+        )
+
     def can_read_conversation(self, user: AbstractUser, conversation_id: int) -> bool:
         """
         Check that the user sees the conversation, their own or a shared one, in an

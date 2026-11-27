@@ -194,15 +194,23 @@ describe('Agent replies', () => {
     expect(card.get('table').text()).toContain('Planning')
   })
 
-  test('keeps workspace reads active between calls until the reply starts writing', async () => {
+  test('shows workspace reads as completed while the agent considers its next call', async () => {
     const wrapper = await startReply()
     const read = toolStep('read-1', 'list_tables', 'running')
     await receive('run-1', 'step', read)
     await receive('run-1', 'step', { ...read, status: 'done' })
-    expect(wrapper.get('.chat-step-group').attributes('aria-busy')).toBe('true')
+    expect(wrapper.get('.chat-step-group').attributes('aria-busy')).toBe(
+      'false'
+    )
+    expect(
+      wrapper
+        .get('.chat-step-group__header .chat-step-group__status--visible')
+        .text()
+    ).toBe('toolPresentation.statusDone')
     expect(typing(wrapper)).toBe(false)
     await receive('run-1', 'step', toolStep('read-2', 'list_views', 'running'))
     expect(wrapper.findAll('.chat-step-group__line')).toHaveLength(2)
+    expect(wrapper.get('.chat-step-group').attributes('aria-busy')).toBe('true')
     await receive('run-1', 'step', toolStep('read-2', 'list_views', 'done'))
     await streamText('run-1', 'Here are the results')
     expect(wrapper.get('.chat-step-group').attributes('aria-busy')).toBe(
@@ -252,8 +260,10 @@ describe('Agent replies', () => {
       wrapper.find('.chat-step-group .iconoir-warning-triangle').exists()
     ).toBe(true)
     const reads = wrapper.findAll('.chat-step-group')[0]
-    expect(reads.find('button .iconoir-check-circle').exists()).toBe(true)
-    expect(reads.find('button .iconoir-warning-triangle').exists()).toBe(false)
+    const header = reads.get('.chat-step-group__header')
+    expect(header.find('.iconoir-check-circle').exists()).toBe(true)
+    expect(header.find('.iconoir-warning-triangle').exists()).toBe(false)
+    expect(reads.findAll('li .chat-tool-failure')).toHaveLength(1)
     expect(reads.findAll('li .iconoir-warning-triangle')).toHaveLength(1)
     expect(reads.findAll('li .iconoir-check-circle')).toHaveLength(2)
     expect(reads.get('button').classes()).not.toContain('button')

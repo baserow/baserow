@@ -33,136 +33,159 @@
           }}
         </slot>
       </span>
-      <Button
-        v-if="pending.length && canAlwaysAllow"
-        type="secondary"
-        size="small"
-        class="agent-approval__always-allow"
-        :disabled="locked"
-        :title="alwaysAllowTitle"
-        @click="approve(pending, { alwaysAllow: true })"
-      >
-        {{ alwaysAllowLabel }}
-      </Button>
       <div v-if="pending.length" class="agent-approval__actions">
+        <Button
+          v-if="canAlwaysAllow"
+          type="secondary"
+          size="small"
+          class="agent-approval__always-allow"
+          :disabled="locked"
+          :title="alwaysAllowTitle"
+          @click="approve(pending, { alwaysAllow: true })"
+        >
+          {{ $t('agent.alwaysAllow') }}
+        </Button>
         <Button
           type="secondary"
           size="small"
           :disabled="locked"
           @click="askToReject(pending, $event)"
         >
-          {{ $t(decidesAll ? 'agent.rejectAll' : 'agent.reject') }}
+          {{ $t('agent.rejectAll') }}
         </Button>
         <Button
-          ref="headerApprove"
           type="primary"
           size="small"
           :disabled="locked"
           @click="approve(pending)"
         >
-          {{ $t(decidesAll ? 'agent.approveAll' : 'agent.approve') }}
+          {{ $t('agent.approveAll') }}
         </Button>
       </div>
       <div v-else class="agent-approval__summary">
-        <span v-if="approvedCount">
-          {{ $t('agent.approvalApprovedCount', { count: approvedCount }) }}
-        </span>
-        <span v-if="rejectedCount">
-          {{ $t('agent.approvalRejectedCount', { count: rejectedCount }) }}
+        <span v-for="(count, label) in summary" :key="label">
+          {{ $t(label, { count }) }}
         </span>
       </div>
     </div>
     <ul class="agent-approval__items">
       <li v-for="item in items" :key="item.id" class="agent-approval__item">
-        <div class="agent-approval__item-head">
-          <span :id="itemTitleId(item)" class="agent-approval__item-title">
-            {{ item.title }}
-          </span>
-          <template v-if="item.status === APPROVAL_STATUS.APPROVED">
-            <span v-if="outcomeIcon(item)" class="agent-approval__step-status">
-              <i :class="outcomeIcon(item)" aria-hidden="true" />
-              {{ outcomeLabel(item, $t) }}
+        <div class="agent-approval__item-info">
+          <div class="agent-approval__item-head">
+            <span :id="itemTitleId(item)" class="agent-approval__item-title">
+              {{ item.title }}
             </span>
+            <ChatToolFailure
+              v-if="displayStatus(item) === STEP_STATUS.FAILED"
+              :reason="item.failureHint || $t('toolPresentation.failureFailed')"
+            />
+            <template v-else-if="item.status === APPROVAL_STATUS.APPROVED">
+              <span
+                v-if="outcomeIcon(item)"
+                class="agent-approval__step-status"
+                :class="{
+                  'agent-approval__step-status--running':
+                    item.stepStatus === STEP_STATUS.RUNNING,
+                }"
+              >
+                <i :class="outcomeIcon(item)" aria-hidden="true" />
+                {{ outcomeLabel(item, $t) }}
+              </span>
+              <span
+                v-else
+                class="agent-approval__decision agent-approval__decision--approved"
+              >
+                <i class="iconoir-check-circle" aria-hidden="true" />
+                {{ $t('agent.approved') }}
+              </span>
+            </template>
             <span
-              class="agent-approval__decision agent-approval__decision--approved"
+              v-else-if="item.status === APPROVAL_STATUS.REJECTED"
+              class="agent-approval__decision agent-approval__decision--rejected"
             >
-              <i class="iconoir-check-circle" aria-hidden="true" />
-              {{ $t('agent.approved') }}
+              <i class="iconoir-prohibition" aria-hidden="true" />
+              {{ $t('agent.rejected') }}
             </span>
-          </template>
-          <span
-            v-else-if="item.status === APPROVAL_STATUS.REJECTED"
-            class="agent-approval__decision agent-approval__decision--rejected"
+          </div>
+          <div v-if="item.links?.length" class="chat-step-group__links">
+            <NuxtLink v-for="link in item.links" :key="link.id" :to="link.to">{{
+              link.label
+            }}</NuxtLink>
+          </div>
+          <p
+            v-for="(error, index) in item.itemErrors"
+            :key="index"
+            class="agent-approval__item-note"
           >
-            <i class="iconoir-prohibition" aria-hidden="true" />
-            {{ $t('agent.rejected') }}
-          </span>
-          <div
-            v-else-if="pending.length > 1"
-            class="agent-approval__item-actions"
-          >
-            <Button
-              type="secondary"
-              size="small"
-              :disabled="locked"
-              :aria-describedby="itemTitleId(item)"
-              @click="askToReject([item], $event)"
+            {{ error.item ? `${error.item}: ${error.message}` : error.message }}
+          </p>
+          <div class="agent-approval__item-meta">
+            <button
+              v-if="item.input"
+              type="button"
+              class="agent-approval__details-toggle"
+              :aria-expanded="expanded.has(item.id)"
+              :aria-controls="detailsId(item)"
+              @click="toggleDetails(item)"
             >
-              {{ $t('agent.reject') }}
-            </Button>
-            <Button
-              :ref="(button) => setItemApprove(item, button)"
-              type="primary"
-              size="small"
-              :disabled="locked"
-              :aria-describedby="itemTitleId(item)"
-              @click="approve([item])"
-            >
-              {{ $t('agent.approve') }}
-            </Button>
+              <i
+                :class="
+                  expanded.has(item.id)
+                    ? 'iconoir-nav-arrow-down'
+                    : 'iconoir-nav-arrow-right'
+                "
+                aria-hidden="true"
+              />
+              {{
+                $t(
+                  expanded.has(item.id)
+                    ? 'agent.hideDetails'
+                    : 'agent.showDetails'
+                )
+              }}
+            </button>
+            <code class="agent-approval__tool">{{ item.tool }}</code>
           </div>
         </div>
-        <div v-if="item.links?.length" class="chat-step-group__links">
-          <NuxtLink v-for="link in item.links" :key="link.id" :to="link.to">{{
-            link.label
-          }}</NuxtLink>
-        </div>
-        <p v-if="item.failureHint" class="agent-approval__item-note">
-          {{ item.failureHint }}
-        </p>
-        <p
-          v-for="(error, index) in item.itemErrors"
-          :key="index"
-          class="agent-approval__item-note"
+        <div
+          v-if="item.status === APPROVAL_STATUS.PENDING"
+          class="agent-approval__item-actions"
+          :class="{
+            'agent-approval__item-actions--batch':
+              canAlwaysAllow && pending.length > 1,
+          }"
         >
-          {{ error.item ? `${error.item}: ${error.message}` : error.message }}
-        </p>
-        <div class="agent-approval__item-meta">
-          <button
-            v-if="item.input"
-            type="button"
-            class="agent-approval__details-toggle"
-            :aria-expanded="expanded.has(item.id)"
-            :aria-controls="detailsId(item)"
-            @click="toggleDetails(item)"
+          <Button
+            v-if="canAlwaysAllow && pending.length === 1"
+            class="agent-approval__always-allow"
+            type="secondary"
+            size="small"
+            :disabled="locked"
+            :aria-describedby="itemTitleId(item)"
+            :title="alwaysAllowTitle"
+            @click="approve([item], { alwaysAllow: true })"
           >
-            <i
-              :class="
-                expanded.has(item.id)
-                  ? 'iconoir-nav-arrow-down'
-                  : 'iconoir-nav-arrow-right'
-              "
-              aria-hidden="true"
-            />
-            {{
-              $t(
-                expanded.has(item.id)
-                  ? 'agent.hideDetails'
-                  : 'agent.showDetails'
-              )
-            }}
-          </button>
-          <code class="agent-approval__tool">{{ item.tool }}</code>
+            {{ $t('agent.alwaysAllow') }}
+          </Button>
+          <Button
+            type="secondary"
+            size="small"
+            :disabled="locked"
+            :aria-describedby="itemTitleId(item)"
+            @click="askToReject([item], $event)"
+          >
+            {{ $t('agent.reject') }}
+          </Button>
+          <Button
+            :ref="(button) => setItemApprove(item, button)"
+            type="primary"
+            size="small"
+            :disabled="locked"
+            :aria-describedby="itemTitleId(item)"
+            @click="approve([item])"
+          >
+            {{ $t('agent.approve') }}
+          </Button>
         </div>
         <ChatToolInput
           v-if="item.input && expanded.has(item.id)"
@@ -191,6 +214,7 @@ import { useI18n } from 'vue-i18n'
 import { useNuxtApp } from '#app'
 import { agentToolLabel } from '@baserow/modules/agent/agentTools'
 import AgentRejectModal from '@baserow/modules/agent/components/AgentRejectModal'
+import ChatToolFailure from '@baserow/modules/core/components/chat/ChatToolFailure'
 import ChatToolInput from '@baserow/modules/core/components/chat/ChatToolInput'
 import { STEP_STATUS } from '@baserow/modules/core/chatRuns/constants'
 import { stepStatusLabel } from '@baserow/modules/core/toolPresentationTypes'
@@ -206,7 +230,7 @@ const props = defineProps({
   canAlwaysAllow: { type: Boolean, default: false },
   /** A decision about these steps is being saved. */
   deciding: { type: Boolean, default: false },
-  /** Short button labels, for lists of several cards. */
+  /** Compact layout for the pending approvals menu. */
   compact: { type: Boolean, default: false },
   /** A visitor started the conversation through a channel. */
   startedByChannel: { type: Boolean, default: false },
@@ -216,7 +240,6 @@ const emit = defineEmits(['decide'])
 const agent = inject('agentApplication')
 const titleId = useId()
 const card = ref(null)
-const headerApprove = ref(null)
 const itemApproves = new Map()
 const rejectModal = ref(null)
 const expanded = reactive(new Set())
@@ -230,37 +253,49 @@ const pending = computed(() =>
 )
 const { $registry } = useNuxtApp()
 const { locale, t } = useI18n()
-const pendingToolNames = computed(() => [
-  ...new Set(
-    pending.value.map(
-      (item) => item.toolLabel || agentToolLabel(item.tool, $registry, t)
-    )
-  ),
-])
-const decidesAll = computed(() => !props.compact && pending.value.length > 1)
-const alwaysAllowLabel = computed(() => {
-  if (props.compact) return t('agent.alwaysAllow')
-  return pendingToolNames.value.length > 1
-    ? t('agent.alwaysAllowAllPendingTools')
-    : t('agent.alwaysAllowTools', { tools: pendingToolNames.value[0] })
+const toolLabel = (item) =>
+  item.toolLabel || agentToolLabel(item.tool, $registry, t)
+const alwaysAllowTitle = computed(() => {
+  const names = [...new Set(pending.value.map(toolLabel))]
+  const tools = new Intl.ListFormat(locale.value, {
+    type: 'conjunction',
+  }).format(names)
+  return t('agent.alwaysApproveTooltip', { tools })
 })
-const alwaysAllowTitle = computed(() =>
-  props.compact || pendingToolNames.value.length > 1
-    ? new Intl.ListFormat(locale.value, { type: 'conjunction' }).format(
-        pendingToolNames.value
-      )
-    : null
-)
-const countOf = (status) =>
-  props.items.filter((item) => item.status === status).length
-const approvedCount = computed(() => countOf(APPROVAL_STATUS.APPROVED))
-const rejectedCount = computed(() => countOf(APPROVAL_STATUS.REJECTED))
 const OUTCOME_ICONS = {
-  [STEP_STATUS.FAILED]: 'iconoir-warning-triangle',
+  [STEP_STATUS.RUNNING]: 'chat-step-group__spinner',
+  [STEP_STATUS.DONE]: 'iconoir-check-circle chat-step-group__icon--done',
   [STEP_STATUS.STOPPED]: 'iconoir-minus-circle',
 }
 const outcomeIcon = (item) =>
-  item.partial ? 'iconoir-warning-circle' : OUTCOME_ICONS[item.stepStatus]
+  item.partial
+    ? 'iconoir-warning-circle chat-step-group__icon--partial'
+    : OUTCOME_ICONS[item.stepStatus]
+function displayStatus(item) {
+  if (item.status !== APPROVAL_STATUS.APPROVED) return item.status
+  if (item.partial) return 'partial'
+  return item.stepStatus === STEP_STATUS.FAILED ||
+    OUTCOME_ICONS[item.stepStatus]
+    ? item.stepStatus
+    : item.status
+}
+const COUNT_LABELS = {
+  [APPROVAL_STATUS.APPROVED]: 'agent.approvalApprovedCount',
+  [APPROVAL_STATUS.REJECTED]: 'agent.approvalRejectedCount',
+  [STEP_STATUS.FAILED]: 'agent.approvalFailedCount',
+  [STEP_STATUS.RUNNING]: 'agent.approvalRunningCount',
+  [STEP_STATUS.DONE]: 'agent.approvalCompletedCount',
+  [STEP_STATUS.STOPPED]: 'agent.approvalInterruptedCount',
+  partial: 'agent.approvalPartialCount',
+}
+const summary = computed(() => {
+  const counts = {}
+  for (const item of props.items) {
+    const label = COUNT_LABELS[displayStatus(item)]
+    if (label) counts[label] = (counts[label] || 0) + 1
+  }
+  return counts
+})
 const outcomeLabel = ({ stepStatus, changesData, partial }, t) =>
   stepStatusLabel({ status: stepStatus, changesData, partial }, t)
 const itemTitleId = (item) => `${titleId}-${item.id}-title`
@@ -326,11 +361,8 @@ function settle() {
   if (active && active !== document.body && !card.value.contains(active)) {
     return
   }
-  const next =
-    pending.value.length > 1
-      ? itemApproves.get(pending.value[0].id)
-      : headerApprove.value
-  ;(next || card.value).focus()
+  const next = itemApproves.get(pending.value[0]?.id) || card.value
+  next.focus()
 }
 
 watch(

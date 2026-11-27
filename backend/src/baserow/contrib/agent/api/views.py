@@ -87,6 +87,7 @@ from .serializers import (
     AgentMessageCreateSerializer,
     AgentMessagePagination,
     AgentMessageSerializer,
+    AgentMessageWithToolErrorsSerializer,
     AgentOptionsQueryParamsSerializer,
     AgentPendingReplySerializer,
     AgentRunAsOptionSerializer,
@@ -720,7 +721,9 @@ class AgentMessagesView(
             ),
         ],
         responses={
-            200: get_example_pagination_serializer_class(AgentMessageSerializer),
+            200: get_example_pagination_serializer_class(
+                AgentMessageWithToolErrorsSerializer
+            ),
             **CONVERSATION_READ_ERRORS,
         },
     )
@@ -728,7 +731,8 @@ class AgentMessagesView(
     def get(self, request: Request, agent_id: int, conversation_uuid: UUID) -> Response:
         """Lists messages in pages from the newest, each in chronological order."""
 
-        conversation, messages = AgentService().list_messages(
+        service = AgentService()
+        conversation, messages = service.list_messages(
             request.user, agent_id, conversation_uuid
         )
         paginator = AgentMessagePagination(limit_page_size=100)
@@ -738,8 +742,13 @@ class AgentMessagesView(
         # After the page, so each reply it lists has its run or is read again as ended.
         active_runs = handler.get_active_reply_runs(conversation) if newest_page else {}
         page = handler.refresh_unfinished_replies(page, active_runs)
+        serializer = AgentMessageSerializer
+        if any(
+            message.tool_errors for message in page
+        ) and service.can_view_tool_errors(request.user, conversation.agent):
+            serializer = AgentMessageWithToolErrorsSerializer
         return paginator.get_paginated_response(
-            AgentMessageSerializer(
+            serializer(
                 list(reversed(page)), many=True, context={"active_runs": active_runs}
             ).data
         )

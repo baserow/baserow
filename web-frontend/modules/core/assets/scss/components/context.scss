@@ -35,6 +35,14 @@
   }
 }
 
+.context--error-message {
+  max-width: min(320px, calc(100vw - 24px));
+  padding: 12px;
+  font-size: 12px;
+  line-height: 18px;
+  color: $palette-neutral-1200;
+}
+
 .context--loading {
   display: flex;
   justify-content: center;

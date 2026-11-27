@@ -1,5 +1,8 @@
+from django.urls import reverse
+
 import pytest
 
+from baserow.contrib.agent.action_tools.errors import EMAIL_DELIVERY_UNCONFIRMED
 from baserow.contrib.agent.handler import AgentHandler
 from baserow.contrib.agent.operations import (
     CreateAgentConversationOperationType,
@@ -106,3 +109,60 @@ def test_an_editor_cannot_always_allow_and_nothing_is_decided(
     assert AgentHandler().get_tool_configuration(agent)["ask_first_tools"] == [
         "create_rows"
     ]
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("role_uid", ["VIEWER", "EDITOR", "BUILDER", "ADMIN"])
+def test_tool_diagnostics_require_build_access_on_this_agent(
+    enterprise_data_fixture, enable_enterprise, synced_roles, api_client, role_uid
+):
+    user = enterprise_data_fixture.create_user()
+    owner = enterprise_data_fixture.create_user()
+    workspace = enterprise_data_fixture.create_workspace(user=owner, members=[user])
+    roles = RoleAssignmentHandler()
+    roles.assign_role(user, workspace, Role.objects.get(uid="VIEWER"))
+    agent = enterprise_data_fixture.create_agent_application(workspace=workspace)
+    roles.assign_role(
+        user, workspace, Role.objects.get(uid=role_uid), scope=agent.application_ptr
+    )
+    api_client.force_authenticate(user)
+
+    def history(shared):
+        conversation = enterprise_data_fixture.create_agent_conversation(
+            user=owner, agent=agent, shared=shared
+        )
+        enterprise_data_fixture.create_agent_message(
+            conversation=conversation,
+            role="assistant",
+            status="completed",
+            steps=[
+                {
+                    "id": "step",
+                    "tool": "send_email",
+                    "status": "failed",
+                    "changes_data": True,
+                    "input": {},
+                    "facts": {},
+                    "error_code": EMAIL_DELIVERY_UNCONFIRMED.code,
+                    "error_message": EMAIL_DELIVERY_UNCONFIRMED.message,
+                }
+            ],
+            tool_errors={"step": "PRIVATE_DIAGNOSIS"},
+        )
+        return api_client.get(
+            reverse(
+                "api:agent:messages",
+                kwargs={"agent_id": agent.id, "conversation_uuid": conversation.uuid},
+            )
+        )
+
+    response = history(shared=True)
+    assert response.status_code == 200
+    message = response.json()["results"][0]
+    assert message["steps"][0]["error_message"] == EMAIL_DELIVERY_UNCONFIRMED.message
+    if role_uid in ("BUILDER", "ADMIN"):
+        assert message["tool_errors"] == {"step": "PRIVATE_DIAGNOSIS"}
+    else:
+        assert "tool_errors" not in message
+        assert b"PRIVATE_DIAGNOSIS" not in response.content
+    assert history(shared=False).status_code == 404

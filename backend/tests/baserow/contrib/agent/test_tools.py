@@ -1,5 +1,6 @@
 import asyncio
 import json
+import re
 import threading
 from dataclasses import dataclass
 from pathlib import Path
@@ -530,11 +531,16 @@ def test_an_unexpected_tool_failure_logs_its_text_only_in_debug_mode(
     result = call_tool(FailingAgentToolType(), workspace_data.ctx, {})
 
     assert result.metadata == {"error_code": "failed"}
-    assert [log.record["message"] for log in logs] == [
-        "Agent tool failing failed (RuntimeError: The embeddings service is unavailable.)"
+    detail = (
+        "RuntimeError: The embeddings service is unavailable."
         if debug
-        else "Agent tool failing failed (RuntimeError)"
-    ]
+        else "RuntimeError"
+    )
+    (log,) = logs
+    assert re.fullmatch(
+        rf"Agent tool failing failed \({re.escape(detail)}\) \[[0-9a-f]{{32}}\]",
+        log.record["message"],
+    )
 
 
 @pytest.mark.django_db

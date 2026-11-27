@@ -128,8 +128,8 @@ An approved call is denied instead of sent when:
   integration's name and place in the list;
 - it came back without its resolved values.
 
-"Always allow" only stops asking first for the action whose call was approved,
-while it is unchanged.
+"Always approve" lets the agent use each distinct tool in the pending selection
+again without asking while its configuration stays the same.
 
 Not covered: the instance's own SMTP settings can change between hold and approval.
 

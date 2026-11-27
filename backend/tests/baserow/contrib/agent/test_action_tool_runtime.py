@@ -1,8 +1,23 @@
 import json
+import re
+import socket
+from smtplib import SMTPAuthenticationError, SMTPNotSupportedError
 from uuid import uuid4
 
-import pytest
+from django.core.validators import validate_email
 
+import pytest
+from loguru import logger
+
+from baserow.contrib.agent.action_tools.errors import (
+    EMAIL_AUTH_ERROR,
+    EMAIL_CONNECTION_ERROR,
+    EMAIL_DELIVERY_UNCONFIRMED,
+    EMAIL_UNSUPPORTED_ERROR,
+    SMTP_DNS_DIAGNOSIS,
+    SMTP_REFUSED_DIAGNOSIS,
+    SMTP_TIMEOUT_DIAGNOSIS,
+)
 from baserow.contrib.agent.action_tools.registries import (
     AgentActionType,
     agent_action_type_registry,
@@ -16,13 +31,15 @@ from baserow.contrib.agent.constants import (
 from baserow.contrib.agent.handler import AgentHandler
 from baserow.contrib.agent.previews import StepPreview
 from baserow.contrib.agent.service import AgentService
+from baserow.core.chat_runs.journal import ChatRunJournal
 from baserow.core.chat_runs.models import ChatRun
 from baserow.core.identities.handler import IdentityHandler
 from baserow.core.services.types import DispatchResult
+from baserow.core.tools.errors import INTERNAL_ERROR_MESSAGE
 from baserow.core.trash.handler import TrashHandler
 
 from .test_replies import decide, pause, respond, tool_call
-from .utils import run_reply
+from .utils import agent_url, run_reply
 
 
 def email_call(name, call_id="email_call", **changes):
@@ -63,6 +80,95 @@ def test_email_runs_without_workspace_access_and_uses_shared_activity(
     assert "alice@example.com" in json.dumps(step["input"])
     assert "SMTP_SECRET_CANARY" not in json.dumps(reply.transcript.model_messages)
     assert "SMTP_SECRET_CANARY" not in json.dumps(reply.steps)
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "failure,public_error,diagnosis",
+    [
+        (socket.gaierror("private"), EMAIL_CONNECTION_ERROR, SMTP_DNS_DIAGNOSIS),
+        (
+            ConnectionRefusedError("private"),
+            EMAIL_CONNECTION_ERROR,
+            SMTP_REFUSED_DIAGNOSIS,
+        ),
+        (SMTPAuthenticationError(535, b"SMTP_SECRET_CANARY"), EMAIL_AUTH_ERROR, None),
+        (SMTPNotSupportedError("private"), EMAIL_UNSUPPORTED_ERROR, None),
+        (TimeoutError("private"), EMAIL_DELIVERY_UNCONFIRMED, SMTP_TIMEOUT_DIAGNOSIS),
+        (RuntimeError("SMTP_SECRET_CANARY"), None, None),
+    ],
+)
+def test_approved_smtp_failure_is_private_to_the_builder_history(
+    email_action, mocker, api_client, logs, failure, public_error, diagnosis
+):
+    user, agent, action, _, connection = email_action
+    integration = action.service.integration.specific
+    integration.host, integration.port = "private-smtp.example", 25879
+    integration.save()
+    log_error = mocker.spy(logger, "error")
+    action.ask_first = True
+    action.save()
+    received = respond(mocker, ({0: email_call(action.name)},))
+    journal = mocker.spy(ChatRunJournal, "emit")
+    reply = pause(user, agent)
+    step_id = reply.steps[0]["id"]
+    mocker.patch.object(
+        connection.return_value,
+        "send_messages",
+        side_effect=failure,
+    )
+    run = decide(user, reply, approved=True)
+    run_reply(run)
+    reply.refresh_from_db()
+    run.refresh_from_db()
+    assert run.outcome["has_tool_errors"] == bool(reply.tool_errors)
+    assert "tool_errors" not in run.outcome
+
+    step = reply.steps[0]
+    if public_error:
+        assert (step["error_code"], step["error_message"]) == (
+            public_error.code,
+            public_error.message,
+        )
+        assert public_error.message in repr(received[-1])
+        log_error.assert_not_called()
+    else:
+        diagnosis = reply.tool_errors[step_id]
+        reference = re.fullmatch(
+            r"RuntimeError \(log reference ([0-9a-f]{32})\)", diagnosis
+        )
+        assert reference and any(reference[1] in log for log in logs)
+        assert step["error_message"] == INTERNAL_ERROR_MESSAGE
+    expected_private = {step_id: diagnosis} if diagnosis else {}
+    assert (reply.tool_errors or {}) == expected_private
+    public = repr(
+        (
+            journal.call_args_list,
+            received[-1],
+            reply.transcript.model_messages,
+            reply.steps,
+        )
+    )
+    for private in (
+        "SMTP_SECRET_CANARY",
+        integration.host,
+        str(integration.port),
+        diagnosis,
+    ):
+        if private:
+            assert private not in public
+    api_client.force_authenticate(user)
+    response = api_client.get(
+        agent_url(agent, "messages", conversation_uuid=reply.conversation.uuid)
+    )
+    assert response.status_code == 200
+    saved = next(
+        message
+        for message in response.json()["results"]
+        if message["uuid"] == str(reply.uuid)
+    )
+    assert (saved.get("tool_errors") or {}) == expected_private
+    assert "SMTP_SECRET_CANARY" not in response.content.decode()
 
 
 @pytest.mark.django_db
@@ -435,8 +541,7 @@ def test_invalid_resolved_recipient_explains_the_input_error_without_sending(
     assert not reply.approvals.exists()
     assert reply.steps[0]["status"] == "failed"
     assert reply.steps[0]["error_code"] == "invalid_input"
-    assert "Enter a valid email address" in reply.steps[0]["error_message"]
-    assert "to_emails" in reply.steps[0]["error_message"]
+    assert reply.steps[0]["error_message"] == validate_email.message
     assert mailoutbox == []
     connection.assert_not_called()
 
