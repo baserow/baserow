@@ -39,6 +39,7 @@ describe('Builder workflow action types', () => {
       'csv_file_reader',
       'xls_file_reader',
       'slack_write_message',
+      'microsoft_teams_write_message',
     ])
   })
 

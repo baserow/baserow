@@ -87,6 +87,31 @@ def register_agent_channel_types():
     agent_channel_type_registry.register(WebsiteWidgetAgentChannelType())
 
 
+def register_microsoft_teams_features():
+    from baserow.contrib.automation.nodes.registries import (
+        automation_node_type_registry,
+    )
+    from baserow.contrib.builder.workflow_actions.registries import (
+        builder_workflow_action_type_registry,
+    )
+    from baserow.core.services.registries import service_type_registry
+    from baserow_enterprise.automation.nodes.node_types import (
+        MicrosoftTeamsWriteMessageActionNodeType,
+    )
+    from baserow_enterprise.builder.workflow_actions.workflow_action_types import (
+        MicrosoftTeamsWriteMessageActionType,
+    )
+    from baserow_enterprise.integrations.microsoft_teams.service_types import (
+        MicrosoftTeamsWriteMessageServiceType,
+    )
+
+    service_type_registry.register(MicrosoftTeamsWriteMessageServiceType())
+    builder_workflow_action_type_registry.register(
+        MicrosoftTeamsWriteMessageActionType()
+    )
+    automation_node_type_registry.register(MicrosoftTeamsWriteMessageActionNodeType())
+
+
 def register_semantic_search_features():
     from baserow.api.settings.registries import settings_data_registry
     from baserow.contrib.agent.action_tools.registries import (
@@ -539,6 +564,7 @@ class BaserowEnterpriseConfig(AppConfig):
         register_xls_file_reader_features()
         register_row_comment_trigger()
         register_agent_channel_types()
+        register_microsoft_teams_features()
         register_semantic_search_features()
 
         from baserow.contrib.builder.elements.registries import element_type_registry
