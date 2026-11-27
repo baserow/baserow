@@ -423,10 +423,9 @@ class AIAgentServiceType(ServiceType):
                 )
             return {"result": result}
         except AIUsageLimitExceeded as e:
-            # Not a `RuntimeDispatchException`, because a retry is refused too.
-            raise UnexpectedDispatchException(
-                f"AI prompt execution failed: {str(e)}"
-            ) from e
+            # Not a `RuntimeDispatchException`, because a retry is refused too. The
+            # message of the refusal is meant for the user, so it's passed on as is.
+            raise UnexpectedDispatchException(str(e)) from e
         except GenerativeAIPromptError as e:
             raise RuntimeDispatchException(
                 f"AI prompt execution failed: {str(e)}"

@@ -2368,7 +2368,7 @@ def test_ai_agent_service_dispatch_does_not_retry_a_refused_request(
 
     # A `RuntimeDispatchException` would be retried by the automation runner.
     assert not isinstance(exc_info.value, RuntimeDispatchException)
-    assert "No credits left." in str(exc_info.value)
+    assert str(exc_info.value) == "No credits left."
 
 
 def test_ai_agent_service_usage_is_attributed_to_the_builder_action_or_the_run():

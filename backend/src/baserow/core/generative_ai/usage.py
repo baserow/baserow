@@ -9,10 +9,13 @@ the request by raising `AIUsageLimitExceeded`. Once the model has responded,
 Any other error of a receiver is logged and never fails the request, so that a
 broken plugin can't break the AI features.
 
-Both are sent per model request by `UsageReportingModel`, which wraps every model
-that's prompted. The code that knows what the AI is used for, like the AI field or
-the AI agent node, describes it with the `ai_usage_context` context manager. It's
-picked up by every request made within it.
+Both are sent per model request by `UsageReportingModel`, which wraps the model
+of `GenerativeAIModelType.prompt` and of an agent reply. Code that builds a model
+with `get_ai_model` directly isn't reported, which is deliberate for the Kuma
+assistant and for testing the tools of a provider's model. The code that knows
+what the AI is used for, like the AI field or the AI agent node, describes it with
+the `ai_usage_context` context manager. It's picked up by every request made
+within it.
 
 Code that prompts models from threads that must not query the database, like the
 workers of the AI field, marks those requests with

@@ -51,13 +51,32 @@ class GenerateAIValuesJobPluginDataField(serializers.Field):
     keyed by plugin type.
     """
 
+    context_key = "generate_ai_values_jobs_plugin_data"
+
     def __init__(self, **kwargs):
         super().__init__(source="*", read_only=True, **kwargs)
 
     def to_representation(self, job) -> dict:
+        jobs = self.context.get("jobs")
+        if jobs is None:
+            plugin_data = self._get_plugin_data([job])
+        else:
+            # The jobs are listed, and polled while they run, so the plugins are
+            # asked once for all of them. It's kept in the context that the
+            # serializers of the listed jobs share.
+            plugin_data = self.context.get(self.context_key)
+            if plugin_data is None:
+                plugin_data = self._get_plugin_data(
+                    [other for other in jobs if isinstance(other, type(job))]
+                )
+                self.context[self.context_key] = plugin_data
+        return plugin_data.get(str(job.id), {})
+
+    @staticmethod
+    def _get_plugin_data(jobs) -> dict:
         return get_ai_usage_plugin_data(
-            GENERATE_AI_VALUES_JOB_USAGE_REFERENCE, [job.id]
-        ).get(str(job.id), {})
+            GENERATE_AI_VALUES_JOB_USAGE_REFERENCE, [job.id for job in jobs]
+        )
 
 
 class GenerateAIValuesJobFiltersSerializer(serializers.Serializer):

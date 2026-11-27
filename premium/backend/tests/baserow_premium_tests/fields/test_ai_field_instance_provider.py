@@ -709,7 +709,9 @@ def test_a_job_includes_the_data_of_plugins(premium_data_fixture, api_client):
 
 @pytest.mark.django_db
 @pytest.mark.field_ai
-def test_listing_jobs_includes_the_data_of_plugins(premium_data_fixture, api_client):
+def test_listing_jobs_gets_the_data_of_plugins_once_per_page(
+    premium_data_fixture, api_client
+):
     user, token = premium_data_fixture.create_user_and_token(
         has_active_premium_license=True
     )
@@ -725,14 +727,18 @@ def test_listing_jobs_includes_the_data_of_plugins(premium_data_fixture, api_cli
         ai_prompt="'Hello'",
     )
 
+    calls = []
+
     class CostPlugin(Plugin):
         type = "cost"
 
         def get_ai_usage_plugin_data(self, reference_type, reference_ids):
+            calls.append((reference_type, reference_ids))
             return {reference_id: {"credits": 2} for reference_id in reference_ids}
 
-    for _ in range(2):
-        GenerateAIValuesJob.objects.create(user=user, field=field)
+    jobs = [
+        GenerateAIValuesJob.objects.create(user=user, field=field) for _ in range(3)
+    ]
 
     with patch.dict(plugin_registry.registry, {"cost": CostPlugin()}):
         response = api_client.get(
@@ -742,4 +748,8 @@ def test_listing_jobs_includes_the_data_of_plugins(premium_data_fixture, api_cli
     assert response.status_code == HTTP_200_OK
     assert [job["plugin_data"] for job in response.json()["jobs"]] == [
         {"cost": {"credits": 2}}
-    ] * 2
+    ] * 3
+    # Not once per job, because the list is polled while jobs run.
+    assert len(calls) == 1
+    assert calls[0][0] == "generate_ai_values_job"
+    assert sorted(calls[0][1]) == sorted(str(job.id) for job in jobs)
