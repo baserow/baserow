@@ -6,7 +6,11 @@ from django.urls import reverse
 import pytest
 
 from baserow.contrib.integrations.oauth_account.receivers import oauth_account_models
+from baserow.core.exceptions import ApplicationOperationNotSupported
 from baserow.core.handler import CoreHandler
+from baserow.core.integrations.handler import IntegrationHandler
+from baserow.core.integrations.models import Integration
+from baserow.core.integrations.service import IntegrationService
 from baserow.core.models import Application
 from baserow.core.registries import (
     ApplicationType,
@@ -587,3 +591,29 @@ def test_trashed_integrations_forget_the_tokens_too(data_fixture, fake_oauth):
         restored = fake_oauth.model.objects_and_trash.get(id=integration.id)
         assert restored.refresh_token == ""
         assert restored.access_token == ""
+
+
+@pytest.mark.django_db
+def test_an_account_isnt_shared_with_the_workspace(data_fixture, fake_oauth):
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    shared_application = data_fixture.create_shared_application(workspace=workspace)
+    builder = data_fixture.create_builder_application(workspace=workspace)
+    integration = fake_oauth.create(application=builder, connected_by=user)
+
+    # Everyone using a workspace integration would act as the account.
+    with pytest.raises(ApplicationOperationNotSupported):
+        IntegrationService().update_integration(
+            user,
+            IntegrationHandler().get_integration_for_update(integration.id),
+            application_id=shared_application.id,
+        )
+    assert Integration.objects.get(id=integration.id).application_id == builder.id
+
+    with pytest.raises(ApplicationOperationNotSupported):
+        IntegrationService().create_integration(
+            user, fake_oauth.type, shared_application
+        )
+    assert FAKE_TYPE not in IntegrationHandler().get_workspace_integration_types(
+        builder
+    )

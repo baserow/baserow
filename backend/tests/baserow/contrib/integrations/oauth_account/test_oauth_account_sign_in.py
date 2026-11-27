@@ -113,6 +113,18 @@ def test_only_oauth_account_types_have_sign_in_endpoints(
 
 
 @pytest.mark.django_db
+def test_start_is_refused_for_the_workspace(api_client, data_fixture, fake_oauth):
+    user, token = data_fixture.create_user_and_token()
+    workspace = data_fixture.create_workspace(user=user)
+    shared_application = data_fixture.create_shared_application(workspace=workspace)
+
+    response = start(api_client, token, application_id=shared_application.id)
+
+    assert response.status_code == 400
+    assert response.json()["error"] == "ERROR_APPLICATION_OPERATION_NOT_SUPPORTED"
+
+
+@pytest.mark.django_db
 def test_start_is_refused_when_the_provider_isnt_set_up(
     api_client, data_fixture, fake_oauth
 ):

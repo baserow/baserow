@@ -6,6 +6,7 @@ from django.urls import URLResolver
 
 from rest_framework import serializers
 
+from baserow.core.application_types import SharedApplicationType
 from baserow.core.integrations.types import IntegrationDict
 from baserow.core.models import Application, WorkspaceUser
 from baserow.core.registries import ImportExportConfig
@@ -103,6 +104,15 @@ class OAuthAccountIntegrationTypeMixin:
         # The sign-in endpoints are shared by every OAuth account type, and
         # registered once by the integrations plugin.
         return []
+
+    def supports_application_type(self, application_type) -> bool:
+        """
+        Not shared with the workspace for now: a workspace integration would let
+        everyone who can use it act as the account that signed in. It can't be
+        promoted, nor created at the workspace level.
+        """
+
+        return application_type.type != SharedApplicationType.type
 
     def enhance_queryset(self, queryset):
         return queryset.select_related("connected_by")
