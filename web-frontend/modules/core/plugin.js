@@ -27,6 +27,7 @@ import {
   GenerativeAIWorkspaceSettingsType,
   SnapshotsWorkspaceSettingsType,
   IntegrationsWorkspaceSettingsType,
+  InvitationLinksWorkspaceSettingsType,
 } from '@baserow/modules/core/workspaceSettingsTypes'
 import { SharedApplicationType } from '@baserow/modules/core/applicationTypes'
 import {
@@ -253,6 +254,10 @@ export default defineNuxtPlugin({
     registry.register(
       'workspaceSettings',
       new IntegrationsWorkspaceSettingsType(context)
+    )
+    registry.register(
+      'workspaceSettings',
+      new InvitationLinksWorkspaceSettingsType(context)
     )
 
     registry.register('generativeAIModel', new OpenAIModelType(context))

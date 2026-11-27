@@ -1,9 +1,11 @@
 import { describe, expect, test, vi } from 'vitest'
 
 import AIProviderWorkspaceSettings from '@baserow/modules/core/components/workspace/AIProviderWorkspaceSettings'
+import InvitationLinksTable from '@baserow/modules/core/components/settings/invitationLinks/InvitationLinksTable'
 import {
   GenerativeAIWorkspaceSettingsType,
   IntegrationsWorkspaceSettingsType,
+  InvitationLinksWorkspaceSettingsType,
   SnapshotsWorkspaceSettingsType,
 } from '@baserow/modules/core/workspaceSettingsTypes'
 
@@ -54,5 +56,39 @@ describe('IntegrationsWorkspaceSettingsType', () => {
     )
     hasPermission.mockReturnValue(false)
     expect(settingsType.isEnabled(workspace)).toBe(false)
+  })
+})
+
+describe('InvitationLinksWorkspaceSettingsType', () => {
+  function createSettingsType({ featureFlag = true, canManage = [] } = {}) {
+    const targetTypes = canManage.map((value) => ({
+      canManageInvitationLinks: vi.fn().mockReturnValue(value),
+    }))
+    return new InvitationLinksWorkspaceSettingsType({
+      app: {
+        $i18n: { t: (key) => key },
+        $featureFlagIsEnabled: () => featureFlag,
+        $registry: { getAll: () => ({ ...targetTypes }) },
+      },
+    })
+  }
+
+  test('opens the invitation links of the workspace', () => {
+    const settingsType = createSettingsType()
+
+    expect(settingsType.getName()).toBe('invitationLinksSettings.tabTitle')
+    expect(settingsType.getIconClass()).toBe('iconoir-link')
+    expect(settingsType.getComponent()).toBe(InvitationLinksTable)
+    // Admins of an object manage its links without updating the workspace.
+    expect(settingsType.requiresWorkspaceUpdatePermission).toBe(false)
+  })
+
+  test.each([
+    [{ canManage: [false, true] }, true],
+    [{ canManage: [false, false] }, false],
+    [{ canManage: [] }, false],
+    [{ canManage: [true], featureFlag: false }, false],
+  ])('with %o it is enabled: %s', (options, expected) => {
+    expect(createSettingsType(options).isEnabled({ id: 1 })).toBe(expected)
   })
 })

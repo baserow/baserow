@@ -1,0 +1,96 @@
+// The invitation links table lives in the workspace settings modal, so it
+// follows the height of its rows and the padding of the modal instead of
+// filling a page like the other management tables.
+.management-table--invitation-links {
+  position: static;
+  padding-bottom: 0;
+
+  // Lays out the header like the other pages of the modal, such as the AI
+  // providers, so the title and the search don't move when switching pages.
+  .data-table__header {
+    align-items: flex-start;
+    flex-wrap: nowrap;
+    gap: 24px;
+    margin: 0 0 16px;
+    padding: 0;
+  }
+
+  // Wraps like the title of the AI providers instead of being cut off when the
+  // modal is narrow.
+  .data-table__title {
+    font-size: 20px;
+    line-height: 28px;
+    white-space: normal;
+  }
+
+  .data-table__subtitle {
+    margin-top: 13px;
+    line-height: 19.5px;
+  }
+
+  .data-table__actions {
+    flex-shrink: 0;
+    margin-top: 32px;
+  }
+
+  .data-table__body {
+    flex: none;
+    margin: 0;
+    container-type: inline-size;
+  }
+
+  // Stacks the search under the description at the same width as the AI
+  // providers page does with its button.
+  @media (max-width: 900px) {
+    .data-table__header {
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .data-table__actions {
+      margin-top: 0;
+    }
+  }
+}
+
+.invitation-link-target-field {
+  display: block;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  color: $palette-neutral-1200;
+}
+
+// Lets the tooltip of a role that the target gives show on the disabled
+// button.
+.invitation-link-role-field {
+  display: inline-block;
+}
+
+.invitation-link-actions-field {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 4px;
+}
+
+.invitation-link-actions-field__action {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  font-size: 16px;
+  color: $palette-neutral-900;
+  cursor: pointer;
+
+  &:hover {
+    background-color: $palette-neutral-100;
+    color: $palette-neutral-1200;
+  }
+}

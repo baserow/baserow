@@ -234,3 +234,78 @@ describe('MemberInvitationRouteType', () => {
     expect(routeType.isEnabled(workspace, { type: 'scope' })).toBe(false)
   })
 })
+
+describe('ScopeInvitationTargetType in the invitation links settings', () => {
+  function withRolePermissions(permissions) {
+    const app = createApp()
+    app.$store = {
+      getters: {
+        'workspace/getAllPermissions': () =>
+          permissions === null ? [] : [{ name: 'role', permissions }],
+      },
+    }
+    return new ScopeInvitationTargetType({ app })
+  }
+
+  test.each([
+    [null, false],
+    [{}, false],
+    [
+      { 'database.table.update_role': { default: false, exceptions: [] } },
+      false,
+    ],
+    [
+      { 'database.table.update_role': { default: false, exceptions: [5] } },
+      true,
+    ],
+    [{ 'application.update_role': { default: true, exceptions: [] } }, true],
+  ])(
+    'with role permissions %o can manage links: %s',
+    (permissions, expected) => {
+      expect(
+        withRolePermissions(permissions).canManageInvitationLinks(workspace)
+      ).toBe(expected)
+    }
+  )
+
+  test('turns links to objects into targets named after the object', () => {
+    const targetType = new ScopeInvitationTargetType({ app: createApp() })
+    const link = {
+      scope_type: 'database_table',
+      scope: { id: 5, name: 'Customers' },
+    }
+
+    const target = targetType.getTargetFromInvitationLink(workspace, link)
+
+    expect(target).toEqual({
+      type: 'scope',
+      scopeType: 'database_table',
+      scope: link.scope,
+    })
+    expect(targetType.getInvitationLinkTargetName(workspace, target)).toBe(
+      'scopeInvitationTarget.targetName:{"type":"Table","name":"Customers"}'
+    )
+    expect(
+      targetType.getInvitationLinkTargetName(workspace, {
+        scopeType: 'application',
+        scope: { id: 2, name: 'Flows', type: 'automation' },
+      })
+    ).toBe(
+      'scopeInvitationTarget.targetName:{"type":"Automation","name":"Flows"}'
+    )
+    expect(
+      targetType.getInvitationLinkTargetName(workspace, {
+        scopeType: 'database_view',
+        scope: { id: 3, name: 'Grid', table_name: 'Customers' },
+      })
+    ).toBe(
+      'scopeInvitationTarget.targetName:{"type":"View","name":"Customers / Grid"}'
+    )
+    expect(
+      targetType.getTargetFromInvitationLink(workspace, { scope_type: null })
+    ).toBeNull()
+    expect(
+      targetType.getTargetFromInvitationLink(workspace, { scope_type: 'team' })
+    ).toBeNull()
+  })
+})

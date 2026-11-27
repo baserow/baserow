@@ -116,6 +116,7 @@ from .operations import (
     ListInvitationLinksWorkspaceOperationType,
     OrderApplicationsOperationType,
     ReadApplicationOperationType,
+    ReadWorkspaceOperationType,
     UpdateApplicationOperationType,
     UpdateSettingsOperationType,
     UpdateWorkspaceInvitationLinkOperationType,
@@ -2046,6 +2047,107 @@ class CoreHandler:
         return WorkspaceInvitationLink.objects.filter(
             workspace=workspace, scope_type__isnull=True
         ).select_related("workspace")
+
+    def list_manageable_workspace_invitation_links(
+        self, user: AbstractUser, workspace: Workspace
+    ) -> List[WorkspaceInvitationLink]:
+        """
+        Returns every invitation link of the workspace that the user is allowed to
+        manage: the links to the workspace itself and the links to an object of
+        the workspace, like a table or a team. A link is included when the user
+        passes the same permission checks that guard changing and deleting it.
+        Links whose object can't be managed anymore, because it was trashed or
+        its type isn't available, are left out.
+
+        :param user: The user on whose behalf the links are listed.
+        :param workspace: The workspace of which the links must be returned.
+        :raises FeatureDisabledException: If invitation links aren't enabled.
+        :raises UserNotInWorkspace: If the user isn't a member of the workspace.
+        :return: The links the user can manage, oldest first.
+        """
+
+        feature_flag_is_enabled(FF_RBAC_IMPROVEMENTS, raise_if_disabled=True)
+
+        CoreHandler().check_permissions(
+            user,
+            ReadWorkspaceOperationType.type,
+            workspace=workspace,
+            context=workspace,
+        )
+
+        invitation_links = (
+            WorkspaceInvitationLink.objects.filter(workspace=workspace)
+            .select_related("workspace", "scope_type")
+            .prefetch_related("scope")
+            .order_by("id")
+        )
+
+        # Each type of object checks all its links at once whether they are usable.
+        scope_type_per_link = {}
+        links_per_scope_type = defaultdict(list)
+        for invitation_link in invitation_links:
+            if invitation_link.scope_type_id is not None:
+                scope_type = self.get_invitation_link_scope_type(invitation_link)
+                if scope_type is not None:
+                    scope_type_per_link[invitation_link.id] = scope_type
+                    links_per_scope_type[scope_type].append(invitation_link)
+        usable_link_ids = {
+            link.id
+            for scope_type, links in links_per_scope_type.items()
+            for link in scope_type.get_usable_invitation_links(links)
+        }
+
+        checks_per_link = []
+        for invitation_link in invitation_links:
+            if invitation_link.scope_type_id is None:
+                checks = [
+                    PermissionCheck(
+                        user, ListInvitationLinksWorkspaceOperationType.type, workspace
+                    )
+                ]
+            elif invitation_link.id in usable_link_ids:
+                checks = scope_type_per_link[
+                    invitation_link.id
+                ].get_manage_permission_checks(user, invitation_link)
+            else:
+                continue
+            checks_per_link.append((invitation_link, checks))
+
+        results = self.check_multiple_permissions(
+            [check for _, checks in checks_per_link for check in checks],
+            workspace=workspace,
+        )
+
+        return [
+            invitation_link
+            for invitation_link, checks in checks_per_link
+            if checks and all(results.get(check) is True for check in checks)
+        ]
+
+    def get_invitation_links_scope_data(
+        self, invitation_links: List[WorkspaceInvitationLink]
+    ) -> Dict[int, Dict[str, Any]]:
+        """
+        Returns what the frontend needs to show the object of each link that
+        targets one, like its name, by link id. Each type of object gives its own
+        data, in one go for all its links.
+
+        :param invitation_links: Links with their `scope` loaded.
+        :return: A dict with the data of the object of each link, by link id.
+        """
+
+        links_per_scope_type = defaultdict(list)
+        for invitation_link in invitation_links:
+            if invitation_link.scope_type_id is None:
+                continue
+            scope_type = self.get_invitation_link_scope_type(invitation_link)
+            if scope_type is not None:
+                links_per_scope_type[scope_type].append(invitation_link)
+
+        scope_data = {}
+        for scope_type, links in links_per_scope_type.items():
+            scope_data.update(scope_type.get_scope_data(links))
+        return scope_data
 
     def create_workspace_invitation_link(
         self,

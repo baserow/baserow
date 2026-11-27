@@ -30,6 +30,7 @@
 
 <script>
 import modal from '@baserow/modules/core/mixins/modal'
+import { notifyIf } from '@baserow/modules/core/utils/error'
 import { getEnabledWorkspaceSettings } from '@baserow/modules/core/workspaceSettingsTypes'
 
 export default {
@@ -76,7 +77,21 @@ export default {
     },
     show(page = null, ...args) {
       this.setPage(page ?? this.registeredSettings[0]?.type)
+      this.fetchRolesAndPermissions()
       return modal.methods.show.call(this, ...args)
+    },
+    /**
+     * Some pages are only there for people who can use them, which the
+     * permissions of the workspace tell. They aren't loaded yet when the modal is
+     * opened outside the workspace, like from the list of all workspaces.
+     */
+    async fetchRolesAndPermissions() {
+      try {
+        await this.$store.dispatch('workspace/fetchPermissions', this.workspace)
+        await this.$store.dispatch('workspace/fetchRoles', this.workspace)
+      } catch (error) {
+        notifyIf(error, 'workspace')
+      }
     },
   },
 }

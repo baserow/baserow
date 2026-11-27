@@ -555,3 +555,72 @@ def test_workspace_invitation_link_rejects_unavailable_roles(
     invitation_link.refresh_from_db()
     assert invitation_link.permissions == "MEMBER"
     assert invitation_link.name == "Original"
+
+
+@pytest.mark.django_db
+def test_list_manageable_workspace_invitation_links(api_client, data_fixture):
+    admin, admin_token = data_fixture.create_user_and_token()
+    member, member_token = data_fixture.create_user_and_token()
+    workspace = data_fixture.create_workspace(user=admin, members=[member])
+    other_workspace = data_fixture.create_workspace()
+    invitation_link = data_fixture.create_workspace_invitation_link(
+        workspace=workspace, created_by=admin, permissions="MEMBER", name="Team"
+    )
+    data_fixture.create_workspace_invitation_link(workspace=other_workspace)
+
+    def list_links(workspace_id, token):
+        return api_client.get(
+            reverse(
+                "api:workspaces:invitation_links:manageable",
+                kwargs={"workspace_id": workspace_id},
+            ),
+            HTTP_AUTHORIZATION=f"JWT {token}",
+        )
+
+    response = list_links(0, admin_token)
+    assert response.status_code == HTTP_404_NOT_FOUND
+    assert response.json()["error"] == "ERROR_GROUP_DOES_NOT_EXIST"
+
+    response = list_links(other_workspace.id, admin_token)
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response.json()["error"] == "ERROR_USER_NOT_IN_GROUP"
+
+    # A member who can't manage any link gets none.
+    response = list_links(workspace.id, member_token)
+    assert response.status_code == HTTP_200_OK
+    assert response.json() == []
+
+    response = list_links(workspace.id, admin_token)
+    assert response.status_code == HTTP_200_OK
+    assert response.json() == [
+        {
+            "id": invitation_link.id,
+            "workspace": workspace.id,
+            "name": "Team",
+            "slug": invitation_link.slug,
+            "permissions": "MEMBER",
+            "has_password": False,
+            "scope_type": None,
+            "scope": None,
+            "created_on": response.json()[0]["created_on"],
+        }
+    ]
+
+
+@pytest.mark.django_db
+def test_list_manageable_workspace_invitation_links_requires_feature_flag(
+    api_client, data_fixture, settings
+):
+    admin, admin_token = data_fixture.create_user_and_token()
+    workspace = data_fixture.create_workspace(user=admin)
+    settings.FEATURE_FLAGS = []
+
+    response = api_client.get(
+        reverse(
+            "api:workspaces:invitation_links:manageable",
+            kwargs={"workspace_id": workspace.id},
+        ),
+        HTTP_AUTHORIZATION=f"JWT {admin_token}",
+    )
+    assert response.status_code == HTTP_403_FORBIDDEN
+    assert response.json()["error"] == "ERROR_FEATURE_DISABLED"
