@@ -714,6 +714,8 @@
     "feedbackContextPlaceholder": "What could we improve? (optional)",
     "helpful": "Mark response as helpful",
     "notHelpful": "Mark response as not helpful",
+    "undo": "Undo changes from this reply",
+    "undoUnavailable": "These changes have already been undone or a newer edit prevents undo.",
     "copyFailed": "Failed to copy to clipboard"
   },
   "chatwootSupportSidebarWorkspace": {
@@ -1281,8 +1283,6 @@
   },
   "serviceFilterKumaPrompt": {
     "title": "Service filters",
-    "undo": "Undo this filter change",
-    "undoUnavailable": "This filter change is no longer the latest edit.",
     "placeholder": "Describe the rows you want to see…",
     "unsavedChanges": "Save or undo your filter changes before asking Kuma.",
     "unsavedTable": "Save your table selection before asking Kuma."

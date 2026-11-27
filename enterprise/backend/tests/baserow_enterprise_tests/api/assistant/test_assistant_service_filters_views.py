@@ -14,6 +14,8 @@ from baserow_enterprise.assistant.exceptions import (
     AssistantModelDisabledError,
     ServiceFilterGenerationFailed,
 )
+from baserow_enterprise.assistant.messages import list_chat_messages
+from baserow_enterprise.assistant.models import AssistantChat
 from baserow_enterprise.assistant.service_filters import ServiceFilterRequestResult
 from baserow_enterprise.assistant.service_filters.agent import ServiceFilterChanges
 
@@ -188,6 +190,7 @@ def test_assistant_action_rejects_invalid_requests(
 @override_settings(DEBUG=True)
 @patch(f"{VIEWS}.check_lm_ready_or_raise")
 @patch(f"{VIEWS}.resolve_assistant_model")
+@pytest.mark.undo_redo
 @patch("baserow_enterprise.assistant.service_filters.handler.run_service_filter_agent")
 def test_follow_up_after_the_selected_table_is_saved(
     generate, mock_resolve, mock_check, api_client, enterprise_data_fixture
@@ -216,14 +219,24 @@ def test_follow_up_after_the_selected_table_is_saved(
         chat_uuid=uuid4(),
         prompt="Name contains Davide",
     )
+    group_id = str(uuid4())
+    api_client.credentials(
+        HTTP_CLIENTSESSIONID="editor", HTTP_CLIENTUNDOREDOACTIONGROUPID=group_id
+    )
     first = _post(api_client, token, **params, table_id=table.id)
     assert first.status_code == 200, first.data
     assert first.data["changed"]
+    chat = AssistantChat.objects.get(uuid=params["chat_uuid"])
+    assert list_chat_messages(chat)[-1].undo.model_dump() == {
+        "group_id": group_id,
+        "session_id": "editor",
+    }
     service.refresh_from_db()
     assert service.table_id == table.id
     follow_up = _post(api_client, token, **params)
     assert follow_up.status_code == 200, follow_up.data
     assert not follow_up.data["changed"]
+    assert list_chat_messages(chat)[-1].undo is None
     assert service.service_filters.get().field_id == field.id
     assert _post(api_client, token, **params, table_id=table.id + 1).status_code == 404
     assert generate.call_count == 2

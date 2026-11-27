@@ -23,20 +23,16 @@
           <div class="chat-message__bubble">{{ turn.text }}</div>
           <template #actions>
             <ChatMessageFooter :text="turn.text" @error="copyFailed">
-              <button
+              <AssistantReplyUndo
                 v-if="
+                  i === turns.length - 1 &&
                   turn.actionGroupId &&
                   turn.actionGroupId === target.undoGroup.value
                 "
-                v-tooltip="$t('serviceFilterKumaPrompt.undo')"
-                type="button"
-                class="chat-message__action"
-                :aria-label="$t('serviceFilterKumaPrompt.undo')"
-                :disabled="busy || undoing"
-                @click="undo(turn.actionGroupId)"
-              >
-                <i class="iconoir-undo" aria-hidden="true"></i>
-              </button>
+                :group-id="turn.actionGroupId"
+                @busy="undoing = $event"
+                @done="target.undoGroup.value = null"
+              />
             </ChatMessageFooter>
           </template>
         </ChatMessage>
@@ -81,7 +77,7 @@ import kuma from '@baserow_enterprise/assets/images/kuma.svg?url'
 import AssistantInputMessage from '@baserow_enterprise/components/assistant/AssistantInputMessage'
 import AssistantService from '@baserow_enterprise/services/assistant'
 import { notifyIf } from '@baserow/modules/core/utils/error'
-import { UNDO_REDO_RESULT_CODES } from '@baserow/modules/core/utils/undoRedoConstants'
+import AssistantReplyUndo from '@baserow_enterprise/components/assistant/AssistantReplyUndo'
 import ChatMessageFooter from '@baserow/modules/core/components/chat/ChatMessageFooter'
 import ChatMessage from '@baserow/modules/core/components/chat/ChatMessage'
 
@@ -115,26 +111,6 @@ function copyFailed() {
   store.dispatch('toast/error', {
     title: app.$i18n.t('assistantMessageActions.copyFailed'),
   })
-}
-async function undo(groupId) {
-  const target = props.target
-  if (busy.value || undoing.value || target.undoGroup.value !== groupId) return
-  undoing.value = true
-  try {
-    const result = await store.dispatch('undoRedo/undo', {
-      showLoadingToast: true,
-      expectedActionGroupId: groupId,
-    })
-    if (!result || !isCurrent(target)) return
-    target.undoGroup.value = null
-    if (result === UNDO_REDO_RESULT_CODES.NOTHING_TO_DO) {
-      error.value = app.$i18n.t('serviceFilterKumaPrompt.undoUnavailable')
-    }
-  } catch (err) {
-    notifyIf(err)
-  } finally {
-    undoing.value = false
-  }
 }
 async function send(text) {
   const target = props.target
@@ -172,12 +148,26 @@ async function send(text) {
       if (!composer.value.currentMessage) composer.value.setCurrentMessage(text)
       return
     }
+    if (
+      response.changed &&
+      ['create_database', 'create_table', 'create_view'].includes(target.action)
+    ) {
+      // Creation closes its editor, so keep its reply in the ordinary sidebar.
+      try {
+        await store.dispatch('assistant/fetchChats', target.workspaceId)
+        if (!isCurrent(target)) return
+        const chat = store.getters['assistant/chats'].find(
+          (chat) => chat.id === target.chatUuid
+        )
+        if (chat) await store.dispatch('assistant/selectChat', chat)
+      } catch (err) {
+        notifyIf(err)
+      }
+      if (!isCurrent(target)) return
+    }
     target.apply(response.result)
-    const actionGroupId =
-      target.action === 'update_service_filters' && response.changed
-        ? response.actionGroupId
-        : null
-    if (actionGroupId) target.undoGroup.value = actionGroupId
+    const actionGroupId = response.changed ? response.actionGroupId : null
+    target.undoGroup.value = actionGroupId
     const confirmation = {
       generate_formula: 'kumaPrompt.formulaDraftUpdated',
       generate_ai_field_prompt: 'kumaPrompt.aiPromptDraftUpdated',

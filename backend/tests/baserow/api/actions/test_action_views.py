@@ -10,10 +10,62 @@ from baserow.api.actions.serializers import UndoRedoResultCodeField
 from baserow.contrib.database.fields.models import NumberField, TextField
 from baserow.core.action.models import Action
 from baserow.core.actions import CreateWorkspaceActionType
-from baserow.core.models import Workspace
+from baserow.core.models import Application, Workspace
 from baserow.test_utils.helpers import independent_test_db_connection
 
 User = get_user_model()
+
+
+@pytest.mark.django_db
+@pytest.mark.undo_redo
+def test_named_group_undo_crosses_scopes_and_replays_the_whole_group(
+    api_client, data_fixture, settings
+):
+    settings.MAX_UNDOABLE_ACTIONS_PER_ACTION_GROUP = 1
+    user, token = data_fixture.create_user_and_token()
+    unrelated_workspace = data_fixture.create_workspace(user=user)
+    headers = {"HTTP_AUTHORIZATION": f"JWT {token}", "HTTP_CLIENTSESSIONID": "sender"}
+    group_id = uuid.uuid4()
+    grouped = {**headers, "HTTP_CLIENTUNDOREDOACTIONGROUPID": str(group_id)}
+    workspace = api_client.post(
+        reverse("api:workspaces:list"), {"name": "Projects"}, format="json", **grouped
+    ).json()
+
+    def create_app(workspace_id, headers):
+        return api_client.post(
+            reverse("api:applications:list", kwargs={"workspace_id": workspace_id}),
+            {"type": "database", "name": "Tasks"},
+            format="json",
+            **headers,
+        ).json()["id"]
+
+    database_id = create_app(workspace["id"], grouped)
+    unrelated_id = create_app(unrelated_workspace.id, headers)
+    url = reverse("api:user:undo_group", args=[group_id])
+    for wrong_headers in [
+        {**headers, "HTTP_CLIENTSESSIONID": "other"},
+        {
+            **headers,
+            "HTTP_AUTHORIZATION": f"JWT {data_fixture.create_user_and_token()[1]}",
+        },
+    ]:
+        assert (
+            api_client.patch(url, **wrong_headers).json()["result_code"]
+            == UndoRedoResultCodeField.NOTHING_TO_DO
+        )
+    assert Application.objects.filter(id=database_id).exists()
+    result = api_client.patch(
+        url, {"scopes": {"workspace": unrelated_workspace.id}}, format="json", **headers
+    ).json()
+    assert result["result_code"] == UndoRedoResultCodeField.SUCCESS
+    assert len(result["actions"]) == 2
+    assert not Workspace.objects.filter(pk=workspace["id"]).exists()
+    assert not Application.objects.filter(pk=database_id).exists()
+    assert Application.objects.filter(pk=unrelated_id).exists()
+    assert (
+        api_client.patch(url, **headers).json()["result_code"]
+        == UndoRedoResultCodeField.NOTHING_TO_DO
+    )
 
 
 @pytest.mark.django_db

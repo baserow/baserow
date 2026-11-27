@@ -157,7 +157,13 @@ class AiReasoningChunk(BaseModel):
     content: str = Field(description="The reasoning content of the AI message chunk")
 
 
+class ReplyUndo(BaseModel):
+    group_id: str
+    session_id: str
+
+
 class AiMessage(AiMessageChunk):
+    undo: ReplyUndo | None = Field(default=None, exclude_if=lambda value: value is None)
     onboarding_target: dict[str, Any] | None = Field(
         default=None,
         description="The table created during onboarding, opened when the run ends.",

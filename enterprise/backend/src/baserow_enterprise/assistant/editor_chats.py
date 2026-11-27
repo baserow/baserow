@@ -6,6 +6,7 @@ from contextlib import ExitStack
 from django.db import transaction
 from django.utils.translation import gettext as _
 
+from baserow.api.sessions import get_client_undo_redo_action_group_id
 from baserow.contrib.integrations.local_baserow.service_filters.handler import (
     resolve_service_filter_target,
 )
@@ -129,7 +130,13 @@ def run_editor_chat_action(action, ctx, prompt, parameters, profile, chat_uuid):
             }.get(action, "")
         )
         locked.messages.create(role=AssistantChatMessage.Role.HUMAN, content=prompt)
-        locked.messages.create(role=AssistantChatMessage.Role.AI, content=reply)
+        locked.messages.create(
+            role=AssistantChatMessage.Role.AI,
+            content=reply,
+            action_group_id=get_client_undo_redo_action_group_id(ctx.user)
+            if result["changed"]
+            else None,
+        )
         locked.editor_context = context
         if not locked.title:
             locked.title = f"{context['label']} · {prompt}"[

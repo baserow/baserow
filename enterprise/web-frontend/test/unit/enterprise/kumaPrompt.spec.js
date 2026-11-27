@@ -13,7 +13,8 @@ const { runAction } = vi.hoisted(() => ({ runAction: vi.fn() }))
 vi.mock('@baserow_enterprise/services/assistant', () => ({
   default: () => ({ runAction }),
 }))
-vi.mock('@baserow_enterprise/utils/assistant', () => ({
+vi.mock('@baserow_enterprise/utils/assistant', async (importOriginal) => ({
+  ...(await importOriginal()),
   isAssistantAvailable: () => true,
 }))
 
@@ -303,5 +304,36 @@ test('puts Copy and a guarded Undo on the filter reply that made the change', as
     expect(wrapper.find('.iconoir-undo').exists()).toBe(false)
   } finally {
     vi.unstubAllGlobals()
+  }
+})
+
+test('selects the saved creation reply before its editor closes', async () => {
+  await mount({ action: 'create_table' })
+  const input = await open()
+  const store = useNuxtApp().$store
+  const { chatUuid } = useNuxtApp().$kumaEditor.target.value
+  store.commit('assistant/SET_CHATS', [
+    { uuid: chatUuid, title: 'Create a table' },
+  ])
+  const dispatch = vi.spyOn(store, 'dispatch').mockResolvedValue(undefined)
+  runAction.mockResolvedValue({
+    changed: true,
+    result: { table_id: 17 },
+    summary: 'Created Projects.',
+    actionGroupId: 'group',
+  })
+  try {
+    await input.setValue('Create a table for project tracking')
+    await input.trigger('keydown', { key: 'Enter' })
+    await flushPromises()
+    expect(dispatch).toHaveBeenCalledWith(
+      'assistant/selectChat',
+      expect.objectContaining({ id: chatUuid })
+    )
+    expect(wrapper.find('.chat-message__footer .iconoir-undo').exists()).toBe(
+      true
+    )
+  } finally {
+    store.commit('assistant/SET_CHATS', [])
   }
 })

@@ -337,6 +337,11 @@ def test_tools_run_with_the_context_of_the_sending_request(
     action = Action.objects.get(type=CreateApplicationActionType.type)
     assert action.session == run.context["client_session_id"]
     assert str(action.action_group) == run.context["action_group_id"]
+    run.refresh_from_db()
+    undo = {"group_id": str(action.action_group), "session_id": action.session}
+    assert run.outcome["undo"] == undo
+    saved_reply = AssistantHandler().list_chat_messages(chat)[-1]
+    assert saved_reply.undo.model_dump() == undo
 
 
 @pytest.mark.django_db(transaction=True)

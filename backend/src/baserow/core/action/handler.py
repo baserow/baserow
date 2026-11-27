@@ -119,7 +119,6 @@ class ActionHandler:
         user: AbstractUser,
         scopes: List[ActionScopeStr],
         session: str,
-        expected_group: UUID | None = None,
     ) -> List[Action]:
         # Un-set the web_socket_id so the user doing this undo will receive any
         # events triggered by the action.
@@ -133,10 +132,7 @@ class ActionHandler:
             .select_for_update(of=("self",))
             .first()
         )
-        if latest_not_undone_action is None or (
-            expected_group is not None
-            and latest_not_undone_action.action_group != expected_group
-        ):
+        if latest_not_undone_action is None:
             return []
 
         if latest_not_undone_action.action_group is None:
@@ -155,6 +151,42 @@ class ActionHandler:
                 .select_for_update(of=("self",))
             )
 
+        return cls._undo_actions(user, actions_being_undone)
+
+    @classmethod
+    @transaction.atomic
+    def undo_group(
+        cls, user: AbstractUser, session: str, group_id: UUID
+    ) -> List[Action]:
+        """Undo a complete reply across scopes, preserving newer edits in those scopes."""
+
+        pending = Action.objects.filter(
+            user=user, session=session, undone_at__isnull=True
+        )
+        actions = list(
+            pending.filter(action_group=group_id)
+            .select_for_update()
+            .order_by("-created_on", "-id")
+        )
+        if not actions:
+            return []
+        oldest = actions[-1]
+        newer = Q(created_on__gt=oldest.created_on) | Q(
+            created_on=oldest.created_on, id__gt=oldest.id
+        )
+        if (
+            pending.filter(newer, scope__in={a.scope for a in actions})
+            .exclude(action_group=group_id)
+            .exists()
+        ):
+            return []
+        user.web_socket_id = None
+        return cls._undo_actions(user, actions)
+
+    @classmethod
+    def _undo_actions(
+        cls, user: AbstractUser, actions_being_undone: List[Action]
+    ) -> List[Action]:
         undone_at = datetime.now(tz=timezone.utc)
         action_being_undone_ids = [action.id for action in actions_being_undone]
         try:

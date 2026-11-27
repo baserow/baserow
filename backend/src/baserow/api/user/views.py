@@ -5,7 +5,7 @@ from django.contrib.auth import get_user_model
 from django.db import transaction
 
 from drf_spectacular.types import OpenApiTypes
-from drf_spectacular.utils import OpenApiParameter, extend_schema, extend_schema_view
+from drf_spectacular.utils import OpenApiParameter, extend_schema
 from itsdangerous.exc import BadSignature, BadTimeSignature, SignatureExpired
 from rest_framework.exceptions import AuthenticationFailed
 from rest_framework.permissions import AllowAny, IsAuthenticated
@@ -896,25 +896,40 @@ class UndoView(APIView):
     @validate_body(UndoRedoRequestSerializer)
     @map_exceptions(UNDO_REDO_EXCEPTIONS_MAP)
     @transaction.atomic
-    def patch(self, request, data: List[ActionScopeStr], group_id=None):
+    def patch(self, request, data: List[ActionScopeStr]):
         session_id = get_untrusted_client_session_id(request.user)
         if session_id is None:
             raise ClientSessionIdHeaderNotSetException()
-        undone_actions = ActionHandler.undo(
-            request.user, data, session_id, expected_group=group_id
-        )
+        undone_actions = ActionHandler.undo(request.user, data, session_id)
         serializer = UndoRedoResponseSerializer({"actions": undone_actions})
         return Response(serializer.data, status=200)
 
 
-@extend_schema_view(
-    patch=extend_schema(
+class UndoGroupView(APIView):
+    permission_classes = (IsAuthenticated,)
+
+    @extend_schema(
         operation_id="undo_group",
-        description="Undo the latest action in the given scopes only if it belongs to this group.",
+        tags=["User"],
+        parameters=[
+            OpenApiParameter(
+                settings.CLIENT_SESSION_ID_HEADER,
+                str,
+                OpenApiParameter.HEADER,
+                required=True,
+            )
+        ],
+        description="Undo the complete action group in the current user session across all its scopes.",
+        request=None,
+        responses={200: UndoRedoResponseSerializer},
     )
-)
-class UndoGroupView(UndoView):
-    pass
+    @map_exceptions(UNDO_REDO_EXCEPTIONS_MAP)
+    def patch(self, request, group_id):
+        session_id = get_untrusted_client_session_id(request.user)
+        if session_id is None:
+            raise ClientSessionIdHeaderNotSetException()
+        actions = ActionHandler.undo_group(request.user, session_id, group_id)
+        return Response(UndoRedoResponseSerializer({"actions": actions}).data)
 
 
 class RedoView(APIView):

@@ -1,5 +1,12 @@
 import { RUN_STATUS } from '@baserow/modules/core/chatRuns/constants'
 
+export function replyUndoGroup(message, store) {
+  return message?.undo?.session_id ===
+    store.getters['auth/getUntrustedClientSessionId']
+    ? message?.undo?.group_id
+    : null
+}
+
 /**
  * Whether the workspace has the assistant switched on, falling back to the
  * model that used to be configured for the whole instance.

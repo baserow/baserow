@@ -76,7 +76,9 @@
         </div>
         <template
           v-if="
-            message.content && !message.reasoning && !isBusy(message, index)
+            (message.content || undoGroup(message, index)) &&
+            !message.reasoning &&
+            !isBusy(message, index)
           "
           #actions
         >
@@ -85,6 +87,10 @@
             :timestamp="message.timestamp"
             @error="copyFailed"
           >
+            <AssistantReplyUndo
+              v-if="undoGroup(message, index)"
+              :group-id="undoGroup(message, index)"
+            />
             <AssistantMessageActions
               v-if="message.can_submit_feedback"
               :message="message"
@@ -113,7 +119,11 @@ import ChatTyping from '@baserow/modules/core/components/chat/ChatTyping'
 import ChatMessageFooter from '@baserow/modules/core/components/chat/ChatMessageFooter'
 import AssistantMessageSources from './AssistantMessageSources'
 import AssistantMessageActions from './AssistantMessageActions'
-import { runOutcomeKey } from '@baserow_enterprise/utils/assistant'
+import AssistantReplyUndo from './AssistantReplyUndo'
+import {
+  runOutcomeKey,
+  replyUndoGroup,
+} from '@baserow_enterprise/utils/assistant'
 
 export default {
   name: 'AssistantMessageList',
@@ -122,6 +132,7 @@ export default {
     ChatMarkdown,
     ChatTyping,
     ChatMessageFooter,
+    AssistantReplyUndo,
     AssistantMessageSources,
     AssistantMessageActions,
   },
@@ -143,6 +154,11 @@ export default {
         !message.cancelled &&
         (message.loading || (this.running && this.isLastMessage(index)))
       )
+    },
+    undoGroup(message, index) {
+      return message.role === 'ai' && this.isLastMessage(index) && !this.running
+        ? replyUndoGroup(message, this.$store)
+        : null
     },
     outcomeKey(message) {
       return message.role === 'ai' ? runOutcomeKey(message) : null

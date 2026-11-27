@@ -1,6 +1,6 @@
 <template>
   <div class="chat-message__footer">
-    <ChatCopyButton :text="text" @error="$emit('error', $event)" />
+    <ChatCopyButton v-if="text" :text="text" @error="$emit('error', $event)" />
     <slot />
     <time v-if="timeLabel" class="chat-message__time" :datetime="timestamp">
       {{ timeLabel }}

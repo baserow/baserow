@@ -92,10 +92,10 @@ export const actions = {
     )
 
     try {
-      const { data } = await UndoRedoService(this.$client)[serviceMethod](
-        getters.getCurrentScope,
-        expectedActionGroupId
-      )
+      const service = UndoRedoService(this.$client)
+      const { data } = expectedActionGroupId
+        ? await service.undoGroup(expectedActionGroupId)
+        : await service[serviceMethod](getters.getCurrentScope)
       const resultCodeToToastState = {
         [UNDO_REDO_RESULT_CODES.SUCCESS]: doneToastState,
         [UNDO_REDO_RESULT_CODES.NOTHING_TO_DO]: nothingToDoToastState,

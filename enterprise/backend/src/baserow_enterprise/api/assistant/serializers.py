@@ -173,7 +173,13 @@ class AssistantMessageRole(StrEnum):
     AI = "ai"
 
 
+class ReplyUndoSerializer(serializers.Serializer):
+    group_id = serializers.UUIDField()
+    session_id = serializers.CharField()
+
+
 class AiMessageSerializer(serializers.Serializer):
+    undo = ReplyUndoSerializer(required=False)
     id = serializers.IntegerField(
         help_text="The unique ID of the message.", required=False
     )

@@ -31,6 +31,39 @@ describe('AssistantMessageList', () => {
     vi.restoreAllMocks()
   })
 
+  test('shows Undo beside Copy only for the latest reply with saved actions in this session', async () => {
+    const session = testApp.store.getters['auth/getUntrustedClientSessionId']
+    const undo = {
+      group_id: '1e46c95b-9654-4650-ba2b-dd32ca37a4a3',
+      session_id: session,
+    }
+    const messages = [
+      answer({ id: 1, undo }),
+      answer({ id: 2, undo: { ...undo, session_id: 'another-tab' } }),
+    ]
+    const wrapper = await testApp.mount(AssistantMessageList, {
+      props: { messages },
+    })
+    expect(wrapper.find('.iconoir-undo').exists()).toBe(false)
+    await wrapper.setProps({ messages: [messages[0], answer({ id: 2, undo })] })
+    const footers = wrapper.findAll('.chat-message__footer')
+    expect(footers[0].find('.iconoir-undo').exists()).toBe(false)
+    const button = footers[1].get('button:has(.iconoir-undo)')
+    expect(
+      button.element.previousElementSibling.querySelector('.iconoir-copy')
+    ).toBeTruthy()
+    const dispatch = vi
+      .spyOn(testApp.store, 'dispatch')
+      .mockResolvedValue('SUCCESS')
+    await button.trigger('click')
+    await flushPromises()
+    expect(dispatch).toHaveBeenCalledWith('undoRedo/undo', {
+      showLoadingToast: true,
+      expectedActionGroupId: undo.group_id,
+    })
+    expect(wrapper.find('.iconoir-undo').exists()).toBe(false)
+  })
+
   test('keeps the shared bubble while waiting, reasoning and streaming the final answer', async () => {
     const pending = answer({
       id: 'temporary',

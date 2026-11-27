@@ -127,6 +127,13 @@ export const mutations = {
     }
   },
 
+  CLEAR_REPLY_UNDO(state, groupId) {
+    const message = state.messages.find(
+      (message) => message.undo?.group_id === groupId
+    )
+    if (message) delete message.undo
+  },
+
   CLEAR_MESSAGES(state) {
     state.messages = []
   },

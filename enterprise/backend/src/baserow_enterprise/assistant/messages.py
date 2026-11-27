@@ -2,11 +2,32 @@
 
 from typing import Any
 
+from baserow.core.action.models import Action
+
 from .models import AssistantChat, AssistantChatMessage
-from .types import AiMessage, HumanMessage
+from .types import AiMessage, HumanMessage, ReplyUndo
 
 
-def to_assistant_message(message: AssistantChatMessage) -> HumanMessage | AiMessage:
+def _reply_undo(message: AssistantChatMessage) -> ReplyUndo | None:
+    if message.action_group_id:
+        session = (
+            Action.objects.filter(
+                user_id=message.chat.user_id,
+                action_group=message.action_group_id,
+                undone_at__isnull=True,
+                session__isnull=False,
+            )
+            .values_list("session", flat=True)
+            .first()
+        )
+        if session:
+            return ReplyUndo(group_id=str(message.action_group_id), session_id=session)
+    return None
+
+
+def to_assistant_message(
+    message: AssistantChatMessage, *, latest: bool = True
+) -> HumanMessage | AiMessage:
     """
     Projects a saved chat message to the message the chat shows.
 
@@ -22,6 +43,7 @@ def to_assistant_message(message: AssistantChatMessage) -> HumanMessage | AiMess
     prediction = getattr(message, "prediction", None)
     run_state = message.artifacts.get("run") or {}
     return AiMessage(
+        undo=_reply_undo(message) if latest else None,
         content=message.content,
         id=message.id,
         timestamp=message.created_on,
@@ -62,4 +84,10 @@ def list_chat_messages(
     queryset = chat.messages.select_related("prediction").order_by("-created_on", "-id")
     if last_message_id is not None:
         queryset = queryset.filter(id__lt=last_message_id)
-    return [to_assistant_message(message) for message in reversed(queryset[:limit])]
+    newest_first = list(queryset[:limit])
+    return [
+        to_assistant_message(
+            message, latest=last_message_id is None and message is newest_first[0]
+        )
+        for message in reversed(newest_first)
+    ]

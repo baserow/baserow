@@ -26,7 +26,10 @@ import {
 } from 'vue'
 import { useStore } from 'vuex'
 import { uuid } from '@baserow/modules/core/utils/string'
-import { isAssistantAvailable } from '@baserow_enterprise/utils/assistant'
+import {
+  isAssistantAvailable,
+  replyUndoGroup,
+} from '@baserow_enterprise/utils/assistant'
 
 const props = defineProps({
   enabled: { type: Boolean, default: true },
@@ -130,15 +133,17 @@ function attach() {
     Object.entries(target).every(
       ([key, value]) => props.parameters[key] === value
     )
+  const previousTurns = resume
+    ? store.getters['assistant/messages'].map((message) => ({
+        text: message.content,
+        own: message.role === 'human',
+        actionGroupId: replyUndoGroup(message, store),
+      }))
+    : []
   editor.target.value = {
     id,
     chatUuid: resume ? chat.id : uuid(),
-    previousTurns: resume
-      ? store.getters['assistant/messages'].map((message) => ({
-          text: message.content,
-          own: message.role === 'human',
-        }))
-      : [],
+    previousTurns,
     workspaceId: workspace.value.id,
     action: props.action,
     starter: app.$i18n.t(`kumaPrompt.${props.action}Starter`),
@@ -166,7 +171,7 @@ function attach() {
     focus() {
       trigger.value?.focus()
     },
-    undoGroup: ref(null),
+    undoGroup: ref(previousTurns.at(-1)?.actionGroupId ?? null),
   }
   app.$bus.$emit('toggle-right-sidebar', true)
 }
