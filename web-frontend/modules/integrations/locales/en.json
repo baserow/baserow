@@ -10,9 +10,9 @@
     "ai": "AI"
   },
   "localBaserowIntegrationType": {
-    "localBaserowSummary": "Local Baserow - {name}, {username}",
-    "localBaserowSubjectSummary": "Local Baserow - {type}: {name}",
-    "localBaserowNoUser": "Local Baserow - Not configured",
+    "localBaserowSummary": "{name}, {username}",
+    "localBaserowSubjectSummary": "{type}: {name}",
+    "localBaserowNoUser": "Not configured",
     "localBaserowWorkspaceHint": "Runs as {name} in all applications in this workspace",
     "localBaserowWorkspaceSubjectHint": "Runs as {name} ({type}) in all applications in this workspace",
     "localBaserowPromotionHint": "It will run as you in all applications in this workspace.",
@@ -33,8 +33,8 @@
     "aiAgentDescription": "Run AI Agent actions in Automation and Application Builder workflows."
   },
   "slackBotIntegrationType": {
-    "slackBotSummary": "Slack Bot",
-    "slackBotNoToken": "Slack Bot - Not configured",
+    "slackBotSummary": "Bot token set",
+    "slackBotNoToken": "Not configured",
     "errorNoToken": "No bot token has been set.",
     "slackBotWarning": "Anyone who can build in this application can send messages through this bot, and can replace its token. Use a bot whose access you are happy to share."
   },
@@ -378,7 +378,7 @@
     "twoWayDataSyncedTableDescription": "Two-way synced"
   },
   "smtpIntegrationType": {
-    "smtpSummary": "SMTP - {host}:{port}",
+    "smtpSummary": "{host}:{port}",
     "errorNoHost": "No SMTP host has been set."
   },
   "smtpForm": {

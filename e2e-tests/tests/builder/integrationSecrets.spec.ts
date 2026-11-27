@@ -51,9 +51,9 @@ async function openIntegrationEditModal(page, name: string) {
   const row = page.locator(".integration-settings__integration", {
     hasText: name,
   });
-  await row
-    .locator(".integration-settings__integration-actions .button-icon")
-    .first()
+  await row.locator(".workspace-integrations-table__more").click();
+  await page
+    .locator(".context__menu-item-link", { hasText: "Edit integration" })
     .click();
 
   const modal = page.locator(".modal__box:visible", {

@@ -1436,10 +1436,12 @@
     "successMessage": "{name} is now listed in the workspace settings, under Integrations."
   },
   "applicationIntegrationSettings": {
+    "description": "The integrations this application can use. New ones are added when you set up a data source, action or user login.",
     "workspaceIntegrations": "Workspace",
-    "workspaceDescription": "Every application in this workspace can use these. Only workspace admins can change them.",
-    "openWorkspaceSettings": "Open the workspace settings",
-    "applicationIntegrations": "This application"
+    "manageInWorkspace": "Manage in workspace settings",
+    "applicationIntegrations": "This application",
+    "shareHint": "Need the same integration in other applications? Share it with the workspace from its menu.",
+    "workspaceIntegrationsLink": "Workspace integrations"
   },
   "integrationEditForm": {
     "name": "Name",

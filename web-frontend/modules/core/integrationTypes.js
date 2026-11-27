@@ -28,7 +28,9 @@ export class IntegrationType extends Registerable {
   }
 
   /**
-   * Return a summary describing the integration in one sentence.
+   * Return a summary describing the integration in one sentence. It's shown
+   * next to the type's name, in the Details column of the integration tables,
+   * so it shouldn't repeat it.
    *
    * @param {object} integration The integration we want the summary for.
    * @returns A string description.
