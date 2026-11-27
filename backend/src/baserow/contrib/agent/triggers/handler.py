@@ -421,8 +421,9 @@ class AgentTriggerHandler:
         """
         The message that opens a conversation when the trigger's own has no text:
         the trigger and when it fired. A trigger without a message formula also
-        gets what its type says about the event. One whose formula resolved blank
-        or failed doesn't, as its builder chose what the Agent reads.
+        gets what its type says about the event: why it fired and its data. One
+        whose formula resolved blank or failed doesn't, as its builder chose what
+        the Agent reads.
 
         :param trigger: The trigger that fired, with its agent and service.
         :param event_payload: The payload its service produced for this event.
@@ -435,9 +436,12 @@ class AgentTriggerHandler:
         message = f"{name} fired at {context.get_fired_at_display()}"
         if not BaserowFormulaObject.to_formula(trigger.message)["formula"].strip():
             service = context.service
-            event_text = agent_trigger_type_registry.get_for_service_type(
+            trigger_type = agent_trigger_type_registry.get_for_service_type(
                 service.get_type().type
-            ).get_event_text(service, event_payload)
+            )
+            if trigger_type.event_reason:
+                message = f"{message} because {trigger_type.event_reason}"
+            event_text = trigger_type.get_event_text(service, event_payload)
             if event_text:
                 message = f"{message}\n\n{event_text}"
         return message[:AGENT_TEXT_MAX_LENGTH]

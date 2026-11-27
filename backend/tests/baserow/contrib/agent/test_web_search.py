@@ -43,6 +43,7 @@ from baserow.contrib.agent.models import (
 )
 from baserow.contrib.agent.replies import AgentResponder, _web_search_step_input
 from baserow.contrib.agent.service import AgentService
+from baserow.contrib.agent.web_fetch import NON_TEXT_TAGS
 from baserow.contrib.database.table.models import Table
 from baserow.contrib.integrations.mcp.models import MCPServerTool
 from baserow.core.ai_provider.models import AIProviderConfig, AIProviderModel
@@ -1268,6 +1269,20 @@ def test_web_fetch_leaves_out_scripts_and_styles_and_bounds_the_title(
         assert hidden not in result["content"]
     assert len(result["title"]) == 200
     assert result["title"].startswith("Long title Long title")
+
+
+def test_web_fetch_leaves_out_a_script_cut_off_before_its_opening_tag_ends():
+    page_text = "<p>Visible text</p>" + "<script " * 3 + "src='tracking"
+
+    assert NON_TEXT_TAGS.sub("", page_text) == "<p>Visible text</p>"
+
+
+def test_web_fetch_keeps_a_custom_element_named_like_a_left_out_tag():
+    page_text = "<p>Intro</p><svg-icon></svg-icon><h1>Pricing</h1><svg>x</svg>"
+
+    assert NON_TEXT_TAGS.sub("", page_text) == (
+        "<p>Intro</p><svg-icon></svg-icon><h1>Pricing</h1>"
+    )
 
 
 @pytest.mark.django_db

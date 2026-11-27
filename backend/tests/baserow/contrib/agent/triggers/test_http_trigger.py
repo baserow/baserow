@@ -88,7 +88,10 @@ def test_an_http_request_starts_a_shared_agent_run_with_its_payload(
 @pytest.mark.parametrize(
     "message,expected",
     [
-        ("", FIRED_LINE + r'\n\n\{"ticket":"123"\}'),
+        (
+            "",
+            FIRED_LINE + r' because it received an HTTP request\n\n\{"ticket":"123"\}',
+        ),
         ("get('trigger.body.missing')", FIRED_LINE),
     ],
 )

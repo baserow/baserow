@@ -16,6 +16,9 @@ class AgentTriggerType(Instance):
     # The service fields only another consumer uses, which stay at their defaults.
     # No type lists `integration_id`: the handler leaves it out for all of them.
     unused_service_fields: tuple[str, ...] = ()
+    # Why an event fired the trigger, which follows when it fired in the message
+    # of a trigger that has no message, or None when the type doesn't say.
+    event_reason: str | None = None
 
     def __init__(self, service_type_name: str | None = None) -> None:
         """

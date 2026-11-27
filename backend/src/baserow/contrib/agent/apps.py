@@ -110,6 +110,7 @@ class AgentConfig(AppConfig):
             ROWS_TRIGGER_TYPES,
             HTTPAgentTriggerType,
             InboundEmailAgentTriggerType,
+            PeriodicAgentTriggerType,
             RowsAgentTriggerType,
         )
 
@@ -165,6 +166,7 @@ class AgentConfig(AppConfig):
         agent_action_type_registry.register(LocalBaserowListRowsAgentActionType())
         agent_action_type_registry.register(LocalBaserowAggregateRowsAgentActionType())
         agent_action_type_registry.register(SlackWriteMessageAgentActionType())
+        agent_trigger_type_registry.register(PeriodicAgentTriggerType())
         agent_trigger_type_registry.register(HTTPAgentTriggerType())
         agent_trigger_type_registry.register(InboundEmailAgentTriggerType())
         for type_name in ROWS_TRIGGER_TYPES:
