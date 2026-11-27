@@ -1234,6 +1234,7 @@
     "send": "Send",
     "askKuma": "Ask Kuma",
     "detach": "Remove editor context",
+    "formulaDraftUpdated": "Formula updated in the field. Save to keep it.",
     "draftChanged": "The draft changed while Kuma was working. Send again to revise the latest version.",
     "generate_formula": "Database formula",
     "generate_formulaPlaceholder": "What should this field calculate?",

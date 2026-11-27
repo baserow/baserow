@@ -84,6 +84,10 @@ test('sends the latest local draft and workspace on each revision', async () => 
   await input.trigger('keydown', { key: 'Enter' })
   await flushPromises()
   expect(draft.value).toBe('2')
+  expect(wrapper.get('[role=log]').text()).toContain(
+    'kumaPrompt.formulaDraftUpdated'
+  )
+  expect(wrapper.get('[role=log]').text()).not.toContain(draft.value)
   await input.setValue('Double it again')
   await wrapper.get('.assistant__send-button').trigger('click')
   await flushPromises()

@@ -122,8 +122,11 @@ async function send(text) {
     target.apply(response.result)
     target.undoable.value =
       target.action === 'update_service_filters' && response.changed
-    if (response.summary || draft)
-      turns.value.push({ own: false, text: response.summary || draft })
+    const reply =
+      response.result?.formula !== undefined
+        ? app.$i18n.t('kumaPrompt.formulaDraftUpdated')
+        : response.summary || draft
+    if (reply) turns.value.push({ own: false, text: reply })
   } catch (err) {
     if (!err.handler) throw err
     err.handler.handled()
