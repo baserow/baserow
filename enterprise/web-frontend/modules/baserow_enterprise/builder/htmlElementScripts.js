@@ -25,9 +25,11 @@ export async function runInsertedScripts(host, isCurrent = () => true) {
       !script.hasAttribute('async') &&
       !script.hasAttribute('defer') &&
       script.type !== 'module'
-    // Dynamically inserted scripts are async unless told otherwise.
-    script.async = script.hasAttribute('async')
 
+    // The copy stays async, as inserted scripts are: an `async = false` script
+    // waits for every earlier one on the page, so a slow script in one element
+    // would hold back the others. Awaiting the load below keeps the order
+    // within this element.
     const loaded = waitForLoad
       ? new Promise((resolve) => {
           script.addEventListener('load', resolve, { once: true })

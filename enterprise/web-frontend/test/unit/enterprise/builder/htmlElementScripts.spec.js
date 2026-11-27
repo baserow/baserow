@@ -59,7 +59,6 @@ describe('runInsertedScripts', () => {
     await Promise.resolve()
 
     const external = host.querySelector('script[src="/lib.js"]')
-    expect(external.async).toBe(false)
     // The inline script is still the inert original while the library loads.
     expect(host.querySelectorAll('script')[1]).toBe(inline)
 
