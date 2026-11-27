@@ -148,13 +148,13 @@ class MCPServerService:
             return self.notify_updated(user, integration_id)
 
     def notify_updated(
-        self, user: AbstractUser, integration_id: int
+        self, user: AbstractUser | None, integration_id: int
     ) -> MCPServerIntegration:
         """
         Read the server again, so its prefetched tools are the stored ones, and
         tell other editors it changed.
 
-        :param user: Who changed it.
+        :param user: Who changed it, or None to tell their own pages too.
         :param integration_id: The integration.
         :return: The server.
         """

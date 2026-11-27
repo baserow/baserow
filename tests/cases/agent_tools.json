@@ -39,7 +39,7 @@
       "name": "get_table_schema",
       "arguments": { "table_ids": [1] },
       "input": { "requested_count": 1 },
-      "facts": { "table": "Tasks" }
+      "facts": { "table": "Tasks", "database": "Work" }
     },
     {
       "name": "list_table_rows",
@@ -159,6 +159,7 @@
             {
               "view": "Grid",
               "table": "Tasks",
+              "database": "Work",
               "filters": [
                 {
                   "field": "Hours",

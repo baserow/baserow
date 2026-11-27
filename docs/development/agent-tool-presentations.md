@@ -92,10 +92,11 @@ failed steps too.
 - `input.truncated` marks any of these cuts; the card says the preview is
   shortened.
 - Each ID is resolved on its own: two fields named "Name" stay two entries.
-- A table and a field are named with their database, as a duplicated database
-  keeps every name.
+- A table, field or view is named with its database, as a duplicated database
+  keeps every name. The tables of a schema read or a creation are too.
 - Rows are named by their primary field value, or `unnamed row <id>`, when the
-  identity may list them. Rows of one call that share a name get their ID too.
+  identity may list them. When two rows of one call read the same, every named
+  row of the call gets its ID too.
 - Field IDs in views and filters become names when the identity may list the
   table's fields; others stay as written.
 - An integer `linked_table` in `create_fields` the identity can't see stays as

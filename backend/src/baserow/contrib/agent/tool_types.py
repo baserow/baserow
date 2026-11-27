@@ -6,6 +6,7 @@ from baserow.contrib.database.views.exceptions import ViewDoesNotExist
 from baserow.core.tools import ToolContext
 
 from .database_previews import (
+    database_name,
     database_reference,
     named_fields,
     readable_names,
@@ -162,7 +163,12 @@ class GetTableSchemaAgentToolType(DatabaseAgentToolType):
         self, ctx: ToolContext, arguments: dict[str, Any], result: Any
     ) -> dict[str, Any]:
         names = [table["name"] for table in result]
-        return {"table": ", ".join(names)} if names else {}
+        if not names:
+            return {}
+        facts = {"table": ", ".join(names)}
+        if database := database_name(ctx, [table["id"] for table in result]):
+            facts["database"] = database
+        return facts
 
 
 class ListTableRowsAgentToolType(TableReadAgentToolType):
@@ -348,6 +354,7 @@ class CreateViewFiltersAgentToolType(DatabaseAgentToolType):
                 {
                     "view": view.name,
                     "table": view.table.name,
+                    "database": view.table.database.name,
                     "filters": name_field_references(group["filters"], names),
                 }
             )

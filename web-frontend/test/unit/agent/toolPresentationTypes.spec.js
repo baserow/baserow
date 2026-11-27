@@ -484,6 +484,28 @@ describe('Agent tool presentations', () => {
     )
   })
 
+  test('done reads and creations name the database of their tables', () => {
+    expect(
+      toolActivity(
+        step('get_table_schema', 'done', {
+          facts: { table: 'Accounts', database: 'Sales 2' },
+        }),
+        registry,
+        t
+      ).title
+    ).toContain('Accounts (Sales 2)')
+    expect(
+      toolActivity(
+        step('create_tables', 'done', {
+          input: { values: { database: 'Sales 2', tables: [] } },
+          facts: { count: 1, table: 'Projects' },
+        }),
+        registry,
+        t
+      ).title
+    ).toBe('Created 1 table: Projects (Sales 2)')
+  })
+
   test('a cut request keeps the shortened-preview flag', () => {
     const data = step('create_rows', 'done', {
       input: {

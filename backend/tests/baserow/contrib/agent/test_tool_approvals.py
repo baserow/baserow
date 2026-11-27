@@ -1,7 +1,9 @@
 from unittest.mock import ANY
 from uuid import uuid4
 
+from django.db import connection
 from django.test import override_settings
+from django.test.utils import CaptureQueriesContext
 
 import pytest
 from rest_framework.response import Response
@@ -14,12 +16,16 @@ from baserow.contrib.agent.models import (
     AgentReplyStatus,
     AgentToolApproval,
 )
-from baserow.contrib.integrations.mcp.models import MCPServerTool
+from baserow.contrib.integrations.mcp.models import (
+    MCPServerIntegration,
+    MCPServerTool,
+)
 from baserow.contrib.integrations.mcp.toolset import approval_key
 from baserow.core.action.registries import action_type_registry
 from baserow.core.chat_runs.handler import ChatRunHandler
 from baserow.core.chat_runs.models import ChatRun, ChatRunStatus
 from baserow.core.identities.handler import IdentityHandler
+from baserow.core.integrations.signals import integration_updated
 from baserow.core.signals import application_updated
 
 from .utils import agent_url, new_conversation
@@ -369,17 +375,22 @@ def test_always_allow_stops_asking_first_only_for_approved_tools_that_ask_first(
     assert audited.call_args.args[1]["always_allowed_tools"] == []
     configuration_updated.assert_not_called()
     audited.reset_mock()
+    data_fixture.create_mcp_server_integration(application=agent)
 
-    response = decide(
-        api_client,
-        held_reply,
-        {"id": created.id, "approved": True},
-        {"id": updated.id, "approved": True},
-        {"id": listed.id, "approved": True},
-        always_allow=True,
-    )
+    with CaptureQueriesContext(connection) as queries:
+        response = decide(
+            api_client,
+            held_reply,
+            {"id": created.id, "approved": True},
+            {"id": updated.id, "approved": True},
+            {"id": listed.id, "approved": True},
+            always_allow=True,
+        )
 
     assert response.status_code == 200
+    # No connected app's call was approved, so none is read.
+    mcp_table = MCPServerIntegration._meta.db_table
+    assert not any(mcp_table in query["sql"] for query in queries)
     assert AgentHandler().get_tool_configuration(agent) == {
         "allowed_tools": ["create_rows", "update_rows", "delete_rows"],
         "ask_first_tools": ["delete_rows"],
@@ -390,36 +401,63 @@ def test_always_allow_stops_asking_first_only_for_approved_tools_that_ask_first(
 
 @pytest.mark.django_db
 def test_always_allow_stops_an_mcp_tool_asking_first_while_it_is_the_approved_one(
-    api_client, data_fixture, held_reply
+    api_client, data_fixture, held_reply, mocker
 ):
     agent = held_reply.conversation.agent
     integration = data_fixture.create_mcp_server_integration(application=agent)
-    close, changed = (
+    switched_off = data_fixture.create_mcp_server_integration(
+        application=agent, enabled=False
+    )
+    trashed = data_fixture.create_mcp_server_integration(
+        application=agent, trashed=True
+    )
+    tools = [
         MCPServerTool.objects.create(
-            integration=integration,
+            integration=server,
             name=name,
             definition_hash="hash",
-            enabled=True,
+            enabled=enabled,
             ask_first=True,
+            removed=removed,
         )
-        for name in ("close_ticket", "reopen_ticket")
-    )
-    for tool, key in ((close, approval_key(integration, close)), (changed, "old")):
+        for server, name, enabled, removed in (
+            (integration, "close_ticket", True, False),
+            (integration, "reopen_ticket", True, False),
+            (integration, "delete_ticket", True, True),
+            (integration, "merge_ticket", False, False),
+            (switched_off, "close_ticket", True, False),
+            (trashed, "close_ticket", True, False),
+        )
+    ]
+    keys = [approval_key(tool.integration, tool) for tool in tools]
+    # The reopen call was approved as a definition the tool no longer has.
+    keys[1] = "old"
+    for tool, key in zip(tools, keys):
         data_fixture.create_agent_tool_approval(
-            reply=held_reply, tool_name=f"mcp{integration.id}_{tool.name}", tool_key=key
+            reply=held_reply,
+            tool_name=f"mcp{tool.integration_id}_{tool.name}",
+            tool_key=key,
         )
-    *_, approved_close, approved_changed = held_reply.approvals.all()
+    close, reopen, *refused = held_reply.approvals.order_by("id")[2:]
+    audited = mocker.spy(DecideAgentToolApprovalsActionType, "send_action_done_signal")
+    broadcast = mocker.spy(integration_updated, "send")
 
     response = decide(
         api_client,
         held_reply,
-        {"id": approved_close.id, "approved": True},
-        {"id": approved_changed.id, "approved": True},
+        *({"id": approval.id, "approved": True} for approval in (close, reopen)),
+        *({"id": approval.id, "approved": True} for approval in refused),
         always_allow=True,
     )
 
     assert response.status_code == 200
-    close.refresh_from_db()
-    changed.refresh_from_db()
-    # The other tool was approved as a definition it no longer has.
-    assert (close.ask_first, changed.ask_first) == (False, True)
+    assert [
+        tool.ask_first
+        for tool in MCPServerTool.objects.filter(id__in=[t.id for t in tools]).order_by(
+            "id"
+        )
+    ] == [False, True, True, True, True, True]
+    assert audited.call_args.args[1]["always_allowed_tools"] == [close.tool_name]
+    broadcast.assert_called_once()
+    assert broadcast.call_args.kwargs["integration"].id == integration.id
+    assert broadcast.call_args.kwargs["user"] is None

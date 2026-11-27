@@ -1116,6 +1116,12 @@ def test_no_change_starts_after_stop_is_requested(
 
     assert reply_state(created.reply.id)[0] == "cancelled"
     assert row_names(table) == ["Plan"]
+    # The refused call is shown as not run, not as a change that may be done.
+    steps = AgentMessage.objects.get(id=created.reply.id).steps
+    assert [(step["status"], step.get("error_code")) for step in steps] == [
+        ("done", None),
+        ("failed", "not_run"),
+    ]
 
 
 @pytest.mark.django_db

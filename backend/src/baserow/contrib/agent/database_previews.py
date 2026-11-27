@@ -48,6 +48,21 @@ def table_names(ctx: ToolContext, table_ids: list[int]) -> dict[int, str]:
     return dict(tables.filter(id__in=table_ids).values_list("id", "name"))
 
 
+def database_name(ctx: ToolContext, table_ids: list[int]) -> str | None:
+    """
+    :param ctx: The Agent identity and its workspace.
+    :param table_ids: Tables a call worked on.
+    :return: The name of the one database the identity sees them in, or None
+        when they are in several or none.
+    """
+
+    tables = TableHandler().list_workspace_tables(ctx.user, ctx.workspace)
+    names = set(
+        tables.filter(id__in=table_ids).values_list("database__name", flat=True)
+    )
+    return names.pop() if len(names) == 1 else None
+
+
 def database_reference(ctx: ToolContext, database_id: int) -> dict[str, Any]:
     """
     :param ctx: The Agent identity and its workspace.

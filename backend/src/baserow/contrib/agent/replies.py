@@ -347,10 +347,12 @@ class _HeldCallsToolset(WrapperToolset[None]):
 class _StopCheckedToolset(WrapperToolset[None]):
     """
     Checks the run is still going before each call, so no tool starts after Stop
-    or a lost lease, which the lease renewal alone notices only seconds later.
+    or a lost lease, which the lease renewal alone notices only seconds later. A
+    refused call is recorded as not run.
     """
 
     raise_if_stopping: Callable[[], Awaitable[None]]
+    not_run: Callable[[str], None]
 
     async def call_tool(
         self,
@@ -359,7 +361,11 @@ class _StopCheckedToolset(WrapperToolset[None]):
         ctx: RunContext[None],
         tool: ToolsetTool[None],
     ) -> Any:
-        await self.raise_if_stopping()
+        try:
+            await self.raise_if_stopping()
+        except asyncio.CancelledError:
+            self.not_run(ctx.tool_call_id)
+            raise
         return await super().call_tool(name, tool_args, ctx, tool)
 
 
@@ -760,7 +766,9 @@ class AgentResponder:
         if self._ask_person_tool is not None:
             toolsets.append(FunctionToolset([self._ask_person_tool]))
         return [
-            _StopCheckedToolset(toolset, self._journal.raise_if_stopping)
+            _StopCheckedToolset(
+                toolset, self._journal.raise_if_stopping, self._steps.not_run
+            )
             for toolset in [
                 *toolsets,
                 *(

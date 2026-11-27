@@ -73,8 +73,9 @@ def test_names_are_resolved_as_the_agent_identity(accounts, data_fixture):
     assert row_names(
         accounts.ctx,
         accounts.table,
-        [accounts.acme.id, accounts.other_acme.id, lookalike.id],
+        [accounts.acme.id, accounts.other_acme.id, lookalike.id, accounts.unnamed.id],
     ) == {
+        accounts.unnamed.id: f"unnamed row {accounts.unnamed.id}",
         accounts.acme.id: f"Acme (row {accounts.acme.id})",
         accounts.other_acme.id: f"Acme (row {accounts.other_acme.id})",
         lookalike.id: f"Acme (row {accounts.other_acme.id}) (row {lookalike.id})",
