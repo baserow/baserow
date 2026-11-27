@@ -265,6 +265,41 @@ describe('TextFilterWidget', () => {
 })
 
 describe('TextFilterWidget input', () => {
+  test('applies decimal input live, keeps the previous value on error, and clears', async () => {
+    const config = { ...widget, input_format: 'number', default_value: '0' }
+    const store = testApp.store
+    await store.dispatch('dashboardApplication/forceSetWidgets', [config])
+    wrapper = await testApp.mount(TextFilterWidget, {
+      props: { widget: config },
+    })
+    const input = wrapper.get('input')
+    expect(input.element.value).toBe('0')
+
+    await input.setValue('-12345678901234567890,05')
+    expect(input.element.value).toBe('-12345678901234567890,05')
+    expect(store.getters['dashboardApplication/getWidgetValues'][1]).toBe(
+      '-12345678901234567890.05'
+    )
+
+    for (const invalid of ['-', '12,', 'abc']) {
+      await input.setValue(invalid)
+      expect(wrapper.find('.control__messages--error').exists()).toBe(false)
+      await input.trigger('blur')
+      expect(wrapper.get('.control__messages--error').text()).toBe(
+        'textFilterWidget.invalidNumber'
+      )
+      expect(store.getters['dashboardApplication/getWidgetValues'][1]).toBe(
+        '-12345678901234567890.05'
+      )
+    }
+
+    await input.setValue('')
+    await input.trigger('blur')
+    expect(wrapper.find('.control__messages--error').exists()).toBe(false)
+    expect(store.getters['dashboardApplication/getWidgetValues'][1]).toBe('')
+    store.commit('dashboardApplication/RESET')
+  })
+
   test('an input without its own placeholder gets a default one', async () => {
     const input = { ...widget, mode: 'input', placeholder: '' }
     await testApp.store.dispatch('dashboardApplication/forceSetWidgets', [

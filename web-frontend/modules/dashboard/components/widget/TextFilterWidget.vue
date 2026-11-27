@@ -2,6 +2,9 @@
   <FormGroup
     class="dashboard-text-filter-widget"
     :label="widget.title"
+    :error-message="
+      numberInputError ? $t('textFilterWidget.invalidNumber') : ''
+    "
     small-label
     required
   >
@@ -79,7 +82,8 @@
     </div>
     <FormInput
       v-else
-      v-model="value"
+      v-model="inputValue"
+      :error="numberInputError"
       class="dashboard-text-filter-widget__input"
       :class="{ 'dashboard-text-filter-widget__input--active': value !== '' }"
       icon-left="iconoir-filter"
@@ -87,6 +91,7 @@
         widget.placeholder || $t('textFilterWidget.inputDefaultPlaceholder')
       "
       :maxlength="TEXT_FILTER_MAX_VALUE_LENGTH"
+      @blur="onInputBlur"
       @pointerdown.stop
       @mousedown.stop
     >
@@ -98,9 +103,11 @@
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { computed, ref, watch } from 'vue'
 import {
   getTextFilterDefaultValue,
+  isTextFilterNumberInput,
+  normalizeTextFilterNumber,
   TEXT_FILTER_MAX_VALUE_LENGTH,
 } from '@baserow/modules/dashboard/utils/widgetFilters'
 import { useWidgetOptions } from '@baserow/modules/dashboard/composables/useWidgetOptions'
@@ -157,6 +164,37 @@ const value = computed({
       value,
     }),
 })
+const numberInput = computed(() => isTextFilterNumberInput(props.widget))
+const numberDraft = ref(null)
+const numberInputError = ref(false)
+const inputValue = computed({
+  get: () =>
+    numberInput.value ? (numberDraft.value ?? value.value) : value.value,
+  set: (draft) => {
+    if (!numberInput.value) {
+      value.value = draft
+      return
+    }
+    numberDraft.value = draft
+    numberInputError.value = false
+    const normalized = normalizeTextFilterNumber(draft)
+    if (normalized !== null && normalized !== value.value) {
+      value.value = normalized
+    }
+  },
+})
+
+function onInputBlur() {
+  if (!numberInput.value) return
+  numberInputError.value = normalizeTextFilterNumber(inputValue.value) === null
+  if (!numberInputError.value) numberDraft.value = null
+}
+
+watch(numberInput, () => {
+  numberDraft.value = null
+  numberInputError.value = false
+})
+
 const hasValue = computed(() => value.value.length > 0)
 const displayValue = computed(() =>
   Array.isArray(value.value) ? value.value.join(', ') : value.value

@@ -3,6 +3,7 @@ import { FF_DASHBOARD_FILTERS } from '@baserow/modules/core/plugins/featureFlags
 import {
   refreshWidgetSources,
   getTextFilterDefaultValue,
+  isTextFilterNumberInput,
 } from '@baserow/modules/dashboard/utils/widgetFilters'
 import TextFilterWidgetSvg from '@baserow/modules/dashboard/assets/images/widgets/text_filter_widget.svg?url'
 import TextFilterWidget from '@baserow/modules/dashboard/components/widget/TextFilterWidget'
@@ -325,7 +326,13 @@ export class TextFilterWidgetType extends FilterWidgetType {
   getValueAfterUpdate(widget, previousWidget, value) {
     // A configured default only fills an empty filter, never an active selection.
     if (value?.length) {
-      return this.getDefaultValue({ ...widget, default_value: value })
+      const selection = this.getDefaultValue({
+        ...widget,
+        default_value: value,
+      })
+      return isTextFilterNumberInput(widget) && selection === ''
+        ? this.getDefaultValue(widget)
+        : selection
     }
     // Normalizing the default for a new mode must not replace the viewer's selection.
     if (
