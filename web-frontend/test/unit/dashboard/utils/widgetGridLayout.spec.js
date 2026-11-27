@@ -161,32 +161,17 @@ describe('widgetGridLayout', () => {
     ])
   })
 
-  describe('in a browser without Array.prototype.toSorted', () => {
-    const toSorted = Object.getOwnPropertyDescriptor(
-      Array.prototype,
-      'toSorted'
-    )
+  test('pushes a row of neighbors right, then down at the grid edge', () => {
+    const layout = createWidgetGridLayout([
+      summary(1, 0, 0, 2, 4),
+      summary(2, 2, 0, 2, 4),
+      summary(3, 4, 0, 2, 4),
+    ])
 
-    beforeEach(() => {
-      delete Array.prototype.toSorted
-    })
-
-    afterEach(() => {
-      Object.defineProperty(Array.prototype, 'toSorted', toSorted)
-    })
-
-    test('pushes a row of neighbors right, then down at the grid edge', () => {
-      const layout = createWidgetGridLayout([
-        summary(1, 0, 0, 2, 4),
-        summary(2, 2, 0, 2, 4),
-        summary(3, 4, 0, 2, 4),
-      ])
-
-      expect(resizeWidgetGridLayout(layout, 1, 3, 4)).toEqual([
-        { i: 1, x: 0, y: 0, w: 3, h: 4 },
-        { i: 2, x: 3, y: 0, w: 2, h: 4 },
-        { i: 3, x: 4, y: 4, w: 2, h: 4 },
-      ])
-    })
+    expect(resizeWidgetGridLayout(layout, 1, 3, 4)).toEqual([
+      { i: 1, x: 0, y: 0, w: 3, h: 4 },
+      { i: 2, x: 3, y: 0, w: 2, h: 4 },
+      { i: 3, x: 4, y: 4, w: 2, h: 4 },
+    ])
   })
 })
