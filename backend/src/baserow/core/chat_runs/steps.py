@@ -291,6 +291,7 @@ class ChatRunSteps:
         self._approved_ids = frozenset(approved_ids)
         self._resumed_step_ids: set[str] = set()
         self._pending: dict[str, deque[str]] = defaultdict(deque)
+        self._not_run: set[str] = set()
         self._call_started = False
 
     def start(self) -> None:
@@ -400,8 +401,34 @@ class ChatRunSteps:
             step["presentation_type"] = presentation_type
         if invalid:
             step["error_code"] = ToolErrorCode.INVALID_INPUT
+        if tool_call_id in self._not_run:
+            step.update(
+                status=ChatRunStepStatus.FAILED, error_code=ToolErrorCode.NOT_RUN
+            )
         self._pending[tool_call_id].append(step["id"])
         self._update(step)
+
+    def not_run(self, tool_call_id: str) -> None:
+        """
+        Fail a call that was refused before it started, so it isn't shown as a
+        change that may have completed.
+
+        :param tool_call_id: The refused call's id.
+        """
+
+        self._not_run.add(tool_call_id)
+        pending = self._pending.get(tool_call_id)
+        if pending:
+            step = self._steps[pending.popleft()]
+            if not pending:
+                del self._pending[tool_call_id]
+            self._update(
+                {
+                    **step,
+                    "status": ChatRunStepStatus.FAILED,
+                    "error_code": ToolErrorCode.NOT_RUN,
+                }
+            )
 
     def _resume(self, tool_call_id: str, step_id: str, args_valid: bool | None) -> None:
         """Continue the saved step of a held call the user decided.

@@ -3,14 +3,27 @@ from uuid import UUID
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import AbstractUser
 from django.db import DEFAULT_DB_ALIAS, transaction
-from django.db.models import F, QuerySet
+from django.db.models import F, Prefetch, QuerySet
 
 from rest_framework.exceptions import ValidationError
 
+from baserow.contrib.integrations.mcp.handler import MCPServerHandler, MCPToolSettings
+from baserow.contrib.integrations.mcp.models import (
+    MCP_SERVER_LOCK_OF,
+    MCPServerIntegration,
+    MCPServerTool,
+)
+from baserow.contrib.integrations.mcp.service import MCPServerService
+from baserow.contrib.integrations.mcp.toolset import (
+    MODEL_TOOL_NAME_PREFIX,
+    RESERVED_MODEL_TOOL_NAME,
+    approval_key,
+)
 from baserow.core.exceptions import PermissionDenied
 from baserow.core.handler import CoreHandler
 from baserow.core.identities.handler import IdentityHandler
 from baserow.core.identities.service import IdentityService
+from baserow.core.integrations.operations import UpdateIntegrationOperationType
 from baserow.core.models import UserProfile
 from baserow.core.operations import (
     CreateApplicationsWorkspaceOperationType,
@@ -1104,6 +1117,86 @@ class AgentService:
             reply, approved_tools, rejected_tools, always_allowed_tools, run_id
         )
 
+    def _stop_mcp_tools_asking_first(
+        self, user: AbstractUser, agent: AgentApplication, approved: dict[str, str]
+    ) -> list[str]:
+        """
+        Stop asking first for the approved calls' MCP tools, while their switched
+        on server, account and definition are those of the call and nobody has to
+        review a newer definition. The servers are locked, so none of it changes
+        meanwhile.
+
+        :param user: The user deciding.
+        :param agent: The Agent, locked.
+        :param approved: The approval key of each approved call, by tool name.
+        :return: The tools that stopped asking first.
+        """
+
+        by_key = {
+            key: name
+            for name, key in approved.items()
+            if key and name.startswith(MODEL_TOOL_NAME_PREFIX)
+        }
+        if not by_key:
+            return []
+        server_ids = {
+            int(match.group()[len(MODEL_TOOL_NAME_PREFIX) : -1])
+            for name in by_key.values()
+            if (match := RESERVED_MODEL_TOOL_NAME.match(name))
+        }
+        # The tools are locked too, as switching one off locks only the tool.
+        askable = MCPServerTool.objects.select_for_update().filter(
+            enabled=True, removed=False, ask_first=True, changed_since_review=False
+        )
+        servers = (
+            MCPServerIntegration.objects.select_for_update(of=MCP_SERVER_LOCK_OF)
+            .filter(
+                id__in=server_ids,
+                application_id=agent.id,
+                trashed=False,
+                enabled=True,
+            )
+            .prefetch_related(Prefetch("tools", askable, to_attr="askable_tools"))
+        )
+        stopped = []
+        for integration in servers:
+            tools = {
+                tool.name: by_key[key]
+                for tool in integration.askable_tools
+                if (key := approval_key(integration, tool)) in by_key
+            }
+            if not tools or not CoreHandler().check_permissions(
+                user,
+                UpdateIntegrationOperationType.type,
+                workspace=agent.workspace,
+                context=integration,
+                raise_permission_exceptions=False,
+            ):
+                continue
+            stored = MCPServerHandler().update_tools(
+                integration,
+                [
+                    MCPToolSettings(
+                        name=tool.name,
+                        ask_first=False,
+                        definition_hash=tool.definition_hash,
+                    )
+                    for tool in integration.askable_tools
+                    if tool.name in tools
+                ],
+            )
+            # A tool whose definition changed meanwhile keeps asking.
+            changed = [
+                tools[tool.name]
+                for tool in stored
+                if tool.name in tools and not tool.ask_first
+            ]
+            if changed:
+                # The approver's own page is told too, as for an action.
+                MCPServerService().notify_updated(None, integration.id)
+                stopped.extend(changed)
+        return stopped
+
     def _stop_asking_first(
         self,
         user: AbstractUser,
@@ -1112,8 +1205,8 @@ class AgentService:
     ) -> list[str]:
         """
         Stop asking first for the tools of the approved calls, telling the Agent's
-        open pages when its configuration changed. An action only stops asking
-        while it's still the one whose call was approved.
+        open pages when its configuration changed. An action or an MCP tool only
+        stops asking while it's still the one whose call was approved.
 
         :param user: The user deciding, already allowed to update the configuration.
         :param agent_id: The id of the Agent.
@@ -1139,4 +1232,5 @@ class AgentService:
                 # No session edited the action, so the approver's own is told too.
                 agent_action_updated.send(self, action=updated.action, user=None)
                 stopped.append(tool.type)
+        stopped.extend(self._stop_mcp_tools_asking_first(user, agent, approved))
         return stopped

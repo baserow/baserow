@@ -25,15 +25,16 @@ def table_reference(
     """
     :param ctx: The Agent identity and its workspace.
     :param table_id: A table the call names.
-    :return: The table and its name when the identity can see it, else None and
-        its ID as written, so the tool's own error explains it.
+    :return: The table, with its database's name and its own when the identity
+        can see it, as a duplicated database keeps every table's name. Else None
+        and its ID as written, so the tool's own error explains it.
     """
 
     tables = TableHandler().list_workspace_tables(ctx.user, ctx.workspace)
-    table = tables.filter(id=table_id).first()
+    table = tables.select_related("database").filter(id=table_id).first()
     if table is None:
         return None, {"table_id": table_id}
-    return table, {"table": table.name}
+    return table, {"database": table.database.name, "table": table.name}
 
 
 def table_names(ctx: ToolContext, table_ids: list[int]) -> dict[int, str]:
@@ -45,6 +46,21 @@ def table_names(ctx: ToolContext, table_ids: list[int]) -> dict[int, str]:
 
     tables = TableHandler().list_workspace_tables(ctx.user, ctx.workspace)
     return dict(tables.filter(id__in=table_ids).values_list("id", "name"))
+
+
+def database_name(ctx: ToolContext, table_ids: list[int]) -> str | None:
+    """
+    :param ctx: The Agent identity and its workspace.
+    :param table_ids: Tables a call worked on.
+    :return: The name of the one database the identity sees them in, or None
+        when they are in several or none.
+    """
+
+    tables = TableHandler().list_workspace_tables(ctx.user, ctx.workspace)
+    names = set(
+        tables.filter(id__in=table_ids).values_list("database__name", flat=True)
+    )
+    return names.pop() if len(names) == 1 else None
 
 
 def database_reference(ctx: ToolContext, database_id: int) -> dict[str, Any]:
@@ -60,20 +76,24 @@ def database_reference(ctx: ToolContext, database_id: int) -> dict[str, Any]:
         return {"database_id": database_id}
 
 
-def named_fields(ctx: ToolContext, field_ids: list[int]) -> dict[int, tuple[str, str]]:
+def named_fields(
+    ctx: ToolContext, field_ids: list[int]
+) -> dict[int, tuple[str, str, str]]:
     """
     Resolve each field on its own, so two fields with the same name stay apart.
 
     :param ctx: The Agent identity and its workspace.
     :param field_ids: Fields the call names.
-    :return: Each field's name and its table's name, by field ID, for the fields
-        the identity can see. The others keep their IDs, so the tool's own error
-        explains them.
+    :return: Each field's, its table's and its database's name, by field ID, for
+        the fields the identity can see. The others keep their IDs, so the tool's
+        own error explains them.
     """
 
     listed = TableHandler().list_workspace_tables(ctx.user, ctx.workspace)
     found = list(
-        Field.objects.filter(id__in=field_ids, table__in=listed).select_related("table")
+        Field.objects.filter(id__in=field_ids, table__in=listed).select_related(
+            "table__database"
+        )
     )
     tables = {found_field.table_id: found_field.table for found_field in found}
     permitted = {
@@ -83,7 +103,11 @@ def named_fields(ctx: ToolContext, field_ids: list[int]) -> dict[int, tuple[str,
         )
     }
     return {
-        found_field.id: (found_field.name, found_field.table.name)
+        found_field.id: (
+            found_field.name,
+            found_field.table.name,
+            found_field.table.database.name,
+        )
         for found_field in found
         if found_field.table_id in permitted
     }
@@ -122,11 +146,18 @@ def row_names(ctx: ToolContext, table: Table, row_ids: list[int]) -> dict[int, s
     :param table: A table the identity can see.
     :param row_ids: Rows the call names.
     :return: Each row's primary value as text, or ``unnamed row <id>`` when it's
-        empty, by row ID. Rows that are missing or trashed, and all rows when the
-        identity may not list them, keep their IDs.
+        empty, by row ID. When two of them read the same, every named row gets its
+        ID too, which no other row's label can match. Rows that are missing or
+        trashed, and all rows when the identity may not list them, keep their IDs.
     """
 
     if not permitted_tables(ctx, [table], ListRowsDatabaseTableOperationType.type):
         return {}
     names = RowHandler().get_row_names(table, row_ids)
-    return {row_id: name or f"unnamed row {row_id}" for row_id, name in names.items()}
+    labels = {row_id: name or f"unnamed row {row_id}" for row_id, name in names.items()}
+    if len(set(labels.values())) == len(labels):
+        return labels
+    return {
+        row_id: f"{name} (row {row_id})" if name else labels[row_id]
+        for row_id, name in names.items()
+    }

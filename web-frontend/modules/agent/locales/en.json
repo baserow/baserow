@@ -371,6 +371,7 @@
     "toolDeleteRowsRequestedCountTable": "Delete {count} row from {table} | Delete {count} rows from {table}",
     "toolListTableRowsRequestedTable": "Read rows from {table}",
     "toolListViewsRequestedTable": "List views of {table}",
+    "tableInDatabase": "{table} ({database})",
     "approvalRequest": "{name} asks for your approval",
     "approvalRequestReadOnly": "{name} asks for approval",
     "approvalReviewed": "Reviewed",

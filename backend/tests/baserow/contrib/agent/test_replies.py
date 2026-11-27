@@ -1057,14 +1057,21 @@ def test_a_stop_during_a_change_waits_for_it_and_saves_it_as_interrupted(
     user = data_fixture.create_user()
     agent = configured_agent(user=user)
     table = allow_tools(data_fixture, agent)
-    emit = ChatRunJournal.emit
+    emitted = mocker.spy(ChatRunJournal, "emit")
+    tool_type = type(agent_tool_type_registry.get("create_rows"))
+    original = tool_type.function
 
-    def emit_and_stop(journal, kind, data=None, flush_now=False):
-        emit(journal, kind, data, flush_now)
-        if kind == "step" and data["status"] == "running":
-            journal.request_stop("cancelled")
+    @wraps(original)
+    def stop_and_create(*args, **kwargs):
+        journal = emitted.call_args.args[0]
+        journal._loop.call_soon_threadsafe(
+            journal.request_stop, ChatRunStopReason.CANCELLED
+        )
+        while journal.stop_reason is None:
+            time.sleep(0.01)
+        return original(*args, **kwargs)
 
-    mocker.patch.object(ChatRunJournal, "emit", emit_and_stop)
+    mocker.patch.object(tool_type, "function", stop_and_create)
 
     async def stream(messages, info):
         arguments = {"table_id": table.id, "rows": [{"Name": "Plan"}]}
@@ -1083,6 +1090,38 @@ def test_a_stop_during_a_change_waits_for_it_and_saves_it_as_interrupted(
     assert [(s["status"], s["changes_data"]) for s in steps] == [("stopped", True)]
     rows = [row.name for row in table.get_model(attribute_names=True).objects.all()]
     assert rows == ["Plan"]
+
+
+@pytest.mark.django_db
+def test_no_change_starts_after_stop_is_requested(
+    data_fixture, configured_agent, mocker
+):
+    user = data_fixture.create_user()
+    agent = configured_agent(user=user)
+    table = allow_tools(data_fixture, agent)
+    respond(mocker, ({0: add_row(table, "call_1"), 1: add_row(table, "call_2")},))
+    tool_type = type(agent_tool_type_registry.get("create_rows"))
+    original = tool_type.function
+
+    @wraps(original)
+    def create_and_stop(*args, **kwargs):
+        # Stop is pressed while the first change runs, as the API requests it.
+        ChatRunHandler().request_cancel(run_of(created.conversation).id)
+        return original(*args, **kwargs)
+
+    mocker.patch.object(tool_type, "function", create_and_stop)
+    created = start(user, agent)
+
+    run_reply(run_of(created.conversation))
+
+    assert reply_state(created.reply.id)[0] == "cancelled"
+    assert row_names(table) == ["Plan"]
+    # The refused call is shown as not run, not as a change that may be done.
+    steps = AgentMessage.objects.get(id=created.reply.id).steps
+    assert [(step["status"], step.get("error_code")) for step in steps] == [
+        ("done", None),
+        ("failed", "not_run"),
+    ]
 
 
 @pytest.mark.django_db
@@ -1556,7 +1595,11 @@ def test_a_reply_calls_the_allowed_tools_as_the_agent_identity(
                 "changes_data": True,
                 "input": {
                     "requested_count": 1,
-                    "values": {"table": table.name, "rows": [{"Name": "Plan"}]},
+                    "values": {
+                        "database": table.database.name,
+                        "table": table.name,
+                        "rows": [{"Name": "Plan"}],
+                    },
                 },
                 "facts": {"count": 1} if valid_facts else {},
             }
@@ -1660,7 +1703,11 @@ def test_a_reply_recovers_from_invalid_tool_calls(
     assert step["status"] == "done"
     assert step["input"] == {
         "requested_count": 1,
-        "values": {"table": table.name, "rows": [{"Name": "Plan"}]},
+        "values": {
+            "database": table.database.name,
+            "table": table.name,
+            "rows": [{"Name": "Plan"}],
+        },
     }
     assert "error_code" not in step
 
@@ -2139,7 +2186,11 @@ def test_a_held_call_waits_with_its_named_request(ask_first_agent, mocker):
     assert step["status"] == "waiting"
     assert step["input"] == {
         "requested_count": 1,
-        "values": {"table": table.name, "rows": [{"Name": "Plan"}]},
+        "values": {
+            "database": table.database.name,
+            "table": table.name,
+            "rows": [{"Name": "Plan"}],
+        },
     }
 
 

@@ -1,6 +1,6 @@
 import asyncio
 import json
-from collections.abc import Callable, Iterable
+from collections.abc import Awaitable, Callable, Iterable
 from dataclasses import dataclass
 from functools import cached_property, partial
 from typing import TYPE_CHECKING, Any
@@ -340,6 +340,32 @@ class _HeldCallsToolset(WrapperToolset[None]):
                 tool_args,
                 input_shower(ctx),
             )
+        return await super().call_tool(name, tool_args, ctx, tool)
+
+
+@dataclass
+class _StopCheckedToolset(WrapperToolset[None]):
+    """
+    Checks the run is still going before each call, so no tool starts after Stop
+    or a lost lease, which the lease renewal alone notices only seconds later. A
+    refused call is recorded as not run.
+    """
+
+    raise_if_stopping: Callable[[], Awaitable[None]]
+    not_run: Callable[[str], None]
+
+    async def call_tool(
+        self,
+        name: str,
+        tool_args: dict[str, Any],
+        ctx: RunContext[None],
+        tool: ToolsetTool[None],
+    ) -> Any:
+        try:
+            await self.raise_if_stopping()
+        except asyncio.CancelledError:
+            self.not_run(ctx.tool_call_id)
+            raise
         return await super().call_tool(name, tool_args, ctx, tool)
 
 
@@ -740,11 +766,16 @@ class AgentResponder:
         if self._ask_person_tool is not None:
             toolsets.append(FunctionToolset([self._ask_person_tool]))
         return [
-            *toolsets,
-            *(
-                _HeldMCPCallsToolset(toolset, self._is_held)
-                for toolset in self._mcp_toolsets
-            ),
+            _StopCheckedToolset(
+                toolset, self._journal.raise_if_stopping, self._steps.not_run
+            )
+            for toolset in [
+                *toolsets,
+                *(
+                    _HeldMCPCallsToolset(toolset, self._is_held)
+                    for toolset in self._mcp_toolsets
+                ),
+            ]
         ]
 
     def _is_held(self, ctx: RunContext[None]) -> bool:

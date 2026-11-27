@@ -1,12 +1,15 @@
 from django.core.mail.backends.locmem import EmailBackend
 
 import pytest
+from asgiref.sync import sync_to_async
 from fakeredis.aioredis import FakeRedis
 from loguru import logger
 from pydantic_ai.models.test import TestModel
 
 from baserow.core.ai_provider.models import AIProviderConfig, AIProviderModel
 from baserow.core.chat_runs.buffer import set_buffer_redis
+from baserow.core.chat_runs.handler import ChatRunHandler
+from baserow.core.chat_runs.journal import ChatRunJournal
 
 
 @pytest.fixture(autouse=True)
@@ -19,6 +22,24 @@ def reply_model(mocker):
         return_value=(model, {}),
     )
     return model
+
+
+@pytest.fixture(autouse=True)
+def lease_renewed_in_the_test_transaction(monkeypatch):
+    """
+    A worker renews its lease on a connection of its own, which can't see the run
+    a test hasn't committed. Renew it on the test's connection instead.
+    """
+
+    monkeypatch.setattr(
+        ChatRunJournal,
+        "_renew_lease",
+        lambda journal: ChatRunHandler().renew_lease(journal.run.id),
+    )
+    monkeypatch.setattr(
+        "baserow.core.chat_runs.journal.sync_to_async",
+        lambda function, thread_sensitive=True: sync_to_async(function),
+    )
 
 
 @pytest.fixture(autouse=True)

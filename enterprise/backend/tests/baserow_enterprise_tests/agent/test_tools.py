@@ -52,7 +52,11 @@ def test_tool_calls_recheck_the_identity_role(
     }
     assert refused.metadata == {"error_code": "permission_denied"}
     assert run.emit.await_args.args[0].input == {
-        "values": {"table": table.name, "rows": [{"Name": "After downgrade"}]}
+        "values": {
+            "database": table.database.name,
+            "table": table.name,
+            "rows": [{"Name": "After downgrade"}],
+        }
     }
     assert list(
         table.get_model(attribute_names=True).objects.values_list("name", flat=True)
