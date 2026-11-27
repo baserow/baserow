@@ -169,8 +169,7 @@ import { copyToClipboard } from '@baserow/modules/core/utils/clipboard'
  * link must be confirmed first. The links come from the target type, so only
  * targets supporting them get this route. A target without roles to choose
  * from, like a team that gives its own role, gets links without a role: the
- * route shows the role of the target in a disabled role selector. It is
- * registered behind the `RBAC_IMPROVEMENTS` feature flag.
+ * route shows the role of the target in a disabled role selector.
  */
 export default {
   name: 'LinkInvitationRoute',

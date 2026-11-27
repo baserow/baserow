@@ -96,7 +96,7 @@ export class EmailInvitationRouteType extends InvitationRouteType {
 /**
  * Invites people with permanent links that anyone can use to join. Only offered
  * for targets that support links, while the instance lets people sign up through
- * them, and behind the `RBAC_IMPROVEMENTS` feature flag until links are released.
+ * them.
  */
 export class LinkInvitationRouteType extends InvitationRouteType {
   static getType() {
