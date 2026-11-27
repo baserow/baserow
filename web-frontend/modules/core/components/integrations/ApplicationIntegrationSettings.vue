@@ -44,27 +44,13 @@
               </div>
             </th>
           </tr>
-          <tr
+          <IntegrationTableRow
             v-for="integration in integrations"
             :key="integration.id"
+            :integration="integration"
             class="integration-settings__integration"
             @contextmenu="openContext(integration, $event)"
           >
-            <td>
-              <div class="workspace-integrations-table__identity">
-                <WorkspaceIntegrationAvatar
-                  :subject="integration"
-                  aria-hidden="true"
-                />
-                <span
-                  class="workspace-integrations-table__name"
-                  :title="integration.name"
-                  >{{ integration.name }}</span
-                >
-              </div>
-            </td>
-            <td>{{ getIntegrationType(integration).name }}</td>
-            <td><WorkspaceIntegrationDetailsField :row="integration" /></td>
             <td>
               <button
                 type="button"
@@ -76,7 +62,7 @@
                 <i class="baserow-icon-more-vertical" aria-hidden="true"></i>
               </button>
             </td>
-          </tr>
+          </IntegrationTableRow>
           <tr v-if="!integrations.length">
             <td colspan="4" class="integration-settings__empty">
               {{ $t('integrationSettings.noIntegrationMessage') }}
@@ -104,28 +90,14 @@
               </div>
             </th>
           </tr>
-          <tr
+          <IntegrationTableRow
             v-for="integration in workspaceIntegrations"
             :key="integration.id"
+            :integration="integration"
             class="integration-settings__integration"
           >
-            <td>
-              <div class="workspace-integrations-table__identity">
-                <WorkspaceIntegrationAvatar
-                  :subject="integration"
-                  aria-hidden="true"
-                />
-                <span
-                  class="workspace-integrations-table__name"
-                  :title="integration.name"
-                  >{{ integration.name }}</span
-                >
-              </div>
-            </td>
-            <td>{{ getIntegrationType(integration).name }}</td>
-            <td><WorkspaceIntegrationDetailsField :row="integration" /></td>
             <td></td>
-          </tr>
+          </IntegrationTableRow>
         </tbody>
       </table>
     </div>
@@ -191,9 +163,8 @@
 import WorkspaceSettingsModal from '@baserow/modules/core/components/workspace/WorkspaceSettingsModal'
 import IntegrationCreateEditModal from '@baserow/modules/core/components/integrations/IntegrationCreateEditModal'
 import PromoteIntegrationModal from '@baserow/modules/core/components/integrations/PromoteIntegrationModal'
-import WorkspaceIntegrationAvatar from '@baserow/modules/core/components/settings/integrations/WorkspaceIntegrationAvatar'
+import IntegrationTableRow from '@baserow/modules/core/components/settings/integrations/IntegrationTableRow'
 import WorkspaceIntegrationContext from '@baserow/modules/core/components/settings/integrations/WorkspaceIntegrationContext'
-import WorkspaceIntegrationDetailsField from '@baserow/modules/core/components/settings/integrations/WorkspaceIntegrationDetailsField'
 import { notifyIf } from '@baserow/modules/core/utils/error'
 
 /**
@@ -209,10 +180,9 @@ export default {
   name: 'ApplicationIntegrationSettings',
   components: {
     IntegrationCreateEditModal,
+    IntegrationTableRow,
     PromoteIntegrationModal,
-    WorkspaceIntegrationAvatar,
     WorkspaceIntegrationContext,
-    WorkspaceIntegrationDetailsField,
     WorkspaceSettingsModal,
   },
   props: {
@@ -289,9 +259,6 @@ export default {
     }
   },
   methods: {
-    getIntegrationType(integration) {
-      return this.$registry.get('integration', integration.type)
-    },
     openWorkspaceSettings() {
       this.$refs.workspaceSettings.show('integrations')
     },

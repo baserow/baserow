@@ -116,26 +116,12 @@
           </tr>
         </thead>
         <tbody>
-          <tr
+          <IntegrationTableRow
             v-for="integration in sortedIntegrations"
             :key="integration.id"
+            :integration="integration"
             @contextmenu="openContext({ row: integration, event: $event })"
           >
-            <td>
-              <div class="workspace-integrations-table__identity">
-                <WorkspaceIntegrationAvatar
-                  :subject="integration"
-                  aria-hidden="true"
-                />
-                <span
-                  class="workspace-integrations-table__name"
-                  :title="integration.name"
-                  >{{ integration.name }}</span
-                >
-              </div>
-            </td>
-            <td>{{ getTypeName(integration) }}</td>
-            <td><WorkspaceIntegrationDetailsField :row="integration" /></td>
             <td v-if="canManageAny">
               <button
                 v-if="canManage(integration)"
@@ -148,7 +134,7 @@
                 <i class="baserow-icon-more-vertical" aria-hidden="true"></i>
               </button>
             </td>
-          </tr>
+          </IntegrationTableRow>
         </tbody>
       </table>
     </div>
@@ -196,8 +182,7 @@
 import { notifyIf } from '@baserow/modules/core/utils/error'
 import ConfirmModal from '@baserow/modules/core/components/modals/ConfirmModal'
 import IntegrationCreateEditModal from '@baserow/modules/core/components/integrations/IntegrationCreateEditModal'
-import WorkspaceIntegrationAvatar from './WorkspaceIntegrationAvatar'
-import WorkspaceIntegrationDetailsField from './WorkspaceIntegrationDetailsField'
+import IntegrationTableRow from './IntegrationTableRow'
 import WorkspaceIntegrationContext from './WorkspaceIntegrationContext'
 import WorkspaceIntegrationCreateContext from './WorkspaceIntegrationCreateContext'
 
@@ -210,10 +195,9 @@ import WorkspaceIntegrationCreateContext from './WorkspaceIntegrationCreateConte
 export default {
   name: 'WorkspaceIntegrationsTable',
   components: {
-    WorkspaceIntegrationAvatar,
-    WorkspaceIntegrationDetailsField,
     ConfirmModal,
     IntegrationCreateEditModal,
+    IntegrationTableRow,
     WorkspaceIntegrationContext,
     WorkspaceIntegrationCreateContext,
   },
