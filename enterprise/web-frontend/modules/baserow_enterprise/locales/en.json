@@ -1232,23 +1232,23 @@
   },
   "kumaPrompt": {
     "send": "Send",
-    "generate_formula": "Write a formula with Kuma",
+    "askKuma": "Ask Kuma",
+    "generate_formula": "Database formula",
     "generate_formulaPlaceholder": "What should this field calculate?",
-    "edit_view_filters": "Filter with Kuma",
+    "edit_view_filters": "View filters",
     "edit_view_filtersPlaceholder": "Describe the rows you want to see…",
-    "create_view": "Create a view with Kuma",
+    "create_view": "Create a view",
     "create_viewPlaceholder": "How would you like to see this table?",
-    "generate_agent_instructions": "Write instructions with Kuma",
+    "generate_agent_instructions": "Agent instructions",
     "generate_agent_instructionsPlaceholder": "Describe the agent’s job or a change to its instructions…"
   },
   "kumaInlinePrompt": {
-    "createWithKuma": "Create with Kuma",
     "working": "Working…",
     "undo": "Undo",
     "dismiss": "Dismiss"
   },
   "serviceFilterKumaPrompt": {
-    "title": "Filter with Kuma",
+    "title": "Service filters",
     "placeholder": "Describe the rows you want to see…",
     "unsavedChanges": "Save or undo your filter changes before asking Kuma.",
     "unsavedTable": "Save your table selection before asking Kuma."

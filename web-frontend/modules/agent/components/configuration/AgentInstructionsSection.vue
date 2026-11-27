@@ -9,6 +9,18 @@
     small-label
     required
   >
+    <template #label-action>
+      <EditorPrompt
+        v-if="editable && agent"
+        action="generate_agent_instructions"
+        :workspace-id="agent?.workspace.id"
+        :parameters="{
+          workspace_id: agent?.workspace.id,
+          current: configuration.instructions || '',
+        }"
+        @completed="emit('change', { instructions: $event.instructions })"
+      />
+    </template>
     <FormTextarea
       ref="instructionsInput"
       :model-value="configuration.instructions || ''"
@@ -18,16 +30,6 @@
       :maxlength="100000"
       @update:model-value="$emit('change', { instructions: $event })"
       @blur="$emit('flush')"
-    />
-    <EditorPrompt
-      v-if="editable && agent"
-      action="generate_agent_instructions"
-      :workspace-id="agent?.workspace.id"
-      :parameters="{
-        workspace_id: agent?.workspace.id,
-        current: configuration.instructions || '',
-      }"
-      @completed="emit('change', { instructions: $event.instructions })"
     />
   </FormGroup>
   <section class="agent-suggested-messages">

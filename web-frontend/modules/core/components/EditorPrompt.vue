@@ -6,7 +6,6 @@
     :workspace="workspace"
     :action="action"
     :parameters="parameters"
-    :label="$t('kumaPrompt.' + action)"
     :title="$t('kumaPrompt.' + action)"
     :placeholder="$t('kumaPrompt.' + action + 'Placeholder')"
     @completed="$emit('completed', $event)"

@@ -10,6 +10,24 @@
   flex-direction: column;
 }
 
+.filters__footer {
+  flex-wrap: wrap;
+  height: auto;
+  min-height: 52px;
+  padding-block: 8px;
+}
+
+.filters__footer-end {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+
+  &:empty {
+    display: none;
+  }
+}
+
 .filters__none {
   padding: 16px 20px;
 

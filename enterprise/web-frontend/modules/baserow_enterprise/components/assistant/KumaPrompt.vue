@@ -9,7 +9,7 @@
       @click.stop="toggle"
     >
       <i class="iconoir-sparks" aria-hidden="true"></i>
-      {{ label || $t('kumaInlinePrompt.createWithKuma') }}
+      {{ $t('kumaPrompt.askKuma') }}
     </button>
     <Context
       ref="context"
@@ -21,7 +21,25 @@
       @hidden="onHidden"
       @keydown.esc.stop.prevent="close"
     >
-      <template v-if="open">
+      <div v-if="open && summary" class="kuma-prompt__result" role="status">
+        <span>{{ summary }}</span>
+        <ButtonText
+          v-if="changed && action === 'update_service_filters'"
+          size="small"
+          @click="undo"
+        >
+          {{ $t('kumaInlinePrompt.undo') }}
+        </ButtonText>
+        <ButtonIcon
+          ref="dismissButton"
+          icon="iconoir-cancel"
+          type="secondary"
+          size="small"
+          :aria-label="$t('kumaInlinePrompt.dismiss')"
+          @click.prevent="close"
+        />
+      </div>
+      <template v-else-if="open">
         <div class="prompt-context__input">
           <textarea
             ref="input"
@@ -49,23 +67,6 @@
         </p>
       </template>
     </Context>
-    <span v-if="summary" class="kuma-prompt__result" role="status">
-      {{ summary }}
-      <ButtonText
-        v-if="changed && action === 'update_service_filters'"
-        size="small"
-        @click="undo"
-      >
-        {{ $t('kumaInlinePrompt.undo') }}
-      </ButtonText>
-      <ButtonIcon
-        icon="iconoir-cancel"
-        type="secondary"
-        size="small"
-        :aria-label="$t('kumaInlinePrompt.dismiss')"
-        @click.prevent="dismiss"
-      />
-    </span>
   </template>
 </template>
 
@@ -78,7 +79,6 @@ import { isAssistantAvailable } from '@baserow_enterprise/utils/assistant'
 const props = defineProps({
   enabled: { type: Boolean, default: true },
   workspace: { type: Object, default: null },
-  label: { type: String, default: '' },
   title: { type: String, required: true },
   placeholder: { type: String, required: true },
   blockedMessage: { type: String, default: '' },
@@ -93,22 +93,21 @@ const available = computed(() => {
   return props.enabled && workspace?.id && isAssistantAvailable(app, workspace)
 })
 const summary = ref('')
+const dismissButton = ref(null)
 const changed = ref(false)
 
 function dismiss() {
-  summary.value = ''
-  changed.value = false
+  if (summary.value) context.value?.hide()
 }
 
 watch(available, (shown) => {
   if (!shown) {
-    dismiss()
     onHidden()
   }
 })
 
 async function undo() {
-  dismiss()
+  close()
   await store.dispatch('undoRedo/undo', { showLoadingToast: true })
 }
 
@@ -146,7 +145,9 @@ function close() {
 }
 
 function onHidden() {
-  if (open.value) emit('active', false)
+  if (open.value && !summary.value) emit('active', false)
+  summary.value = ''
+  changed.value = false
   open.value = false
 }
 
@@ -161,7 +162,6 @@ async function send() {
   busy.value = true
   error.value = ''
   try {
-    dismiss()
     const result = await AssistantService(app.$client).runAction(
       props.action,
       message.value.trim(),
@@ -170,9 +170,17 @@ async function send() {
     if (!mounted || !available.value || !open.value) return
     busy.value = false
     message.value = ''
-    close()
-    summary.value = result.summary
-    changed.value = result.changed
+    const showSummary =
+      !result.changed || props.action === 'update_service_filters'
+    if (showSummary && result.summary) {
+      summary.value = result.summary
+      changed.value = result.changed
+      emit('active', false)
+      await nextTick()
+      dismissButton.value?.$el.focus()
+    } else {
+      close()
+    }
     emit('completed', result.result)
   } catch (err) {
     if (!err.handler) throw err

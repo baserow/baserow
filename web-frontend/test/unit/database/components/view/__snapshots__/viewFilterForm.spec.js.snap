@@ -20,7 +20,7 @@ exports[`ViewFilterForm match snapshots > Default view filter component 1`] = `
   </div>
   <!--v-if-->
   <div
-    class="context__footer"
+    class="context__footer filters__footer"
   >
     <button
       class="button-text"
@@ -53,8 +53,12 @@ exports[`ViewFilterForm match snapshots > Default view filter component 1`] = `
       </span>
     </button>
     <!--v-if-->
-    <!--v-if-->
-    <!--v-if-->
+    <div
+      class="filters__footer-end"
+    >
+      <!--v-if-->
+      <!--v-if-->
+    </div>
   </div>
   <teleport-stub
     to="body"
@@ -1145,7 +1149,7 @@ exports[`ViewFilterForm match snapshots > Full view filter component 1`] = `
     
   </div>
   <div
-    class="context__footer"
+    class="context__footer filters__footer"
   >
     <button
       class="button-text"
@@ -1178,10 +1182,10 @@ exports[`ViewFilterForm match snapshots > Full view filter component 1`] = `
       </span>
     </button>
     <!--v-if-->
-    <!--v-if-->
     <div
-      class="margin-left-auto"
+      class="filters__footer-end"
     >
+      <!--v-if-->
       <div
         class="switch switch--small switch--color-green"
       >
@@ -1653,7 +1657,7 @@ exports[`ViewFilterForm match snapshots > rating filter 1`] = `
     
   </div>
   <div
-    class="context__footer"
+    class="context__footer filters__footer"
   >
     <button
       class="button-text"
@@ -1686,10 +1690,10 @@ exports[`ViewFilterForm match snapshots > rating filter 1`] = `
       </span>
     </button>
     <!--v-if-->
-    <!--v-if-->
     <div
-      class="margin-left-auto"
+      class="filters__footer-end"
     >
+      <!--v-if-->
       <div
         class="switch switch--small switch--color-green"
       >

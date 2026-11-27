@@ -65,9 +65,11 @@ describe('KumaPrompt', () => {
   })
 
   test('renders the link when Kuma is available', async () => {
-    const wrapper = await mount({ label: 'Ask Kuma' })
+    const wrapper = await mount()
 
-    expect(wrapper.find('.prompt-context__trigger').text()).toBe('Ask Kuma')
+    expect(wrapper.find('.prompt-context__trigger').text()).toBe(
+      'kumaPrompt.askKuma'
+    )
     expect(wrapper.find('textarea').exists()).toBe(false)
   })
 
@@ -101,10 +103,10 @@ describe('KumaPrompt', () => {
     expect(wrapper.emitted('completed')).toEqual([[{ formula: '1' }]])
   })
 
-  test('sends the request and shows the summary', async () => {
+  test('keeps a no-change explanation inside the popover', async () => {
     mocks.runAction.mockResolvedValue({
-      changed: true,
-      summary: 'Added a Due date field.',
+      changed: false,
+      summary: 'A Due date field already exists.',
     })
     const wrapper = await mount()
     await openAndType(wrapper, '  a due date  ')
@@ -118,9 +120,30 @@ describe('KumaPrompt', () => {
     // Active while the request was written and sent.
     expect(wrapper.emitted('active')).toEqual([[true], [false]])
     expect(wrapper.find('textarea').exists()).toBe(false)
-    expect(wrapper.find('.kuma-prompt__result').text()).toContain(
-      'Added a Due date field.'
+    expect(wrapper.get('[role=dialog] .kuma-prompt__result').text()).toContain(
+      'A Due date field already exists.'
     )
+    await wrapper.get('.kuma-prompt__result .button-icon').trigger('click')
+    await openAndType(wrapper, 'Another change')
+    expect(wrapper.emitted('active')).toEqual([[true], [false], [true]])
+  })
+
+  test('closes the popover when a view filter is saved', async () => {
+    mocks.runAction.mockResolvedValue({
+      changed: true,
+      summary: 'Updated the status filter.',
+      result: {},
+    })
+    const wrapper = await mount({ action: 'edit_view_filters' })
+    await openAndType(wrapper, 'Only completed projects')
+    await submitButton(wrapper).trigger('click')
+    await flushPromises()
+
+    expect(
+      wrapper.get('.prompt-context__trigger').attributes('aria-expanded')
+    ).toBe('false')
+    expect(wrapper.find('.kuma-prompt__result').exists()).toBe(false)
+    expect(wrapper.emitted('completed')).toEqual([[{}]])
   })
 
   test('undoes the saved service filters', async () => {
@@ -159,7 +182,7 @@ describe('KumaPrompt', () => {
 
   test('the host can dismiss the summary', async () => {
     mocks.runAction.mockResolvedValue({
-      changed: true,
+      changed: false,
       summary: 'Added a field.',
     })
     const wrapper = await mount()

@@ -43,7 +43,7 @@
         :read-only="readOnly"
       />
     </ViewFieldConditionsForm>
-    <div v-if="!disableFilter" class="context__footer">
+    <div v-if="!disableFilter" class="context__footer filters__footer">
       <ButtonText icon="iconoir-plus" @click.prevent="addFilter()">
         {{ $t('viewFilterContext.addFilter') }}</ButtonText
       >
@@ -63,23 +63,24 @@
         {{ $t('viewFilterContext.copyFromView') }}</ButtonText
       >
 
-      <EditorPrompt
-        v-if="
-          !readOnly &&
-          !isPublicView &&
-          $hasPermission(
-            'database.table.view.create_filter',
-            view,
-            database.workspace.id
-          )
-        "
-        action="edit_view_filters"
-        :workspace-id="database.workspace.id"
-        :parameters="{ view_id: view.id }"
-        @completed="$emit('changed')"
-      />
-      <div v-if="view.filters.length > 0" class="margin-left-auto">
+      <div class="filters__footer-end">
+        <EditorPrompt
+          v-if="
+            !readOnly &&
+            !isPublicView &&
+            $hasPermission(
+              'database.table.view.create_filter',
+              view,
+              database.workspace.id
+            )
+          "
+          action="edit_view_filters"
+          :workspace-id="database.workspace.id"
+          :parameters="{ view_id: view.id }"
+          @completed="$emit('changed')"
+        />
         <SwitchInput
+          v-if="view.filters.length > 0"
           small
           :value="view.filters_disabled"
           @input="updateView(view, { filters_disabled: $event })"

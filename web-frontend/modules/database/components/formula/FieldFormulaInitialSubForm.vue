@@ -6,6 +6,18 @@
       required
       :error="!!error"
     >
+      <template #label-action>
+        <EditorPrompt
+          action="generate_formula"
+          :workspace-id="database.workspace.id"
+          :parameters="{
+            table_id: table.id,
+            field_name: fieldName,
+            current: formula,
+          }"
+          @completed="$emit('update-formula', $event.formula)"
+        />
+      </template>
       <FormInput
         ref="formInput"
         :value="formula"
@@ -17,16 +29,6 @@
         @input="$emit('open-advanced-context', $refs.formInput.$refs.input)"
       ></FormInput>
 
-      <EditorPrompt
-        action="generate_formula"
-        :workspace-id="database.workspace.id"
-        :parameters="{
-          table_id: table.id,
-          field_name: fieldName,
-          current: formula,
-        }"
-        @completed="$emit('update-formula', $event.formula)"
-      />
       <component
         :is="component"
         v-for="(component, index) in additionalInputComponents"

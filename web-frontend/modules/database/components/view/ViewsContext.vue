@@ -5,13 +5,28 @@
     max-height-if-outside-viewport
     @shown="shown"
   >
-    <div class="select__search">
+    <div class="select__search select__search--with-action">
       <i class="select__search-icon iconoir-search"></i>
       <input
         v-model="query"
         type="text"
         class="select__search-input"
         :placeholder="$t('viewsContext.searchView')"
+      />
+      <EditorPrompt
+        v-if="
+          !readOnly &&
+          availableViewOwnershipTypesForCreation.length > 0 &&
+          $hasPermission(
+            'database.table.create_view',
+            table,
+            database.workspace.id
+          )
+        "
+        action="create_view"
+        :workspace-id="database.workspace.id"
+        :parameters="{ table_id: table.id }"
+        @completed="$event.view_id && selectedView({ id: $event.view_id })"
       />
     </div>
     <div v-if="isLoading" class="context--loading">
@@ -68,19 +83,6 @@
       class="select__footer"
     >
       <div class="select__footer-create">
-        <EditorPrompt
-          v-if="
-            $hasPermission(
-              'database.table.create_view',
-              table,
-              database.workspace.id
-            )
-          "
-          action="create_view"
-          :workspace-id="database.workspace.id"
-          :parameters="{ table_id: table.id }"
-          @completed="$event.view_id && selectedView({ id: $event.view_id })"
-        />
         <CreateViewLink
           v-for="(viewType, type) in viewTypes"
           :key="type"

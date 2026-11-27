@@ -1,19 +1,21 @@
 <template>
   <p class="agent-create__intro">{{ $t('agent.setupReviewIntro') }}</p>
   <FormGroup :label="$t('agent.instructions')" small-label required>
+    <template #label-action>
+      <EditorPrompt
+        action="generate_agent_instructions"
+        :workspace-id="workspace.id"
+        :parameters="{
+          workspace_id: workspace.id,
+          current: modelValue.instructions || '',
+        }"
+        @completed="update({ instructions: $event.instructions })"
+      />
+    </template>
     <FormTextarea
       :model-value="modelValue.instructions"
       :rows="6"
       @update:model-value="update({ instructions: $event })"
-    />
-    <EditorPrompt
-      action="generate_agent_instructions"
-      :workspace-id="workspace.id"
-      :parameters="{
-        workspace_id: workspace.id,
-        current: modelValue.instructions || '',
-      }"
-      @completed="update({ instructions: $event.instructions })"
     />
   </FormGroup>
   <FormGroup

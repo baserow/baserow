@@ -19,7 +19,7 @@ and optionally enable knowledge-base lookups through an embeddings server.
   work as well.
 
 With Kuma enabled, editors can ask for a database formula, a new view, changes to
-view or service filters, or Agent instructions. Open the Kuma button beside the
+view or service filters, or Agent instructions. Choose **Ask Kuma** beside the
 setting, describe the change, and click **Send** or press **Enter**. Use **Shift+Enter**
 for another line. Generated formulas and Agent instructions appear in their editors.
 View and filter changes apply immediately.

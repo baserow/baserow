@@ -15,20 +15,22 @@
     small-label
     required
   >
+    <template #label-action>
+      <EditorPrompt
+        action="generate_agent_instructions"
+        :workspace-id="workspace.id"
+        :parameters="{
+          workspace_id: workspace.id,
+          current: modelValue.instructions || '',
+        }"
+        @completed="update({ instructions: $event.instructions })"
+      />
+    </template>
     <FormTextarea
       :model-value="modelValue.instructions"
       :placeholder="$t('agent.setupInstructionsPlaceholder')"
       :rows="5"
       @update:model-value="update({ instructions: $event })"
-    />
-    <EditorPrompt
-      action="generate_agent_instructions"
-      :workspace-id="workspace.id"
-      :parameters="{
-        workspace_id: workspace.id,
-        current: modelValue.instructions || '',
-      }"
-      @completed="update({ instructions: $event.instructions })"
     />
   </FormGroup>
   <div class="agent-create__suggestions">
