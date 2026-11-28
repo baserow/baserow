@@ -93,13 +93,11 @@ export default {
     },
     initialSubjectName() {
       const subject = this.defaultValues.authorized_subject
-      // A trashed identity isn't selectable, so show nothing selected and let the
-      // user pick another subject.
-      if (subject?.trashed) {
+      // A trashed identity isn't selectable, and an integration without a
+      // subject acts as nobody, so show nothing selected and let the user pick
+      // a subject.
+      if (!subject || subject.trashed) {
         return null
-      }
-      if (!subject) {
-        return this.$t('localBaserowForm.currentUser')
       }
       const subjectType = this.$registry.get('subject', subject.type)
       if (subjectType.isCurrentUser(subject, this.currentUserId)) {
@@ -108,12 +106,11 @@ export default {
       return subjectType.getDisplayName(subject)
     },
     authenticationSubject() {
-      const type = this.values.authorized_subject_type
-      const id =
-        type === UserSubjectType.getType() &&
-        this.values.authorized_subject_id === null
-          ? this.currentUserId
-          : this.values.authorized_subject_id
+      const { authorized_subject_id: id, authorized_subject_type: type } =
+        this.values
+      if (!id) {
+        return null
+      }
       return this.$registry.get('subject', type).getKey({ id })
     },
   },

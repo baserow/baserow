@@ -164,6 +164,50 @@ describe('LocalBaserowForm', () => {
     expect(wrapper.find('.dropdown__selected').text()).toBe('action.makeChoice')
   })
 
+  test('shows the current user as selected for a new integration', async () => {
+    // What the create modal gives the form.
+    const wrapper = await mountComponent({
+      name: 'Local Baserow',
+      ...testApp
+        .getRegistry()
+        .get('integration', 'local_baserow')
+        .getDefaultValues(),
+    })
+    await flushPromises()
+
+    expect(wrapper.find('.dropdown__selected-text').text()).toBe(
+      'localBaserowForm.currentUser'
+    )
+    expect(
+      wrapper.findComponent({ name: 'PaginatedDropdown' }).props('value')
+    ).toBe('auth.User:1')
+  })
+
+  test('shows nothing selected for a saved integration without a subject', async () => {
+    const wrapper = await mountComponent({ id: 5, authorized_subject: null })
+    await flushPromises()
+
+    expect(wrapper.find('.dropdown__selected-text').exists()).toBe(false)
+    expect(wrapper.find('.dropdown__selected').text()).toBe('action.makeChoice')
+    expect(
+      wrapper.findComponent({ name: 'PaginatedDropdown' }).props('value')
+    ).toBe(null)
+  })
+
+  test('emits the current user once picked for a saved integration without a subject', async () => {
+    const wrapper = await mountComponent({ id: 5, authorized_subject: null })
+    await openDropdown(wrapper)
+    await selectItem(wrapper, 'localBaserowForm.currentUser')
+
+    expect(wrapper.emitted('values-changed').at(-1)[0]).toEqual({
+      authorized_subject_id: 1,
+      authorized_subject_type: 'auth.User',
+    })
+    expect(wrapper.find('.dropdown__selected-text').text()).toBe(
+      'localBaserowForm.currentUser'
+    )
+  })
+
   test('shows the saved current user as selected', async () => {
     const wrapper = await mountComponent({
       authorized_subject: { id: 1, type: 'auth.User', first_name: 'Admin' },

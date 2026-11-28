@@ -92,7 +92,7 @@
             }}</span>
             <i
               v-tooltip:[lastRunTooltipOptions]="lastRunDetails"
-              class="iconoir-info-circle automatic-snapshot-schedule__last-run-info"
+              class="iconoir-info-empty automatic-snapshot-schedule__last-run-info"
               role="img"
               tabindex="0"
               :aria-label="lastRunDetails"

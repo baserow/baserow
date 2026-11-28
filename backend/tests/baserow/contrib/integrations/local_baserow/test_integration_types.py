@@ -10,6 +10,7 @@ from tqdm import tqdm
 from baserow.contrib.integrations.local_baserow.integration_types import (
     LocalBaserowIntegrationType,
 )
+from baserow.core.admin.users.handler import UserAdminHandler
 from baserow.core.cache import local_cache
 from baserow.core.handler import CoreHandler
 from baserow.core.integrations.exceptions import IntegrationImproperlyConfigured
@@ -312,6 +313,26 @@ def test_import_legacy_authorization_reuses_workspace_users(data_fixture):
 
     user_queries = [query for query in queries if 'FROM "auth_user"' in query["sql"]]
     assert len(user_queries) == 1
+
+
+@pytest.mark.django_db
+def test_admin_deleting_user_clears_their_integration_authorization(data_fixture):
+    admin_user = data_fixture.create_user(is_staff=True)
+    user_to_delete = data_fixture.create_user()
+    integration = data_fixture.create_local_baserow_integration(
+        authorized_user=user_to_delete
+    )
+    other_integration = data_fixture.create_local_baserow_integration(
+        authorized_user=admin_user
+    )
+
+    UserAdminHandler().delete_user(admin_user, user_to_delete.id)
+
+    integration.refresh_from_db()
+    assert integration.authorized_subject_type is None
+    assert integration.authorized_subject_id is None
+    other_integration.refresh_from_db()
+    assert other_integration.authorized_subject_id == admin_user.id
 
 
 @pytest.mark.django_db

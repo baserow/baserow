@@ -165,7 +165,7 @@ describe('AutomaticSnapshotScheduleSection', () => {
       // The time, and the error if it failed, are in the label of the info icon,
       // which is also its tooltip.
       const info = result.find('.automatic-snapshot-schedule__last-run-info')
-      expect(info.classes()).toContain('iconoir-info-circle')
+      expect(info.classes()).toContain('iconoir-info-empty')
       expect(info.attributes('tabindex')).toBe('0')
       const label = info.attributes('aria-label')
       expect(label).toContain('Tue 24 Nov, 08:00 UTC')

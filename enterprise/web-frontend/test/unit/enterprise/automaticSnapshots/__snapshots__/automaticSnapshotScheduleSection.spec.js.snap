@@ -1,8 +1,8 @@
 // Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
-exports[`AutomaticSnapshotScheduleSection > shows the last application result with optional details:  1`] = `"<div class="automatic-snapshot-schedule__last-run"><span>automaticSnapshots.nextRun</span><span> · </span><span>automaticSnapshots.lastRun</span><i class="iconoir-info-circle automatic-snapshot-schedule__last-run-info" role="img" tabindex="0" aria-label="Tue 24 Nov, 08:00 UTC"></i></div>"`;
+exports[`AutomaticSnapshotScheduleSection > shows the last application result with optional details:  1`] = `"<div class="automatic-snapshot-schedule__last-run"><span>automaticSnapshots.nextRun</span><span> · </span><span>automaticSnapshots.lastRun</span><i class="iconoir-info-empty automatic-snapshot-schedule__last-run-info" role="img" tabindex="0" aria-label="Tue 24 Nov, 08:00 UTC"></i></div>"`;
 
 exports[`AutomaticSnapshotScheduleSection > shows the last application result with optional details: No room for this application 1`] = `
-"<div class="automatic-snapshot-schedule__last-run"><span>automaticSnapshots.nextRun</span><span> · </span><span>automaticSnapshots.lastRun</span><i class="iconoir-info-circle automatic-snapshot-schedule__last-run-info" role="img" tabindex="0" aria-label="Tue 24 Nov, 08:00 UTC
+"<div class="automatic-snapshot-schedule__last-run"><span>automaticSnapshots.nextRun</span><span> · </span><span>automaticSnapshots.lastRun</span><i class="iconoir-info-empty automatic-snapshot-schedule__last-run-info" role="img" tabindex="0" aria-label="Tue 24 Nov, 08:00 UTC
 No room for this application"></i></div>"
 `;

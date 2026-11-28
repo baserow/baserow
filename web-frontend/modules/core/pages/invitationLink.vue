@@ -151,6 +151,7 @@ import {
   getInvitationLinkToken,
   isInvitationLinkPasswordRequired,
   setInvitationLinkToken,
+  unsetInvitationLinkToken,
 } from '@baserow/modules/core/utils/invitationLink'
 
 definePageMeta({
@@ -258,10 +259,13 @@ const joinLabel = computed(() => {
 useHead({ title: () => pageTitle.value })
 
 /**
- * Navigates away and tells the caller that this page is being left.
+ * Navigates away and tells the caller that this page is being left. It runs in
+ * the context of the Nuxt app, because the caller has awaited something by the
+ * time it gets here, and while rendering on the server that context is only
+ * kept across the awaits of the setup itself.
  */
 async function navigateToPage(to, options) {
-  await navigateTo(to, options)
+  await nuxtApp.runWithContext(() => navigateTo(to, options))
   return true
 }
 
@@ -310,6 +314,8 @@ async function routeVisitor() {
     } else if (workspace && invitationLink.value.adds_member) {
       addsMember.value = true
     } else if (workspace) {
+      // The link has nothing more to give this member.
+      await unsetInvitationLinkToken(nuxtApp, slug)
       return await navigateToPage(
         { name: 'workspace', params: { workspaceId } },
         { replace: true }
@@ -333,6 +339,7 @@ async function join() {
     const { data: workspace } = await WorkspaceService(
       $client
     ).joinInvitationLink(slug, token.value)
+    await unsetInvitationLinkToken(nuxtApp, slug)
 
     // Clear workspace loaded state so it gets refetched on next page
     store.commit('workspace/SET_LOADED', false)

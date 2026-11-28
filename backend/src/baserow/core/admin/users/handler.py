@@ -12,7 +12,8 @@ from baserow.core.admin.users.exceptions import (
     UserDoesNotExistException,
 )
 from baserow.core.exceptions import IsNotAdminError
-from baserow.core.signals import before_user_deleted
+from baserow.core.models import WorkspaceUser
+from baserow.core.signals import before_user_deleted, user_permanently_deleted
 from baserow.core.two_factor_auth.handler import TwoFactorAuthHandler
 from baserow.core.user.exceptions import (
     PasswordDoesNotMatchValidation,
@@ -182,9 +183,21 @@ class UserAdminHandler:
             except User.DoesNotExist:
                 raise UserDoesNotExistException()
 
+            workspace_ids = list(
+                WorkspaceUser.objects.filter(user=user).values_list(
+                    "workspace_id", flat=True
+                )
+            )
+
             before_user_deleted.send(self, user=user)
 
             user.delete()
+
+            # Sent in the transaction, so that what still refers to the user, like
+            # the integrations acting as them, is cleared together with the user.
+            user_permanently_deleted.send(
+                self, user_id=user_id, workspace_ids=workspace_ids
+            )
 
     def disable_user_two_factor_auth(self, requesting_user: User, user_id: int):
         """
