@@ -26,7 +26,12 @@
       :aria-label="$t('toolPresentation.input')"
     ><code>{{ JSON.stringify(input.values, null, 2) }}</code></pre>
     <p v-if="input.truncated" class="chat-tool-input__note">
-      {{ $t('toolPresentation.inputTruncated') }}
+      {{
+        [
+          $t('toolPresentation.inputTruncated'),
+          ...omissions.map(([key, count]) => $t(key, { count }, count)),
+        ].join(' ')
+      }}
     </p>
   </div>
 </template>
@@ -36,9 +41,20 @@ import { computed } from 'vue'
 
 /** A tool's input preview, with a note when the backend shortened it. */
 const props = defineProps({
-  /** `{values, truncated}`, as `toolActivity` resolves it. */
+  /**
+   * `{values, truncated}`, and what was left out (`omittedValues`,
+   * `omittedCharacters`) when known, as `toolActivity` resolves it.
+   */
   input: { type: Object, default: null },
 })
+
+/** What a held input too large to store left out, as translation keys and counts. */
+const omissions = computed(() =>
+  [
+    ['toolPresentation.inputOmittedValues', props.input?.omittedValues],
+    ['toolPresentation.inputOmittedCharacters', props.input?.omittedCharacters],
+  ].filter(([, count]) => count)
+)
 
 const rows = computed(() => {
   const values = props.input?.values

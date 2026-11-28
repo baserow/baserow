@@ -91,6 +91,11 @@ failed steps too.
   fits, the list is left out, never shown empty.
 - `input.truncated` marks any of these cuts; the card says the preview is
   shortened.
+- A held call is the exception, from when it waits until it ends: the person
+  deciding reads every value the call writes, so every item is named and
+  nothing is cut (`get_step_preview_input(ctx, arguments, held=True)`).
+  `StepPreview.cut_items` and `to_input` read this from `held_previews`. See
+  [Held calls](#held-calls).
 - Each ID is resolved on its own: two fields named "Name" stay two entries.
 - A table, field or view is named with its database, as a duplicated database
   keeps every name. The tables of a schema read or a creation are too.
@@ -103,6 +108,30 @@ failed steps too.
   written.
 - Reads of one table name only the table and its database, so a held read shows
   what it reads.
+
+#### Held calls
+
+What a held call stores is bounded only by `MAX_HELD_INPUT_SIZE`, 256 KiB of
+JSON, in `core/chat_runs/tool_input.py` (`held_tool_input`). Larger, the
+longest texts are cut first, to no fewer than 100 characters, and then the
+values after the first one that doesn't fit are left out. The input then has
+`truncated`, `omitted_characters` (cut from texts) and `omitted_values` (left
+out), and the card says how much is missing. It is never stored empty.
+
+Nothing else bounds a step: `AgentMessage.steps` is a JSON field, the
+websocket only says a run changed, and the API returns the stored steps. A run
+whose unflushed live events pass 1 MiB stops streaming them; its stored steps
+are unaffected.
+
+The same applies to held calls of connected apps' (MCP) tools, whose step shows
+every argument, credentials masked. An argument is masked when a word of its
+name, split on anything but letters and digits and on camelCase, is `pass`,
+`passwd`, `password`, `passphrase`, `secret(s)`, `token`, `apikey`,
+`authorization`, `credential(s)`, `cookie(s)` or `privatekey`, when two
+words read `api key` or `private key`, or when a word ends with `password`,
+`passphrase`, `secret`, `token`, `apikey`, `privatekey` or `credential(s)`,
+like `accesstoken`. So `password`, `access_token` and `X-Api-Key` are
+masked, and `passenger`, `tokenizer_mode` and `max_tokens` aren't.
 
 Tool details start collapsed. Objects with keys are shown as a two-column table.
 Nested objects, arrays and other JSON values retain their JSON formatting.

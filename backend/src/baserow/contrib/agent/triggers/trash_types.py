@@ -38,7 +38,7 @@ class AgentTriggerTrashableItemType(TrashableItemType):
         trash_entry: TrashEntry,
     ) -> None:
         """
-        Trash the trigger and its service.
+        Trash the trigger and its service, and stop its running replies.
 
         :param item_to_trash: The trigger to trash.
         :param requesting_user: The user trashing it.
@@ -47,6 +47,7 @@ class AgentTriggerTrashableItemType(TrashableItemType):
 
         super().trash(item_to_trash, requesting_user, trash_entry)
         self._set_service_trashed(item_to_trash, True)
+        AgentTriggerHandler().stop_running_replies(item_to_trash)
 
     def restore(self, trashed_item: AgentTrigger, trash_entry: TrashEntry) -> None:
         """

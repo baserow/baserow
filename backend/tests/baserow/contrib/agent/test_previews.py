@@ -1,5 +1,6 @@
 import json
 
+import pytest
 from pydantic import BaseModel
 
 from baserow.contrib.agent.previews import (
@@ -7,10 +8,15 @@ from baserow.contrib.agent.previews import (
     StepPreview,
     arguments_preview,
     as_requested,
+    held_previews,
+    is_secret_name,
     mask,
     name_field_references,
 )
-from baserow.core.chat_runs.tool_input import MAX_INPUT_PREVIEW_SIZE
+from baserow.core.chat_runs.tool_input import (
+    MAX_HELD_INPUT_SIZE,
+    MAX_INPUT_PREVIEW_SIZE,
+)
 
 
 class ViewRequest(BaseModel):
@@ -110,12 +116,134 @@ def test_arguments_preview_masks_credentials_at_any_depth():
             "api_key": MASKED_VALUE,
             "headers": {"Authorization": MASKED_VALUE, "Accept": "json"},
             "accounts": [{"name": "ops", "password": MASKED_VALUE}],
-            "max_tokens": MASKED_VALUE,
+            "max_tokens": 10,
         }
     }
 
 
-def test_arguments_preview_is_bounded_like_every_preview():
-    preview = arguments_preview({"ids": list(range(50))})
+@pytest.mark.parametrize(
+    "name",
+    [
+        "password",
+        "Password",
+        "pass",
+        "passwd",
+        "passphrase",
+        "pass_phrase",
+        "access_token",
+        "accessToken",
+        "accesstoken",
+        "refresh-token",
+        "X-Api-Key",
+        "api_key",
+        "apiKey",
+        "APIKey",
+        "apikey",
+        "Authorization",
+        "proxy_authorisation",
+        "client_secret",
+        "credentials",
+        "private_key",
+        "privateKey",
+        "session_cookie",
+        "passwords",
+        "api_keys",
+        "apiKeys",
+        "access_tokens",
+        "refresh_tokens",
+        "private_keys",
+    ],
+)
+def test_names_of_credentials_are_masked(name):
+    assert is_secret_name(name)
+    assert arguments_preview({name: "s3cret"}) == {"values": {name: MASKED_VALUE}}
 
-    assert preview == {"values": {"ids": list(range(10))}, "truncated": True}
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        "passenger",
+        "passengers",
+        "passage",
+        "bypass_cache",
+        "compass",
+        "tokenizer_mode",
+        "max_tokens",
+        "num_tokens",
+        "keyword",
+        "key",
+        "author",
+        "secretary",
+    ],
+)
+def test_ordinary_names_that_contain_a_credential_word_are_shown(name):
+    assert not is_secret_name(name)
+    assert arguments_preview({name: "Ann"}) == {"values": {name: "Ann"}}
+
+
+def test_a_held_call_shows_every_argument_whole():
+    arguments = {
+        "to": [f"person{index}@example.com" for index in range(25)],
+        "body": "b" * 1910,
+        "passenger": "Ann",
+        "options": {f"option{index}": index for index in range(15)},
+    }
+
+    assert arguments_preview(arguments) == {"values": arguments}
+
+
+def test_a_held_call_too_large_to_store_still_shows_its_arguments():
+    arguments = {
+        "subject": "Report",
+        "body": "b" * 300_000,
+        "to": ["ops@example.com"],
+        "api_key": "s3cret",
+    }
+
+    preview = arguments_preview(arguments)
+
+    assert len(json.dumps(preview["values"])) <= MAX_HELD_INPUT_SIZE
+    assert preview["truncated"] is True
+    assert preview["omitted_characters"] > 0
+    assert "omitted_values" not in preview
+    values = preview["values"]
+    assert values["subject"] == "Report"
+    assert values["to"] == ["ops@example.com"]
+    assert values["api_key"] == MASKED_VALUE
+    assert values["body"].startswith("b" * 100_000)
+    assert len(values["body"]) == 300_000 - preview["omitted_characters"] + 1
+
+
+def test_a_held_preview_names_and_shows_every_item():
+    rows = [{f"F{index}": "x" * 1500 for index in range(11)} for _ in range(11)]
+
+    with held_previews():
+        preview = StepPreview({"table": "Tasks"}, "rows")
+        preview.items = preview.cut_items(rows)
+
+    assert preview.to_input() == {"values": {"table": "Tasks", "rows": rows}}
+    assert StepPreview({"table": "Tasks"}, "rows", rows).to_input()["truncated"]
+
+
+def test_a_held_preview_too_large_to_store_keeps_its_names_and_counts_the_rest():
+    rows = [{"Name": f"Row {index}", "Notes": "y" * 50} for index in range(5000)]
+
+    with held_previews():
+        stored = StepPreview({"table": "Tasks"}, "rows", rows).to_input()
+
+    assert len(json.dumps(stored["values"])) <= MAX_HELD_INPUT_SIZE
+    assert stored["truncated"] is True
+    assert stored["values"]["table"] == "Tasks"
+    shown = stored["values"]["rows"]
+    assert 1000 < len(shown) < len(rows)
+    assert shown[:-1] == rows[: len(shown) - 1]
+    assert shown[-1].items() <= rows[len(shown) - 1].items()
+    assert stored["omitted_values"] == 2 * len(rows) - sum(map(len, shown))
+    assert "omitted_characters" not in stored
+
+
+def test_a_held_call_over_the_bounded_preview_size_is_not_shown_empty():
+    arguments = {"sections": [{"paragraphs": ["x" * 190] * 10}] * 10}
+    assert len(json.dumps(arguments)) > MAX_INPUT_PREVIEW_SIZE
+
+    assert arguments_preview(arguments) == {"values": arguments}

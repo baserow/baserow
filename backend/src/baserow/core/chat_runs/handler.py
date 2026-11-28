@@ -289,6 +289,23 @@ class ChatRunHandler:
                 notify_run_on_commit(run)
             return ChatRunStatus(run.status)
 
+    def request_cancel_on_commit(self, run_type: str, runs: Q) -> None:
+        """
+        Stop the active runs a change takes away what they run for, once it
+        commits: runs are locked before their product rows.
+
+        :param run_type: The type of the runs.
+        :param runs: The condition the runs to stop meet.
+        """
+
+        run_ids = self.runs.filter(
+            runs, run_type=run_type, status__in=ACTIVE_CHAT_RUN_STATUSES
+        ).values_list("id", flat=True)
+        for run_id in list(run_ids):
+            transaction.on_commit(
+                lambda run_id=run_id: self.request_cancel(run_id), robust=True
+            )
+
     @staticmethod
     def _record_canceller(run: ChatRun, user: AbstractUser) -> None:
         try:

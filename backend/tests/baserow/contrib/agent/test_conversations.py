@@ -5,6 +5,7 @@ from uuid import UUID, uuid4
 
 from django.contrib.auth import get_user_model
 from django.db import close_old_connections, connection, transaction
+from django.urls import reverse
 
 import pytest
 from freezegun import freeze_time
@@ -36,13 +37,13 @@ from baserow.core.action.scopes import ApplicationActionScopeType
 from baserow.core.chat_runs.handler import ChatRunHandler
 from baserow.core.chat_runs.models import ChatRun
 from baserow.core.exceptions import PermissionException
-from baserow.core.models import TrashEntry
+from baserow.core.models import TrashEntry, WorkspaceUser
 from baserow.core.registries import Plugin, plugin_registry
 from baserow.core.signals import application_pending_count_updated
 from baserow.core.trash.exceptions import CannotRestoreItemNotOwnedByUser
 from baserow.core.trash.handler import TrashHandler
 
-from .utils import agent_url, new_conversation, run_reply
+from .utils import agent_url, new_conversation, run_reply, stop_was_asked
 
 
 def message_request(agent, view, conversation):
@@ -707,6 +708,55 @@ def test_a_deleted_conversation_stops_its_reply_and_only_its_owner_restores_it(
     TrashHandler.permanently_delete_marked_trash()
     assert not AgentConversation.objects_and_trash.exists()
     assert not AgentMessage.objects.exists()
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("removed", ["agent", "workspace", "member"])
+def test_a_running_reply_stops_once_its_agent_workspace_or_member_is_removed(
+    data_fixture,
+    configured_agent,
+    api_client,
+    django_capture_on_commit_callbacks,
+    removed,
+):
+    admin, admin_token = data_fixture.create_user_and_token()
+    member, member_token = data_fixture.create_user_and_token()
+    workspace = data_fixture.create_workspace(user=admin, members=[member])
+    agent = configured_agent(workspace=workspace)
+    # The member's reply in a workspace of their own keeps running.
+    other_agent = configured_agent(user=member)
+    api_client.credentials(HTTP_AUTHORIZATION=f"JWT {member_token}")
+    runs = []
+    for target in (agent, other_agent):
+        response = api_client.post(
+            agent_url(target, "conversations"), new_conversation(), format="json"
+        )
+        assert response.status_code == 200
+        run = ChatRun.objects.get(
+            chat_id=AgentConversation.objects.get(agent=target).id
+        )
+        assert ChatRunHandler().claim_run(run.id) is not None
+        runs.append(run)
+    url = {
+        "agent": reverse("api:applications:item", kwargs={"application_id": agent.id}),
+        "workspace": reverse(
+            "api:workspaces:item", kwargs={"workspace_id": workspace.id}
+        ),
+        "member": reverse(
+            "api:workspaces:users:item",
+            kwargs={
+                "workspace_user_id": WorkspaceUser.objects.get(
+                    workspace=workspace, user=member
+                ).id
+            },
+        ),
+    }[removed]
+
+    api_client.credentials(HTTP_AUTHORIZATION=f"JWT {admin_token}")
+    with django_capture_on_commit_callbacks(execute=True):
+        assert api_client.delete(url).status_code == 204
+
+    assert [stop_was_asked(run) for run in runs] == [True, False]
 
 
 @pytest.mark.django_db

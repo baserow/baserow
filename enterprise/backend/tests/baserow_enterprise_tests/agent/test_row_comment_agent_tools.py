@@ -31,6 +31,8 @@ ROW_COMMENT_TOOLS = {
 class ModelRun:
     """The model run a tool streams its readable request to."""
 
+    tool_call_approved = False
+
     def __init__(self) -> None:
         self.input: dict = {}
 

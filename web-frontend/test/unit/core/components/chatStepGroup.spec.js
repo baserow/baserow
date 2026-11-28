@@ -168,6 +168,29 @@ describe('ChatStepGroup', () => {
     expect(wrapper.find('.chat-tool-input').exists()).toBe(false)
   })
 
+  test('says what a held input too large to store leaves out', async () => {
+    const wrapper = mount(ChatStepGroup, {
+      props: {
+        title: 'Updating rows',
+        status: 'waiting',
+        input: {
+          values: { rows: [{ Name: 'Acme' }] },
+          truncated: true,
+          omittedValues: 3,
+          omittedCharacters: 1200,
+        },
+      },
+      global,
+    })
+
+    await wrapper.get('button').trigger('click')
+
+    expect(wrapper.get('.chat-tool-input__note').text()).toBe(
+      'toolPresentation.inputTruncated toolPresentation.inputOmittedValues ' +
+        'toolPresentation.inputOmittedCharacters'
+    )
+  })
+
   test('does not add a toggle without input', () => {
     const wrapper = mount(ChatStepGroup, {
       props: { title: 'Added rows', status: 'done', input: null },

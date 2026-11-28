@@ -110,7 +110,13 @@ from baserow.core.tools.errors import ToolInputError
 from baserow.core.trash.handler import TrashHandler
 
 from ..integrations.mcp.utils import serve
-from .utils import agent_url, new_conversation, queued_reply, run_reply
+from .utils import (
+    agent_url,
+    new_conversation,
+    queued_reply,
+    run_reply,
+    stop_was_asked,
+)
 
 
 def start(user: AbstractUser, agent: AgentApplication) -> AgentMessageCreated:
@@ -2906,6 +2912,38 @@ def test_an_unattended_reply_stops_once_its_trigger_is_gone(
 
     reply = AgentMessage.objects.get(conversation=conversation, role="assistant")
     assert reply_state(reply.id) == ("failed", "trigger_off", "")
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("change", ["disable", "trash"])
+def test_a_running_unattended_reply_stops_once_its_trigger_is_off_or_trashed(
+    data_fixture,
+    configured_agent,
+    api_client,
+    api_user,
+    django_capture_on_commit_callbacks,
+    change,
+):
+    agent = configured_agent(user=api_user)
+    # The other trigger's reply keeps running.
+    triggers = [data_fixture.create_agent_trigger(agent=agent) for _ in range(2)]
+    runs = [
+        ChatRun.objects.get(
+            id=AgentHandler().start_trigger_conversation(trigger, "Tick").run_id
+        )
+        for trigger in triggers
+    ]
+    for run in runs:
+        assert ChatRunHandler().claim_run(run.id) is not None
+    url = agent_url(agent, "triggers:item", trigger_id=triggers[0].id)
+
+    with django_capture_on_commit_callbacks(execute=True):
+        if change == "disable":
+            assert api_client.patch(url, {"enabled": False}).status_code == 200
+        else:
+            assert api_client.delete(url).status_code == 204
+
+    assert [stop_was_asked(run) for run in runs] == [True, False]
 
 
 @pytest.mark.django_db

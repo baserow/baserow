@@ -2206,6 +2206,8 @@
     "failureNotRun": "It didn't run.",
     "input": "Input",
     "inputTruncated": "This is a shortened preview of the input.",
+    "inputOmittedValues": "{count} value is too much to show and is left out. | {count} values are too much to show and are left out.",
+    "inputOmittedCharacters": "{count} character of long text is left out. | {count} characters of long text are left out.",
     "itemErrors": "Not done",
     "workspaceRunning": "Looking at your workspace",
     "workspaceDone": "Looked at your workspace",

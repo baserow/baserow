@@ -25,6 +25,16 @@ def new_conversation(content: str = "Hello\nworld") -> dict[str, str]:
     return {"uuid": str(uuid4()), "message_uuid": str(uuid4()), "content": content}
 
 
+def stop_was_asked(run: ChatRun) -> bool:
+    """Whether Stop reached the run, also when it ended without a worker."""
+
+    run.refresh_from_db()
+    return run.cancel_requested_at is not None or run.status not in (
+        "queued",
+        "running",
+    )
+
+
 def run_reply(run: ChatRun) -> None:
     """Answer the run like a worker, whose tasks never reuse a request's cache."""
 

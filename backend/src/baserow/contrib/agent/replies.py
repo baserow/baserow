@@ -400,8 +400,8 @@ class _StopCheckedToolset(WrapperToolset[None]):
 class _HeldMCPCallsToolset(WrapperToolset[None]):
     """
     Holds the calls to an MCP server's tools that wait for approval. The owner
-    decides on the call's arguments, credentials masked: the server's tools are
-    only known by the description it gave.
+    decides on every argument of the call, credentials masked: the server's
+    tools are only known by the description it gave.
     """
 
     is_held: Callable[[RunContext[None]], bool]

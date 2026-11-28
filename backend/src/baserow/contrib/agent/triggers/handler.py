@@ -26,6 +26,7 @@ from baserow.contrib.agent.signals import agent_conversation_activity
 from baserow.contrib.agent.types import AgentTriggerTypeOptions, AgentTriggerUpdated
 from baserow.contrib.agent.validators import AGENT_TEXT_MAX_LENGTH
 from baserow.core.chat_runs.constants import ChatRunErrorCode
+from baserow.core.chat_runs.handler import ChatRunHandler
 from baserow.core.chat_runs.models import ACTIVE_CHAT_RUN_STATUSES, ChatRun
 from baserow.core.formula import resolve_formula
 from baserow.core.formula.registries import formula_runtime_function_registry
@@ -335,6 +336,7 @@ class AgentTriggerHandler:
             )
         if "enabled" in changed_fields and not trigger.enabled:
             self.cancel_queued_replies(trigger)
+            self.stop_running_replies(trigger)
         if rearm:
             self.arm(trigger)
         if service_changed:
@@ -569,6 +571,20 @@ class AgentTriggerHandler:
         )
         for conversation in conversations:
             agent_conversation_activity.send(self, conversation=conversation, user=None)
+
+    def stop_running_replies(self, trigger: AgentTrigger) -> None:
+        """
+        Stop the trigger's unattended replies still being written, once the
+        trigger is switched off or trashed.
+
+        :param trigger: The trigger whose replies are stopped.
+        """
+
+        conversations = AgentConversation.objects_and_trash.filter(trigger=trigger)
+        ChatRunHandler().request_cancel_on_commit(
+            AGENT_RUN_TYPE,
+            Q(chat_id__in=conversations.values("id"), created_by__isnull=True),
+        )
 
     def _is_going(self) -> Q:
         """
