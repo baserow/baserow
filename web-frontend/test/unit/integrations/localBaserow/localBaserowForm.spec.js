@@ -165,12 +165,22 @@ describe('LocalBaserowForm', () => {
   })
 
   test('shows the current user as selected for a new integration', async () => {
-    const wrapper = await mountComponent({ name: 'Local Baserow' })
+    // What the create modal gives the form.
+    const wrapper = await mountComponent({
+      name: 'Local Baserow',
+      ...testApp
+        .getRegistry()
+        .get('integration', 'local_baserow')
+        .getDefaultValues(),
+    })
     await flushPromises()
 
     expect(wrapper.find('.dropdown__selected-text').text()).toBe(
       'localBaserowForm.currentUser'
     )
+    expect(
+      wrapper.findComponent({ name: 'PaginatedDropdown' }).props('value')
+    ).toBe('auth.User:1')
   })
 
   test('shows nothing selected for a saved integration without a subject', async () => {

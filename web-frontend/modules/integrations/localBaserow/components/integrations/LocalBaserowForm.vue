@@ -91,26 +91,13 @@ export default {
       const { workspace } = this.application
       return this.$hasPermission('identity.update', workspace, workspace.id)
     },
-    /**
-     * Whether a saved integration has nobody to act as, like after its user was
-     * deleted. A new integration has nobody yet either, but it is created for
-     * the current user.
-     */
-    isMissingSubject() {
-      return (
-        Boolean(this.defaultValues.id) && !this.defaultValues.authorized_subject
-      )
-    },
     initialSubjectName() {
       const subject = this.defaultValues.authorized_subject
-      // A trashed identity isn't selectable, and a saved integration without a
+      // A trashed identity isn't selectable, and an integration without a
       // subject acts as nobody, so show nothing selected and let the user pick
       // a subject.
-      if (subject?.trashed || this.isMissingSubject) {
+      if (!subject || subject.trashed) {
         return null
-      }
-      if (!subject) {
-        return this.$t('localBaserowForm.currentUser')
       }
       const subjectType = this.$registry.get('subject', subject.type)
       if (subjectType.isCurrentUser(subject, this.currentUserId)) {
@@ -119,15 +106,11 @@ export default {
       return subjectType.getDisplayName(subject)
     },
     authenticationSubject() {
-      const type = this.values.authorized_subject_type
-      if (this.values.authorized_subject_id === null && this.isMissingSubject) {
+      const { authorized_subject_id: id, authorized_subject_type: type } =
+        this.values
+      if (!id) {
         return null
       }
-      const id =
-        type === UserSubjectType.getType() &&
-        this.values.authorized_subject_id === null
-          ? this.currentUserId
-          : this.values.authorized_subject_id
       return this.$registry.get('subject', type).getKey({ id })
     },
   },
