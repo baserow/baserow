@@ -522,6 +522,31 @@ describe('Agent tool presentations', () => {
     expect(toolActivity(data, registry, t).input.truncated).toBe(true)
   })
 
+  test('a held request too large to store says what it leaves out', () => {
+    const values = { table: 'Accounts', rows: [{ Name: 'Row 1' }] }
+    const held = (input) =>
+      toolActivity(
+        step('create_rows', 'waiting', {
+          input: { requested_count: 2, values, ...input },
+        }),
+        registry,
+        t
+      ).input
+
+    expect(
+      held({ truncated: true, omitted_values: 1, omitted_characters: 900 })
+    ).toEqual({
+      values,
+      truncated: true,
+      omittedValues: 1,
+      omittedCharacters: 900,
+    })
+    expect(
+      held({ truncated: true, omitted_values: -1, omitted_characters: '9' })
+    ).toEqual({ values, truncated: true })
+    expect(held({ omitted_values: 1 })).toEqual({ values, truncated: false })
+  })
+
   test.each([null, [], { requested_count: -1 }, { requested_count: '3' }])(
     'malformed summaries retain a tool-specific action label: %j',
     (input) => {

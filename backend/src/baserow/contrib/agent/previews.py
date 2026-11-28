@@ -1,20 +1,43 @@
 """
 Readable requests of the Agent's tools: values masked and lists cut to what
-people can read.
+people can read, or shown whole to the person deciding on a held call.
 """
 
 import re
+from collections.abc import Iterator
+from contextlib import contextmanager
+from contextvars import ContextVar
 from dataclasses import dataclass
 from dataclasses import field as dataclass_field
 from typing import Any
 
 from pydantic import BaseModel
 
-from baserow.core.chat_runs.tool_input import tool_input_preview
+from baserow.core.chat_runs.tool_input import held_tool_input, tool_input_preview
 
 MAX_PREVIEW_ITEMS = 10
 MAX_PREVIEW_KEYS = 10
 MASKED_VALUE = "••••"
+
+_held = ContextVar("agent_held_preview", default=False)
+
+
+@contextmanager
+def held_previews(held: bool = True) -> Iterator[None]:
+    """
+    Build the previews made inside for a call that waits for approval, or was
+    approved: every requested item is named and every value shown whole, as the
+    call sends it.
+
+    :param held: Whether the call is held. A call that runs directly keeps the
+        bounded preview.
+    """
+
+    token = _held.set(held)
+    try:
+        yield
+    finally:
+        _held.reset(token)
 
 
 @dataclass
@@ -29,14 +52,19 @@ class StepPreview:
     items: list[Any] = dataclass_field(default_factory=list)
     truncated: bool = False
     """Whether items or keys were left out."""
+    held: bool = dataclass_field(default_factory=_held.get)
+    """Whether it's for a held call, whose values are all shown."""
 
     def cut_items(self, items: list[Any]) -> list[Any]:
         """
         :param items: The requested items, before their names are resolved.
-        :return: The first ``MAX_PREVIEW_ITEMS`` of them, the only ones resolved.
-            The preview is marked as cut when there are more.
+        :return: The first ``MAX_PREVIEW_ITEMS`` of them, the only ones resolved,
+            or all of them for a held call. The preview is marked as cut when
+            items are left out.
         """
 
+        if self.held:
+            return items
         if len(items) > MAX_PREVIEW_ITEMS:
             self.truncated = True
         return items[:MAX_PREVIEW_ITEMS]
@@ -50,9 +78,17 @@ class StepPreview:
         fits, so the names always stay. When no item fits, the items are left out
         entirely rather than shown as an empty list.
 
+        A held call's preview is stored whole instead, as ``held_tool_input``
+        bounds it.
+
         :return: ``values``, and ``truncated`` when anything was left out.
         """
 
+        if self.held:
+            values = dict(self.names)
+            if self.items_key is not None:
+                values[self.items_key] = self.items
+            return held_tool_input(values)
         items = cut(self.items)
         truncated = self.truncated or items != self.items
         while True:
@@ -69,12 +105,65 @@ class StepPreview:
         return bounded
 
 
-# Argument names that may hold a credential, masked in what the owner approves.
-_SECRET_NAME = re.compile(
-    r"pass(word|phrase)?|secret|token|api[_-]?key|authori[sz]ation|credential"
-    r"|private[_-]?key|cookie",
-    re.IGNORECASE,
+# The words of an argument name that may hold a credential, masked in what the
+# owner approves. A name is split into words on anything but letters and digits
+# and on camelCase, so ``passenger`` or ``max_tokens`` stay readable.
+_NAME_WORD = re.compile(r"[A-Z]+(?![a-z])|[A-Z]?[a-z]+|\d+")
+_SECRET_WORDS = frozenset(
+    {
+        "pass",
+        "passwd",
+        "password",
+        "passphrase",
+        "secret",
+        "secrets",
+        "token",
+        "apikey",
+        "authorization",
+        "authorisation",
+        "credential",
+        "credentials",
+        "cookie",
+        "cookies",
+        "privatekey",
+    }
 )
+_SECRET_WORD_PAIRS = frozenset({("api", "key"), ("private", "key")})
+# Words that end a single-word name such as ``accesstoken`` or ``clientsecret``.
+_SECRET_ENDINGS = (
+    "password",
+    "passphrase",
+    "secret",
+    "token",
+    "apikey",
+    "privatekey",
+    "credential",
+    "credentials",
+)
+
+
+# A name that starts with one of these counts or limits something, such as
+# ``max_tokens``, so it holds no credential.
+_COUNT_WORDS = frozenset({"max", "min", "num", "count", "total"})
+
+
+def _singular(word: str) -> str:
+    return word[:-1] if word.endswith("s") and not word.endswith("ss") else word
+
+
+def is_secret_name(name: str) -> bool:
+    """
+    :param name: An argument's name.
+    :return: Whether one of its words, singular or plural, or two that follow
+        each other like ``api`` and ``key``, names a credential.
+    """
+
+    words = [_singular(word.lower()) for word in _NAME_WORD.findall(name)]
+    if not words or words[0] in _COUNT_WORDS:
+        return False
+    return any(
+        word in _SECRET_WORDS or word.endswith(_SECRET_ENDINGS) for word in words
+    ) or not _SECRET_WORD_PAIRS.isdisjoint(zip(words, words[1:]))
 
 
 def mask_secrets(value: Any) -> Any:
@@ -87,7 +176,7 @@ def mask_secrets(value: Any) -> Any:
     if isinstance(value, dict):
         return {
             key: MASKED_VALUE
-            if isinstance(key, str) and _SECRET_NAME.search(key)
+            if isinstance(key, str) and is_secret_name(key)
             else mask_secrets(item)
             for key, item in value.items()
         }
@@ -99,13 +188,11 @@ def mask_secrets(value: Any) -> Any:
 def arguments_preview(arguments: dict[str, Any]) -> dict[str, Any]:
     """
     :param arguments: The arguments of a call to a tool Baserow doesn't know.
-    :return: The call's readable request for the step's input: the arguments,
-        credentials masked and bounded like every preview.
+    :return: The held call's request for the step's input: every argument whole,
+        credentials masked, as ``held_tool_input`` bounds it.
     """
 
-    masked = mask_secrets(arguments)
-    values = cut(masked)
-    return StepPreview(names=values, truncated=values != masked).to_input()
+    return held_tool_input(mask_secrets(arguments))
 
 
 def cut(value: Any) -> Any:

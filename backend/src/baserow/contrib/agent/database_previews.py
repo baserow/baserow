@@ -5,7 +5,9 @@ before a call runs.
 
 from typing import Any
 
-from baserow.contrib.database.fields.models import Field
+from django.db.models import Count
+
+from baserow.contrib.database.fields.models import Field, SelectOption
 from baserow.contrib.database.fields.operations import ListFieldsOperationType
 from baserow.contrib.database.fields.registries import field_type_registry
 from baserow.contrib.database.rows.handler import RowHandler
@@ -15,8 +17,11 @@ from baserow.contrib.database.table.operations import (
     ListRowsDatabaseTableOperationType,
 )
 from baserow.contrib.database.tools.tables import get_database, permitted_tables
+from baserow.core.db import specific_iterator
 from baserow.core.exceptions import ApplicationDoesNotExist
 from baserow.core.tools import ToolContext
+
+SELECT_FIELD_TYPES = ("single_select", "multiple_select")
 
 
 def table_reference(
@@ -111,6 +116,88 @@ def named_fields(
         for found_field in found
         if found_field.table_id in permitted
     }
+
+
+def select_option_usage(
+    ctx: ToolContext, option_ids: dict[int, list[int]]
+) -> dict[int, dict[int, tuple[str, int | None]]]:
+    """
+    Resolve the options a field update renames or removes, with one row count
+    query per field however many options it names.
+
+    :param ctx: The Agent identity and its workspace.
+    :param option_ids: The option IDs a call names, by select field ID.
+    :return: Each option's current value and the number of rows using it, by
+        option ID, by field ID. The count is None when the identity may not list the table's
+        rows. Options of fields the identity can't see, or that aren't the
+        field's, are left out, so they keep their IDs.
+    """
+
+    if not option_ids:
+        return {}
+    listed = TableHandler().list_workspace_tables(ctx.user, ctx.workspace)
+    found = [
+        found_field
+        for found_field in specific_iterator(
+            Field.objects.filter(id__in=option_ids, table__in=listed).select_related(
+                "table"
+            )
+        )
+        if field_type_registry.get_by_model(found_field).type in SELECT_FIELD_TYPES
+    ]
+    if not found:
+        return {}
+    tables = {found_field.table_id: found_field.table for found_field in found}
+    visible = {
+        table.id
+        for table in permitted_tables(
+            ctx, tables.values(), ListFieldsOperationType.type
+        )
+    }
+    readable = {
+        table.id
+        for table in permitted_tables(
+            ctx,
+            [tables[table_id] for table_id in visible],
+            ListRowsDatabaseTableOperationType.type,
+        )
+    }
+    found = [found_field for found_field in found if found_field.table_id in visible]
+    options = SelectOption.objects.filter(
+        field__in=found,
+        id__in=[option_id for ids in option_ids.values() for option_id in ids],
+    ).values_list("id", "field_id", "value")
+    names = {option_id: (field_id, value) for option_id, field_id, value in options}
+
+    usage = {}
+    for found_field in found:
+        named = [
+            option_id
+            for option_id in option_ids[found_field.id]
+            if names.get(option_id, (None,))[0] == found_field.id
+        ]
+        if not named:
+            continue
+        counts = None
+        if found_field.table_id in readable:
+            model = found_field.table.get_model(
+                fields=[found_field], field_ids=[], add_dependencies=False
+            )
+            column = found_field.db_column
+            counts = dict(
+                model.objects.filter(**{f"{column}__in": named})
+                .values_list(column)
+                .annotate(count=Count("id", distinct=True))
+                .order_by()
+            )
+        usage[found_field.id] = {
+            option_id: (
+                names[option_id][1],
+                None if counts is None else counts.get(option_id, 0),
+            )
+            for option_id in named
+        }
+    return usage
 
 
 def table_field_names(ctx: ToolContext, table: Table) -> dict[int, str]:

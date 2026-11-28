@@ -28,7 +28,7 @@ from baserow.core.tools.errors import (
     describe_failure,
 )
 
-from .previews import StepPreview, as_requested
+from .previews import StepPreview, as_requested, held_previews
 
 
 def act_as_identity(ctx: ToolContext) -> ToolContext:
@@ -115,6 +115,7 @@ def _call_tool(
     ctx: ToolContext,
     arguments: dict[str, Any],
     show_input: Callable[[dict[str, Any]], None],
+    approved: bool = False,
 ) -> ToolReturn:
     """
     Show the call's readable request, run the shared tool, and answer an error
@@ -124,6 +125,8 @@ def _call_tool(
     :param ctx: Who the tool acts for.
     :param arguments: The validated arguments.
     :param show_input: Adds the readable request to the call's step.
+    :param approved: Whether the call was held and approved, so its step keeps
+        showing every value.
     :return: The result with ``facts`` as metadata, the ``error`` the tool
         returned, or an ``error`` for an exception with ``error_code``.
     """
@@ -133,7 +136,7 @@ def _call_tool(
         with local_cache.context():
             tool_type.raise_if_deactivated(ctx.workspace)
             ctx = act_as_identity(ctx)
-            if preview := tool_type.get_step_preview_input(ctx, arguments):
+            if preview := tool_type.get_step_preview_input(ctx, arguments, approved):
                 show_input(preview)
             result = function(ctx, **arguments)
             if isinstance(result, dict) and "error" in result:
@@ -168,7 +171,7 @@ def hold_call(
 ) -> ToolReturn:
     """
     Hold a call for the owner's approval with its request named as the Agent
-    identity, so the owner decides on names, not IDs.
+    identity, so the owner decides on names, not IDs, and reads every value.
 
     :param tool_type: The held tool.
     :param ctx: Who the call acts for.
@@ -183,7 +186,7 @@ def hold_call(
         with local_cache.context():
             tool_type.raise_if_deactivated(ctx.workspace)
             ctx = act_as_identity(ctx)
-            if preview := tool_type.get_step_preview_input(ctx, arguments):
+            if preview := tool_type.get_step_preview_input(ctx, arguments, True):
                 show_input(preview)
     except Exception as exc:
         return failed_call(tool_type, exc)
@@ -209,7 +212,13 @@ async def _run_tool(
     """
 
     return await shield_tool_call(
-        sync_to_async(_call_tool)(tool_type, ctx, arguments, input_shower(run_ctx))
+        sync_to_async(_call_tool)(
+            tool_type,
+            ctx,
+            arguments,
+            input_shower(run_ctx),
+            run_ctx.tool_call_approved,
+        )
     )
 
 
@@ -322,7 +331,7 @@ class AgentToolType(Instance):
         return None
 
     def get_step_preview_input(
-        self, ctx: ToolContext, arguments: dict[str, Any]
+        self, ctx: ToolContext, arguments: dict[str, Any], held: bool = False
     ) -> dict[str, Any]:
         """
         The readable request as the step's input stores it, without letting a
@@ -330,14 +339,18 @@ class AgentToolType(Instance):
 
         :param ctx: Who the call acts for, already refreshed.
         :param arguments: The validated arguments.
+        :param held: Whether the call waits for approval or was approved: its
+            approver reads every value, so nothing is cut but what the stored
+            input can't hold.
         :return: ``values`` and, when part of the request was left out,
             ``truncated``; nothing for a tool without a preview, or when it can't
             be built.
         """
 
         try:
-            preview = self.get_step_preview(ctx, as_requested(arguments))
-            return {} if preview is None else preview.to_input()
+            with held_previews(held):
+                preview = self.get_step_preview(ctx, as_requested(arguments))
+                return {} if preview is None else preview.to_input()
         except Exception as exc:
             if classify_tool_error(exc).message is None:
                 logger.error(

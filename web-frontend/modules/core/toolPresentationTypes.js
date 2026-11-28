@@ -159,9 +159,22 @@ function toolInput(presenter, step, t) {
   try {
     const input = presenter.getInput(step, t)
     const values = record(input?.values)
-    return Object.keys(values).length
-      ? { values, truncated: input.truncated === true }
-      : null
+    if (!Object.keys(values).length) return null
+    const shown = { values, truncated: input.truncated === true }
+    // What a held call's input too large to store whole leaves out.
+    for (const [key, name] of [
+      ['omitted_values', 'omittedValues'],
+      ['omitted_characters', 'omittedCharacters'],
+    ]) {
+      if (
+        shown.truncated &&
+        Number.isSafeInteger(input[key]) &&
+        input[key] > 0
+      ) {
+        shown[name] = input[key]
+      }
+    }
+    return shown
   } catch {
     return null
   }

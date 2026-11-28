@@ -16,9 +16,13 @@ from freezegun import freeze_time
 from pydantic import ValidationError
 from pydantic_ai import ToolReturn
 
+from baserow.contrib.agent import database_previews
 from baserow.contrib.agent.database_previews import table_reference
 from baserow.contrib.agent.previews import StepPreview
 from baserow.contrib.agent.registries import AgentToolType, agent_tool_type_registry
+from baserow.contrib.database.table.operations import (
+    ListRowsDatabaseTableOperationType,
+)
 from baserow.contrib.database.views.models import FormView
 from baserow.core.chat_runs.steps import ToolCallInputEvent
 from baserow.core.chat_runs.tool_input import MAX_INPUT_PREVIEW_SIZE
@@ -152,6 +156,8 @@ def person_ctx(workspace_data, data_fixture) -> ToolContext:
 
 class ModelRun:
     """The model run a tool streams its readable request to."""
+
+    tool_call_approved = False
 
     def __init__(self) -> None:
         self.input: dict = {}
@@ -710,6 +716,77 @@ def test_a_field_that_cannot_be_named_keeps_its_id_and_fails_alone(
     }
     assert updated == {
         "values": {"fields": [{"field_id": hidden.id, "changes": {"name": "Leak"}}]}
+    }
+
+
+@pytest.mark.django_db
+def test_option_updates_name_the_options_and_the_rows_they_change(
+    workspace_data, data_fixture, mocker
+):
+    table = workspace_data.table
+    status = data_fixture.create_single_select_field(table=table, name="Status")
+    todo = data_fixture.create_select_option(field=status, value="Todo")
+    done = data_fixture.create_select_option(field=status, value="Done")
+    doing = data_fixture.create_select_option(field=status, value="Doing")
+    tags = data_fixture.create_multiple_select_field(table=table, name="Tags")
+    urgent = data_fixture.create_select_option(field=tags, value="Urgent")
+    other = data_fixture.create_select_option(field=tags, value="Other")
+    model = table.get_model()
+    for value in [todo, todo, todo, done, None]:
+        model.objects.create(**{f"field_{status.id}": value})
+    model.objects.create(**{f"field_{status.id}": done, "trashed": True})
+    for values in [[urgent.id, other.id], [urgent.id], [other.id]]:
+        getattr(model.objects.create(), f"field_{tags.id}").set(values)
+    arguments = {
+        "fields": [
+            {
+                "field_id": status.id,
+                "update_options": [
+                    {"id": todo.id, "value": "Blocked"},
+                    {"id": doing.id, "color": "red"},
+                    {"id": urgent.id, "value": "Elsewhere"},
+                ],
+                "remove_options": [done.id, 999999],
+            },
+            {"field_id": tags.id, "remove_options": [urgent.id]},
+        ]
+    }
+
+    preview = preview_of("update_fields", workspace_data.ctx, arguments)
+
+    reference = {"table": "Tasks", "database": "Work"}
+    assert preview["values"]["fields"] == [
+        {
+            "field": "Status",
+            **reference,
+            "changes": {
+                "update_options": [
+                    "Rename option Todo → Blocked (used by 3 rows)",
+                    "Recolor option Doing to red",
+                    {"id": urgent.id, "value": "Elsewhere"},
+                ],
+                "remove_options": ["Remove option Done (used by 1 row)", 999999],
+            },
+        },
+        {
+            "field": "Tags",
+            **reference,
+            "changes": {"remove_options": ["Remove option Urgent (used by 2 rows)"]},
+        },
+    ]
+
+    original = database_previews.permitted_tables
+    mocker.patch(
+        "baserow.contrib.agent.database_previews.permitted_tables",
+        side_effect=lambda ctx, tables, operation: (
+            []
+            if operation == ListRowsDatabaseTableOperationType.type
+            else original(ctx, tables, operation)
+        ),
+    )
+    hidden = preview_of("update_fields", workspace_data.ctx, arguments)
+    assert hidden["values"]["fields"][1]["changes"] == {
+        "remove_options": ["Remove option Urgent"]
     }
 
 

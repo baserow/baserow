@@ -11,6 +11,7 @@ from .database_previews import (
     named_fields,
     readable_names,
     row_names,
+    select_option_usage,
     table_field_names,
     table_names,
     table_reference,
@@ -67,6 +68,59 @@ def _named_link(request: dict[str, Any], names: dict[int, str]) -> dict[str, Any
     if isinstance(linked, int) and linked in names:
         return {**request, "linked_table": names[linked]}
     return request
+
+
+def _rows_using(count: int | None) -> str:
+    """
+    :param count: The rows using an option, or None when the identity can't
+        count them.
+    :return: How many rows a change of the option affects, or nothing.
+    """
+
+    if count is None:
+        return ""
+    return f" (used by {count} {'row' if count == 1 else 'rows'})"
+
+
+def _described_options(
+    changes: dict[str, Any], usage: dict[int, tuple[str, int | None]]
+) -> dict[str, Any]:
+    """
+    Name the options a field update renames, recolors or removes, with the rows
+    that use them, as both change existing cells.
+
+    :param changes: A requested field update, without its field.
+    :param usage: The current value and row count of the field's options the
+        identity can see, by option ID.
+    :return: The update, its known options described and the others as written.
+    """
+
+    def updated(option: dict[str, Any]) -> Any:
+        if option["id"] not in usage:
+            return option
+        name, count = usage[option["id"]]
+        value, color = option.get("value"), option.get("color")
+        if value is None or value == name:
+            return f"Recolor option {name} to {color}" if color else option
+        recolor = f" and recolor it {color}" if color else ""
+        return f"Rename option {name} → {value}{recolor}{_rows_using(count)}"
+
+    def removed(option_id: Any) -> Any:
+        if option_id not in usage:
+            return option_id
+        name, count = usage[option_id]
+        return f"Remove option {name}{_rows_using(count)}"
+
+    described = dict(changes)
+    if changes.get("update_options"):
+        described["update_options"] = [
+            updated(option) for option in changes["update_options"]
+        ]
+    if changes.get("remove_options"):
+        described["remove_options"] = [
+            removed(option_id) for option_id in changes["remove_options"]
+        ]
+    return described
 
 
 class DatabaseAgentToolType(AgentToolType):
@@ -262,10 +316,27 @@ class UpdateFieldsAgentToolType(DatabaseAgentToolType):
         preview = StepPreview({}, "fields")
         updates = preview.cut_items(arguments["fields"])
         names = named_fields(ctx, [update["field_id"] for update in updates])
+        option_ids: dict[int, list[int]] = {}
+        for update in updates:
+            if update["field_id"] in names:
+                option_ids.setdefault(update["field_id"], []).extend(
+                    [
+                        *(
+                            option["id"]
+                            for option in update.get("update_options") or []
+                        ),
+                        *(update.get("remove_options") or []),
+                    ]
+                )
+        usage = select_option_usage(
+            ctx, {field_id: ids for field_id, ids in option_ids.items() if ids}
+        )
         preview.items = [
             {
                 **_field_reference(update["field_id"], names),
-                "changes": _without(update, "field_id"),
+                "changes": _described_options(
+                    _without(update, "field_id"), usage.get(update["field_id"], {})
+                ),
             }
             for update in updates
         ]
